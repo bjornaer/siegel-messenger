@@ -44,7 +44,10 @@ Can read the database, object store, backups, memory and logs, and change server
 
 On-path between phone and server.
 
-- TLS 1.3 only (ARCH-02) plus certificate pinning with a backup pin (SEC-06, client work).
+- TLS 1.3 only (ARCH-02) plus pinning (SEC-06): the client trusts only Let's Encrypt's ISRG roots
+  (X1, X2, YE, YR), not the OS store, so a rogue or compromised other CA, or an interception proxy,
+  cannot impersonate the server. Pins are on roots because autocert rotates the leaf key at every
+  renewal. Residual risk: Let's Encrypt itself mis-issuing for our domain.
 - Sees connection timing and sizes. Padding hides exact lengths (CRY-05, MED-02); traffic analysis is
   otherwise out of scope for v1.
 - Production sets `SIEGEL_DOMAIN`: TLS 1.3 only with Let's Encrypt certificates (autocert). Without it
