@@ -44,9 +44,32 @@ jobs:
           --ignore github.com/bjornaer/siegel-messenger
           --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Zlib,0BSD,Unlicense,AGPL-3.0,GPL-3.0,LGPL-2.1,LGPL-3.0
 
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install stable --profile minimal -c clippy,rustfmt
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            core/target
+          key: core-${{ hashFiles('core/Cargo.lock') }}
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      # ponytail: e2e test (core-api/tests/e2e.rs) skips here; run it against the compose stack once CI starts one.
+      - run: cargo test
+      - name: licences and advisories (SEC-07, D15)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: core/Cargo.toml
+
   # Deploys main to Hetzner once CI is green. Inert until the DEPLOY_HOST variable is set (docs/deploy.md).
   deploy:
-    needs: server
+    needs: [server, core]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
     runs-on: ubuntu-latest
     concurrency: deploy
