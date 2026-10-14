@@ -1,7 +1,9 @@
 //! Server API client: Connect protocol, unary calls, protobuf bodies (SRV-02).
-//! ponytail: no TLS pinning yet (SEC-06); add rustls pinned verifier before beta.
+
+use std::sync::Arc;
 
 use prost::Message;
+use rustls::pki_types::{CertificateDer, pem::PemObject};
 
 pub mod pb {
     include!(concat!(env!("OUT_DIR"), "/siegel.v1.rs"));
@@ -25,10 +27,40 @@ pub struct Client {
     base: String,
 }
 
+/// SEC-06 pins: the server's certificate comes from Let's Encrypt, whose leaf key rotates on
+/// every renewal, so we pin the CA roots instead. X1 and X2 chain today's certificates; YE and
+/// YR are the next-generation roots, kept so the app survives when the cross-signs expire.
+/// No other CA is trusted, which blocks rogue-CA and interception-proxy certificates.
+const PINNED_ROOTS: [&[u8]; 4] = [
+    include_bytes!("../certs/isrg-root-x1.pem"),
+    include_bytes!("../certs/isrg-root-x2.pem"),
+    include_bytes!("../certs/isrg-root-ye.pem"),
+    include_bytes!("../certs/isrg-root-yr.pem"),
+];
+
+fn pinned_tls() -> rustls::ClientConfig {
+    let mut roots = rustls::RootCertStore::empty();
+    for pem in PINNED_ROOTS {
+        roots
+            .add(CertificateDer::from_pem_slice(pem).expect("bundled root"))
+            .expect("valid root");
+    }
+    rustls::ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+        .with_protocol_versions(&[&rustls::version::TLS13]) // ARCH-02: the server is TLS 1.3 only
+        .expect("TLS 1.3")
+        .with_root_certificates(roots)
+        .with_no_client_auth()
+}
+
 impl Client {
+    /// `https` bases get the pinned TLS config; `http` is for the local dev server only.
     pub fn new(base: &str) -> Self {
+        let mut b = reqwest::Client::builder();
+        if base.starts_with("https://") {
+            b = b.use_preconfigured_tls(pinned_tls());
+        }
         Self {
-            http: reqwest::Client::new(),
+            http: b.build().expect("http client"),
             base: base.trim_end_matches('/').into(),
         }
     }
@@ -125,5 +157,33 @@ impl Client {
         )
         .await
         .map(|_| ())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pins_parse() {
+        let _ = pinned_tls();
+    }
+
+    // Needs the network: cargo test -p core-net -- --ignored
+    #[tokio::test]
+    #[ignore]
+    async fn pinning_accepts_our_server_and_rejects_other_cas() {
+        let ours = Client::new("https://siegel.schlk.in");
+        assert_eq!(
+            ours.request_otp("0034", "").await.unwrap_err().code,
+            "phone_invalid",
+            "reached our server"
+        );
+        let other = Client::new("https://www.google.com"); // Google Trust Services, not Let's Encrypt
+        assert_eq!(
+            other.request_otp("0034", "").await.unwrap_err().code,
+            "network",
+            "foreign CA rejected"
+        );
     }
 }
