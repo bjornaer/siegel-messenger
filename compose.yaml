@@ -42,7 +42,8 @@ services:
     environment:
       SIEGEL_DEV: ${SIEGEL_DEV:-1}
       SIEGEL_DOMAIN: ${SIEGEL_DOMAIN:-}
-      SIEGEL_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-siegel}@postgres:5432/siegel
+      SIEGEL_DATABASE_URL: postgres://postgres@postgres:5432/siegel
+      PGPASSWORD: ${POSTGRES_PASSWORD:-siegel} # separate var: base64 passwords contain "/" and "+", which break URLs
       SIEGEL_BAO_ADDR: ${SIEGEL_BAO_ADDR:-http://openbao:8200}
       SIEGEL_BAO_TOKEN: ${SIEGEL_BAO_TOKEN:-dev-root}
       SIEGEL_GATEWAYAPI_TOKEN: ${SIEGEL_GATEWAYAPI_TOKEN:-}
