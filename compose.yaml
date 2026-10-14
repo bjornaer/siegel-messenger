@@ -1,5 +1,7 @@
 # Full stack: docker compose up -d --build
 # Secrets come from .env (see .env.example). Unset values fall back to dev-only defaults.
+# Profile "localbao" runs a throwaway in-memory OpenBao for development (COMPOSE_PROFILES=localbao).
+# Production points SIEGEL_BAO_ADDR at the separate OpenBao server instead (docs/deploy.md).
 # Backups: one copy each in ${BACKUP_DIR}, overwritten every BACKUP_INTERVAL seconds.
 # Keep the interval <= 24h so deleted account data ages out of backups too (ID-16, section 10 retention).
 
@@ -37,12 +39,36 @@ services:
     restart: unless-stopped
     environment:
       SIEGEL_DEV: ${SIEGEL_DEV:-1}
+      SIEGEL_DOMAIN: ${SIEGEL_DOMAIN:-}
       SIEGEL_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-siegel}@postgres:5432/siegel
-      SIEGEL_PHONE_PEPPER: ${SIEGEL_PHONE_PEPPER:-}
-      SIEGEL_AS_SEED: ${SIEGEL_AS_SEED:-}
-    ports: ["${SIEGEL_PORT:-58080}:8080"]
+      SIEGEL_BAO_ADDR: ${SIEGEL_BAO_ADDR:-http://openbao:8200}
+      SIEGEL_BAO_TOKEN: ${SIEGEL_BAO_TOKEN:-dev-root}
+      SIEGEL_GATEWAYAPI_TOKEN: ${SIEGEL_GATEWAYAPI_TOKEN:-}
+      SIEGEL_DENY_PREFIXES: ${SIEGEL_DENY_PREFIXES:-}
+      SIEGEL_SMS_DAILY_CAP: ${SIEGEL_SMS_DAILY_CAP:-1000}
+    ports:
+      - "${SIEGEL_HTTP_PORT:-58080}:8080"   # plain API without SIEGEL_DOMAIN; ACME + HTTPS redirect with it
+      - "${SIEGEL_HTTPS_PORT:-58443}:8443"  # TLS 1.3, Let's Encrypt (ARCH-02)
+    volumes: [certs:/certs]
     depends_on:
       postgres: {condition: service_healthy}
+      bao-init: {condition: service_completed_successfully, required: false}
+
+  openbao: # dev only: in-memory, keys vanish on restart (local accounts then become unreachable)
+    image: openbao/openbao:2.4.1
+    profiles: [localbao]
+    command: server -dev -dev-root-token-id=dev-root -dev-listen-address=0.0.0.0:8200
+    ports: ["127.0.0.1:58200:8200"]
+
+  bao-init:
+    image: openbao/openbao:2.4.1
+    profiles: [localbao]
+    environment:
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: dev-root
+    entrypoint: ["sh", "-c", "until bao status >/dev/null 2>&1; do sleep 1; done; exec /bao-setup.sh"]
+    volumes: ["./scripts/bao-setup.sh:/bao-setup.sh:ro"]
+    depends_on: [openbao]
 
   postgres-backup:
     image: postgres:18.0-alpine
@@ -89,3 +115,4 @@ services:
 volumes:
   pgdata:
   s3data:
+  certs:
