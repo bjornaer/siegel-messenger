@@ -1,0 +1,21 @@
+# Local stack: docker compose up. SMS and attestation are dev stubs (SIEGEL_DEV=1).
+# ponytail: S3-compatible store and push stub join when M2/M4 need them.
+services:
+  postgres:
+    image: postgres:18.0-alpine
+    environment:
+      POSTGRES_PASSWORD: siegel
+      POSTGRES_DB: siegel
+    ports: ["55432:5432"]
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 1s
+      retries: 30
+  server:
+    build: server
+    environment:
+      SIEGEL_DEV: "1"
+      SIEGEL_DATABASE_URL: postgres://postgres:siegel@postgres:5432/siegel
+    ports: ["58080:8080"]
+    depends_on:
+      postgres: {condition: service_healthy}
