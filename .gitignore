@@ -3,3 +3,7 @@ CLAUDE.md
 CLAUDE.local.md
 .claude/
 implementation-status.json
+
+# Local secrets and backups
+.env
+backups/
