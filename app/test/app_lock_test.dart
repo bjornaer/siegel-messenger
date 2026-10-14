@@ -9,6 +9,10 @@ void main() {
     expect(shouldLock(timeout: 60, leftAt: null, now: now), isTrue, reason: 'cold start');
     expect(shouldLock(timeout: 60, leftAt: ago(59), now: now), isFalse);
     expect(shouldLock(timeout: 60, leftAt: ago(60), now: now), isTrue);
-    expect(shouldLock(timeout: 0, leftAt: ago(0), now: now), isTrue, reason: 'immediately');
+    expect(
+      shouldLock(timeout: 0, leftAt: ago(0), now: now),
+      isTrue,
+      reason: 'immediately',
+    );
   });
 }

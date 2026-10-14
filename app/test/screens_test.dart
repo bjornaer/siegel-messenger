@@ -1,0 +1,198 @@
+// Widget tests for every screen built so far (section 15: Flutter tests per screen), against a
+// fake core. Real network and storage paths are covered by core-api/tests/e2e.rs.
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:siegel/app_lock.dart';
+import 'package:siegel/l10n/app_localizations.dart';
+import 'package:siegel/main.dart';
+import 'package:siegel/onboarding.dart';
+import 'package:siegel/src/rust/api/core.dart';
+
+class FakeCore implements Core {
+  bool registered = false;
+  String? name;
+  String? user;
+  final settings = <String, String>{};
+  final calls = <String>[];
+  final failNext = <String, String>{}; // method -> CoreError code, thrown once
+
+  Future<void> _maybeFail(String method) async {
+    calls.add(method);
+    final code = failNext.remove(method);
+    if (code != null) throw CoreError(code: code);
+  }
+
+  @override
+  Future<void> requestOtp({required String phoneE164, required String attestationToken}) =>
+      _maybeFail('requestOtp $phoneE164');
+  @override
+  Future<bool> verify({
+    required String phoneE164,
+    required String otp,
+    required String pin,
+    required DevicePlatform platform,
+  }) async {
+    await _maybeFail('verify $otp $pin');
+    registered = true;
+    return false;
+  }
+
+  @override
+  Future<void> setUsername({required String username}) async {
+    await _maybeFail('setUsername $username');
+    user = username;
+  }
+
+  @override
+  Future<void> setRegistrationLock({required String pin}) => _maybeFail('setRegistrationLock $pin');
+  @override
+  Future<void> deleteAccount() => _maybeFail('deleteAccount');
+  @override
+  bool isRegistered() => registered;
+  @override
+  String? username() => user;
+  @override
+  String? displayName() => name;
+  @override
+  void setDisplayName({required String name}) => this.name = name;
+  @override
+  String? setting({required String key}) => settings[key];
+  @override
+  void setSetting({required String key, required String value}) => settings[key] = value;
+  @override
+  void dispose() {}
+  @override
+  bool get isDisposed => false;
+}
+
+Widget wrap(Widget child) => MaterialApp(
+  localizationsDelegates: const [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ],
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: child,
+);
+
+Future<void> tapText(WidgetTester t, String text) async {
+  await t.tap(find.text(text));
+  await t.pumpAndSettle();
+}
+
+Future<void> enter(WidgetTester t, String label, String value) async {
+  await t.enterText(find.widgetWithText(TextField, label), value);
+  await t.pump();
+}
+
+/// Drives welcome -> phone -> code.
+Future<void> toCodeScreen(WidgetTester t, FakeCore core) async {
+  await tapText(t, 'Continue');
+  final send = find.widgetWithText(FilledButton, 'Send code');
+  await enter(t, 'Your phone number', '+34 611 22 33 44');
+  expect(find.text('I am at least 14 years old'), findsOneWidget, reason: 'CMP-02: Spain is 14');
+  expect(t.widget<FilledButton>(send).onPressed, isNull, reason: 'age gate blocks sending');
+  await tapText(t, 'I am at least 14 years old');
+  await tapText(t, 'Send code');
+  expect(core.calls.last, 'requestOtp +34611223344', reason: 'ID-01: E.164');
+  expect(find.textContaining('Enter the 6-digit code'), findsOneWidget);
+}
+
+void main() {
+  testWidgets('onboarding happy path: welcome, phone, code, profile, PIN', (t) async {
+    final core = FakeCore();
+    var done = false;
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () => done = true)));
+    expect(find.textContaining('stored only on this phone'), findsOneWidget, reason: 'ID-14');
+
+    await toCodeScreen(t, core);
+    await enter(t, 'Code', '123456');
+    await tapText(t, 'Verify');
+    expect(core.calls.last, 'verify 123456 ');
+
+    await enter(t, '@username', 'ana.b');
+    await enter(t, 'Display name', 'Ana');
+    await tapText(t, 'Save');
+    expect((core.user, core.name), ('ana.b', 'Ana'));
+
+    await enter(t, '4-digit PIN', '1234');
+    await tapText(t, 'Set PIN');
+    expect(core.calls.last, 'setRegistrationLock 1234');
+    expect(done, isTrue);
+  });
+
+  testWidgets('wrong code shows an error; Registration Lock asks for the PIN (ID-10)', (t) async {
+    final core = FakeCore();
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () {})));
+    await toCodeScreen(t, core);
+    await enter(t, 'Code', '000000');
+
+    core.failNext['verify 000000 '] = 'otp_invalid';
+    await tapText(t, 'Verify');
+    expect(find.text('Wrong or expired code.'), findsOneWidget);
+
+    core.failNext['verify 000000 '] = 'registration_lock_required';
+    await tapText(t, 'Verify');
+    expect(find.text('This number is protected by a PIN. Enter it to continue.'), findsOneWidget);
+    await enter(t, '4-digit PIN', '4321');
+    await tapText(t, 'Verify');
+    expect(core.calls.last, 'verify 000000 4321');
+    expect(find.text('Your profile'), findsOneWidget);
+  });
+
+  testWidgets('skipping the PIN needs confirming the takeover warning', (t) async {
+    final core = FakeCore()..registered = true; // resumes at the profile step
+    var done = false;
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () => done = true)));
+    core.failNext['setUsername taken'] = 'username_taken';
+    await enter(t, '@username', 'taken');
+    await enter(t, 'Display name', 'Ana');
+    await tapText(t, 'Save');
+    expect(find.text('That username is taken.'), findsOneWidget);
+    await enter(t, '@username', 'free');
+    await tapText(t, 'Save');
+
+    await tapText(t, 'Skip');
+    expect(find.text('Skip the PIN?'), findsOneWidget);
+    await tapText(t, 'Cancel');
+    expect(done, isFalse);
+    await tapText(t, 'Skip');
+    await tapText(t, 'Skip anyway');
+    expect(done, isTrue);
+  });
+
+  testWidgets('home shows the account and deletes it after confirmation (ID-16)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana.b'
+      ..name = 'Ana';
+    var deleted = false;
+    await t.pumpWidget(wrap(Home(core: core, onDeleted: () async => deleted = true)));
+    expect(find.text('You are @ana.b'), findsOneWidget);
+    expect(find.textContaining('stored only on this phone'), findsOneWidget, reason: 'ID-14 in Settings');
+    expect(find.text('App lock'), findsOneWidget);
+
+    await tapText(t, 'Delete account');
+    await tapText(t, 'Cancel');
+    expect(core.calls, isNot(contains('deleteAccount')));
+    await tapText(t, 'Delete account');
+    await tapText(t, 'Delete');
+    expect(core.calls.last, 'deleteAccount');
+    expect(deleted, isTrue);
+  });
+
+  testWidgets('app lock: locked on cold start when enabled, open when off (ID-15)', (t) async {
+    final locked = FakeCore()..settings['app_lock'] = '60';
+    await t.pumpWidget(wrap(AppLock(core: locked, child: const Text('secret chats'))));
+    await t.pumpAndSettle();
+    expect(find.text('Siegel is locked'), findsOneWidget);
+    await tapText(t, 'Unlock'); // no device auth in tests: must stay locked
+    expect(find.text('Siegel is locked'), findsOneWidget);
+
+    await t.pumpWidget(wrap(AppLock(key: UniqueKey(), core: FakeCore(), child: const Text('secret chats'))));
+    await t.pumpAndSettle();
+    expect(find.text('Siegel is locked'), findsNothing);
+    expect(find.text('secret chats'), findsOneWidget);
+  });
+}
