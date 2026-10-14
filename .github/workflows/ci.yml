@@ -67,6 +67,27 @@ jobs:
         with:
           manifest-path: core/Cargo.toml
 
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - name: generated bindings up to date
+        # ponytail: checks the Dart side only; regenerate with flutter_rust_bridge_codegen generate after Rust API changes.
+        run: flutter gen-l10n && git diff --exit-code -- lib
+      - name: bridge crate licences and advisories (SEC-07)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: app/rust/Cargo.toml
+
   # Deploys main to Hetzner once CI is green. Inert until the DEPLOY_HOST variable is set (docs/deploy.md).
   deploy:
     needs: [server, core]
