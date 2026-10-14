@@ -36,6 +36,8 @@ const IDENTITY: &str = "identity_secret";
 const ACCOUNT: &str = "account_id";
 const DEVICE: &str = "device_id";
 const TOKEN: &str = "device_token";
+const USERNAME: &str = "username";
+const DISPLAY_NAME: &str = "display_name";
 
 pub struct SiegelCore {
     store: Mutex<Option<Box<dyn Store>>>,
@@ -64,12 +66,25 @@ impl SiegelCore {
         }
     }
 
+    fn put(&self, key: &str, value: &[u8]) -> Result<(), CoreError> {
+        match self.store.lock().unwrap().as_ref() {
+            Some(s) => storage(s.put(key, value)),
+            None => Err(CoreError {
+                code: "wiped".into(),
+            }),
+        }
+    }
+
+    fn get_string(&self, key: &str) -> Option<String> {
+        self.get(key)
+            .ok()
+            .flatten()
+            .and_then(|v| String::from_utf8(v).ok())
+    }
+
     fn token(&self) -> Result<String, CoreError> {
-        let t = self.get(TOKEN)?.ok_or(CoreError {
+        self.get_string(TOKEN).ok_or(CoreError {
             code: "not_registered".into(),
-        })?;
-        String::from_utf8(t).map_err(|_| CoreError {
-            code: "storage".into(),
         })
     }
 
@@ -124,7 +139,27 @@ impl SiegelCore {
     }
 
     pub async fn set_username(&self, username: &str) -> Result<(), CoreError> {
-        Ok(self.net.set_username(&self.token()?, username).await?)
+        self.net.set_username(&self.token()?, username).await?;
+        self.put(USERNAME, username.to_lowercase().as_bytes())
+    }
+
+    pub fn username(&self) -> Option<String> {
+        self.get_string(USERNAME)
+    }
+
+    /// 1 to 64 characters. Stays on this device until encrypted profiles ship (M2).
+    pub fn set_display_name(&self, name: &str) -> Result<(), CoreError> {
+        let name = name.trim();
+        if !(1..=64).contains(&name.chars().count()) {
+            return Err(CoreError {
+                code: "display_name_invalid".into(),
+            });
+        }
+        self.put(DISPLAY_NAME, name.as_bytes())
+    }
+
+    pub fn display_name(&self) -> Option<String> {
+        self.get_string(DISPLAY_NAME)
     }
 
     /// Exact @username lookup (ID-08). Returns the account ID.

@@ -65,6 +65,12 @@ async fn register_username_lock_delete() {
 
     let name = format!("e2e{n}");
     core.set_username(&name).await.unwrap();
+    assert_eq!(core.username().as_deref(), Some(name.as_str()));
+    assert_eq!(
+        core.set_display_name(" ").unwrap_err().code,
+        "display_name_invalid"
+    );
+    core.set_display_name("Ana ✨").unwrap();
     assert_eq!(core.lookup_username(&name).await.unwrap().len(), 16);
     assert_eq!(
         core.set_registration_lock("12a4").await.unwrap_err().code,
@@ -76,11 +82,13 @@ async fn register_username_lock_delete() {
     drop(core);
     let core = SiegelCore::open(db.to_str().unwrap(), &[9; 32], &url).unwrap();
     assert!(core.is_registered());
+    assert_eq!(core.display_name().as_deref(), Some("Ana ✨"));
 
     core.delete_account().await.unwrap();
     assert!(!db.exists(), "local DB wiped");
     assert_eq!(
         core.set_username("whatever").await.unwrap_err().code,
-        "wiped"
+        "not_registered"
     );
+    assert!(!core.is_registered());
 }
