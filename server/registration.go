@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -25,11 +24,13 @@ import (
 )
 
 type server struct {
-	cfg     config
-	db      *pgxpool.Pool
-	attest  func(ctx context.Context, token string) error
-	sendSMS func(ctx context.Context, phone, code string) error
-	ipHits  ipLimiter
+	cfg       config
+	db        *pgxpool.Pool
+	attest    func(ctx context.Context, token string) error
+	sendSMS   func(ctx context.Context, phone, code string) error
+	hmacPhone func(ctx context.Context, phone string) ([]byte, error)
+	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
+	ipHits    ipLimiter
 }
 
 func newServer(cfg config, db *pgxpool.Pool) *server {
@@ -37,12 +38,6 @@ func newServer(cfg config, db *pgxpool.Pool) *server {
 }
 
 var e164 = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
-
-func (s *server) phoneHMAC(phone string) []byte {
-	m := hmac.New(sha256.New, s.cfg.pepper)
-	m.Write([]byte(phone))
-	return m.Sum(nil)
-}
 
 func cerr(code connect.Code, msg string) error { return connect.NewError(code, errors.New(msg)) }
 
@@ -104,7 +99,10 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	if !s.ipHits.allow(ip, s.cfg.otpPerIP) {
 		return nil, cerr(connect.CodeResourceExhausted, "rate_limited")
 	}
-	h := s.phoneHMAC(phone)
+	h, err := s.hmacPhone(ctx, phone)
+	if err != nil {
+		return nil, internal(err)
+	}
 	if ok, err := s.hit(ctx, fmt.Sprintf("otp:%x", h), time.Hour, s.cfg.otpPerNumber); err != nil {
 		return nil, internal(err)
 	} else if !ok {
@@ -135,11 +133,14 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 	if len(m.IdentityPub) != ed25519.PublicKeySize {
 		return nil, cerr(connect.CodeInvalidArgument, "identity_pub_invalid")
 	}
-	h := s.phoneHMAC(m.PhoneE164)
+	h, err := s.hmacPhone(ctx, m.PhoneE164)
+	if err != nil {
+		return nil, internal(err)
+	}
 
 	// Every call spends one attempt, so a code survives at most otpAttempts guesses (ID-03).
 	var code string
-	err := s.db.QueryRow(ctx, `UPDATE otps SET attempts = attempts + 1
+	err = s.db.QueryRow(ctx, `UPDATE otps SET attempts = attempts + 1
 		WHERE phone_hmac = $1 AND expires_at > now() AND attempts < $2 RETURNING code`,
 		h, s.cfg.otpAttempts).Scan(&code)
 	if errors.Is(err, pgx.ErrNoRows) || err == nil && subtle.ConstantTimeCompare([]byte(code), []byte(m.Otp)) != 1 {
@@ -182,7 +183,10 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 	if !existing {
 		accountID = newUUID()
 	}
-	sig := ed25519.Sign(s.cfg.asKey, append(append([]byte("siegel-as-v1"), accountID[:]...), m.IdentityPub...))
+	sig, err := s.signAS(ctx, append(append([]byte("siegel-as-v1"), accountID[:]...), m.IdentityPub...))
+	if err != nil {
+		return nil, internal(err)
+	}
 	deviceID := newUUID()
 	token := rand.Text()
 	tokenHash := sha256.Sum256([]byte(token))

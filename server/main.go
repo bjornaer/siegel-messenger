@@ -4,11 +4,8 @@ package main
 
 import (
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/tls"
 	_ "embed"
-	"encoding/base64"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/bjornaer/siegel-messenger/server/gen/siegel/v1/siegelv1connect"
 )
@@ -26,13 +24,15 @@ var schema string
 
 // config holds every value the spec marks [default]; each is overridable by env.
 type config struct {
-	dev           bool
-	addr          string
+	dev           bool   // stubs device attestation (and SMS when no provider token is set)
+	domain        string // set: TLS 1.3 on :8443 with Let's Encrypt, ACME + redirect on :8080
+	certDir       string
 	dbURL         string
-	pepper        []byte             // ID-05. ponytail: env var, move to KMS/HSM (SEC-05)
-	asKey         ed25519.PrivateKey // CRY-08. ponytail: env var, move to KMS/HSM (SEC-05)
-	tlsCert       string
-	tlsKey        string
+	baoAddr       string // OpenBao holds the phone pepper and AS signing key (SEC-05)
+	baoToken      string
+	smsToken      string // GatewayAPI
+	smsURL        string
+	smsSender     string
 	otpTTL        time.Duration
 	otpAttempts   int
 	otpPerNumber  int // per hour
@@ -51,10 +51,14 @@ type config struct {
 func loadConfig() config {
 	c := config{
 		dev:           os.Getenv("SIEGEL_DEV") == "1",
-		addr:          env("SIEGEL_ADDR", ":8080", ok),
+		domain:        os.Getenv("SIEGEL_DOMAIN"),
+		certDir:       env("SIEGEL_CERT_DIR", "/certs", ok),
 		dbURL:         os.Getenv("SIEGEL_DATABASE_URL"),
-		tlsCert:       os.Getenv("SIEGEL_TLS_CERT"),
-		tlsKey:        os.Getenv("SIEGEL_TLS_KEY"),
+		baoAddr:       os.Getenv("SIEGEL_BAO_ADDR"),
+		baoToken:      os.Getenv("SIEGEL_BAO_TOKEN"),
+		smsToken:      os.Getenv("SIEGEL_GATEWAYAPI_TOKEN"),
+		smsURL:        env("SIEGEL_GATEWAYAPI_URL", "https://messaging.gatewayapi.eu/mobile/single", ok),
+		smsSender:     env("SIEGEL_SMS_SENDER", "Siegel", ok),
 		otpTTL:        env("SIEGEL_OTP_TTL", 10*time.Minute, time.ParseDuration),
 		otpAttempts:   env("SIEGEL_OTP_ATTEMPTS", 5, strconv.Atoi),
 		otpPerNumber:  env("SIEGEL_OTP_PER_NUMBER_HOUR", 3, strconv.Atoi),
@@ -71,8 +75,9 @@ func loadConfig() config {
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
 	}
-	c.pepper = secret("SIEGEL_PHONE_PEPPER", c.dev)
-	c.asKey = ed25519.NewKeyFromSeed(secret("SIEGEL_AS_SEED", c.dev))
+	if c.baoAddr == "" || c.baoToken == "" {
+		fatal("SIEGEL_BAO_ADDR and SIEGEL_BAO_TOKEN are required")
+	}
 	return c
 }
 
@@ -88,21 +93,6 @@ func env[T any](key string, def T, parse func(string) (T, error)) T {
 		fatal("bad config value", "key", key)
 	}
 	return v
-}
-
-// secret reads a base64 32-byte secret; dev mode generates a throwaway one.
-func secret(key string, dev bool) []byte {
-	b, err := base64.StdEncoding.DecodeString(os.Getenv(key))
-	if err == nil && len(b) == 32 {
-		return b
-	}
-	if !dev {
-		fatal("missing or invalid secret (base64, 32 bytes)", "key", key)
-	}
-	slog.Warn("dev: generated throwaway secret", "key", key)
-	b = make([]byte, 32)
-	rand.Read(b)
-	return b
 }
 
 func fatal(msg string, args ...any) {
@@ -121,30 +111,46 @@ func main() {
 		fatal("schema", "err", err)
 	}
 	s := newServer(cfg, db)
-	if cfg.dev {
-		s.attest = func(context.Context, string) error { return nil }
+	b := bao{addr: cfg.baoAddr, token: cfg.baoToken}
+	s.hmacPhone, s.signAS = b.hmacPhone, b.signAS
+	switch {
+	case cfg.smsToken != "":
+		s.sendSMS = gatewayAPI(cfg.smsURL, cfg.smsToken, cfg.smsSender)
+	case cfg.dev:
 		s.sendSMS = func(_ context.Context, _, code string) error {
 			slog.Info("dev sms stub", "code", code) // never the number (SEC-03)
 			return nil
 		}
-	} else {
-		// ponytail: App Attest / Play Integrity and the SMS provider are not wired yet; refuse to run without them.
-		fatal("attestation and SMS providers not implemented; set SIEGEL_DEV=1")
+	default:
+		fatal("SIEGEL_GATEWAYAPI_TOKEN required outside dev mode")
 	}
-	go s.janitor(ctx)
+	if !cfg.dev {
+		// ponytail: App Attest / Play Integrity not wired yet; refuse to run without them.
+		fatal("attestation not implemented; set SIEGEL_DEV=1")
+	}
+	s.attest = func(context.Context, string) error { return nil }
+	go s.janitor(ctx, b)
 
-	srv := &http.Server{Addr: cfg.addr, Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second}
-	slog.Info("listening", "addr", cfg.addr)
-	if cfg.tlsCert != "" {
-		srv.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS13} // ARCH-02
-		err = srv.ListenAndServeTLS(cfg.tlsCert, cfg.tlsKey)
-	} else {
+	srv := &http.Server{Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second}
+	if cfg.domain == "" {
+		srv.Addr = ":8080"
 		srv.Protocols = new(http.Protocols)
 		srv.Protocols.SetHTTP1(true)
 		srv.Protocols.SetUnencryptedHTTP2(true)
-		err = srv.ListenAndServe()
+		slog.Info("listening without TLS", "addr", srv.Addr)
+		fatal("server stopped", "err", srv.ListenAndServe())
 	}
-	fatal("server stopped", "err", err)
+	m := &autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(cfg.domain),
+		Cache:      autocert.DirCache(cfg.certDir),
+	}
+	go func() { fatal("acme listener stopped", "err", http.ListenAndServe(":8080", m.HTTPHandler(nil))) }()
+	srv.Addr = ":8443"
+	srv.TLSConfig = m.TLSConfig()
+	srv.TLSConfig.MinVersion = tls.VersionTLS13 // ARCH-02
+	slog.Info("listening with TLS", "addr", srv.Addr, "domain", cfg.domain)
+	fatal("server stopped", "err", srv.ListenAndServeTLS("", ""))
 }
 
 func (s *server) routes() http.Handler {
@@ -155,8 +161,8 @@ func (s *server) routes() http.Handler {
 	return mux
 }
 
-// janitor enforces the retention table in section 10.
-func (s *server) janitor(ctx context.Context) {
+// janitor enforces the retention table in section 10 and keeps the OpenBao token alive.
+func (s *server) janitor(ctx context.Context, b bao) {
 	for {
 		for _, q := range []string{
 			`DELETE FROM otps WHERE expires_at < now()`,
@@ -166,6 +172,9 @@ func (s *server) janitor(ctx context.Context) {
 			if _, err := s.db.Exec(ctx, q); err != nil {
 				slog.Error("janitor", "err", err)
 			}
+		}
+		if err := b.renew(ctx); err != nil {
+			slog.Warn("openbao token renew", "err", err) // expected for the non-expiring dev root token
 		}
 		time.Sleep(time.Hour)
 	}

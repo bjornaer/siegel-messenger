@@ -8,7 +8,9 @@ package main
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -48,16 +50,22 @@ func setup(t *testing.T) *env_ {
 	}
 	seed := make([]byte, 32)
 	rand.Read(seed)
+	asKey := ed25519.NewKeyFromSeed(seed)
 	cfg := config{
-		pepper: seed, asKey: ed25519.NewKeyFromSeed(seed),
 		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, smsDailyCap: 1000,
 		denyPrefixes: []string{"+882"},
 		userMin:      4, userMax: 32, userChangeDay: 30, userQuarDay: 30,
 		lockAttempts: 3, lockLockout: 3600e9, lockLapseDay: 7,
 	}
-	e := &env_{t: t, sms: map[string]string{}, ctx: ctx, asPub: cfg.asKey.Public().(ed25519.PublicKey)}
+	e := &env_{t: t, sms: map[string]string{}, ctx: ctx, asPub: asKey.Public().(ed25519.PublicKey)}
 	e.s = newServer(cfg, db)
 	e.s.attest = func(context.Context, string) error { return nil }
+	e.s.hmacPhone = func(_ context.Context, p string) ([]byte, error) {
+		m := hmac.New(sha256.New, seed)
+		m.Write([]byte(p))
+		return m.Sum(nil), nil
+	}
+	e.s.signAS = func(_ context.Context, msg []byte) ([]byte, error) { return ed25519.Sign(asKey, msg), nil }
 	e.s.sendSMS = func(_ context.Context, phone, code string) error { e.sms[phone] = code; return nil }
 	srv := httptest.NewServer(e.s.routes())
 	t.Cleanup(srv.Close)
