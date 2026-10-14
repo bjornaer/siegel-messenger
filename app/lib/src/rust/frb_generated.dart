@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 2071404854;
+  int get rustContentHash => 695810418;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -109,10 +109,18 @@ abstract class RustLibApi extends BaseApi {
     required String pin,
   });
 
+  void crateApiCoreCoreSetSetting({
+    required Core that,
+    required String key,
+    required String value,
+  });
+
   Future<void> crateApiCoreCoreSetUsername({
     required Core that,
     required String username,
   });
+
+  String? crateApiCoreCoreSetting({required Core that, required String key});
 
   String? crateApiCoreCoreUsername({required Core that});
 
@@ -367,6 +375,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiCoreCoreSetSetting({
+    required Core that,
+    required String key,
+    required String value,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(key, serializer);
+          sse_encode_String(value, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiCoreCoreSetSettingConstMeta,
+        argValues: [that, key, value],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreCoreSetSettingConstMeta => const TaskConstMeta(
+    debugName: "Core_set_setting",
+    argNames: ["that", "key", "value"],
+  );
+
+  @override
   Future<void> crateApiCoreCoreSetUsername({
     required Core that,
     required String username,
@@ -383,7 +425,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -405,6 +447,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  String? crateApiCoreCoreSetting({required Core that, required String key}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+            that,
+            serializer,
+          );
+          sse_encode_String(key, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreCoreSettingConstMeta,
+        argValues: [that, key],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreCoreSettingConstMeta =>
+      const TaskConstMeta(debugName: "Core_setting", argNames: ["that", "key"]);
+
+  @override
   String? crateApiCoreCoreUsername({required Core that}) {
     return handler.executeSync(
       SyncTask(
@@ -414,7 +483,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -453,7 +522,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -482,7 +551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 13,
             port: port_,
           );
         },
@@ -882,8 +951,16 @@ class CoreImpl extends RustOpaque implements Core {
       .api
       .crateApiCoreCoreSetRegistrationLock(that: this, pin: pin);
 
+  void setSetting({required String key, required String value}) => RustLib
+      .instance
+      .api
+      .crateApiCoreCoreSetSetting(that: this, key: key, value: value);
+
   Future<void> setUsername({required String username}) => RustLib.instance.api
       .crateApiCoreCoreSetUsername(that: this, username: username);
+
+  String? setting({required String key}) =>
+      RustLib.instance.api.crateApiCoreCoreSetting(that: this, key: key);
 
   String? username() =>
       RustLib.instance.api.crateApiCoreCoreUsername(that: this);

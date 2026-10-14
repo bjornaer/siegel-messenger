@@ -363,6 +363,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get errGeneric;
+
+  /// No description provided for @appLock.
+  ///
+  /// In en, this message translates to:
+  /// **'App lock'**
+  String get appLock;
+
+  /// No description provided for @appLockSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Require your fingerprint, face or phone passcode to open Siegel.'**
+  String get appLockSubtitle;
+
+  /// No description provided for @lockAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock after'**
+  String get lockAfter;
+
+  /// No description provided for @lockImmediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Immediately'**
+  String get lockImmediately;
+
+  /// No description provided for @lockMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 minute} other{{count} minutes}}'**
+  String lockMinutes(int count);
+
+  /// No description provided for @lockHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hour} other{{count} hours}}'**
+  String lockHours(int count);
+
+  /// No description provided for @screenSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen security'**
+  String get screenSecurity;
+
+  /// No description provided for @screenSecuritySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block screenshots and screen recording of Siegel.'**
+  String get screenSecuritySubtitle;
+
+  /// No description provided for @lockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel is locked'**
+  String get lockedTitle;
+
+  /// No description provided for @unlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlock;
+
+  /// No description provided for @unlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Siegel'**
+  String get unlockReason;
+
+  /// No description provided for @errNoDeviceLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t verify it\'s you. Set up a screen lock on your phone first.'**
+  String get errNoDeviceLock;
 }
 
 class _AppLocalizationsDelegate

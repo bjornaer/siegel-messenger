@@ -171,6 +171,15 @@ impl SiegelCore {
             .account_id)
     }
 
+    /// Local UI preferences (app lock, screen security...), kept in the encrypted DB.
+    pub fn setting(&self, key: &str) -> Option<String> {
+        self.get_string(&format!("setting.{key}"))
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> Result<(), CoreError> {
+        self.put(&format!("setting.{key}"), value.as_bytes())
+    }
+
     /// 4-digit PIN, or empty to remove the lock (ID-10).
     pub async fn set_registration_lock(&self, pin: &str) -> Result<(), CoreError> {
         Ok(self.net.set_registration_lock(&self.token()?, pin).await?)

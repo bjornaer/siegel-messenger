@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'app_lock.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart';
 import 'src/rust/api/core.dart';
@@ -63,10 +64,13 @@ class _SiegelAppState extends State<SiegelApp> {
       theme: ThemeData(colorSchemeSeed: Colors.indigo),
       darkTheme: ThemeData(colorSchemeSeed: Colors.indigo, brightness: Brightness.dark),
       home: ready
-          ? Home(core: core, onDeleted: () async {
-              final fresh = await openCore();
-              setState(() => core = fresh);
-            })
+          ? AppLock(
+              core: core,
+              child: Home(core: core, onDeleted: () async {
+                final fresh = await openCore();
+                setState(() => core = fresh);
+              }),
+            )
           : Onboarding(core: core, onDone: () => setState(() {})),
     );
   }
@@ -113,6 +117,7 @@ class Home extends StatelessWidget {
           const SizedBox(height: 24),
           Text(t.settings, style: Theme.of(context).textTheme.titleMedium),
           Text(t.historyNotice), // ID-14: also stated in Settings
+          AppLockSettings(core: core),
           const SizedBox(height: 16),
           OutlinedButton(onPressed: () => _delete(context), child: Text(t.deleteAccount)),
         ],

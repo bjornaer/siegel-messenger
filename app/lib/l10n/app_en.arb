@@ -7,10 +7,22 @@
   "phoneTitle": "Your phone number",
   "phoneHint": "+34 600 000 000",
   "ageConfirm": "I am at least {age} years old",
-  "@ageConfirm": { "placeholders": { "age": { "type": "int" } } },
+  "@ageConfirm": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      }
+    }
+  },
   "sendCode": "Send code",
   "codeTitle": "Enter the 6-digit code sent to {phone}",
-  "@codeTitle": { "placeholders": { "phone": { "type": "String" } } },
+  "@codeTitle": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "codeLabel": "Code",
   "verify": "Verify",
   "pinTitle": "Registration Lock",
@@ -30,7 +42,13 @@
   "skipAnyway": "Skip anyway",
   "cancel": "Cancel",
   "homeRegistered": "You are @{username}",
-  "@homeRegistered": { "placeholders": { "username": { "type": "String" } } },
+  "@homeRegistered": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "settings": "Settings",
   "deleteAccount": "Delete account",
   "deleteConfirmTitle": "Delete your account?",
@@ -47,5 +65,31 @@
   "errPinInvalid": "The PIN must be exactly 4 digits.",
   "errDisplayNameInvalid": "Enter a name of 1 to 64 characters.",
   "errNetwork": "Can't reach the server. Check your connection.",
-  "errGeneric": "Something went wrong. Please try again."
+  "errGeneric": "Something went wrong. Please try again.",
+  "appLock": "App lock",
+  "appLockSubtitle": "Require your fingerprint, face or phone passcode to open Siegel.",
+  "lockAfter": "Lock after",
+  "lockImmediately": "Immediately",
+  "lockMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
+  "@lockMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "lockHours": "{count, plural, =1{1 hour} other{{count} hours}}",
+  "@lockHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "screenSecurity": "Screen security",
+  "screenSecuritySubtitle": "Block screenshots and screen recording of Siegel.",
+  "lockedTitle": "Siegel is locked",
+  "unlock": "Unlock",
+  "unlockReason": "Unlock Siegel",
+  "errNoDeviceLock": "Couldn't verify it's you. Set up a screen lock on your phone first."
 }

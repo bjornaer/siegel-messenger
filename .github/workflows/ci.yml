@@ -80,6 +80,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
+      - run: flutter test
       - name: generated bindings up to date
         # ponytail: checks the Dart side only; regenerate with flutter_rust_bridge_codegen generate after Rust API changes.
         run: flutter gen-l10n && git diff --exit-code -- lib

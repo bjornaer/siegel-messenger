@@ -157,4 +157,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errGeneric => 'Something went wrong. Please try again.';
+
+  @override
+  String get appLock => 'App lock';
+
+  @override
+  String get appLockSubtitle =>
+      'Require your fingerprint, face or phone passcode to open Siegel.';
+
+  @override
+  String get lockAfter => 'Lock after';
+
+  @override
+  String get lockImmediately => 'Immediately';
+
+  @override
+  String lockMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes',
+      one: '1 minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String lockHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours',
+      one: '1 hour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get screenSecurity => 'Screen security';
+
+  @override
+  String get screenSecuritySubtitle =>
+      'Block screenshots and screen recording of Siegel.';
+
+  @override
+  String get lockedTitle => 'Siegel is locked';
+
+  @override
+  String get unlock => 'Unlock';
+
+  @override
+  String get unlockReason => 'Unlock Siegel';
+
+  @override
+  String get errNoDeviceLock =>
+      'Couldn\'t verify it\'s you. Set up a screen lock on your phone first.';
 }

@@ -64,6 +64,16 @@ impl Core {
         self.0.display_name()
     }
 
+    #[frb(sync)]
+    pub fn setting(&self, key: String) -> Option<String> {
+        self.0.setting(&key)
+    }
+
+    #[frb(sync)]
+    pub fn set_setting(&self, key: String, value: String) -> Result<(), CoreError> {
+        Ok(self.0.set_setting(&key, &value)?)
+    }
+
     pub async fn set_registration_lock(&self, pin: String) -> Result<(), CoreError> {
         Ok(self.0.set_registration_lock(&pin).await?)
     }

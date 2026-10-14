@@ -36,7 +36,11 @@ abstract class Core implements RustOpaqueInterface {
 
   Future<void> setRegistrationLock({required String pin});
 
+  void setSetting({required String key, required String value});
+
   Future<void> setUsername({required String username});
+
+  String? setting({required String key});
 
   String? username();
 
