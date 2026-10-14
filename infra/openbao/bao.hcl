@@ -1,5 +1,6 @@
 # Production OpenBao for Siegel (docs/deploy.md). Persistent raft storage, manual Shamir unseal.
-# ponytail: plaintext listener, reachable only on the Hetzner private network; add TLS if the network is ever shared.
+# ponytail: plaintext listener, reachable only inside the compose network (single server) or the
+# Hetzner private network (split setup); add TLS if either is ever shared.
 storage "raft" {
   path    = "/openbao/file"
   node_id = "bao1"

@@ -1,7 +1,9 @@
 # Full stack: docker compose up -d --build
 # Secrets come from .env (see .env.example). Unset values fall back to dev-only defaults.
-# Profile "localbao" runs a throwaway in-memory OpenBao for development (COMPOSE_PROFILES=localbao).
-# Production points SIEGEL_BAO_ADDR at the separate OpenBao server instead (docs/deploy.md).
+# OpenBao profiles (COMPOSE_PROFILES):
+#   localbao  throwaway in-memory OpenBao, auto-configured: local development.
+#   bao       persistent OpenBao on this host, manual init/unseal: single-server test deploy.
+# ponytail: "bao" puts the pepper on the DB host; move OpenBao to its own server before public launch (docs/deploy.md).
 # Backups: one copy each in ${BACKUP_DIR}, overwritten every BACKUP_INTERVAL seconds.
 # Keep the interval <= 24h so deleted account data ages out of backups too (ID-16, section 10 retention).
 
@@ -70,6 +72,16 @@ services:
     volumes: ["./scripts/bao-setup.sh:/bao-setup.sh:ro"]
     depends_on: [openbao]
 
+  bao: # single-server deploy: persistent, starts sealed (docs/deploy.md)
+    image: openbao/openbao:2.4.1
+    profiles: [bao]
+    restart: unless-stopped
+    command: server -config=/openbao/config/bao.hcl
+    volumes:
+      - ./infra/openbao/bao.hcl:/openbao/config/bao.hcl:ro
+      - ./scripts/bao-setup.sh:/bao-setup.sh:ro
+      - baodata:/openbao/file
+
   postgres-backup:
     image: postgres:18.0-alpine
     restart: unless-stopped
@@ -116,3 +128,4 @@ volumes:
   pgdata:
   s3data:
   certs:
+  baodata:

@@ -30,7 +30,9 @@ Can read the database, object store, backups, memory and logs, and change server
 - Sees A5 transiently: recipient of each message, online status, IPs at connection. Sealed sender hides the
   sender (MSG-10). Mitigation is policy (no logging, SEC-03), not cryptography.
 - **A4 via A6.** Phone HMACs are reversible by brute force once the pepper is known (the number space is small).
-  The pepper is a non-exportable OpenBao transit key on a separate server (`siegel-bao`), so a stolen
+  **Current test deployment runs OpenBao on the same VM (`COMPOSE_PROFILES=bao`), so a host compromise
+  still exposes phone numbers. Split it out before public launch (docs/deploy.md).**
+  In the launch setup the pepper is a non-exportable OpenBao transit key on a separate server (`siegel-bao`), so a stolen
   DB or backup cannot be brute-forced offline. An attacker *inside* the API host can still call the
   HMAC endpoint while they hold access (an online oracle); OpenBao's audit log and the token's narrow
   policy are the controls there.
@@ -103,6 +105,7 @@ Hetzner (EU, D8) has physical and hypervisor access to the host.
 
 | Risk | Severity | Fix | Ref |
 | --- | --- | --- | --- |
+| OpenBao on the API host (test deployment) | High at launch | Separate VM before launch | SEC-05 |
 | No device attestation (`SIEGEL_DEV=1`) | High (cost) | App Attest / Play Integrity; low SMS cap until then | ID-02 |
 | OpenBao sealed after reboot, manual unseal | Medium (availability) | Accepted; auto-unseal needs a cloud KMS | SEC-05 |
 | Lost OpenBao unseal key loses the pepper | High (data) | Offline copies of the unseal key | SEC-05 |
