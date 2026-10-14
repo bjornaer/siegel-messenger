@@ -198,6 +198,10 @@ func TestRegistrationLockAndRevocation(t *testing.T) { // ID-09, ID-10, ID-16
 	old, _ := e.register(phone, "")
 	want(t, e.setUsername(old.DeviceToken, "owner"), "")
 	_, acct := e.clients(old.DeviceToken)
+	for _, bad := range []string{"123", "12345", "12a4", "١٢٣٤"} {
+		_, err := acct.SetRegistrationLock(e.ctx, connect.NewRequest(&siegelv1.SetRegistrationLockRequest{Pin: bad}))
+		want(t, errMsg(err), "pin_invalid")
+	}
 	if _, err := acct.SetRegistrationLock(e.ctx, connect.NewRequest(&siegelv1.SetRegistrationLockRequest{Pin: "4321"})); err != nil {
 		t.Fatal(err)
 	}

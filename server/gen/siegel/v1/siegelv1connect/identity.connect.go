@@ -258,7 +258,7 @@ func (UnimplementedUsernameServiceHandler) Lookup(context.Context, *connect.Requ
 
 // AccountServiceClient is a client for the siegel.v1.AccountService service.
 type AccountServiceClient interface {
-	// Set or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
+	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
 	SetRegistrationLock(context.Context, *connect.Request[v1.SetRegistrationLockRequest]) (*connect.Response[v1.SetRegistrationLockResponse], error)
 	// Deletes all server-side data for the account (ID-16). Auth: device.
 	Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error)
@@ -308,7 +308,7 @@ func (c *accountServiceClient) Delete(ctx context.Context, req *connect.Request[
 
 // AccountServiceHandler is an implementation of the siegel.v1.AccountService service.
 type AccountServiceHandler interface {
-	// Set or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
+	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
 	SetRegistrationLock(context.Context, *connect.Request[v1.SetRegistrationLockRequest]) (*connect.Response[v1.SetRegistrationLockResponse], error)
 	// Deletes all server-side data for the account (ID-16). Auth: device.
 	Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error)

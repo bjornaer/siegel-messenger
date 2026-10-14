@@ -74,7 +74,7 @@ message UsernameServiceLookupResponse {
 }
 
 service AccountService {
-  // Set or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
+  // Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
   rpc SetRegistrationLock(SetRegistrationLockRequest) returns (SetRegistrationLockResponse);
   // Deletes all server-side data for the account (ID-16). Auth: device.
   rpc Delete(AccountServiceDeleteRequest) returns (AccountServiceDeleteResponse);

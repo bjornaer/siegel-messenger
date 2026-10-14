@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -116,6 +117,8 @@ func (s *server) Lookup(ctx context.Context, req *connect.Request[siegelv1.Usern
 	return connect.NewResponse(res), nil
 }
 
+var fourDigits = regexp.MustCompile(`^[0-9]{4}$`)
+
 // Argon2id per RFC 9106 second recommended option. ponytail: params pending a server benchmark (ID-10).
 const argonTime, argonMem, argonThreads = 3, 64 * 1024, 4
 
@@ -148,7 +151,9 @@ func pinMatches(encoded, pin string) bool {
 
 func (s *server) SetRegistrationLock(ctx context.Context, req *connect.Request[siegelv1.SetRegistrationLockRequest]) (*connect.Response[siegelv1.SetRegistrationLockResponse], error) {
 	var hash *string
-	if req.Msg.Pin != "" {
+	if pin := req.Msg.Pin; pin != "" && !fourDigits.MatchString(pin) {
+		return nil, cerr(connect.CodeInvalidArgument, "pin_invalid")
+	} else if pin != "" {
 		h := hashPin(req.Msg.Pin)
 		hash = &h
 	}
