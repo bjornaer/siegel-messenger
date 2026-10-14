@@ -25,9 +25,16 @@ jobs:
       - run: go vet ./...
       - name: proto lint and generated code up to date
         run: go tool buf lint .. && go tool buf generate .. && git diff --exit-code
+      - name: OpenBao for transit tests
+        run: |
+          docker run -d --name bao -p 8200:8200 -v "$PWD/../scripts:/s:ro" openbao/openbao:2.4.1 \
+            server -dev -dev-root-token-id=dev-root -dev-listen-address=0.0.0.0:8200
+          docker exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN=dev-root bao \
+            sh -c 'until bao status >/dev/null 2>&1; do sleep 1; done; /s/bao-setup.sh'
       - run: go test -race ./...
         env:
-          SIEGEL_TEST_DATABASE_URL: postgres://postgres:siegel@localhost:5432/siegel
+          SIEGEL_TEST_DATABASE_URL: postgres://postgres:siegel@localhost:5432/postgres
+          SIEGEL_TEST_BAO_ADDR: http://localhost:8200
       - name: vulnerabilities (SEC-07)
         run: go tool govulncheck ./...
       - name: licences compatible with AGPL-3.0 (SEC-07, D15)
@@ -36,3 +43,21 @@ jobs:
           go tool go-licenses check ./...
           --ignore github.com/bjornaer/siegel-messenger
           --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Zlib,0BSD,Unlicense,AGPL-3.0,GPL-3.0,LGPL-2.1,LGPL-3.0
+
+  # Deploys main to Hetzner once CI is green. Inert until the DEPLOY_HOST variable is set (docs/deploy.md).
+  deploy:
+    needs: server
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
+    runs-on: ubuntu-latest
+    concurrency: deploy
+    environment: production
+    steps:
+      - name: ssh deploy (forced command runs scripts/deploy.sh)
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          install -m 600 /dev/null ~/.ssh/deploy && echo "$SSH_KEY" > ~/.ssh/deploy
+          ssh -i ~/.ssh/deploy deploy@${{ vars.DEPLOY_HOST }}

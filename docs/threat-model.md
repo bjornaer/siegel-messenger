@@ -30,11 +30,13 @@ Can read the database, object store, backups, memory and logs, and change server
 - Sees A5 transiently: recipient of each message, online status, IPs at connection. Sealed sender hides the
   sender (MSG-10). Mitigation is policy (no logging, SEC-03), not cryptography.
 - **A4 via A6.** Phone HMACs are reversible by brute force once the pepper is known (the number space is small).
-  Today the pepper is an env var in `.env` on the same host as the database and the backups. **A host
-  compromise currently exposes every registered phone number.** Fix: SEC-05 (KMS/HSM, pepper never on
-  the DB host). Must land before launch.
-- AS signing key on the same host lets the attacker mint credential bindings (CRY-08). Clients still check
-  the Account Identity signature, so this helps only when combined with the unverified-key attack above.
+  The pepper is a non-exportable OpenBao transit key on a separate server (`siegel-bao`), so a stolen
+  DB or backup cannot be brute-forced offline. An attacker *inside* the API host can still call the
+  HMAC endpoint while they hold access (an online oracle); OpenBao's audit log and the token's narrow
+  policy are the controls there.
+- The AS signing key is also in OpenBao transit. A compromised API host can request signatures (mint
+  credential bindings, CRY-08) while it has access. Clients still check the Account Identity signature,
+  so this helps only together with the unverified-key attack above.
 
 ### T2 Network attacker
 
@@ -43,8 +45,10 @@ On-path between phone and server.
 - TLS 1.3 only (ARCH-02) plus certificate pinning with a backup pin (SEC-06, client work).
 - Sees connection timing and sizes. Padding hides exact lengths (CRY-05, MED-02); traffic analysis is
   otherwise out of scope for v1.
-- Current deployment: the server port in compose speaks plaintext h2c unless `SIEGEL_TLS_CERT` is set.
-  **Production must set it or sit behind a TLS-terminating proxy on the same host.**
+- Production sets `SIEGEL_DOMAIN`: TLS 1.3 only with Let's Encrypt certificates (autocert). Without it
+  the server speaks plaintext h2c, which is for local development only.
+- API → OpenBao traffic is plaintext on the Hetzner private network. Acceptable while the network holds
+  only our two servers; add TLS to the listener if that changes.
 
 ### T3 Malicious group member
 
@@ -88,7 +92,8 @@ Takes over the victim's phone number and receives the OTP.
 
 Hetzner (EU, D8) has physical and hypervisor access to the host.
 
-- Equivalent to T1 for data at rest: DB, bucket, backups and `.env` all sit on one machine.
+- Equivalent to T1 for data at rest on `siegel-api`: DB, bucket, backups and `.env` share one machine.
+  The pepper and AS key sit on `siegel-bao`, a separate VM, but with the same provider.
 - Backups (A9) hold the same data as the live DB (phone HMACs, token hashes, queued ciphertext). They are
   overwritten each run, so with `BACKUP_INTERVAL` <= 24 h deleted accounts leave the backups within 24 h
   (ID-16). Backups are not encrypted at rest. Use an encrypted volume or move them off-host
@@ -98,9 +103,10 @@ Hetzner (EU, D8) has physical and hypervisor access to the host.
 
 | Risk | Severity | Fix | Ref |
 | --- | --- | --- | --- |
-| Pepper and AS key on DB host | High | KMS/HSM | SEC-05 |
-| No device attestation | High (cost) | App Attest / Play Integrity | ID-02 |
-| Plaintext h2c if TLS env unset | High | TLS cert or local proxy before exposure | ARCH-02 |
+| No device attestation (`SIEGEL_DEV=1`) | High (cost) | App Attest / Play Integrity; low SMS cap until then | ID-02 |
+| OpenBao sealed after reboot, manual unseal | Medium (availability) | Accepted; auto-unseal needs a cloud KMS | SEC-05 |
+| Lost OpenBao unseal key loses the pepper | High (data) | Offline copies of the unseal key | SEC-05 |
+| API → OpenBao plaintext on private network | Low | TLS listener if the network is shared | SEC-05 |
 | Unverified key substitution by server | Medium | Safety numbers now, key transparency later | SEC-12 |
 | Backups unencrypted on host | Medium | Encrypted volume / encrypted off-host copy | A9 |
 | Registration Lock lapse after 7 days | Accepted | Product decision | ID-10 |
