@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package siegel.v1;
+
+option go_package = "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1";
+
+// Errors are Connect error codes; the message is a stable machine string
+// (for example "otp_invalid", "registration_lock_required").
+
+service RegistrationService {
+  // Sends an OTP by SMS (ID-01 to ID-04). Auth: attestation token.
+  rpc RequestOtp(RequestOtpRequest) returns (RequestOtpResponse);
+  // Verifies the OTP and, if set, the Registration Lock PIN (ID-03, ID-09, ID-10).
+  // Re-registering an existing number revokes every old device.
+  rpc Verify(VerifyRequest) returns (VerifyResponse);
+}
+
+message RequestOtpRequest {
+  string phone_e164 = 1;
+  string attestation_token = 2;
+}
+
+message RequestOtpResponse {}
+
+message VerifyRequest {
+  string phone_e164 = 1;
+  string otp = 2;
+  // Ed25519 Account Identity public key (CRY-06), 32 bytes.
+  bytes identity_pub = 3;
+  // Required only when the account has an active Registration Lock.
+  string registration_lock_pin = 4;
+  Platform platform = 5;
+}
+
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_IOS = 1;
+  PLATFORM_ANDROID = 2;
+}
+
+message VerifyResponse {
+  bytes account_id = 1; // 16-byte UUID
+  bytes device_id = 2;  // 16-byte UUID
+  // Bearer token for authenticated calls. Shown once; the server keeps only its hash.
+  string device_token = 3;
+  // Authentication Service Ed25519 signature over
+  // "siegel-as-v1" || account_id || identity_pub (CRY-08).
+  bytes as_signature = 4;
+  // True when the account already existed (re-registration, ID-09).
+  bool existing_account = 5;
+}
+
+service UsernameService {
+  // Claim or change the caller's @username (ID-06, ID-07). Auth: device.
+  rpc Set(UsernameServiceSetRequest) returns (UsernameServiceSetResponse);
+  // Exact-match lookup only (ID-08, DISC-01). Auth: device.
+  rpc Lookup(UsernameServiceLookupRequest) returns (UsernameServiceLookupResponse);
+}
+
+message UsernameServiceSetRequest {
+  string username = 1;
+}
+
+message UsernameServiceSetResponse {}
+
+message UsernameServiceLookupRequest {
+  string username = 1;
+}
+
+message UsernameServiceLookupResponse {
+  bytes account_id = 1;
+  bytes identity_pub = 2;
+  bytes as_signature = 3;
+}
+
+service AccountService {
+  // Set or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
+  rpc SetRegistrationLock(SetRegistrationLockRequest) returns (SetRegistrationLockResponse);
+  // Deletes all server-side data for the account (ID-16). Auth: device.
+  rpc Delete(AccountServiceDeleteRequest) returns (AccountServiceDeleteResponse);
+}
+
+message SetRegistrationLockRequest {
+  string pin = 1;
+}
+
+message SetRegistrationLockResponse {}
+
+message AccountServiceDeleteRequest {}
+
+message AccountServiceDeleteResponse {}
