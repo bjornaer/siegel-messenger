@@ -1,0 +1,38 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      postgres:
+        image: postgres:18.0-alpine
+        env:
+          POSTGRES_PASSWORD: siegel
+          POSTGRES_DB: siegel
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 1s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - name: proto lint and generated code up to date
+        run: go tool buf lint .. && go tool buf generate .. && git diff --exit-code
+      - run: go test -race ./...
+        env:
+          SIEGEL_TEST_DATABASE_URL: postgres://postgres:siegel@localhost:5432/siegel
+      - name: vulnerabilities (SEC-07)
+        run: go tool govulncheck ./...
+      - name: licences compatible with AGPL-3.0 (SEC-07, D15)
+        # ponytail: own module ignored until it ships a LICENSE (OQ-005).
+        run: >
+          go tool go-licenses check ./...
+          --ignore github.com/bjornaer/siegel-messenger
+          --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MPL-2.0,Zlib,0BSD,Unlicense,AGPL-3.0,GPL-3.0,LGPL-2.1,LGPL-3.0

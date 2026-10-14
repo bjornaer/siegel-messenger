@@ -2,7 +2,8 @@ package main
 
 // Integration tests against a real PostgreSQL:
 //   docker compose up -d postgres
-//   SIEGEL_TEST_DATABASE_URL=postgres://postgres:siegel@localhost:55432/siegel go test ./...
+//   SIEGEL_TEST_DATABASE_URL=postgres://postgres:siegel@localhost:55432/postgres go test ./...
+// The tests DROP the public schema: never point this at a database holding real data.
 
 import (
 	"context"
