@@ -17,7 +17,7 @@ const serverUrl = String.fromEnvironment('SIEGEL_SERVER', defaultValue: 'https:/
 // resetOnError stays false: a silent reset would destroy the key and with it the whole history.
 const _secure = FlutterSecureStorage(
   iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
-  aOptions: AndroidOptions(resetOnError: false, keyCipherAlgorithm: KeyCipherAlgorithm.AES_GCM_NoPadding),
+  aOptions: AndroidOptions(resetOnError: false),
 );
 
 Future<Core> openCore() async {
