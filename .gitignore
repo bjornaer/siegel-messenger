@@ -7,3 +7,6 @@ implementation-status.json
 # Local secrets and backups
 .env
 backups/
+
+# Rust build output
+core/target/
