@@ -12,6 +12,8 @@ import 'onboarding.dart';
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
 
+const siegelGreen = Color(0xFF2F543B); // from the logo
+
 const serverUrl = String.fromEnvironment('SIEGEL_SERVER', defaultValue: 'https://siegel.schlk.in');
 
 // CRY-15: the DB key lives only in the Keychain / Keystore, never in backups or other devices.
@@ -61,8 +63,8 @@ class _SiegelAppState extends State<SiegelApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(colorSchemeSeed: Colors.indigo),
-      darkTheme: ThemeData(colorSchemeSeed: Colors.indigo, brightness: Brightness.dark),
+      theme: ThemeData(colorSchemeSeed: siegelGreen),
+      darkTheme: ThemeData(colorSchemeSeed: siegelGreen, brightness: Brightness.dark),
       home: ready
           ? AppLock(
               core: core,

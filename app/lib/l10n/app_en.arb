@@ -91,5 +91,6 @@
   "lockedTitle": "Siegel is locked",
   "unlock": "Unlock",
   "unlockReason": "Unlock Siegel",
-  "errNoDeviceLock": "Couldn't verify it's you. Set up a screen lock on your phone first."
+  "errNoDeviceLock": "Couldn't verify it's you. Set up a screen lock on your phone first.",
+  "appLogo": "Siegel logo"
 }

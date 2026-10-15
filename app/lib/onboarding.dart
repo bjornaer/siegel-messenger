@@ -118,6 +118,15 @@ class _OnboardingState extends State<Onboarding> {
 
     final (title, children) = switch (step) {
       _Step.welcome => (t.welcomeTitle, [
+          Center(
+            child: ClipOval(
+              child: Image.asset(
+                Theme.of(context).brightness == Brightness.dark ? 'assets/logo_dark.jpeg' : 'assets/logo.jpeg',
+                height: 160,
+                semanticLabel: t.appLogo,
+              ),
+            ),
+          ),
           Text(t.historyNotice), // ID-14
           primary(t.continueButton, () => setState(() => step = _Step.phone)),
         ]),

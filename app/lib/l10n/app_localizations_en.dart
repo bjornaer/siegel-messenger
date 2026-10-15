@@ -212,4 +212,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errNoDeviceLock =>
       'Couldn\'t verify it\'s you. Set up a screen lock on your phone first.';
+
+  @override
+  String get appLogo => 'Siegel logo';
 }

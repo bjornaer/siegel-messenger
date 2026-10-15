@@ -435,6 +435,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t verify it\'s you. Set up a screen lock on your phone first.'**
   String get errNoDeviceLock;
+
+  /// No description provided for @appLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel logo'**
+  String get appLogo;
 }
 
 class _AppLocalizationsDelegate
