@@ -7,6 +7,8 @@ import (
 	"crypto/tls"
 	_ "embed"
 	"encoding/base64"
+	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -186,6 +188,7 @@ func main() {
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       2 * time.Minute,
+		ErrorLog:          httpErrorLog,
 	}
 	if cfg.domain == "" {
 		srv.Addr = ":8080"
@@ -200,7 +203,8 @@ func main() {
 		HostPolicy: autocert.HostWhitelist(cfg.domain),
 		Cache:      autocert.DirCache(cfg.certDir),
 	}
-	go func() { fatal("acme listener stopped", "err", http.ListenAndServe(":8080", m.HTTPHandler(nil))) }()
+	acme := &http.Server{Addr: ":8080", Handler: m.HTTPHandler(nil), ReadHeaderTimeout: 10 * time.Second, ErrorLog: httpErrorLog}
+	go func() { fatal("acme listener stopped", "err", acme.ListenAndServe()) }()
 	srv.Addr = ":8443"
 	srv.TLSConfig = m.TLSConfig()
 	srv.TLSConfig.MinVersion = tls.VersionTLS13 // ARCH-02
@@ -244,4 +248,19 @@ func (s *server) janitor(ctx context.Context, b bao) {
 		}
 		time.Sleep(time.Hour)
 	}
+}
+
+// httpErrorLog is net/http's error log without client addresses: TLS handshake errors and
+// panics name the remote IP, which must never reach logs (SEC-03).
+var httpErrorLog = log.New(redactAddrs{os.Stderr}, "", log.LstdFlags)
+
+var remoteAddr = regexp.MustCompile(`(from|serving) \S+:`)
+
+type redactAddrs struct{ w io.Writer }
+
+func (r redactAddrs) Write(p []byte) (int, error) {
+	if _, err := r.w.Write(remoteAddr.ReplaceAll(p, []byte("$1 [ip]:"))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }

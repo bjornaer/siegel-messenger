@@ -37,6 +37,10 @@ services:
     ports: ["127.0.0.1:58333:8333"]
 
   server:
+    # SEC-03: logs that may name an account are kept 7 days at most. In production set
+    # LOG_DRIVER=journald with journald's MaxRetentionSec=7day (docs/deploy.md).
+    logging:
+      driver: ${LOG_DRIVER:-json-file}
     build: server
     restart: unless-stopped
     environment:

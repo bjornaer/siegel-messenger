@@ -328,3 +328,13 @@ func TestAbuseLimits(t *testing.T) { // request size, Verify per IP, Lookup per 
 	_, _, err = e.verify("+34600000042", "000000", "")
 	want(t, errMsg(err), "rate_limited")
 }
+
+func TestHTTPErrorLogHasNoIPs(t *testing.T) { // SEC-03
+	var b bytes.Buffer
+	r := redactAddrs{&b}
+	r.Write([]byte("http: TLS handshake error from 205.210.31.161:61904: tls: bad\n"))
+	r.Write([]byte("http: panic serving [2001:db8::1]:443: boom\n"))
+	if strings.Contains(b.String(), "205.210") || strings.Contains(b.String(), "2001:db8") || !strings.Contains(b.String(), "from [ip]: tls: bad") {
+		t.Fatal(b.String())
+	}
+}

@@ -143,3 +143,18 @@ Store reviewers can't receive our SMS, so one number can be given a fixed code.
    always generate a new key and delete the old one in the console).
 4. Without it, a server in dev mode logs `dev push stub` instead of pushing.
 
+## 8. Log retention (SEC-03)
+
+Server logs can name an account ID, so they may be kept 7 days at most. Docker keeps logs
+forever by default, so production logs go to journald with a 7-day limit:
+
+```sh
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nMaxRetentionSec=7day\n' > /etc/systemd/journald.conf.d/siegel.conf
+systemctl restart systemd-journald
+echo 'LOG_DRIVER=journald' >> /opt/siegel/.env
+cd /opt/siegel && docker compose up -d server
+```
+
+Read them with `journalctl CONTAINER_NAME=siegel-server-1 --since today`.
+
