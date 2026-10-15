@@ -19,7 +19,28 @@ message Content {
     Receipt receipt = 8;
     Typing typing = 9;
     KeyChange key_change = 15;
+    GroupEvent group_event = 16;
   }
+}
+
+// MSG-02 group_event, GRP-12: a system line the client stores locally ("Ana added Igor") when
+// it processes a membership or metadata commit. Never sent; receivers ignore it on the wire.
+message GroupEvent {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_CREATED = 1;
+    KIND_ADDED = 2;
+    KIND_REMOVED = 3;
+    KIND_LEFT = 4;
+    KIND_RENAMED = 5;
+    KIND_ADMIN_ADDED = 6;
+    KIND_ADMIN_REMOVED = 7;
+    KIND_SETTINGS = 8;
+  }
+  Kind kind = 1;
+  bytes actor = 2;              // account that made the change; empty when unknown
+  repeated bytes targets = 3;   // accounts it affected
+  string name = 4;              // KIND_RENAMED: the new name
 }
 
 // CRY-13: a notice the client stores locally when a contact's identity key changes. Never

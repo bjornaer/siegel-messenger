@@ -27,11 +27,17 @@ impl Codec for JsonCodec {
 
 /// A chat. `group_id` is its stable local ID (the first MLS group's ID); `mls_group` is the
 /// MLS group we currently send in, which changes when the peer re-registers (ID-09).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Conversation {
     pub group_id: Vec<u8>,
+    /// Empty for a group chat.
     pub peer_account: Vec<u8>,
     pub mls_group: Vec<u8>,
+    pub is_group: bool,
+    /// GRP-11: added by a non-contact; nothing goes back until accepted.
+    pub invite: bool,
+    /// We left or were removed: history stays, sending doesn't.
+    pub left: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,6 +113,10 @@ pub trait Store: Send {
     fn set_mls_group(&self, group_id: &[u8], mls_group: &[u8]) -> Result<()>;
     /// Every MLS group the chat ever used.
     fn mls_groups(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>>;
+    fn set_conversation_flags(&self, group_id: &[u8], invite: bool, left: bool) -> Result<()>;
+    /// GRP-13: one member's receipt for one of our messages; only moves forward.
+    fn save_receipt(&self, message_id: &[u8], account: &[u8], status: Status) -> Result<()>;
+    fn receipts(&self, message_id: &[u8]) -> Result<Vec<(Vec<u8>, Status)>>;
     /// False when the message ID was already stored (MSG-03 deduplication).
     fn save_message(&self, m: &Message) -> Result<bool>;
     /// Oldest first, in arrival order (MSG-03).
@@ -189,6 +199,11 @@ impl SqlCipher {
              UPDATE conversations SET mls_group = group_id;
              CREATE TABLE mls_groups (mls_group BLOB PRIMARY KEY, conversation BLOB NOT NULL);
              INSERT INTO mls_groups SELECT group_id, group_id FROM conversations;",
+            "ALTER TABLE conversations ADD COLUMN is_group INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE conversations ADD COLUMN invite INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE conversations ADD COLUMN left INTEGER NOT NULL DEFAULT 0;
+             CREATE TABLE receipts (message_id BLOB NOT NULL, account BLOB NOT NULL,
+               status INTEGER NOT NULL, PRIMARY KEY (message_id, account));",
         ];
         let version: usize = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         for (i, m) in MIGRATIONS.iter().enumerate().skip(version) {
@@ -279,8 +294,9 @@ impl Store for SqlCipher {
 
     fn save_conversation(&self, c: &Conversation) -> Result<()> {
         self.conn.execute(
-            "INSERT OR IGNORE INTO conversations (group_id, peer_account, mls_group) VALUES (?1, ?2, ?3)",
-            (&c.group_id, &c.peer_account, &c.mls_group),
+            "INSERT OR IGNORE INTO conversations (group_id, peer_account, mls_group, is_group, invite, left)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            (&c.group_id, &c.peer_account, &c.mls_group, c.is_group, c.invite, c.left),
         )?;
         self.conn.execute(
             "INSERT OR IGNORE INTO mls_groups (mls_group, conversation) VALUES (?1, ?2)",
@@ -290,14 +306,17 @@ impl Store for SqlCipher {
     }
 
     fn conversations(&self) -> Result<Vec<Conversation>> {
-        let mut q = self
-            .conn
-            .prepare("SELECT group_id, peer_account, mls_group FROM conversations")?;
+        let mut q = self.conn.prepare(
+            "SELECT group_id, peer_account, mls_group, is_group, invite, left FROM conversations",
+        )?;
         q.query_map([], |r| {
             Ok(Conversation {
                 group_id: r.get(0)?,
                 peer_account: r.get(1)?,
                 mls_group: r.get(2)?,
+                is_group: r.get(3)?,
+                invite: r.get(4)?,
+                left: r.get(5)?,
             })
         })?
         .collect()
@@ -324,6 +343,33 @@ impl Store for SqlCipher {
             (mls_group, group_id),
         )?;
         Ok(())
+    }
+
+    fn set_conversation_flags(&self, group_id: &[u8], invite: bool, left: bool) -> Result<()> {
+        self.conn.execute(
+            "UPDATE conversations SET invite = ?2, left = ?3 WHERE group_id = ?1",
+            (group_id, invite, left),
+        )?;
+        Ok(())
+    }
+
+    fn save_receipt(&self, message_id: &[u8], account: &[u8], status: Status) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO receipts (message_id, account, status) VALUES (?1, ?2, ?3)
+             ON CONFLICT (message_id, account) DO UPDATE SET status = max(status, ?3)",
+            (message_id, account, status as i64),
+        )?;
+        Ok(())
+    }
+
+    fn receipts(&self, message_id: &[u8]) -> Result<Vec<(Vec<u8>, Status)>> {
+        let mut q = self
+            .conn
+            .prepare("SELECT account, status FROM receipts WHERE message_id = ?1")?;
+        q.query_map([message_id], |r| {
+            Ok((r.get(0)?, Status::from_i64(r.get(1)?)))
+        })?
+        .collect()
     }
 
     fn mls_groups(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>> {
@@ -386,7 +432,7 @@ impl Store for SqlCipher {
     }
 
     fn delete_message(&self, message_id: &[u8]) -> Result<()> {
-        for t in ["messages", "reactions", "versions"] {
+        for t in ["messages", "reactions", "versions", "receipts"] {
             self.conn.execute(
                 &format!("DELETE FROM {t} WHERE message_id = ?1"),
                 [message_id],
@@ -486,7 +532,7 @@ impl Store for SqlCipher {
     }
 
     fn delete_conversation(&self, group_id: &[u8]) -> Result<()> {
-        for t in ["reactions", "versions"] {
+        for t in ["reactions", "versions", "receipts"] {
             self.conn.execute(
                 &format!(
                     "DELETE FROM {t} WHERE message_id IN (SELECT message_id FROM messages WHERE group_id = ?1)"
@@ -627,8 +673,20 @@ mod tests {
             group_id: vec![9],
             peer_account: vec![2],
             mls_group: vec![9],
+            is_group: false,
+            invite: false,
+            left: false,
         })
         .unwrap();
+        s.set_conversation_flags(&[9], true, false).unwrap();
+        assert!(s.conversations().unwrap()[0].invite);
+        s.save_receipt(&[7], &[2], Status::Read).unwrap();
+        s.save_receipt(&[7], &[2], Status::Delivered).unwrap();
+        assert_eq!(
+            s.receipts(&[7]).unwrap(),
+            vec![(vec![2], Status::Read)],
+            "never backwards"
+        );
         s.set_mls_group(&[9], &[10]).unwrap();
         assert_eq!(s.conversations().unwrap()[0].mls_group, vec![10]);
         assert_eq!(

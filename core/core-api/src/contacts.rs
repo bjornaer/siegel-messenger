@@ -104,12 +104,20 @@ impl SiegelCore {
     }
 
     /// True while the chat is an unaccepted message request (MSG-15).
+    /// Also true for a group invite we haven't accepted (GRP-11).
     pub fn is_request(&self, group_id: &[u8]) -> Result<bool, CoreError> {
+        let conv = self.conversation(group_id)?;
+        if conv.is_group {
+            return Ok(conv.invite);
+        }
         Ok(self.peer_contact(group_id)?.state != ContactState::Accepted)
     }
 
     /// Accepts a message request: they become a contact and get our profile key.
     pub async fn accept(&self, group_id: &[u8]) -> Result<(), CoreError> {
+        if self.conversation(group_id)?.is_group {
+            return self.accept_invite(group_id).await;
+        }
         let mut c = self.peer_contact(group_id)?;
         c.state = ContactState::Accepted;
         self.with_store(|s| storage(s.save_contact(&c)))?;
@@ -150,7 +158,20 @@ impl SiegelCore {
         self.put(PROFILE_KEY, &ProfileKey::generate().0)?;
         self.publish_profile().await?;
         for conv in self.conversations()? {
-            if self
+            if conv.is_group {
+                // Everyone in the group but them gets the new key.
+                if conv.invite || conv.left {
+                    continue;
+                }
+                let others: Vec<[u8; 16]> = self
+                    .group_info(&conv.group_id)?
+                    .members
+                    .into_iter()
+                    .filter(|m| !m.me && m.account != account)
+                    .filter_map(|m| m.account.try_into().ok())
+                    .collect();
+                self.share_profile_key_with(&conv.group_id, &others).await?;
+            } else if self
                 .contact(&conv.peer_account)
                 .is_some_and(|c| c.state == ContactState::Accepted)
             {

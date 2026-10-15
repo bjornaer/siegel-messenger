@@ -112,6 +112,9 @@ impl SiegelCore {
         if self.is_request(group_id)? {
             return Err(CoreError::new("request_pending")); // accept first (MSG-15)
         }
+        if self.conversation(group_id)?.left {
+            return Err(CoreError::new("group_left"));
+        }
         let content = self.new_content(pb::content::Body::Text(pb::Text {
             body: text.into(),
             reply_to: reply_to.unwrap_or_default().to_vec(),
@@ -169,6 +172,9 @@ impl SiegelCore {
     async fn change(&self, group_id: &[u8], body: pb::content::Body) -> Result<(), CoreError> {
         if self.is_request(group_id)? {
             return Err(CoreError::new("request_pending"));
+        }
+        if self.conversation(group_id)?.left {
+            return Err(CoreError::new("group_left"));
         }
         let me = self.me()?;
         let content = self.new_content(body);
@@ -244,8 +250,22 @@ impl SiegelCore {
         if ids.is_empty() || !self.enabled(READ_RECEIPTS) || self.is_request(group_id)? {
             return Ok(());
         }
-        self.send_receipt(group_id, pb::receipt::Kind::Read, ids)
-            .await
+        // One receipt per sender: in groups each goes to that sender only (GRP-13).
+        let mut by_sender: Vec<(Vec<u8>, Vec<Vec<u8>>)> = Vec::new();
+        for id in ids {
+            let Some(m) = self.with_store(|s| storage(s.message(&id)))? else {
+                continue;
+            };
+            match by_sender.iter_mut().find(|(a, _)| *a == m.sender_account) {
+                Some((_, v)) => v.push(id),
+                None => by_sender.push((m.sender_account, vec![id])),
+            }
+        }
+        for (sender, ids) in by_sender {
+            self.send_receipt(group_id, pb::receipt::Kind::Read, ids, &sender)
+                .await?;
+        }
+        Ok(())
     }
 
     pub(crate) async fn send_receipt(
@@ -253,14 +273,17 @@ impl SiegelCore {
         group_id: &[u8],
         kind: pb::receipt::Kind,
         message_ids: Vec<Vec<u8>>,
+        to: &[u8],
     ) -> Result<(), CoreError> {
         let r = pb::Receipt {
             kind: kind as i32,
             message_ids,
         };
-        self.send_content(group_id, pb::content::Body::Receipt(r))
-            .await
-            .map(|_| ())
+        let content = self.new_content(pb::content::Body::Receipt(r));
+        let Ok(to) = <[u8; 16]>::try_from(to) else {
+            return Ok(()); // system lines have no sender
+        };
+        self.deliver_to(group_id, &content, Some(&[to])).await
     }
 
     /// MSG-14: call at most every 3 seconds while the user types.

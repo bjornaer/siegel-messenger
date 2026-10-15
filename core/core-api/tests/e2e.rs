@@ -277,6 +277,18 @@ async fn echo_peer() {
     }
 }
 
+/// Polls `done` for up to 40 s: for conditions that span several clients or wait on timers
+/// (a leave is committed within GRP-10's 60 s).
+async fn eventually(done: impl Fn() -> bool) {
+    for _ in 0..200 {
+        if done() {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    panic!("condition not reached in time");
+}
+
 /// Waits until `done` holds, re-checking after every event (it may already hold).
 async fn settle(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<core_api::Event>,
@@ -688,4 +700,294 @@ async fn demo_peers() {
     for t in tasks {
         t.await.unwrap();
     }
+}
+
+/// Two users who are each other's contacts, with a 1:1 chat accepted on both sides.
+async fn befriend(
+    a: &std::sync::Arc<SiegelCore>,
+    a_events: &mut tokio::sync::mpsc::UnboundedReceiver<core_api::Event>,
+    b: &std::sync::Arc<SiegelCore>,
+    b_name: &str,
+    b_events: &mut tokio::sync::mpsc::UnboundedReceiver<core_api::Event>,
+) {
+    let chat = a.start_chat(b_name).await.unwrap();
+    until(b_events, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await;
+    b.accept(&chat).await.unwrap();
+    until(a_events, |e| {
+        matches!(e, core_api::Event::ProfileUpdated { .. })
+    })
+    .await;
+}
+
+fn group_names(c: &SiegelCore, gid: &[u8]) -> Vec<String> {
+    c.group_info(gid)
+        .unwrap()
+        .members
+        .into_iter()
+        .map(|m| m.username.or(m.display_name).unwrap_or_default())
+        .collect()
+}
+
+#[tokio::test]
+async fn groups_invites_roles_rename_add_leave() {
+    // GRP-01..GRP-13.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, GroupEventKind, Status};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (carol, carol_name) = new_user(&url, "carol").await;
+    let (dave, dave_name) = new_user(&url, "dave").await;
+    let (mut ae, mut be, mut ce, mut de) =
+        (listen(&alice), listen(&bob), listen(&carol), listen(&dave));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+
+    let gid = alice
+        .create_group("Hikers", &[bob_name.clone(), carol_name.clone()])
+        .await
+        .unwrap();
+    // Bob is Alice's contact and joins; Carol isn't and gets an invite (GRP-11).
+    let Event::ConversationStarted {
+        request, group_id, ..
+    } = until(&mut be, |e| matches!(e, Event::ConversationStarted { .. })).await
+    else {
+        unreachable!()
+    };
+    assert_eq!((request, group_id.as_slice()), (false, gid.as_slice()));
+    let Event::ConversationStarted { request, .. } =
+        until(&mut ce, |e| matches!(e, Event::ConversationStarted { .. })).await
+    else {
+        unreachable!()
+    };
+    assert!(request, "an add from a non-contact is an invite");
+    let info = bob.group_info(&gid).unwrap();
+    assert_eq!(
+        (info.name.as_str(), info.members.len(), info.me_admin),
+        ("Hikers", 3, false)
+    );
+    assert!(info.members[0].admin, "the creator is admin (GRP-04)");
+
+    let hi = alice.send_text(&gid, "hi group", None).await.unwrap();
+    for rx in [&mut be, &mut ce] {
+        until(
+            rx,
+            |e| matches!(e, Event::Message(m) if m.text == "hi group"),
+        )
+        .await;
+    }
+    // GRP-13: delivered once both got it; Bob's read receipt is recorded per member.
+    settle(&mut ae, || {
+        alice
+            .messages(&gid, 50)
+            .unwrap()
+            .iter()
+            .any(|m| m.message_id == hi.message_id && m.status == Status::Delivered)
+    })
+    .await;
+    bob.mark_read(&gid).await.unwrap();
+    settle(&mut ae, || {
+        alice
+            .message_receipts(&hi.message_id)
+            .unwrap()
+            .iter()
+            .any(|(_, s)| *s == Status::Read)
+    })
+    .await;
+
+    carol.accept(&gid).await.unwrap();
+    carol.send_text(&gid, "glad to join", None).await.unwrap();
+    until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "glad to join"),
+    )
+    .await;
+
+    // GRP-05, GRP-06: only admins rename and remove by default.
+    assert_eq!(
+        bob.rename_group(&gid, "Bob's").await.unwrap_err().code,
+        "not_allowed"
+    );
+    let carol_id = carol
+        .group_info(&gid)
+        .unwrap()
+        .members
+        .into_iter()
+        .find(|m| m.me)
+        .unwrap()
+        .account;
+    assert_eq!(
+        bob.remove_member(&gid, &carol_id).await.unwrap_err().code,
+        "not_allowed"
+    );
+    let bob_id = bob
+        .group_info(&gid)
+        .unwrap()
+        .members
+        .into_iter()
+        .find(|m| m.me)
+        .unwrap()
+        .account;
+    alice.set_admin(&gid, &bob_id, true).await.unwrap();
+    settle(&mut be, || bob.group_info(&gid).unwrap().me_admin).await;
+    bob.rename_group(&gid, "Hikers 2026").await.unwrap();
+    for (c, rx) in [(&alice, &mut ae), (&carol, &mut ce)] {
+        settle(rx, || c.group_info(&gid).unwrap().name == "Hikers 2026").await;
+    }
+
+    // GRP-09: Bob, now admin, adds Dave; Dave sees only what comes after.
+    bob.add_members(&gid, std::slice::from_ref(&dave_name))
+        .await
+        .unwrap();
+    until(&mut de, |e| matches!(e, Event::ConversationStarted { .. })).await;
+    assert_eq!(dave.group_info(&gid).unwrap().name, "Hikers 2026");
+    assert!(
+        !dave
+            .messages(&gid, 50)
+            .unwrap()
+            .iter()
+            .any(|m| m.text == "hi group")
+    );
+    settle(&mut ae, || {
+        alice.group_info(&gid).unwrap().members.len() == 4
+    })
+    .await;
+
+    // GRP-10: Carol leaves; someone commits it within seconds.
+    carol.leave_group(&gid).await.unwrap();
+    assert_eq!(
+        carol
+            .send_text(&gid, "still here?", None)
+            .await
+            .unwrap_err()
+            .code,
+        "group_left"
+    );
+    for c in [&alice, &bob, &dave] {
+        eventually(|| !group_names(c, &gid).contains(&carol_name)).await;
+    }
+
+    // GRP-12: system lines tell the story.
+    let kinds: Vec<GroupEventKind> = alice
+        .messages(&gid, 100)
+        .unwrap()
+        .into_iter()
+        .filter_map(|m| m.event.map(|e| e.kind))
+        .collect();
+    for k in [
+        GroupEventKind::Created,
+        GroupEventKind::AdminAdded,
+        GroupEventKind::Renamed,
+        GroupEventKind::Added,
+        GroupEventKind::Left,
+    ] {
+        assert!(kinds.contains(&k), "{k:?} missing from {kinds:?}");
+    }
+}
+
+#[tokio::test]
+async fn concurrent_admin_commits_converge() {
+    // AC-04: both admins commit at the same epoch; one wins, the other rebases.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let gid = alice
+        .create_group("Race", std::slice::from_ref(&bob_name))
+        .await
+        .unwrap();
+    until(&mut be, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await;
+    let bob_id = bob
+        .group_info(&gid)
+        .unwrap()
+        .members
+        .into_iter()
+        .find(|m| m.me)
+        .unwrap()
+        .account;
+    alice.set_admin(&gid, &bob_id, true).await.unwrap();
+    settle(&mut be, || bob.group_info(&gid).unwrap().me_admin).await;
+
+    let (a, b) = tokio::join!(
+        alice.rename_group(&gid, "Alpha"),
+        bob.rename_group(&gid, "Bravo")
+    );
+    a.unwrap();
+    b.unwrap();
+    eventually(|| alice.group_info(&gid).unwrap().name == bob.group_info(&gid).unwrap().name).await;
+    let name = alice.group_info(&gid).unwrap().name;
+    assert!(name == "Alpha" || name == "Bravo");
+}
+
+#[tokio::test]
+async fn removed_member_cannot_read_later_messages() {
+    // AC-03 at a size CI can afford; SIEGEL_AC03_MEMBERS=256 runs the full test.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let n: usize = std::env::var("SIEGEL_AC03_MEMBERS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(12);
+    let (admin, _) = new_user(&url, "admin").await;
+    let mut members = Vec::new();
+    for i in 1..n {
+        members.push(new_user(&url, &format!("m{i}x")).await);
+    }
+    let names: Vec<String> = members.iter().map(|(_, name)| name.clone()).collect();
+    let gid = admin.create_group("Big", &names).await.unwrap();
+    let (gone, _) = members.remove(0);
+    let mut gone_events = listen(&gone);
+    let (stay, _) = &members[members.len() - 1];
+    let mut stay_events = listen(stay);
+    until(&mut gone_events, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await;
+    until(&mut stay_events, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await;
+    assert_eq!(stay.group_info(&gid).unwrap().members.len(), n);
+
+    let gone_id = gone
+        .group_info(&gid)
+        .unwrap()
+        .members
+        .into_iter()
+        .find(|m| m.me)
+        .unwrap()
+        .account;
+    admin.remove_member(&gid, &gone_id).await.unwrap();
+    settle(&mut gone_events, || {
+        gone.conversations()
+            .unwrap()
+            .iter()
+            .any(|c| c.group_id == gid && c.left)
+    })
+    .await;
+    admin.send_text(&gid, "after removal", None).await.unwrap();
+    until(
+        &mut stay_events,
+        |e| matches!(e, core_api::Event::Message(m) if m.text == "after removal"),
+    )
+    .await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    assert!(
+        !gone
+            .messages(&gid, 100)
+            .unwrap()
+            .iter()
+            .any(|m| m.text == "after removal"),
+        "a removed member must not decrypt later messages"
+    );
 }

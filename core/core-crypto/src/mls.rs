@@ -25,6 +25,9 @@ pub const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_
 const PADDING: usize = 256;
 /// Late messages from a previous epoch stay decryptable this long after a commit.
 const PAST_EPOCHS: usize = 3;
+/// Group receipts go only to the message's sender (GRP-13), so other members see gaps in each
+/// sender's message counter; this many skipped messages are tolerated.
+const MAX_FORWARD: u32 = 5000;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Error(pub String);
@@ -150,7 +153,10 @@ pub struct Outgoing {
 pub struct Change {
     pub by: Account,
     pub added: Vec<Account>,
+    /// Removed by someone else.
     pub removed: Vec<Account>,
+    /// Left on their own (GRP-10).
+    pub left: Vec<Account>,
     pub old: GroupState,
     pub new: GroupState,
 }
@@ -181,6 +187,12 @@ pub enum Received {
     /// A proposal (a member leaving, GRP-10) waits for someone to commit it.
     Proposal {
         group_id: Vec<u8>,
+    },
+    /// GRP-07: a commit that breaks the group's rules was refused and not merged. The server
+    /// still counted its epoch, so our next commit must account for it.
+    Rejected {
+        group_id: Vec<u8>,
+        reason: String,
     },
     Ignored,
 }
@@ -269,6 +281,7 @@ impl<P: OpenMlsProvider> Mls<P> {
             .wire_format_policy(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY) // CRY-04, GRP-03
             .padding_size(PADDING)
             .max_past_epochs(PAST_EPOCHS)
+            .sender_ratchet_configuration(SenderRatchetConfiguration::new(5, MAX_FORWARD))
             .build()
     }
 
@@ -278,6 +291,7 @@ impl<P: OpenMlsProvider> Mls<P> {
             .wire_format_policy(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY)
             .padding_size(PADDING)
             .max_past_epochs(PAST_EPOCHS)
+            .sender_ratchet_configuration(SenderRatchetConfiguration::new(5, MAX_FORWARD))
             .build()
     }
 
@@ -514,6 +528,10 @@ impl<P: OpenMlsProvider> Mls<P> {
             .map_err(err)
     }
 
+    pub fn epoch(&self, group_id: &[u8]) -> Result<u64, Error> {
+        Ok(self.group(group_id)?.epoch().as_u64())
+    }
+
     /// Proposals waiting for a commit (GRP-10).
     pub fn has_pending_proposals(&self, group_id: &[u8]) -> Result<bool, Error> {
         Ok(self.group(group_id)?.pending_proposals().next().is_some())
@@ -572,7 +590,16 @@ impl<P: OpenMlsProvider> Mls<P> {
         Ok(Some(Change {
             by,
             added,
-            removed: removed.into_iter().map(|(a, _)| a).collect(),
+            left: removed
+                .iter()
+                .filter(|(a, p)| a == p)
+                .map(|(a, _)| *a)
+                .collect(),
+            removed: removed
+                .iter()
+                .filter(|(a, p)| a != p)
+                .map(|(a, _)| *a)
+                .collect(),
             old,
             new,
         }))
@@ -674,7 +701,15 @@ impl<P: OpenMlsProvider> Mls<P> {
                         plaintext: m.into_bytes(),
                     }),
                     ProcessedMessageContent::StagedCommitMessage(c) => {
-                        let change = self.check_commit(&g, sender.account_id, &c)?;
+                        let change = match self.check_commit(&g, sender.account_id, &c) {
+                            Err(Error(r)) if r.starts_with("unauthorized_commit") => {
+                                return Ok(Received::Rejected {
+                                    group_id,
+                                    reason: r,
+                                });
+                            }
+                            r => r?,
+                        };
                         let removed = c.self_removed();
                         g.merge_staged_commit(&self.provider, *c).map_err(err)?;
                         Ok(if removed {
@@ -915,12 +950,10 @@ mod tests {
             .into_contents();
         let evil = evil.tls_serialize_detached().unwrap();
         for m in [&a, &c] {
-            assert!(
-                m.receive(&evil)
-                    .unwrap_err()
-                    .0
-                    .starts_with("unauthorized_commit")
-            );
+            assert!(matches!(
+                m.receive(&evil).unwrap(),
+                Received::Rejected { .. }
+            ));
         }
         g.clear_pending_commit(b.provider.storage()).unwrap();
 
@@ -962,7 +995,10 @@ mod tests {
             else {
                 panic!("leave commit")
             };
-            assert_eq!(ch.removed, vec![[3; 16]]);
+            assert_eq!(
+                (ch.left.clone(), ch.removed.clone()),
+                (vec![[3; 16]], vec![])
+            );
         }
         assert_eq!(
             c.receive(&out.commit).unwrap(),

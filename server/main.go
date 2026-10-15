@@ -86,7 +86,7 @@ func loadConfig() config {
 		otpPerIP:      env("SIEGEL_OTP_PER_IP_HOUR", 10, strconv.Atoi),
 		verifyPerIP:   env("SIEGEL_VERIFY_PER_IP_HOUR", 30, strconv.Atoi),
 		lookupPerDay:  env("SIEGEL_LOOKUP_PER_DAY", 200, strconv.Atoi),
-		claimPerDay:   env("SIEGEL_CLAIM_PER_DAY", 200, strconv.Atoi),
+		claimPerDay:   env("SIEGEL_CLAIM_PER_DAY", 1000, strconv.Atoi), // a 256-member group (GRP-01) needs 255
 		sealedPerIP:   env("SIEGEL_SEALED_PER_IP_HOUR", 3000, strconv.Atoi),
 		newChatPerDay: env("SIEGEL_NEW_CHATS_PER_DAY", 50, strconv.Atoi),
 		smsDailyCap:   env("SIEGEL_SMS_DAILY_CAP", 1000, strconv.Atoi),

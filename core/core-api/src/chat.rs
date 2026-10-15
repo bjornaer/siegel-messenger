@@ -13,6 +13,7 @@ use prost::Message as _;
 
 use core_crypto::profile::ProfileKey;
 
+use crate::groups::{GROUP_ADDS, joined_group, record_change};
 use crate::messages::{READ_RECEIPTS, TYPING, TYPING_STALE_MS, apply_change};
 use crate::{AS_PUBLIC, CREDENTIAL, CoreError, SIGNER, SiegelCore, storage};
 
@@ -50,9 +51,10 @@ fn provider(s: &SqlCipher) -> Provider<'_> {
     }
 }
 
-fn mls_err(e: core_crypto::mls::Error) -> CoreError {
+pub(crate) fn mls_err(e: core_crypto::mls::Error) -> CoreError {
     CoreError::new(match e.0.as_str() {
-        "credential_invalid" | "unknown_group" => &e.0,
+        "credential_invalid" | "unknown_group" | "name_invalid" => &e.0,
+        r if r.ends_with("_not_allowed") => "not_allowed", // GRP-05, GRP-06
         _ => "mls",
     })
 }
@@ -61,7 +63,7 @@ pub(crate) fn new_signer(s: &SqlCipher) -> Result<core_crypto::mls::SignatureKey
     Mls::new_signer(&provider(s)).map_err(mls_err)
 }
 
-fn addr(m: &Member) -> pb::DeviceAddress {
+pub(crate) fn addr(m: &Member) -> pb::DeviceAddress {
     pb::DeviceAddress {
         account_id: m.account_id.to_vec(),
         device_id: m.device_id.to_vec(),
@@ -89,9 +91,10 @@ pub enum Event {
     Updated {
         group_id: Vec<u8>,
     },
-    /// The peer is typing (MSG-14); show it for a few seconds.
+    /// Someone in the chat is typing (MSG-14); show it for a few seconds.
     Typing {
         group_id: Vec<u8>,
+        account: Vec<u8>,
     },
     /// A contact's name or @username arrived or changed.
     ProfileUpdated {
@@ -109,6 +112,16 @@ enum Handled {
     ProfileKey(Vec<u8>),
     /// A new text: shown, and acknowledged with a delivery receipt (MSG-13).
     Text(ChatMessage),
+    /// We are in a new group (GRP-09); an invite (GRP-11) gets nothing back until accepted.
+    GroupJoined {
+        group_id: Vec<u8>,
+        invite: bool,
+    },
+    /// Members joined a group: they get our profile key.
+    MembersAdded {
+        group_id: Vec<u8>,
+        accounts: Vec<[u8; 16]>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,18 +143,20 @@ pub struct ChatMessage {
     pub reactions: Vec<(Vec<u8>, String)>,
     /// CRY-13: a local notice that the peer's identity key changed, not a message.
     pub key_change: bool,
+    /// GRP-12: a system line in a group, not a message.
+    pub event: Option<crate::groups::GroupEvent>,
 }
 
 pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Option<ChatMessage> {
-    let (t, key_change) = if m.deleted {
-        (pb::Text::default(), false)
-    } else {
+    let (mut t, mut key_change, mut event) = (pb::Text::default(), false, None);
+    if !m.deleted {
         match pb::Content::decode(m.body.as_slice()).ok()?.body? {
-            pb::content::Body::Text(t) => (t, false),
-            pb::content::Body::KeyChange(_) => (pb::Text::default(), true),
+            pb::content::Body::Text(x) => t = x,
+            pb::content::Body::KeyChange(_) => key_change = true,
+            pb::content::Body::GroupEvent(e) => event = Some(crate::groups::group_event(e)?),
             _ => return None, // unknown types skipped (MSG-01)
         }
-    };
+    }
     Some(ChatMessage {
         group_id: m.group_id,
         message_id: m.message_id,
@@ -155,6 +170,7 @@ pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Opt
         deleted: m.deleted,
         reactions,
         key_change,
+        event,
     })
 }
 
@@ -233,6 +249,7 @@ impl SiegelCore {
                 group_id: mls_group.clone(),
                 peer_account: peer.clone(),
                 mls_group: mls_group.clone(),
+                ..Default::default()
             }))?;
             note_identity(s, &peer, &identity)
         })?;
@@ -288,7 +305,7 @@ impl SiegelCore {
                 profile_key: self.profile_key()?.0.to_vec(),
             };
             let content = self.new_content(pb::content::Body::ProfileKeyUpdate(key));
-            self.deliver_once(group_id, &content).await?;
+            self.send_once(group_id, &content, None).await?;
         }
         Ok(())
     }
@@ -377,28 +394,76 @@ impl SiegelCore {
         group_id: &[u8],
         content: &pb::Content,
     ) -> Result<(), CoreError> {
-        if !self.deliver_once(group_id, content).await? {
+        self.deliver_to(group_id, content, None).await
+    }
+
+    /// Delivers to the chat's members, or only to `only` (group receipts go to the sender
+    /// alone, GRP-13). A 1:1 peer whose devices are all revoked re-registered: re-key the chat
+    /// and send again (ID-09). In a group, re-registered members get their new devices (AC-05).
+    pub(crate) async fn deliver_to(
+        &self,
+        group_id: &[u8],
+        content: &pb::Content,
+        only: Option<&[[u8; 16]]>,
+    ) -> Result<(), CoreError> {
+        let conv = self.conversation(group_id)?;
+        let (revoked, recipients) = self.send_once(group_id, content, only).await?;
+        if conv.is_group {
+            if !revoked.is_empty() {
+                self.replace_devices(group_id, &revoked).await;
+            }
+        } else if recipients > 0 && !revoked.is_empty() {
             self.rekey(group_id).await?;
-            self.deliver_once(group_id, content).await?;
+            self.send_once(group_id, content, None).await?;
         }
         Ok(())
     }
 
-    /// One delivery attempt in the chat's current MLS group. False when every recipient
-    /// device turned out to be revoked (the peer re-registered).
-    async fn deliver_once(
+    /// Encrypts once and sends. Returns the accounts of revoked devices and how many devices
+    /// it was meant for.
+    async fn send_once(
         &self,
         group_id: &[u8],
         content: &pb::Content,
-    ) -> Result<bool, CoreError> {
+        only: Option<&[[u8; 16]]>,
+    ) -> Result<(Vec<[u8; 16]>, usize), CoreError> {
+        let mls_group = self.conversation(group_id)?.mls_group;
+        let payload = self.with_mls(|m, _| {
+            m.encrypt(&mls_group, &content.encode_to_vec())
+                .map_err(mls_err)
+        })?;
+        self.send_payload(group_id, payload, only).await
+    }
+
+    /// GRP-10: a leave proposal is an MLS message of its own.
+    pub(crate) async fn deliver_payload(
+        &self,
+        group_id: &[u8],
+        payload: Vec<u8>,
+    ) -> Result<(), CoreError> {
+        self.send_payload(group_id, payload, None).await.map(|_| ())
+    }
+
+    /// Sends one MLS payload: sealed to contacts whose profile key we hold (MSG-10), identified
+    /// to everyone else (MSG-15). A rejected token (they rotated their key, e.g. after blocking
+    /// us) falls back to identified; their app then drops it (MSG-16).
+    /// ponytail: group members who aren't contacts get identified sends.
+    async fn send_payload(
+        &self,
+        group_id: &[u8],
+        payload: Vec<u8>,
+        only: Option<&[[u8; 16]]>,
+    ) -> Result<(Vec<[u8; 16]>, usize), CoreError> {
         let token = self.token()?;
         let mls_group = self.conversation(group_id)?.mls_group;
-        let (payload, sealed, mut identified, recipients) = self.with_mls(|m, s| {
-            let payload = m
-                .encrypt(&mls_group, &content.encode_to_vec())
-                .map_err(mls_err)?;
+        let (sealed, mut identified, recipients) = self.with_mls(|m, s| {
             let (mut sealed, mut identified) = (Vec::new(), Vec::new());
-            let others = m.others(&mls_group).map_err(mls_err)?;
+            let others: Vec<Member> = m
+                .others(&mls_group)
+                .map_err(mls_err)?
+                .into_iter()
+                .filter(|r| only.is_none_or(|o| o.contains(&r.account_id)))
+                .collect();
             let recipients = others.len();
             for r in others {
                 match storage(s.contact(&r.account_id))? {
@@ -416,29 +481,47 @@ impl SiegelCore {
                     _ => identified.push(addr(&r)),
                 }
             }
-            Ok((payload, sealed, identified, recipients))
+            Ok((sealed, identified, recipients))
         })?;
-        let mut revoked = 0;
+        let mut revoked = Vec::new();
         if !sealed.is_empty() {
             let (r, rejected) = self.net.send_sealed(sealed, payload.clone()).await?;
-            revoked += r.len();
+            revoked.extend(r);
             identified.extend(rejected);
         }
-        // ponytail: in groups (M3) revoked devices must also be removed from the group (ID-13).
         if !identified.is_empty() {
-            revoked += self
-                .net
-                .send_identified(&token, identified, payload)
-                .await?
-                .len();
+            revoked.extend(
+                self.net
+                    .send_identified(&token, identified, payload)
+                    .await?,
+            );
         }
-        Ok(recipients == 0 || revoked < recipients)
+        let mut accounts: Vec<[u8; 16]> = Vec::new();
+        for d in &revoked {
+            if let Ok(a) = <[u8; 16]>::try_from(d.account_id.as_slice())
+                && !accounts.contains(&a)
+            {
+                accounts.push(a);
+            }
+        }
+        Ok((accounts, recipients))
     }
 
     /// Decrypts one queued payload and stores what it carries.
     fn handle(&self, payload: &[u8]) -> Result<Option<Handled>, CoreError> {
         let (read_receipts, typing) = (self.enabled(READ_RECEIPTS), self.enabled(TYPING));
+        let everyone_may_add = self.setting(GROUP_ADDS).as_deref() == Some("everyone");
+        let me = self.get(crate::ACCOUNT)?.unwrap_or_default();
         self.with_mls(|m, s| match m.receive(payload).map_err(mls_err)? {
+            Received::Joined {
+                group_id,
+                members,
+                adder,
+                state: Some(_),
+            } => Ok(
+                joined_group(m, s, group_id, &members, adder.as_ref(), everyone_may_add)?
+                    .map(|(group_id, invite)| Handled::GroupJoined { group_id, invite }),
+            ),
             Received::Joined {
                 group_id, members, ..
             } => {
@@ -471,6 +554,7 @@ impl SiegelCore {
                     group_id: group_id.clone(),
                     peer_account: peer.clone(),
                     mls_group: group_id.clone(),
+                    ..Default::default()
                 }))?;
                 note_identity(s, &peer, &identity)?;
                 Ok(Some(Handled::Event(Event::ConversationStarted {
@@ -486,6 +570,12 @@ impl SiegelCore {
             } => {
                 let Some(group_id) = storage(s.conversation_for_mls(&mls_group))? else {
                     return Ok(None); // chat deleted here
+                };
+                let Some(conv) = storage(s.conversations())?
+                    .into_iter()
+                    .find(|c| c.group_id == group_id)
+                else {
+                    return Ok(None);
                 };
                 let from = sender.account_id.to_vec();
                 if matches!(storage(s.contact(&from))?, Some(c) if c.state == ContactState::Blocked)
@@ -535,18 +625,59 @@ impl SiegelCore {
                             pb::receipt::Kind::Read if read_receipts => Status::Read,
                             _ => return Ok(None), // MSG-13: ours off hides theirs
                         };
-                        storage(s.advance_status(&group_id, &r.message_ids, status))?;
+                        if conv.is_group {
+                            Self::group_receipt(m, s, &conv, &from, &r.message_ids, status, &me)?;
+                        } else {
+                            storage(s.advance_status(&group_id, &r.message_ids, status))?;
+                        }
                         Ok(Some(Handled::Event(Event::Updated { group_id })))
                     }
                     Some(pb::content::Body::Typing(_))
                         if typing && now_ms() - c.sent_at < TYPING_STALE_MS =>
                     {
-                        Ok(Some(Handled::Event(Event::Typing { group_id })))
+                        Ok(Some(Handled::Event(Event::Typing {
+                            group_id,
+                            account: from,
+                        })))
                     }
                     _ => Ok(None), // unknown or not yet supported types (MSG-01)
                 }
             }
-            _ => Ok(None), // commits, proposals and removals: handled with groups (M3)
+            Received::Commit {
+                group_id: mls_group,
+                change: Some(change),
+            } => {
+                let Some(group_id) = storage(s.conversation_for_mls(&mls_group))? else {
+                    return Ok(None);
+                };
+                for a in &change.added {
+                    Self::ensure_contact(s, a)?;
+                }
+                record_change(s, &group_id, &change)?;
+                let accounts = change.added.clone();
+                Ok(Some(if accounts.is_empty() {
+                    Handled::Event(Event::Updated { group_id })
+                } else {
+                    Handled::MembersAdded { group_id, accounts }
+                }))
+            }
+            Received::Removed {
+                group_id: mls_group,
+            } => {
+                let Some(group_id) = storage(s.conversation_for_mls(&mls_group))? else {
+                    return Ok(None);
+                };
+                storage(s.set_conversation_flags(&group_id, false, true))?;
+                m.forget(&mls_group).map_err(mls_err)?;
+                Ok(Some(Handled::Event(Event::Updated { group_id })))
+            }
+            Received::Proposal { .. } => Ok(None), // committed by commit_due_proposals (GRP-10)
+            Received::Rejected { group_id, .. } => {
+                // GRP-07: refused, but the server counted the epoch.
+                crate::groups::add_skew(s, &group_id)?;
+                Ok(None)
+            }
+            Received::Commit { .. } | Received::Ignored => Ok(None),
         })
     }
 
@@ -577,12 +708,15 @@ impl SiegelCore {
         let _ = self.self_updates().await;
         let mut stream = self.net.stream(&token).await?;
         loop {
-            let frame = match idle {
-                Some(d) => match tokio::time::timeout(d, stream.next()).await {
-                    Ok(f) => f?,
-                    Err(_) => return Ok(()), // drained
-                },
-                None => stream.next().await?,
+            // Wake every 5 s while live to commit members' pending leave proposals (GRP-10).
+            let wait = idle.unwrap_or(std::time::Duration::from_secs(5));
+            let frame = match tokio::time::timeout(wait, stream.next()).await {
+                Ok(f) => f?,
+                Err(_) if idle.is_some() => return Ok(()), // drained
+                Err(_) => {
+                    let _ = self.commit_due_proposals().await;
+                    continue;
+                }
             };
             let Some(frame) = frame else { break };
             match frame {
@@ -606,9 +740,26 @@ impl SiegelCore {
                                     &m.group_id,
                                     pb::receipt::Kind::Delivered,
                                     vec![m.message_id.clone()],
+                                    &m.sender_account,
                                 )
                                 .await;
                             on_event(Event::Message(m));
+                        }
+                        Ok(Some(Handled::GroupJoined { group_id, invite })) => {
+                            if !invite {
+                                let _ = self.share_profile_key(&group_id).await;
+                            }
+                            on_event(Event::ConversationStarted {
+                                group_id,
+                                peer_account: vec![],
+                                request: invite,
+                            });
+                        }
+                        Ok(Some(Handled::MembersAdded { group_id, accounts })) => {
+                            if !self.is_request(&group_id).unwrap_or(true) {
+                                let _ = self.share_profile_key_with(&group_id, &accounts).await;
+                            }
+                            on_event(Event::Updated { group_id });
                         }
                         Ok(Some(Handled::ProfileKey(account))) => {
                             let fetched = self.refresh_profile(&account).await.is_ok();
@@ -673,6 +824,6 @@ pub(crate) fn note_identity(s: &SqlCipher, peer: &[u8], identity: &[u8]) -> Resu
     Ok(())
 }
 
-fn hex(b: &[u8]) -> String {
+pub(crate) fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
