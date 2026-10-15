@@ -89,9 +89,33 @@ jobs:
         with:
           manifest-path: app/rust/Cargo.toml
 
+  e2e:
+    # Headless Rust clients against the real stack (section 15 end-to-end tests, AC-01).
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROFILES: localbao
+      SIEGEL_OTP_PER_IP_HOUR: "10000"
+      SIEGEL_VERIFY_PER_IP_HOUR: "10000"
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose up -d --build --wait
+      - run: rustup toolchain install stable --profile minimal
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            core/target
+          key: e2e-${{ hashFiles('core/Cargo.lock') }}
+      - run: cargo test -p core-api --test e2e
+        working-directory: core
+        env:
+          SIEGEL_TEST_SERVER_URL: http://localhost:58080
+      - if: failure()
+        run: docker compose logs --tail=100 server
+
   # Deploys main to Hetzner once CI is green. Inert until the DEPLOY_HOST variable is set (docs/deploy.md).
   deploy:
-    needs: [server, core]
+    needs: [server, core, app, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
     runs-on: ubuntu-latest
     concurrency: deploy
