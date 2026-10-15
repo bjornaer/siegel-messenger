@@ -51,7 +51,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pinTitle => 'Registration Lock';
 
   @override
-  String get pinHelp => 'This number is protected by a PIN. Enter it to continue.';
+  String get pinHelp =>
+      'This number is protected by a PIN. Enter it to continue.';
 
   @override
   String get pinLabel => '4-digit PIN';
@@ -63,7 +64,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get usernameLabel => '@username';
 
   @override
-  String get usernameHelp => '4 to 32 characters: a–z, 0–9, _ and . Starts with a letter. This is how people find you.';
+  String get usernameHelp =>
+      '4 to 32 characters: a–z, 0–9, _ and . Starts with a letter. This is how people find you.';
 
   @override
   String get displayNameLabel => 'Display name';
@@ -122,7 +124,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errPhoneInvalid => 'That doesn\'t look like a valid phone number.';
 
   @override
-  String get errRateLimited => 'Too many attempts. Please wait and try again later.';
+  String get errRateLimited =>
+      'Too many attempts. Please wait and try again later.';
 
   @override
   String get errOtpInvalid => 'Wrong or expired code.';
@@ -140,7 +143,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errUsernameTaken => 'That username is taken.';
 
   @override
-  String get errUsernameTooSoon => 'You can change your username once every 30 days.';
+  String get errUsernameTooSoon =>
+      'You can change your username once every 30 days.';
 
   @override
   String get errPinInvalid => 'The PIN must be exactly 4 digits.';
@@ -158,7 +162,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appLock => 'App lock';
 
   @override
-  String get appLockSubtitle => 'Require your fingerprint, face or phone passcode to open Siegel.';
+  String get appLockSubtitle =>
+      'Require your fingerprint, face or phone passcode to open Siegel.';
 
   @override
   String get lockAfter => 'Lock after';
@@ -168,13 +173,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String lockMinutes(int count) {
-    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count minutes', one: '1 minute');
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes',
+      one: '1 minute',
+    );
     return '$_temp0';
   }
 
   @override
   String lockHours(int count) {
-    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count hours', one: '1 hour');
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours',
+      one: '1 hour',
+    );
     return '$_temp0';
   }
 
@@ -182,7 +197,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get screenSecurity => 'Screen security';
 
   @override
-  String get screenSecuritySubtitle => 'Block screenshots and screen recording of Siegel.';
+  String get screenSecuritySubtitle =>
+      'Block screenshots and screen recording of Siegel.';
 
   @override
   String get lockedTitle => 'Siegel is locked';
@@ -194,7 +210,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unlockReason => 'Unlock Siegel';
 
   @override
-  String get errNoDeviceLock => 'Couldn\'t verify it\'s you. Set up a screen lock on your phone first.';
+  String get errNoDeviceLock =>
+      'Couldn\'t verify it\'s you. Set up a screen lock on your phone first.';
 
   @override
   String get appLogo => 'Siegel logo';
@@ -224,7 +241,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errUsernameNotFound => 'No one has that username.';
 
   @override
-  String get errNoKeyPackages => 'That account can\'t receive messages right now. Try again later.';
+  String get errNoKeyPackages =>
+      'That account can\'t receive messages right now. Try again later.';
 
   @override
   String get errTextInvalid => 'Messages can be up to 64 KB of text.';
@@ -263,7 +281,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get blockConfirmBody => 'They won\'t be able to message you or start new chats, and they won\'t be told.';
+  String get blockConfirmBody =>
+      'They won\'t be able to message you or start new chats, and they won\'t be told.';
 
   @override
   String get errRequestPending => 'Accept the request before replying.';
