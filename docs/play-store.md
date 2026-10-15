@@ -36,8 +36,8 @@ flutter build appbundle --release --build-number <n>   # n must grow with every 
 **Content rating (IARC):** Communication app. Users can talk to each other: yes. Shares
 location: no. Digital purchases: no. Unrestricted internet: no.
 
-**Target audience:** 16+ (13–15 excluded; the app's own minimum is 14 in Spain and 16
-elsewhere, so don't target children).
+**Target audience:** 16–17 and 18+. Doesn't appeal to children. (The in-app minimum is 14 in
+Spain and 16 elsewhere; 13–15 is left out because it includes 13-year-olds.)
 
 **News app:** No. **Health:** No. **Financial features:** None. **Government:** No.
 
@@ -53,16 +53,19 @@ users' devices. Google's form says such data doesn't need declaring, so don't li
 | --- | --- | --- | --- | --- |
 | Personal info → Phone number | Yes (kept only as a keyed hash; sent to the SMS processor) | No (service providers don't count as sharing) | Required | Account management; Fraud prevention, security and compliance |
 | Personal info → User IDs (@username) | Yes | No | Required | App functionality; Account management |
-| App activity → Other actions (last-connected day) | Yes | No | Required | Fraud prevention, security and compliance |
+| Device or other IDs (FCM token, Firebase installation ID, Play Integrity) | Yes | No | Required | App functionality; Fraud prevention, security and compliance |
 
 Not collected: location, contacts (phone contact discovery isn't built), financial info,
 health, photos or files (end-to-end encrypted), audio, calendar, app activity, web browsing,
-app info and performance (no crash reporting), device or other IDs.
+app info and performance (no crash reporting). The last-connected day is account
+housekeeping that goes with the account itself, so it isn't listed separately.
+
+Deletion: Play asks for a web link for deletion requests; serve one at
+`https://siegel.schlk.in/delete-account` together with the privacy policy.
 
 IP addresses are processed in memory for rate limiting only and never stored, which Google
 treats as ephemeral processing, so they aren't declared.
 
-**When push ships:** add Device or other IDs → FCM token, collected, App functionality.
 
 ## Permissions to justify
 
