@@ -1,0 +1,79 @@
+# Google Play submission notes
+
+Answers for the Play Console forms, matching what the app does today. Re-check them when
+push (FCM), media or contact discovery ship.
+
+## App setup
+
+- Package: `in.schlk.siegel`. Signed upload key: SHA-256
+  `93:43:99:00:88:1C:CE:F0:BF:39:66:96:C5:E1:5C:BC:B0:90:DF:A1:7C:BA:6A:E9:AF:F2:24:C1:E8:34:3C:08`.
+  Use Play App Signing.
+- Store title "Siegel Messenger"; the launcher label stays "Siegel".
+- Category: Communication. Free, no ads, no in-app purchases.
+- Personal developer account: production needs a closed test with at least 12 testers who
+  stay opted in for 14 continuous days first.
+
+## Build and upload
+
+```sh
+cd app
+flutter build appbundle --release --build-number <n>   # n must grow with every upload
+# upload build/app/outputs/bundle/release/app-release.aab
+```
+
+## App content
+
+**Privacy policy:** `https://siegel.schlk.in/privacy` (draft in `docs/privacy-policy.md`).
+
+**Ads:** No.
+
+**App access:** Restricted (needs a verified phone number). Instructions for reviewers:
+
+> Open the app, tap Continue, enter the phone number [SIEGEL_REVIEW_PHONE], tick the age box and
+> tap Send code. Enter [SIEGEL_REVIEW_CODE]. Choose any @username and name, then skip the PIN.
+> To try messaging, start a chat with @[a second test account you keep signed in].
+
+**Content rating (IARC):** Communication app. Users can talk to each other: yes. Shares
+location: no. Digital purchases: no. Unrestricted internet: no.
+
+**Target audience:** 16+ (13–15 excluded; the app's own minimum is 14 in Spain and 16
+elsewhere, so don't target children).
+
+**News app:** No. **Health:** No. **Financial features:** None. **Government:** No.
+
+## Data safety
+
+Encrypted in transit: **Yes** (TLS 1.3). Users can request deletion: **Yes** (in app, Settings →
+Delete account; also by email per the privacy policy). Independent security review: **No** (yet).
+
+Messages, photos, profile names and contacts are end-to-end encrypted and readable only on
+users' devices. Google's form says such data doesn't need declaring, so don't list them.
+
+| Data type (Play category) | Collected | Shared | Optional? | Purposes |
+| --- | --- | --- | --- | --- |
+| Personal info → Phone number | Yes (kept only as a keyed hash; sent to the SMS processor) | No (service providers don't count as sharing) | Required | Account management; Fraud prevention, security and compliance |
+| Personal info → User IDs (@username) | Yes | No | Required | App functionality; Account management |
+| App activity → Other actions (last-connected day) | Yes | No | Required | Fraud prevention, security and compliance |
+
+Not collected: location, contacts (phone contact discovery isn't built), financial info,
+health, photos or files (end-to-end encrypted), audio, calendar, app activity, web browsing,
+app info and performance (no crash reporting), device or other IDs.
+
+IP addresses are processed in memory for rate limiting only and never stored, which Google
+treats as ephemeral processing, so they aren't declared.
+
+**When push ships:** add Device or other IDs → FCM token, collected, App functionality.
+
+## Permissions to justify
+
+- `CAMERA`: scanning a contact's safety-number QR code (CRY-12). Requested only when the user
+  taps "Scan their code".
+- `USE_BIOMETRIC`: app lock (ID-15).
+- `INTERNET`, `ACCESS_NETWORK_STATE`: messaging.
+
+## Closed testing
+
+1. Testing → Closed testing → create a track, add the tester email list.
+2. Upload the AAB, add release notes, roll out.
+3. Testers must join through the opt-in link and install from Play. Keep at least 12 opted in
+   for 14 days, then apply for production access.
