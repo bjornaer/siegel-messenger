@@ -85,6 +85,9 @@ class FakeCore implements Core {
         peerUsername: c.peerUsername,
         request: c.request,
         peerVerified: verified.contains(base64Encode(c.groupId)),
+        isGroup: c.isGroup,
+        groupName: c.groupName,
+        left: c.left,
         last: (history[base64Encode(c.groupId)] ?? []).lastOrNull,
       ),
   ];
@@ -96,13 +99,23 @@ class FakeCore implements Core {
     peerUsername: c.peerUsername,
     request: request,
     peerVerified: false,
+    isGroup: false,
+    left: false,
   );
 
   /// Someone who isn't a contact started a chat with us (MSG-15).
   void incomingRequest(String name) {
     final id = Uint8List.fromList(utf8.encode('g-req-$name'));
     chatList.add(
-      ChatSummary(groupId: id, peerAccount: Uint8List(16), peerDisplayName: name, request: true, peerVerified: false),
+      ChatSummary(
+        groupId: id,
+        peerAccount: Uint8List(16),
+        peerDisplayName: name,
+        request: true,
+        peerVerified: false,
+        isGroup: false,
+        left: false,
+      ),
     );
     receive(id, 'hi, it is $name');
   }
@@ -146,7 +159,15 @@ class FakeCore implements Core {
     await _maybeFail('startChat $username');
     final id = Uint8List.fromList(utf8.encode('g-$username'));
     chatList.add(
-      ChatSummary(groupId: id, peerAccount: Uint8List(16), peerUsername: username, request: false, peerVerified: false),
+      ChatSummary(
+        groupId: id,
+        peerAccount: Uint8List(16),
+        peerUsername: username,
+        request: false,
+        peerVerified: false,
+        isGroup: false,
+        left: false,
+      ),
     );
     return id;
   }
@@ -241,6 +262,131 @@ class FakeCore implements Core {
 
   @override
   Stream<CoreEvent> drain() => const Stream.empty();
+
+  // Groups: one GroupInfoView per group; member accounts are [n] bytes, names in [names].
+  static final me = Uint8List.fromList([0]);
+  final groups = <String, GroupInfoView>{};
+  final names = <String, String>{};
+  Uint8List _account(String username) {
+    final a = Uint8List.fromList([names.length + 1]);
+    names[base64Encode(a)] = '@$username';
+    return a;
+  }
+
+  GroupMemberView _member(Uint8List a, {bool admin = false, bool me = false}) =>
+      GroupMemberView(account: a, admin: admin, me: me, username: names[base64Encode(a)]?.substring(1));
+
+  void _setGroup(List<int> id, GroupInfoView g) {
+    groups[base64Encode(id)] = g;
+    final i = chatList.indexWhere((c) => listEquals(c.groupId, id));
+    final c = ChatSummary(
+      groupId: Uint8List.fromList(id),
+      peerAccount: Uint8List(0),
+      request: false,
+      peerVerified: false,
+      isGroup: true,
+      groupName: g.name,
+      left: false,
+    );
+    if (i < 0) {
+      chatList.add(c);
+    } else {
+      chatList[i] = c;
+    }
+    events.add(const CoreEvent(kind: CoreEventKind.updated));
+  }
+
+  void systemLine(List<int> id, GroupEventKind kind, {String name = ''}) => (history[base64Encode(id)] ??= []).add(
+    msg(
+      id,
+      '',
+      outgoing: false,
+      event: GroupEventView(kind: kind, actor: me, targets: const [], name: name),
+      sender: me,
+    ),
+  );
+
+  @override
+  Future<Uint8List> createGroup({required String name, required List<String> usernames}) async {
+    await _maybeFail('createGroup $name');
+    final id = Uint8List.fromList(utf8.encode('grp-$name'));
+    _setGroup(
+      id,
+      GroupInfoView(
+        name: name,
+        members: [_member(me, admin: true, me: true), for (final u in usernames) _member(_account(u))],
+        adminsOnlyInfo: true,
+        adminsOnlyAdd: true,
+        meAdmin: true,
+      ),
+    );
+    systemLine(id, GroupEventKind.created);
+    return id;
+  }
+
+  @override
+  GroupInfoView groupInfo({required List<int> groupId}) => groups[base64Encode(groupId)]!;
+
+  GroupInfoView _copy(GroupInfoView g, {String? name, List<GroupMemberView>? members}) => GroupInfoView(
+    name: name ?? g.name,
+    members: members ?? g.members,
+    adminsOnlyInfo: g.adminsOnlyInfo,
+    adminsOnlyAdd: g.adminsOnlyAdd,
+    meAdmin: g.meAdmin,
+  );
+
+  @override
+  Future<void> renameGroup({required List<int> groupId, required String name}) async {
+    await _maybeFail('renameGroup $name');
+    _setGroup(groupId, _copy(groupInfo(groupId: groupId), name: name));
+    systemLine(groupId, GroupEventKind.renamed, name: name);
+  }
+
+  @override
+  Future<void> addMembers({required List<int> groupId, required List<String> usernames}) async {
+    await _maybeFail('addMembers ${usernames.join(',')}');
+    final g = groupInfo(groupId: groupId);
+    _setGroup(groupId, _copy(g, members: [...g.members, for (final u in usernames) _member(_account(u))]));
+  }
+
+  @override
+  Future<void> removeMember({required List<int> groupId, required List<int> account}) async {
+    await _maybeFail('removeMember');
+    final g = groupInfo(groupId: groupId);
+    _setGroup(groupId, _copy(g, members: g.members.where((m) => !listEquals(m.account, account)).toList()));
+  }
+
+  @override
+  Future<void> setAdmin({required List<int> groupId, required List<int> account, required bool admin}) =>
+      _maybeFail('setAdmin $admin');
+  @override
+  Future<void> setGroupSettings({
+    required List<int> groupId,
+    required bool adminsOnlyInfo,
+    required bool adminsOnlyAdd,
+  }) => _maybeFail('setGroupSettings');
+
+  @override
+  Future<void> leaveGroup({required List<int> groupId}) async {
+    await _maybeFail('leaveGroup');
+    final i = chatList.indexWhere((c) => listEquals(c.groupId, groupId));
+    final c = chatList[i];
+    chatList[i] = ChatSummary(
+      groupId: c.groupId,
+      peerAccount: c.peerAccount,
+      request: false,
+      peerVerified: false,
+      isGroup: true,
+      groupName: c.groupName,
+      left: true,
+    );
+    events.add(const CoreEvent(kind: CoreEventKind.updated));
+  }
+
+  @override
+  List<ReceiptView> messageReceipts({required List<int> messageId}) => const [];
+  @override
+  String? memberName({required List<int> account}) => names[base64Encode(account)];
   @override
   Future<void> setPushToken({required String pushToken}) async => calls.add('setPushToken');
 
@@ -259,10 +405,12 @@ class FakeCore implements Core {
     required bool outgoing,
     Uint8List? replyTo,
     bool keyChange = false,
+    GroupEventView? event,
+    Uint8List? sender,
   }) => MessageView(
     groupId: Uint8List.fromList(groupId),
     messageId: Uint8List.fromList([_n++]),
-    senderAccount: Uint8List(16),
+    senderAccount: sender ?? Uint8List(16),
     sentAt: sentAt,
     text: text,
     outgoing: outgoing,
@@ -272,6 +420,7 @@ class FakeCore implements Core {
     deleted: false,
     reactions: const [],
     keyChange: keyChange,
+    event: event,
   );
 
   static MessageView copy(
@@ -294,6 +443,7 @@ class FakeCore implements Core {
     deleted: deleted ?? m.deleted,
     reactions: reactions ?? m.reactions,
     keyChange: m.keyChange,
+    event: m.event,
   );
 
   @override
@@ -409,6 +559,7 @@ void main() {
     expect(find.textContaining('stored only on this phone'), findsOneWidget, reason: 'ID-14 in Settings');
     expect(find.text('App lock'), findsOneWidget);
 
+    await t.scrollUntilVisible(find.text('Delete account'), 200);
     await t.ensureVisible(find.text('Delete account'));
     await t.pumpAndSettle();
     await tapText(t, 'Delete account');
@@ -628,6 +779,8 @@ void main() {
     await core.block(account: core.chatList.first.peerAccount);
     await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
     await t.scrollUntilVisible(find.text('Blocked people'), 100);
+    await t.ensureVisible(find.text('Blocked people'));
+    await t.pumpAndSettle();
     await tapText(t, 'Blocked people');
     expect(find.text('Zoe'), findsOneWidget);
     await tapText(t, 'Unblock');
@@ -698,8 +851,52 @@ void main() {
     await tapText(t, '@bob'); // the title opens the profile
     expect(find.text('Safety number'), findsOneWidget);
     await tapText(t, 'Mute notifications');
-    expect(core.settings['mute.${base64Encode(id)}'], 'on');
+    await tapText(t, 'Always'); // GRP-14: 8 hours, 1 week or always
+    expect(core.settings['mute.${base64Encode(id)}'], 'always');
     await tapText(t, 'Block');
     expect(find.text('Block @bob?'), findsOneWidget);
+  });
+
+  testWidgets('groups: create, sender names, system lines, rename, leave (M3)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    await tapText(t, 'New chat');
+    await tapText(t, 'New group');
+    await enter(t, 'Group name', 'Hikers');
+    await enter(t, 'Add people', '@bob');
+    await t.tap(find.byTooltip('Add'));
+    await t.pump();
+    expect(find.text('@bob'), findsOneWidget, reason: 'chip for the added person');
+    await tapText(t, 'Create');
+    expect(core.calls, contains('createGroup Hikers'));
+    expect(find.text('Hikers'), findsOneWidget, reason: 'the group chat opens');
+    expect(find.text('You created the group'), findsOneWidget, reason: 'GRP-12 system line');
+
+    final id = core.chatList.last.groupId;
+    final bob = core.groupInfo(groupId: id).members[1].account;
+    (core.history[base64Encode(id)] ??= []).add(FakeCore.msg(id, 'hi all', outgoing: false, sender: bob));
+    core.events.add(CoreEvent(kind: CoreEventKind.updated, groupId: id));
+    await t.pumpAndSettle();
+    expect(find.text('@bob'), findsOneWidget, reason: 'sender name above group messages');
+
+    await tapText(t, 'Hikers'); // group info
+    expect(find.text('2 members'), findsOneWidget);
+    expect(find.text('Admin'), findsOneWidget);
+    await tapText(t, 'Rename');
+    await t.enterText(find.widgetWithText(TextField, 'Group name'), 'Hikers 2026');
+    await tapText(t, 'Save');
+    expect(core.calls, contains('renameGroup Hikers 2026'));
+
+    await t.scrollUntilVisible(find.text('Leave group'), 100);
+    await tapText(t, 'Leave group');
+    await t.tap(find.widgetWithText(TextButton, 'Leave group'));
+    await t.pumpAndSettle();
+    expect(core.calls, contains('leaveGroup'));
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text("You're no longer in this group."), findsOneWidget, reason: 'read-only after leaving');
+    expect(find.widgetWithText(TextField, 'Message'), findsNothing);
   });
 }

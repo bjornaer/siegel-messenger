@@ -32,6 +32,9 @@ void showError(BuildContext context, CoreError e) {
     'request_pending' => t.errRequestPending,
     'not_allowed' => t.errNotAllowed,
     'attestation_failed' => t.errAttestation,
+    'group_left' => t.errGroupLeft,
+    'group_too_large' => t.errGroupTooLarge,
+    'name_invalid' => t.errNameInvalid,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };

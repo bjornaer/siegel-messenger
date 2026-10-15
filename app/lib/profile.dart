@@ -13,7 +13,68 @@ import 'src/rust/api/core.dart';
 /// Setting key for a muted chat: no notifications from it.
 String muteKey(List<int> groupId) => 'mute.${base64Encode(groupId)}';
 
-bool isMuted(Core core, List<int> groupId) => core.setting(key: muteKey(groupId)) == 'on';
+/// GRP-14: muted always, or until a time (`until:<ms>`). `on` is the old always.
+bool isMuted(Core core, List<int> groupId) {
+  final v = core.setting(key: muteKey(groupId));
+  if (v == 'on' || v == 'always') return true;
+  final until = int.tryParse(v?.replaceFirst('until:', '') ?? '');
+  return until != null && DateTime.now().millisecondsSinceEpoch < until;
+}
+
+/// Mute for 8 hours, a week or always (GRP-14), or unmute.
+class MuteTile extends StatefulWidget {
+  const MuteTile({super.key, required this.core, required this.groupId});
+  final Core core;
+  final List<int> groupId;
+
+  @override
+  State<MuteTile> createState() => _MuteTileState();
+}
+
+class _MuteTileState extends State<MuteTile> {
+  void _set(String value) => setState(() => widget.core.setSetting(key: muteKey(widget.groupId), value: value));
+
+  String _until(int ms) =>
+      DateFormat.yMMMd(Localizations.localeOf(context).toString())
+          .add_Hm()
+          .format(DateTime.fromMillisecondsSinceEpoch(ms));
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final muted = isMuted(widget.core, widget.groupId);
+    final v = widget.core.setting(key: muteKey(widget.groupId)) ?? '';
+    final until = int.tryParse(v.replaceFirst('until:', ''));
+    final now = DateTime.now();
+    return ListTile(
+      leading: Icon(muted ? Icons.notifications_off_outlined : Icons.notifications_outlined),
+      title: Text(t.mute),
+      subtitle: muted ? Text(until != null ? t.mutedUntil(_until(until)) : t.muted) : null,
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        builder: (s) => SafeArea(
+          child: Wrap(
+            children: [
+              for (final (label, value) in [
+                (t.muteFor8h, 'until:${now.add(const Duration(hours: 8)).millisecondsSinceEpoch}'),
+                (t.muteFor1w, 'until:${now.add(const Duration(days: 7)).millisecondsSinceEpoch}'),
+                (t.muteAlways, 'always'),
+                if (muted) (t.unmute, 'off'),
+              ])
+                ListTile(
+                  title: Text(label),
+                  onTap: () {
+                    Navigator.pop(s);
+                    _set(value);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Contact profile (section 11): name, @username, safety number, mute, block.
 /// ponytail: photo comes with M4 media, report with CMP-03 (M6).
@@ -57,13 +118,7 @@ class _ContactProfileScreenState extends State<ContactProfileScreen> {
                 )
                 .then((_) => setState(() {})),
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.notifications_off_outlined),
-            title: Text(t.mute),
-            value: isMuted(widget.core, widget.groupId),
-            onChanged: (on) =>
-                setState(() => widget.core.setSetting(key: muteKey(widget.groupId), value: on ? 'on' : 'off')),
-          ),
+          MuteTile(core: widget.core, groupId: widget.groupId),
           if (!c.request)
             ListTile(
               leading: Icon(Icons.block, color: Theme.of(context).colorScheme.error),

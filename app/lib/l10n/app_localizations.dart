@@ -861,6 +861,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sent {when}'**
   String sentAt(String when);
+
+  /// No description provided for @newGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get newGroup;
+
+  /// No description provided for @groupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupName;
+
+  /// No description provided for @group.
+  ///
+  /// In en, this message translates to:
+  /// **'Group'**
+  String get group;
+
+  /// No description provided for @addPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'Add people'**
+  String get addPeople;
+
+  /// No description provided for @addPeopleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'@username, then Add'**
+  String get addPeopleHint;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @membersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 member} other{{count} members}}'**
+  String membersCount(int count);
+
+  /// No description provided for @groupInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Group info'**
+  String get groupInfo;
+
+  /// No description provided for @admin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get admin;
+
+  /// No description provided for @makeAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Make admin'**
+  String get makeAdmin;
+
+  /// No description provided for @removeAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove as admin'**
+  String get removeAdmin;
+
+  /// No description provided for @removeFromGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from group'**
+  String get removeFromGroup;
+
+  /// No description provided for @leaveGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave group'**
+  String get leaveGroup;
+
+  /// No description provided for @leaveGroupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You won\'t get new messages from this group. The chat stays on this phone.'**
+  String get leaveGroupBody;
+
+  /// No description provided for @leftGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re no longer in this group.'**
+  String get leftGroup;
+
+  /// No description provided for @onlyAdminsEditInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Only admins can edit the group name'**
+  String get onlyAdminsEditInfo;
+
+  /// No description provided for @onlyAdminsAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Only admins can add members'**
+  String get onlyAdminsAdd;
+
+  /// No description provided for @rename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get rename;
+
+  /// No description provided for @isTyping.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is typing…'**
+  String isTyping(String name);
+
+  /// No description provided for @someone.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone'**
+  String get someone;
+
+  /// No description provided for @evCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} created the group'**
+  String evCreated(String actor);
+
+  /// No description provided for @evAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} added {targets}'**
+  String evAdded(String actor, String targets);
+
+  /// No description provided for @evRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} removed {targets}'**
+  String evRemoved(String actor, String targets);
+
+  /// No description provided for @evLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} left'**
+  String evLeft(String actor);
+
+  /// No description provided for @evRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} renamed the group to {targets}'**
+  String evRenamed(String actor, String targets);
+
+  /// No description provided for @evAdminAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} made {targets} an admin'**
+  String evAdminAdded(String actor, String targets);
+
+  /// No description provided for @evAdminRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} removed {targets} as admin'**
+  String evAdminRemoved(String actor, String targets);
+
+  /// No description provided for @evSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} changed the group settings'**
+  String evSettings(String actor);
+
+  /// No description provided for @inviteBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'You were added to this group by someone who isn\'t in your contacts. Members won\'t see your name until you accept.'**
+  String get inviteBanner;
+
+  /// No description provided for @decline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get decline;
+
+  /// No description provided for @groupAdds.
+  ///
+  /// In en, this message translates to:
+  /// **'Who can add me to groups'**
+  String get groupAdds;
+
+  /// No description provided for @groupAddsEveryone.
+  ///
+  /// In en, this message translates to:
+  /// **'Everyone'**
+  String get groupAddsEveryone;
+
+  /// No description provided for @groupAddsContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'My contacts'**
+  String get groupAddsContacts;
+
+  /// No description provided for @groupAddsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone else sends you an invite to accept or decline.'**
+  String get groupAddsHelp;
+
+  /// No description provided for @muteFor8h.
+  ///
+  /// In en, this message translates to:
+  /// **'For 8 hours'**
+  String get muteFor8h;
+
+  /// No description provided for @muteFor1w.
+  ///
+  /// In en, this message translates to:
+  /// **'For 1 week'**
+  String get muteFor1w;
+
+  /// No description provided for @muteAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get muteAlways;
+
+  /// No description provided for @unmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get unmute;
+
+  /// No description provided for @mutedUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted until {when}'**
+  String mutedUntil(String when);
+
+  /// No description provided for @muted.
+  ///
+  /// In en, this message translates to:
+  /// **'Muted'**
+  String get muted;
+
+  /// No description provided for @errGroupLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re no longer in this group.'**
+  String get errGroupLeft;
+
+  /// No description provided for @errGroupTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups can have up to 256 members.'**
+  String get errGroupTooLarge;
+
+  /// No description provided for @errNameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Group names have 1 to 64 characters.'**
+  String get errNameInvalid;
 }
 
 class _AppLocalizationsDelegate

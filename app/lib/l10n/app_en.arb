@@ -211,5 +211,141 @@
         "type": "String"
       }
     }
-  }
+  },
+  "newGroup": "New group",
+  "groupName": "Group name",
+  "group": "Group",
+  "addPeople": "Add people",
+  "addPeopleHint": "@username, then Add",
+  "add": "Add",
+  "create": "Create",
+  "membersCount": "{count, plural, =1{1 member} other{{count} members}}",
+  "@membersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "groupInfo": "Group info",
+  "admin": "Admin",
+  "makeAdmin": "Make admin",
+  "removeAdmin": "Remove as admin",
+  "removeFromGroup": "Remove from group",
+  "leaveGroup": "Leave group",
+  "leaveGroupBody": "You won't get new messages from this group. The chat stays on this phone.",
+  "leftGroup": "You're no longer in this group.",
+  "onlyAdminsEditInfo": "Only admins can edit the group name",
+  "onlyAdminsAdd": "Only admins can add members",
+  "rename": "Rename",
+  "isTyping": "{name} is typing…",
+  "@isTyping": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "someone": "Someone",
+  "evCreated": "{actor} created the group",
+  "@evCreated": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "evAdded": "{actor} added {targets}",
+  "@evAdded": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "String"
+      }
+    }
+  },
+  "evRemoved": "{actor} removed {targets}",
+  "@evRemoved": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "String"
+      }
+    }
+  },
+  "evLeft": "{actor} left",
+  "@evLeft": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "evRenamed": "{actor} renamed the group to {targets}",
+  "@evRenamed": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "String"
+      }
+    }
+  },
+  "evAdminAdded": "{actor} made {targets} an admin",
+  "@evAdminAdded": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "String"
+      }
+    }
+  },
+  "evAdminRemoved": "{actor} removed {targets} as admin",
+  "@evAdminRemoved": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "targets": {
+        "type": "String"
+      }
+    }
+  },
+  "evSettings": "{actor} changed the group settings",
+  "@evSettings": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "inviteBanner": "You were added to this group by someone who isn't in your contacts. Members won't see your name until you accept.",
+  "decline": "Decline",
+  "groupAdds": "Who can add me to groups",
+  "groupAddsEveryone": "Everyone",
+  "groupAddsContacts": "My contacts",
+  "groupAddsHelp": "Anyone else sends you an invite to accept or decline.",
+  "muteFor8h": "For 8 hours",
+  "muteFor1w": "For 1 week",
+  "muteAlways": "Always",
+  "unmute": "Unmute",
+  "mutedUntil": "Muted until {when}",
+  "@mutedUntil": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "muted": "Muted",
+  "errGroupLeft": "You're no longer in this group.",
+  "errGroupTooLarge": "Groups can have up to 256 members.",
+  "errNameInvalid": "Group names have 1 to 64 characters."
 }

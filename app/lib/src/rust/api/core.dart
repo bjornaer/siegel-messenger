@@ -7,13 +7,18 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `send_event`
+// These functions are ignored because they are not marked as `pub`: `send_event`, `status_view`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
 abstract class Core implements RustOpaqueInterface {
   /// Accepts a message request: they get our profile key and we can reply (MSG-15).
   Future<void> accept({required List<int> groupId});
+
+  Future<void> addMembers({
+    required List<int> groupId,
+    required List<String> usernames,
+  });
 
   /// Blocks the account; they are not told (MSG-16).
   Future<void> block({required List<int> account});
@@ -23,6 +28,12 @@ abstract class Core implements RustOpaqueInterface {
 
   /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
+
+  /// GRP-01: a new group with these @usernames; returns its chat ID.
+  Future<Uint8List> createGroup({
+    required String name,
+    required List<String> usernames,
+  });
 
   Future<void> deleteAccount();
 
@@ -47,9 +58,20 @@ abstract class Core implements RustOpaqueInterface {
     required String text,
   });
 
+  GroupInfoView groupInfo({required List<int> groupId});
+
   bool isRegistered();
 
+  /// GRP-10: leave; the chat stays, read-only.
+  Future<void> leaveGroup({required List<int> groupId});
+
   Future<void> markRead({required List<int> groupId});
+
+  /// A member's name for group bubbles and system lines: display name, else @username.
+  String? memberName({required List<int> account});
+
+  /// GRP-13: per-member delivered/read state of one of our messages.
+  List<ReceiptView> messageReceipts({required List<int> messageId});
 
   List<MessageView> messages({required List<int> groupId, required int limit});
 
@@ -69,6 +91,13 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> messageId,
     required String emoji,
   });
+
+  Future<void> removeMember({
+    required List<int> groupId,
+    required List<int> account,
+  });
+
+  Future<void> renameGroup({required List<int> groupId, required String name});
 
   Future<void> requestOtp({
     required String phoneE164,
@@ -94,7 +123,19 @@ abstract class Core implements RustOpaqueInterface {
   /// Call at most every 3 seconds while typing (MSG-14).
   Future<void> sendTyping({required List<int> groupId});
 
+  Future<void> setAdmin({
+    required List<int> groupId,
+    required List<int> account,
+    required bool admin,
+  });
+
   void setDisplayName({required String name});
+
+  Future<void> setGroupSettings({
+    required List<int> groupId,
+    required bool adminsOnlyInfo,
+    required bool adminsOnlyAdd,
+  });
 
   /// This device's FCM token, for content-free wake-ups (MSG-17).
   Future<void> setPushToken({required String pushToken});
@@ -174,6 +215,13 @@ class ChatSummary {
   final bool peerVerified;
   final MessageView? last;
 
+  /// Group chats (M3): no peer; `group_name` is the title.
+  final bool isGroup;
+  final String? groupName;
+
+  /// We left or were removed: read-only.
+  final bool left;
+
   const ChatSummary({
     required this.groupId,
     required this.peerAccount,
@@ -182,6 +230,9 @@ class ChatSummary {
     required this.request,
     required this.peerVerified,
     this.last,
+    required this.isGroup,
+    this.groupName,
+    required this.left,
   });
 
   @override
@@ -192,7 +243,10 @@ class ChatSummary {
       peerUsername.hashCode ^
       request.hashCode ^
       peerVerified.hashCode ^
-      last.hashCode;
+      last.hashCode ^
+      isGroup.hashCode ^
+      groupName.hashCode ^
+      left.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -205,7 +259,10 @@ class ChatSummary {
           peerUsername == other.peerUsername &&
           request == other.request &&
           peerVerified == other.peerVerified &&
-          last == other.last;
+          last == other.last &&
+          isGroup == other.isGroup &&
+          groupName == other.groupName &&
+          left == other.left;
 }
 
 /// Thrown in Dart with a stable machine code ("otp_invalid", "network", ...).
@@ -231,10 +288,19 @@ class CoreEvent {
   final Uint8List? groupId;
   final MessageView? message;
 
-  const CoreEvent({required this.kind, this.groupId, this.message});
+  /// Typing: who is typing (groups show the name).
+  final Uint8List? account;
+
+  const CoreEvent({
+    required this.kind,
+    this.groupId,
+    this.message,
+    this.account,
+  });
 
   @override
-  int get hashCode => kind.hashCode ^ groupId.hashCode ^ message.hashCode;
+  int get hashCode =>
+      kind.hashCode ^ groupId.hashCode ^ message.hashCode ^ account.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -243,7 +309,8 @@ class CoreEvent {
           runtimeType == other.runtimeType &&
           kind == other.kind &&
           groupId == other.groupId &&
-          message == other.message;
+          message == other.message &&
+          account == other.account;
 }
 
 enum CoreEventKind {
@@ -262,6 +329,117 @@ enum CoreEventKind {
 }
 
 enum DevicePlatform { ios, android }
+
+/// GRP-12 system lines.
+enum GroupEventKind {
+  created,
+  added,
+  removed,
+  left,
+  renamed,
+  adminAdded,
+  adminRemoved,
+  settings,
+}
+
+class GroupEventView {
+  final GroupEventKind kind;
+  final Uint8List actor;
+  final List<Uint8List> targets;
+  final String name;
+
+  const GroupEventView({
+    required this.kind,
+    required this.actor,
+    required this.targets,
+    required this.name,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^ actor.hashCode ^ targets.hashCode ^ name.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupEventView &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          actor == other.actor &&
+          targets == other.targets &&
+          name == other.name;
+}
+
+/// A group's members, roles and settings (section 8).
+class GroupInfoView {
+  final String name;
+  final List<GroupMemberView> members;
+  final bool adminsOnlyInfo;
+  final bool adminsOnlyAdd;
+  final bool meAdmin;
+
+  const GroupInfoView({
+    required this.name,
+    required this.members,
+    required this.adminsOnlyInfo,
+    required this.adminsOnlyAdd,
+    required this.meAdmin,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      members.hashCode ^
+      adminsOnlyInfo.hashCode ^
+      adminsOnlyAdd.hashCode ^
+      meAdmin.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupInfoView &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          members == other.members &&
+          adminsOnlyInfo == other.adminsOnlyInfo &&
+          adminsOnlyAdd == other.adminsOnlyAdd &&
+          meAdmin == other.meAdmin;
+}
+
+class GroupMemberView {
+  final Uint8List account;
+  final String? displayName;
+  final String? username;
+  final bool admin;
+  final bool me;
+
+  const GroupMemberView({
+    required this.account,
+    this.displayName,
+    this.username,
+    required this.admin,
+    required this.me,
+  });
+
+  @override
+  int get hashCode =>
+      account.hashCode ^
+      displayName.hashCode ^
+      username.hashCode ^
+      admin.hashCode ^
+      me.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupMemberView &&
+          runtimeType == other.runtimeType &&
+          account == other.account &&
+          displayName == other.displayName &&
+          username == other.username &&
+          admin == other.admin &&
+          me == other.me;
+}
 
 /// MSG-04. Incoming messages are Delivered until read.
 enum MessageStatus { failed, sending, sent, delivered, read }
@@ -288,6 +466,9 @@ class MessageView {
   /// CRY-13: a notice that the peer's safety number changed, not a message.
   final bool keyChange;
 
+  /// GRP-12: a system line, not a message.
+  final GroupEventView? event;
+
   const MessageView({
     required this.groupId,
     required this.messageId,
@@ -301,6 +482,7 @@ class MessageView {
     required this.deleted,
     required this.reactions,
     required this.keyChange,
+    this.event,
   });
 
   @override
@@ -316,7 +498,8 @@ class MessageView {
       edited.hashCode ^
       deleted.hashCode ^
       reactions.hashCode ^
-      keyChange.hashCode;
+      keyChange.hashCode ^
+      event.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -334,7 +517,8 @@ class MessageView {
           edited == other.edited &&
           deleted == other.deleted &&
           reactions == other.reactions &&
-          keyChange == other.keyChange;
+          keyChange == other.keyChange &&
+          event == other.event;
 }
 
 class Reaction {
@@ -353,4 +537,23 @@ class Reaction {
           runtimeType == other.runtimeType &&
           account == other.account &&
           emoji == other.emoji;
+}
+
+/// GRP-13: one member's state for one of our messages.
+class ReceiptView {
+  final Uint8List account;
+  final MessageStatus status;
+
+  const ReceiptView({required this.account, required this.status});
+
+  @override
+  int get hashCode => account.hashCode ^ status.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReceiptView &&
+          runtimeType == other.runtimeType &&
+          account == other.account &&
+          status == other.status;
 }

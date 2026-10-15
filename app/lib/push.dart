@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'chats.dart' show chatTitle;
+import 'groups.dart' show memberName;
 import 'l10n/app_localizations.dart';
 import 'main.dart' show openCore;
 import 'profile.dart' show isMuted;
@@ -36,13 +37,13 @@ Future<void> _initNotifications() => _notifications.initialize(
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
 /// unless the user allows private content there (Android's "private" visibility).
 Future<void> notifyMessage(Core core, MessageView m) async {
-  if (m.outgoing || isMuted(core, m.groupId)) return;
+  if (m.outgoing || m.event != null || isMuted(core, m.groupId)) return;
   final t = lookupAppLocalizations(PlatformDispatcher.instance.locale);
   final chat = core.chats().where((c) => listEquals(c.groupId, m.groupId)).firstOrNull;
   await _notifications.show(
     id: Object.hashAll(m.groupId) & 0x7fffffff,
     title: chat == null ? null : chatTitle(t, chat),
-    body: m.text,
+    body: chat != null && chat.isGroup ? '${memberName(t, core, m.senderAccount)}: ${m.text}' : m.text,
     notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'messages',

@@ -453,4 +453,167 @@ class AppLocalizationsEn extends AppLocalizations {
   String sentAt(String when) {
     return 'Sent $when';
   }
+
+  @override
+  String get newGroup => 'New group';
+
+  @override
+  String get groupName => 'Group name';
+
+  @override
+  String get group => 'Group';
+
+  @override
+  String get addPeople => 'Add people';
+
+  @override
+  String get addPeopleHint => '@username, then Add';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String membersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count members',
+      one: '1 member',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get groupInfo => 'Group info';
+
+  @override
+  String get admin => 'Admin';
+
+  @override
+  String get makeAdmin => 'Make admin';
+
+  @override
+  String get removeAdmin => 'Remove as admin';
+
+  @override
+  String get removeFromGroup => 'Remove from group';
+
+  @override
+  String get leaveGroup => 'Leave group';
+
+  @override
+  String get leaveGroupBody =>
+      'You won\'t get new messages from this group. The chat stays on this phone.';
+
+  @override
+  String get leftGroup => 'You\'re no longer in this group.';
+
+  @override
+  String get onlyAdminsEditInfo => 'Only admins can edit the group name';
+
+  @override
+  String get onlyAdminsAdd => 'Only admins can add members';
+
+  @override
+  String get rename => 'Rename';
+
+  @override
+  String isTyping(String name) {
+    return '$name is typing…';
+  }
+
+  @override
+  String get someone => 'Someone';
+
+  @override
+  String evCreated(String actor) {
+    return '$actor created the group';
+  }
+
+  @override
+  String evAdded(String actor, String targets) {
+    return '$actor added $targets';
+  }
+
+  @override
+  String evRemoved(String actor, String targets) {
+    return '$actor removed $targets';
+  }
+
+  @override
+  String evLeft(String actor) {
+    return '$actor left';
+  }
+
+  @override
+  String evRenamed(String actor, String targets) {
+    return '$actor renamed the group to $targets';
+  }
+
+  @override
+  String evAdminAdded(String actor, String targets) {
+    return '$actor made $targets an admin';
+  }
+
+  @override
+  String evAdminRemoved(String actor, String targets) {
+    return '$actor removed $targets as admin';
+  }
+
+  @override
+  String evSettings(String actor) {
+    return '$actor changed the group settings';
+  }
+
+  @override
+  String get inviteBanner =>
+      'You were added to this group by someone who isn\'t in your contacts. Members won\'t see your name until you accept.';
+
+  @override
+  String get decline => 'Decline';
+
+  @override
+  String get groupAdds => 'Who can add me to groups';
+
+  @override
+  String get groupAddsEveryone => 'Everyone';
+
+  @override
+  String get groupAddsContacts => 'My contacts';
+
+  @override
+  String get groupAddsHelp =>
+      'Anyone else sends you an invite to accept or decline.';
+
+  @override
+  String get muteFor8h => 'For 8 hours';
+
+  @override
+  String get muteFor1w => 'For 1 week';
+
+  @override
+  String get muteAlways => 'Always';
+
+  @override
+  String get unmute => 'Unmute';
+
+  @override
+  String mutedUntil(String when) {
+    return 'Muted until $when';
+  }
+
+  @override
+  String get muted => 'Muted';
+
+  @override
+  String get errGroupLeft => 'You\'re no longer in this group.';
+
+  @override
+  String get errGroupTooLarge => 'Groups can have up to 256 members.';
+
+  @override
+  String get errNameInvalid => 'Group names have 1 to 64 characters.';
 }

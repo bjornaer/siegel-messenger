@@ -85,8 +85,8 @@ func loadConfig() config {
 		otpPerNumber:  env("SIEGEL_OTP_PER_NUMBER_HOUR", 3, strconv.Atoi),
 		otpPerIP:      env("SIEGEL_OTP_PER_IP_HOUR", 10, strconv.Atoi),
 		verifyPerIP:   env("SIEGEL_VERIFY_PER_IP_HOUR", 30, strconv.Atoi),
-		lookupPerDay:  env("SIEGEL_LOOKUP_PER_DAY", 200, strconv.Atoi),
-		claimPerDay:   env("SIEGEL_CLAIM_PER_DAY", 1000, strconv.Atoi), // a 256-member group (GRP-01) needs 255
+		lookupPerDay:  env("SIEGEL_LOOKUP_PER_DAY", 1000, strconv.Atoi), // creating a 256-member group looks up 255
+		claimPerDay:   env("SIEGEL_CLAIM_PER_DAY", 1000, strconv.Atoi),  // a 256-member group (GRP-01) needs 255
 		sealedPerIP:   env("SIEGEL_SEALED_PER_IP_HOUR", 3000, strconv.Atoi),
 		newChatPerDay: env("SIEGEL_NEW_CHATS_PER_DAY", 50, strconv.Atoi),
 		smsDailyCap:   env("SIEGEL_SMS_DAILY_CAP", 1000, strconv.Atoi),
@@ -236,7 +236,9 @@ func (s *server) routes() http.Handler {
 	payload := connect.WithReadMaxBytes(256 << 10) // MLS messages: 64 KiB text (MSG-05) plus padding and overhead
 	mux.Handle(siegelv1connect.NewKeysServiceHandler(s, s.authed(), payload))
 	mux.Handle(siegelv1connect.NewMessagesServiceHandler(s, s.authed(), payload))
-	mux.Handle(siegelv1connect.NewGroupsServiceHandler(s, s.authed(), payload))
+	// A welcome carries the whole member tree: about 270 KB for 256 members (GRP-01).
+	// ponytail: every new member gets their own copy of it in the queue; fetch the tree once instead if adds get big.
+	mux.Handle(siegelv1connect.NewGroupsServiceHandler(s, s.authed(), connect.WithReadMaxBytes(2<<20)))
 	mux.HandleFunc("GET /v1/stream", s.stream)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /delete-account", s.page("delete-account"))

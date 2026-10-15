@@ -123,6 +123,64 @@ pub struct ChatSummary {
     /// Safety number checked in person (CRY-12).
     pub peer_verified: bool,
     pub last: Option<MessageView>,
+    /// Group chats (M3): no peer; `group_name` is the title.
+    pub is_group: bool,
+    pub group_name: Option<String>,
+    /// We left or were removed: read-only.
+    pub left: bool,
+}
+
+/// A group's members, roles and settings (section 8).
+pub struct GroupInfoView {
+    pub name: String,
+    pub members: Vec<GroupMemberView>,
+    pub admins_only_info: bool,
+    pub admins_only_add: bool,
+    pub me_admin: bool,
+}
+
+pub struct GroupMemberView {
+    pub account: Vec<u8>,
+    pub display_name: Option<String>,
+    pub username: Option<String>,
+    pub admin: bool,
+    pub me: bool,
+}
+
+/// GRP-12 system lines.
+pub enum GroupEventKind {
+    Created,
+    Added,
+    Removed,
+    Left,
+    Renamed,
+    AdminAdded,
+    AdminRemoved,
+    Settings,
+}
+
+pub struct GroupEventView {
+    pub kind: GroupEventKind,
+    pub actor: Vec<u8>,
+    pub targets: Vec<Vec<u8>>,
+    pub name: String,
+}
+
+/// GRP-13: one member's state for one of our messages.
+pub struct ReceiptView {
+    pub account: Vec<u8>,
+    pub status: MessageStatus,
+}
+
+fn status_view(s: core_api::Status) -> MessageStatus {
+    use core_api::Status;
+    match s {
+        Status::Failed => MessageStatus::Failed,
+        Status::Sending => MessageStatus::Sending,
+        Status::Sent => MessageStatus::Sent,
+        Status::Delivered => MessageStatus::Delivered,
+        Status::Read => MessageStatus::Read,
+    }
 }
 
 pub struct MessageView {
@@ -142,6 +200,8 @@ pub struct MessageView {
     pub reactions: Vec<Reaction>,
     /// CRY-13: a notice that the peer's safety number changed, not a message.
     pub key_change: bool,
+    /// GRP-12: a system line, not a message.
+    pub event: Option<GroupEventView>,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -160,7 +220,6 @@ pub struct Reaction {
 
 impl From<core_api::ChatMessage> for MessageView {
     fn from(m: core_api::ChatMessage) -> Self {
-        use core_api::Status;
         Self {
             group_id: m.group_id,
             message_id: m.message_id,
@@ -169,13 +228,7 @@ impl From<core_api::ChatMessage> for MessageView {
             text: m.text,
             outgoing: m.outgoing,
             reply_to: m.reply_to,
-            status: match m.status {
-                Status::Failed => MessageStatus::Failed,
-                Status::Sending => MessageStatus::Sending,
-                Status::Sent => MessageStatus::Sent,
-                Status::Delivered => MessageStatus::Delivered,
-                Status::Read => MessageStatus::Read,
-            },
+            status: status_view(m.status),
             edited: m.edited,
             deleted: m.deleted,
             reactions: m
@@ -184,6 +237,24 @@ impl From<core_api::ChatMessage> for MessageView {
                 .map(|(account, emoji)| Reaction { account, emoji })
                 .collect(),
             key_change: m.key_change,
+            event: m.event.map(|e| {
+                use core_api::GroupEventKind as K;
+                GroupEventView {
+                    kind: match e.kind {
+                        K::Created => GroupEventKind::Created,
+                        K::Added => GroupEventKind::Added,
+                        K::Removed => GroupEventKind::Removed,
+                        K::Left => GroupEventKind::Left,
+                        K::Renamed => GroupEventKind::Renamed,
+                        K::AdminAdded => GroupEventKind::AdminAdded,
+                        K::AdminRemoved => GroupEventKind::AdminRemoved,
+                        K::Settings => GroupEventKind::Settings,
+                    },
+                    actor: e.actor,
+                    targets: e.targets,
+                    name: e.name,
+                }
+            }),
         }
     }
 }
@@ -211,6 +282,8 @@ pub struct CoreEvent {
     pub kind: CoreEventKind,
     pub group_id: Option<Vec<u8>>,
     pub message: Option<MessageView>,
+    /// Typing: who is typing (groups show the name).
+    pub account: Option<Vec<u8>>,
 }
 
 impl Core {
@@ -224,15 +297,30 @@ impl Core {
     pub fn chats(&self) -> Result<Vec<ChatSummary>, CoreError> {
         let mut out = Vec::new();
         for c in self.0.conversations()? {
-            let contact = self.0.contact(&c.peer_account);
-            if matches!(&contact, Some(k) if k.state == core_api::ContactState::Blocked) {
-                continue;
-            }
             let last = self
                 .0
                 .messages(&c.group_id, 1)?
                 .pop()
                 .map(MessageView::from);
+            if c.is_group {
+                out.push(ChatSummary {
+                    group_name: self.0.group_info(&c.group_id).ok().map(|g| g.name),
+                    peer_display_name: None,
+                    peer_username: None,
+                    request: c.invite,
+                    peer_verified: false,
+                    is_group: true,
+                    left: c.left,
+                    group_id: c.group_id,
+                    peer_account: c.peer_account,
+                    last,
+                });
+                continue;
+            }
+            let contact = self.0.contact(&c.peer_account);
+            if matches!(&contact, Some(k) if k.state == core_api::ContactState::Blocked) {
+                continue;
+            }
             out.push(ChatSummary {
                 peer_display_name: contact.as_ref().and_then(|k| k.display_name.clone()),
                 peer_username: contact.as_ref().and_then(|k| k.username.clone()),
@@ -240,6 +328,9 @@ impl Core {
                     .as_ref()
                     .is_none_or(|k| k.state != core_api::ContactState::Accepted),
                 peer_verified: contact.is_some_and(|k| k.verified),
+                is_group: false,
+                group_name: None,
+                left: false,
                 group_id: c.group_id,
                 peer_account: c.peer_account,
                 last,
@@ -247,6 +338,104 @@ impl Core {
         }
         out.sort_by_key(|c| std::cmp::Reverse(c.last.as_ref().map_or(0, |m| m.sent_at)));
         Ok(out)
+    }
+
+    /// GRP-01: a new group with these @usernames; returns its chat ID.
+    pub async fn create_group(
+        &self,
+        name: String,
+        usernames: Vec<String>,
+    ) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.create_group(&name, &usernames).await?)
+    }
+
+    #[frb(sync)]
+    pub fn group_info(&self, group_id: Vec<u8>) -> Result<GroupInfoView, CoreError> {
+        let g = self.0.group_info(&group_id)?;
+        Ok(GroupInfoView {
+            name: g.name,
+            admins_only_info: g.admins_only_info,
+            admins_only_add: g.admins_only_add,
+            me_admin: g.me_admin,
+            members: g
+                .members
+                .into_iter()
+                .map(|m| GroupMemberView {
+                    account: m.account,
+                    display_name: m.display_name,
+                    username: m.username,
+                    admin: m.admin,
+                    me: m.me,
+                })
+                .collect(),
+        })
+    }
+
+    pub async fn add_members(
+        &self,
+        group_id: Vec<u8>,
+        usernames: Vec<String>,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.add_members(&group_id, &usernames).await?)
+    }
+
+    pub async fn remove_member(
+        &self,
+        group_id: Vec<u8>,
+        account: Vec<u8>,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.remove_member(&group_id, &account).await?)
+    }
+
+    pub async fn set_admin(
+        &self,
+        group_id: Vec<u8>,
+        account: Vec<u8>,
+        admin: bool,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.set_admin(&group_id, &account, admin).await?)
+    }
+
+    pub async fn rename_group(&self, group_id: Vec<u8>, name: String) -> Result<(), CoreError> {
+        Ok(self.0.rename_group(&group_id, &name).await?)
+    }
+
+    pub async fn set_group_settings(
+        &self,
+        group_id: Vec<u8>,
+        admins_only_info: bool,
+        admins_only_add: bool,
+    ) -> Result<(), CoreError> {
+        Ok(self
+            .0
+            .set_group_settings(&group_id, admins_only_info, admins_only_add)
+            .await?)
+    }
+
+    /// GRP-10: leave; the chat stays, read-only.
+    pub async fn leave_group(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.leave_group(&group_id).await?)
+    }
+
+    /// GRP-13: per-member delivered/read state of one of our messages.
+    #[frb(sync)]
+    pub fn message_receipts(&self, message_id: Vec<u8>) -> Result<Vec<ReceiptView>, CoreError> {
+        Ok(self
+            .0
+            .message_receipts(&message_id)?
+            .into_iter()
+            .map(|(account, s)| ReceiptView {
+                account,
+                status: status_view(s),
+            })
+            .collect())
+    }
+
+    /// A member's name for group bubbles and system lines: display name, else @username.
+    #[frb(sync)]
+    pub fn member_name(&self, account: Vec<u8>) -> Option<String> {
+        let c = self.0.contact(&account)?;
+        c.display_name.or(c.username.map(|u| format!("@{u}")))
     }
 
     /// Accepts a message request: they get our profile key and we can reply (MSG-15).
@@ -393,6 +582,7 @@ impl Core {
 }
 
 fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
+    let mut account = None;
     let (kind, group_id, message) = match e {
         core_api::Event::ConversationStarted { group_id, .. } => {
             (CoreEventKind::ConversationStarted, Some(group_id), None)
@@ -403,7 +593,13 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
             Some(m.into()),
         ),
         core_api::Event::Updated { group_id } => (CoreEventKind::Updated, Some(group_id), None),
-        core_api::Event::Typing { group_id } => (CoreEventKind::Typing, Some(group_id), None),
+        core_api::Event::Typing {
+            group_id,
+            account: who,
+        } => {
+            account = Some(who);
+            (CoreEventKind::Typing, Some(group_id), None)
+        }
         core_api::Event::ProfileUpdated { .. } => (CoreEventKind::ProfileUpdated, None, None),
         core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
     };
@@ -411,6 +607,7 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
         kind,
         group_id,
         message,
+        account,
     });
 }
 

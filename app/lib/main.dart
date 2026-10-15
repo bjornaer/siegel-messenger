@@ -185,6 +185,7 @@ class SettingsScreen extends StatelessWidget {
           AppLockSettings(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
+          _GroupAdds(core: core),
           ListTile(
             leading: const Icon(Icons.block),
             title: Text(t.blockedPeople),
@@ -260,6 +261,46 @@ class _BlockedScreenState extends State<BlockedScreen> {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// GRP-11: who can add me to groups; anyone else sends an invite.
+class _GroupAdds extends StatefulWidget {
+  const _GroupAdds({required this.core});
+  final Core core;
+
+  @override
+  State<_GroupAdds> createState() => _GroupAddsState();
+}
+
+class _GroupAddsState extends State<_GroupAdds> {
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final everyone = widget.core.setting(key: 'group_adds') == 'everyone';
+    return ListTile(
+      leading: const Icon(Icons.group_add_outlined),
+      title: Text(t.groupAdds),
+      subtitle: Text('${everyone ? t.groupAddsEveryone : t.groupAddsContacts}. ${t.groupAddsHelp}'),
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        builder: (s) => SafeArea(
+          child: Wrap(
+            children: [
+              for (final (label, value) in [(t.groupAddsContacts, 'contacts'), (t.groupAddsEveryone, 'everyone')])
+                ListTile(
+                  title: Text(label),
+                  trailing: (value == 'everyone') == everyone ? const Icon(Icons.check) : null,
+                  onTap: () {
+                    Navigator.pop(s);
+                    setState(() => widget.core.setSetting(key: 'group_adds', value: value));
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

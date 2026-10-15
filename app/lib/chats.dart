@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'format.dart';
+import 'groups.dart';
 import 'profile.dart';
 import 'safety.dart';
 import 'src/rust/api/core.dart';
@@ -27,13 +28,18 @@ class ChatService extends ChangeNotifier {
   Completer<void>? _waiting; // the current connection, or the backoff before the next
   bool _woken = false;
   final _typing = <String, Timer>{};
+  final _typingWho = <String, List<int>>{};
 
-  /// MSG-14: the peer typed within the last few seconds.
+  /// MSG-14: someone typed within the last few seconds.
   bool isTyping(Uint8List groupId) => _typing.containsKey(base64Encode(groupId));
 
-  void _setTyping(Uint8List groupId, bool on) {
+  /// Who it was, for "Ana is typing…" in groups.
+  List<int>? typingAccount(Uint8List groupId) => _typingWho[base64Encode(groupId)];
+
+  void _setTyping(Uint8List groupId, bool on, [List<int>? who]) {
     final key = base64Encode(groupId);
     _typing.remove(key)?.cancel();
+    if (who != null) _typingWho[key] = who;
     if (!on) return;
     // A little over the 3 s send interval.
     _typing[key] = Timer(const Duration(seconds: 5), () {
@@ -71,7 +77,7 @@ class ChatService extends ChangeNotifier {
             return;
           }
           if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
-            _setTyping(e.groupId!, e.kind == CoreEventKind.typing);
+            _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
           }
           if (e.kind == CoreEventKind.message && e.message != null) onMessage?.call(e.message!);
           notifyListeners();
@@ -108,17 +114,25 @@ String _time(BuildContext context, int ms) =>
     DateFormat.Hm(Localizations.localeOf(context).toString()).format(DateTime.fromMillisecondsSinceEpoch(ms));
 
 /// Display name, else @username, else a placeholder until their profile arrives.
-String chatTitle(AppLocalizations t, ChatSummary c) =>
-    c.peerDisplayName ?? (c.peerUsername == null ? t.newContact : '@${c.peerUsername}');
+String chatTitle(AppLocalizations t, ChatSummary c) => c.isGroup
+    ? c.groupName ?? t.group
+    : c.peerDisplayName ?? (c.peerUsername == null ? t.newContact : '@${c.peerUsername}');
+
+/// The chat list's one-line preview: system lines as text, group messages with their sender.
+String _preview(AppLocalizations t, Core core, ChatSummary c) {
+  final m = c.last!;
+  if (m.event != null) return groupEventText(t, core, m.event!, myAccount(core, c.groupId));
+  final text = m.deleted ? t.messageDeleted : m.text;
+  if (!c.isGroup || m.outgoing) return text;
+  return '${memberName(t, core, m.senderAccount)}: $text';
+}
 
 Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSummary c) {
   final t = AppLocalizations.of(context)!;
   return ListTile(
-    leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+    leading: CircleAvatar(child: Icon(c.isGroup ? Icons.group_outlined : Icons.person_outline)),
     title: Text(chatTitle(t, c)),
-    subtitle: c.last == null
-        ? null
-        : Text(c.last!.deleted ? t.messageDeleted : c.last!.text, maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: c.last == null ? null : Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis),
     trailing: c.last == null ? null : Text(_time(context, c.last!.sentAt)),
     onTap: () => Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -252,6 +266,15 @@ class _NewChatScreenState extends State<NewChatScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          ListTile(
+            leading: const Icon(Icons.group_add_outlined),
+            title: Text(t.newGroup),
+            onTap: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(
+                builder: (_) => NewGroupScreen(core: widget.core, service: widget.service),
+              ),
+            ),
+          ),
           TextField(
             controller: _username,
             autofocus: true,
@@ -427,8 +450,11 @@ class _ChatScreenState extends State<ChatScreen> {
   void _actions(MessageView m, ChatSummary c) {
     final t = AppLocalizations.of(context)!;
     final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(m.sentAt));
-    // ponytail: in 1:1 any reaction not from the peer is ours; groups (M3) need our account ID.
-    final mine = m.reactions.where((r) => !listEquals(r.account, c.peerAccount)).firstOrNull?.emoji;
+    final me = c.isGroup ? myAccount(core, _group) : null;
+    final mine = m.reactions
+        .where((r) => c.isGroup ? listEquals(r.account, me) : !listEquals(r.account, c.peerAccount))
+        .firstOrNull
+        ?.emoji;
     void act(VoidCallback f) {
       Navigator.pop(context);
       f();
@@ -495,7 +521,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: Text(t.messageInfo),
-                  onTap: () => act(() => showMessageInfo(context, m, chatTitle(t, c))),
+                  onTap: () => act(
+                    () => c.isGroup
+                        ? showGroupMessageInfo(context, core, m)
+                        : showMessageInfo(context, m, chatTitle(t, c)),
+                  ),
                 ),
               if (m.edited && !m.deleted)
                 ListTile(
@@ -537,14 +567,16 @@ class _ChatScreenState extends State<ChatScreen> {
             title: InkWell(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => ContactProfileScreen(
-                    core: core,
-                    groupId: _group,
-                    onBlock: () {
-                      Navigator.of(context).pop(); // back to the chat, which closes once blocked
-                      _block(c);
-                    },
-                  ),
+                  builder: (_) => c.isGroup
+                      ? GroupInfoScreen(core: core, service: widget.service, groupId: _group)
+                      : ContactProfileScreen(
+                          core: core,
+                          groupId: _group,
+                          onBlock: () {
+                            Navigator.of(context).pop(); // back to the chat, which closes once blocked
+                            _block(c);
+                          },
+                        ),
                 ),
               ),
               child: Column(
@@ -560,12 +592,18 @@ class _ChatScreenState extends State<ChatScreen> {
                       ],
                     ],
                   ),
-                  if (widget.service.isTyping(_group)) Text(t.typing, style: Theme.of(context).textTheme.labelMedium),
+                  if (widget.service.isTyping(_group))
+                    Text(
+                      c.isGroup
+                          ? t.isTyping(memberName(t, core, widget.service.typingAccount(_group) ?? const []))
+                          : t.typing,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                 ],
               ),
             ),
             actions: [
-              if (!c.request)
+              if (!c.request && !c.isGroup)
                 PopupMenuButton<void>(
                   itemBuilder: (_) => [
                     PopupMenuItem(onTap: () => _safety(c), child: Text(t.safetyNumber)),
@@ -577,7 +615,17 @@ class _ChatScreenState extends State<ChatScreen> {
           body: Column(
             children: [
               Expanded(child: _messages(context, c)),
-              SafeArea(top: false, child: c.request ? _requestBar(t, c) : _composer(t, c)),
+              SafeArea(
+                top: false,
+                child: c.left
+                    ? Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(t.leftGroup, textAlign: TextAlign.center),
+                      )
+                    : c.request
+                    ? (c.isGroup ? _inviteBar(t) : _requestBar(t, c))
+                    : _composer(t, c),
+              ),
             ],
           ),
         );
@@ -609,7 +657,12 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         children: [
           for (final m in messages)
-            if (m.keyChange) _keyChange(context, m, c) else _bubble(context, m, byId, c),
+            if (m.event != null)
+              _systemLine(context, m)
+            else if (m.keyChange)
+              _keyChange(context, m, c)
+            else
+              _bubble(context, m, byId, c),
         ],
       ),
     );
@@ -640,61 +693,131 @@ class _ChatScreenState extends State<ChatScreen> {
             color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (m.replyTo != null && !m.deleted)
-                GestureDetector(
-                  onTap: () => _jumpTo(m.replyTo!),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 4),
-                    padding: const EdgeInsets.only(left: 8),
-                    decoration: BoxDecoration(
-                      border: Border(left: BorderSide(color: colors.primary, width: 3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (quoted != null) Text(quoted.outgoing ? t.you : chatTitle(t, c), style: small),
-                        Text(
-                          quoted == null
-                              ? t.originalMissing
-                              : quoted.deleted
-                              ? t.messageDeleted
-                              : quoted.text,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+          // As wide as its widest line; text starts left, time and ticks end right.
+          child: IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (c.isGroup && !m.outgoing)
+                  Text(
+                    memberName(t, core, m.senderAccount),
+                    style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
+                  ),
+                if (m.replyTo != null && !m.deleted)
+                  GestureDetector(
+                    onTap: () => _jumpTo(m.replyTo!),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.only(left: 8),
+                      decoration: BoxDecoration(
+                        border: Border(left: BorderSide(color: colors.primary, width: 3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (quoted != null)
+                            Text(
+                              quoted.outgoing
+                                  ? t.you
+                                  : c.isGroup
+                                  ? memberName(t, core, quoted.senderAccount)
+                                  : chatTitle(t, c),
+                              style: small,
+                            ),
+                          Text(
+                            quoted == null
+                                ? t.originalMissing
+                                : quoted.deleted
+                                ? t.messageDeleted
+                                : quoted.text,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                if (m.deleted)
+                  Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+                else
+                  Text.rich(formatText(m.text)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (m.edited && !m.deleted)
+                      GestureDetector(
+                        onTap: () => _history(m),
+                        child: Text('${t.edited} ', style: small),
+                      ),
+                    Text(_time(context, m.sentAt), style: small),
+                    if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
+                  ],
                 ),
-              if (m.deleted)
-                Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
-              else
-                Text.rich(formatText(m.text)),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (m.edited && !m.deleted)
-                    GestureDetector(
-                      onTap: () => _history(m),
-                      child: Text('${t.edited} ', style: small),
-                    ),
-                  Text(_time(context, m.sentAt), style: small),
-                  if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
-                ],
-              ),
-              if (failed) Text(t.notSentRetry, style: small?.copyWith(color: colors.error)),
-              if (counts.isNotEmpty)
-                Text([for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  ')),
-            ],
+                if (failed)
+                  Text(
+                    t.notSentRetry,
+                    textAlign: TextAlign.end,
+                    style: small?.copyWith(color: colors.error),
+                  ),
+                if (counts.isNotEmpty)
+                  Text(
+                    [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
+                    textAlign: TextAlign.end,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  /// GRP-12: membership and settings changes, centred.
+  Widget _systemLine(BuildContext context, MessageView m) {
+    final t = AppLocalizations.of(context)!;
+    return Padding(
+      key: ValueKey(base64Encode(m.messageId)),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Text(
+        groupEventText(t, core, m.event!, myAccount(core, _group)),
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+
+  /// GRP-11: an invite from a non-contact; members don't see our name until we accept.
+  Widget _inviteBar(AppLocalizations t) => Padding(
+    padding: const EdgeInsets.all(12),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(t.inviteBanner, textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          alignment: WrapAlignment.center,
+          children: [
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _run(() async {
+                      await core.leaveGroup(groupId: _group);
+                      core.deleteChat(groupId: _group);
+                      if (mounted) Navigator.of(context).pop();
+                    }),
+              child: Text(t.decline),
+            ),
+            FilledButton(
+              onPressed: _busy ? null : () => _run(() => core.accept(groupId: _group)),
+              child: Text(t.accept),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   /// CRY-13: stays in the chat; no actions besides comparing the new number.
   Widget _keyChange(BuildContext context, MessageView m, ChatSummary c) {

@@ -58,6 +58,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  GroupEventView dco_decode_box_autoadd_group_event_view(dynamic raw);
+
+  @protected
   MessageView dco_decode_box_autoadd_message_view(dynamic raw);
 
   @protected
@@ -76,6 +79,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DevicePlatform dco_decode_device_platform(dynamic raw);
 
   @protected
+  GroupEventKind dco_decode_group_event_kind(dynamic raw);
+
+  @protected
+  GroupEventView dco_decode_group_event_view(dynamic raw);
+
+  @protected
+  GroupInfoView dco_decode_group_info_view(dynamic raw);
+
+  @protected
+  GroupMemberView dco_decode_group_member_view(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -91,6 +106,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChatSummary> dco_decode_list_chat_summary(dynamic raw);
 
   @protected
+  List<GroupMemberView> dco_decode_list_group_member_view(dynamic raw);
+
+  @protected
+  List<Uint8List> dco_decode_list_list_prim_u_8_strict(dynamic raw);
+
+  @protected
   List<MessageView> dco_decode_list_message_view(dynamic raw);
 
   @protected
@@ -103,6 +124,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Reaction> dco_decode_list_reaction(dynamic raw);
 
   @protected
+  List<ReceiptView> dco_decode_list_receipt_view(dynamic raw);
+
+  @protected
   MessageStatus dco_decode_message_status(dynamic raw);
 
   @protected
@@ -112,6 +136,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  GroupEventView? dco_decode_opt_box_autoadd_group_event_view(dynamic raw);
+
+  @protected
   MessageView? dco_decode_opt_box_autoadd_message_view(dynamic raw);
 
   @protected
@@ -119,6 +146,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Reaction dco_decode_reaction(dynamic raw);
+
+  @protected
+  ReceiptView dco_decode_receipt_view(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -168,6 +198,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  GroupEventView sse_decode_box_autoadd_group_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   MessageView sse_decode_box_autoadd_message_view(SseDeserializer deserializer);
 
   @protected
@@ -184,6 +219,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DevicePlatform sse_decode_device_platform(SseDeserializer deserializer);
+
+  @protected
+  GroupEventKind sse_decode_group_event_kind(SseDeserializer deserializer);
+
+  @protected
+  GroupEventView sse_decode_group_event_view(SseDeserializer deserializer);
+
+  @protected
+  GroupInfoView sse_decode_group_info_view(SseDeserializer deserializer);
+
+  @protected
+  GroupMemberView sse_decode_group_member_view(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -203,6 +250,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ChatSummary> sse_decode_list_chat_summary(SseDeserializer deserializer);
 
   @protected
+  List<GroupMemberView> sse_decode_list_group_member_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<Uint8List> sse_decode_list_list_prim_u_8_strict(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<MessageView> sse_decode_list_message_view(SseDeserializer deserializer);
 
   @protected
@@ -215,6 +272,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Reaction> sse_decode_list_reaction(SseDeserializer deserializer);
 
   @protected
+  List<ReceiptView> sse_decode_list_receipt_view(SseDeserializer deserializer);
+
+  @protected
   MessageStatus sse_decode_message_status(SseDeserializer deserializer);
 
   @protected
@@ -222,6 +282,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  GroupEventView? sse_decode_opt_box_autoadd_group_event_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MessageView? sse_decode_opt_box_autoadd_message_view(
@@ -233,6 +298,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Reaction sse_decode_reaction(SseDeserializer deserializer);
+
+  @protected
+  ReceiptView sse_decode_receipt_view(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -292,6 +360,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_group_event_view(
+    GroupEventView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_message_view(
     MessageView self,
     SseSerializer serializer,
@@ -312,6 +386,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_device_platform(
     DevicePlatform self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_group_event_kind(
+    GroupEventKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_group_event_view(
+    GroupEventView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_group_info_view(GroupInfoView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_group_member_view(
+    GroupMemberView self,
     SseSerializer serializer,
   );
 
@@ -337,6 +432,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_group_member_view(
+    List<GroupMemberView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_list_prim_u_8_strict(
+    List<Uint8List> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_message_view(
     List<MessageView> self,
     SseSerializer serializer,
@@ -355,6 +462,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_reaction(List<Reaction> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_receipt_view(
+    List<ReceiptView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_message_status(MessageStatus self, SseSerializer serializer);
 
   @protected
@@ -362,6 +475,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_group_event_view(
+    GroupEventView? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_message_view(
@@ -377,6 +496,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_reaction(Reaction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_receipt_view(ReceiptView self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
