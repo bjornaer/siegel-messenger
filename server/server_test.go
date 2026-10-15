@@ -338,3 +338,24 @@ func TestHTTPErrorLogHasNoIPs(t *testing.T) { // SEC-03
 		t.Fatal(b.String())
 	}
 }
+
+func TestPublicPages(t *testing.T) { // CMP-07
+	e := setup(t)
+	for path, want := range map[string]string{"/privacy": "Privacy policy", "/delete-account": "Settings → Delete account"} {
+		res, err := http.Get(e.url + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode != 200 || !strings.Contains(string(b), want) {
+			t.Fatalf("%s: %d", path, res.StatusCode)
+		}
+	}
+	e.s.cfg.contactEmail = "privacy@example.org"
+	res, _ := http.Get(e.url + "/delete-account")
+	b, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(b), "mailto:privacy@example.org") {
+		t.Fatal("contact email not shown")
+	}
+}

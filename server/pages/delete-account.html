@@ -1,0 +1,25 @@
+{{define "delete-account"}}{{template "head" "Delete your account"}}
+<h1>Delete your Siegel account</h1>
+
+<h2>In the app</h2>
+<p>Open Siegel, go to <strong>Settings → Delete account</strong> and confirm. Your account is deleted
+from our servers straight away, and from our backups within 24 hours. Your messages and chats are
+stored only on your phone and are erased with it.</p>
+
+<h2>Without the app</h2>
+<p>Write to {{template "contact" .}} from any address and tell us the phone number of the account.
+To protect you from someone else deleting your account, we send a confirmation code to that number
+before we delete anything. We delete the account within 30 days of your request.</p>
+<p>If you simply uninstall Siegel, your account is also deleted automatically after 180 days in
+which none of your devices connect.</p>
+
+<h2>What is deleted</h2>
+<ul>
+<li>The keyed hash of your phone number (we never store the number itself)</li>
+<li>Your @username, encrypted profile, public encryption keys and devices</li>
+<li>Any messages still waiting for delivery, push tokens and your Registration Lock</li>
+</ul>
+<h2>What is kept</h2>
+<p>Your former @username stays reserved for 30 days, without any link to you, so nobody can
+impersonate you right away. Nothing else is kept.</p>
+{{template "foot"}}{{end}}

@@ -1,0 +1,21 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.}} · Siegel Messenger</title>
+<style>
+:root { --fg: #1b1c1a; --bg: #f7f8f4; --accent: #2f543b; --muted: #5d6159; }
+@media (prefers-color-scheme: dark) { :root { --fg: #e3e4de; --bg: #121411; --accent: #9fd3a9; --muted: #a9ada4; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, sans-serif; }
+main { max-width: 44rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+h1, h2 { color: var(--accent); line-height: 1.25; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95em; }
+th, td { border-bottom: 1px solid color-mix(in srgb, var(--fg) 15%, transparent); padding: 0.5rem 0.4rem; text-align: left; vertical-align: top; }
+.note { color: var(--muted); font-size: 0.9em; }
+.wide { overflow-x: auto; }
+</style>
+</head>
+<body><main>{{end}}
+{{define "foot"}}</main></body></html>{{end}}
+{{define "contact"}}{{if .Contact}}<a href="mailto:{{.Contact}}">{{.Contact}}</a>{{else}}the contact address that will be published on this page before public launch{{end}}{{end}}

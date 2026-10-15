@@ -63,6 +63,8 @@ type config struct {
 	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
 	fcmKey        []byte  // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
 	inactiveDays  int     // section 10: accounts with no device seen this long are deleted
+	contactEmail  string  // shown on the public privacy and deletion pages
+	operator      string  // legal name and postal address for the privacy policy
 	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
 }
@@ -99,6 +101,8 @@ func loadConfig() config {
 		otpAlertRate:  env("SIEGEL_OTP_ALERT_RATE", 0.5, func(s string) (float64, error) { return strconv.ParseFloat(s, 64) }),
 		otpAlertMin:   env("SIEGEL_OTP_ALERT_MIN", 20, strconv.Atoi),
 		inactiveDays:  env("SIEGEL_INACTIVE_DAYS", 180, strconv.Atoi),
+		contactEmail:  os.Getenv("SIEGEL_CONTACT_EMAIL"),
+		operator:      os.Getenv("SIEGEL_OPERATOR"),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
@@ -234,6 +238,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle(siegelv1connect.NewMessagesServiceHandler(s, s.authed(), payload))
 	mux.Handle(siegelv1connect.NewGroupsServiceHandler(s, s.authed(), payload))
 	mux.HandleFunc("GET /v1/stream", s.stream)
+	mux.HandleFunc("GET /privacy", s.page("privacy"))
+	mux.HandleFunc("GET /delete-account", s.page("delete-account"))
 	return mux
 }
 
