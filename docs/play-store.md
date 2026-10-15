@@ -21,6 +21,52 @@ flutter build appbundle --release --build-number <n>   # n must grow with every 
 # upload build/app/outputs/bundle/release/app-release.aab
 ```
 
+## Store listing
+
+Short description (76/80):
+
+> Sealed. Not shared. Private, end-to-end encrypted messaging, made in Europe.
+
+Full description (only claims what ships; update when groups and media land):
+
+```
+Sealed. Not shared.
+
+Siegel is a private messenger. Your messages are encrypted on your phone and can only be read by the person you're talking to. Not by us, not by anyone in between.
+
+YOUR MESSAGES LIVE ON YOUR PHONE
+Your chat history is stored only on your device, in an encrypted database. There's no copy on our servers and no cloud backup that someone else could open.
+
+NO PHONE NUMBER ON SHOW
+People find you by your @username. Your phone number is used once to verify your account and is never shown to anyone you chat with. We don't even store it: only a scrambled fingerprint of it.
+
+WE SEE AS LITTLE AS POSSIBLE
+• End-to-end encryption with MLS, the modern open standard for secure messaging
+• Sealed sender: when contacts write to you, our server doesn't learn who sent the message
+• Your name and profile are encrypted too, visible only to your contacts
+• Notifications carry no content and no sender: your phone fetches and decrypts the message itself
+• No ads, no analytics, no tracking
+
+YOU DECIDE WHO REACHES YOU
+• Strangers land in Message requests until you accept them
+• Block anyone silently
+• Compare safety numbers or scan a QR code in person to be sure you're talking to the right person
+• Registration Lock: a PIN that stops anyone who gets hold of your number from taking over your account
+
+EVERYTHING A CHAT NEEDS
+• Replies, reactions, edits and delete for everyone
+• Delivery and read receipts, typing indicators: turn them off any time
+• App lock with your fingerprint or device PIN, and screen protection against screenshots
+• Eight colour themes named after German legends and moods: Drache, Löwe, Lindwurm, Krampus, Nordlicht and more
+
+MADE IN EUROPE, OPEN FOR ALL TO CHECK
+Siegel is run from Spain on servers in the EU, under European data protection law. The source code is public, so anyone can verify what it does.
+
+Siegel is German for "seal". What you write stays sealed.
+
+Group chats, photos and file sharing are on the way.
+```
+
 ## App content
 
 **Privacy policy:** `https://siegel.schlk.in/privacy` (draft in `docs/privacy-policy.md`).
