@@ -245,6 +245,11 @@ async fn echo_peer() {
     let (peer, name) = new_user(&url, "echo").await;
     std::fs::write(std::env::var("ECHO_FILE").unwrap(), &name).unwrap();
     let mut events = listen(&peer);
+    // ECHO_TARGET=<username>: start the chat ourselves, so the app gets a message request.
+    if let Ok(target) = std::env::var("ECHO_TARGET") {
+        let chat = peer.start_chat(&target).await.unwrap();
+        peer.send_text(&chat, "hello from echo").await.unwrap();
+    }
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
     while let Ok(Some(e)) = tokio::time::timeout_at(deadline, events.recv()).await {
         if let core_api::Event::Message(m) = e {
