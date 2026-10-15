@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package siegel.v1;
+
+option go_package = "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1";
+
+// The Delivery Service (ARCH-04). Payloads are raw MLS messages (PrivateMessage, commit or
+// Welcome); the server never parses them and never stores who sent them.
+
+message DeviceAddress {
+  bytes account_id = 1;
+  bytes device_id = 2;
+}
+
+service KeysService {
+  // Adds one-time KeyPackages for the caller's device and optionally replaces its last-resort
+  // KeyPackage (CRY-09). Returns how many one-time packages remain, so clients refill below 20.
+  rpc Upload(KeysServiceUploadRequest) returns (KeysServiceUploadResponse);
+  // Claims one KeyPackage per device of an account (GRP-09). One-time packages are deleted on
+  // claim; the last-resort package is returned when none are left. Rate-limited per caller.
+  rpc Claim(KeysServiceClaimRequest) returns (KeysServiceClaimResponse);
+}
+
+message KeysServiceUploadRequest {
+  repeated bytes key_packages = 1;
+  bytes last_resort = 2;
+}
+
+message KeysServiceUploadResponse {
+  uint32 remaining = 1;
+}
+
+message KeysServiceClaimRequest {
+  bytes account_id = 1;
+}
+
+message ClaimedKeyPackage {
+  bytes device_id = 1;
+  bytes key_package = 2;
+}
+
+message KeysServiceClaimResponse {
+  repeated ClaimedKeyPackage key_packages = 1;
+}
+
+service MessagesService {
+  // Queues one payload for each recipient device. Authenticated: used for first contact
+  // (MSG-15) until sealed sender lands (MSG-10).
+  rpc SendIdentified(MessagesServiceSendIdentifiedRequest) returns (MessagesServiceSendIdentifiedResponse);
+}
+
+message MessagesServiceSendIdentifiedRequest {
+  repeated DeviceAddress recipients = 1;
+  bytes payload = 2;
+}
+
+message MessagesServiceSendIdentifiedResponse {
+  // Recipients whose device no longer exists; the payload was not queued for them (ID-13).
+  repeated DeviceAddress revoked = 1;
+}
+
+service GroupsService {
+  // Submits the commit that moves a group from `epoch` to `epoch + 1`. Exactly one commit per
+  // epoch is accepted (first writer wins); a loser gets ABORTED "epoch_conflict", receives the
+  // winning commit from its queue, applies it and retries (CRY-14). Epoch 0 creates the group.
+  rpc Commit(GroupsServiceCommitRequest) returns (GroupsServiceCommitResponse);
+}
+
+message GroupsServiceCommitRequest {
+  bytes group_id = 1;
+  uint64 epoch = 2;
+  bytes commit = 3;
+  repeated DeviceAddress recipients = 4;
+  bytes welcome = 5;
+  repeated DeviceAddress welcome_recipients = 6;
+}
+
+message GroupsServiceCommitResponse {
+  repeated DeviceAddress revoked = 1;
+}
+
+// WebSocket /v1/stream frames (SRV-03), binary protobuf. Server -> client: StreamFrame.
+// Client -> server: StreamAck. Queued messages are deleted once acknowledged.
+message StreamFrame {
+  oneof kind {
+    QueuedMessage message = 1;
+    // The device was revoked or the account deleted: wipe keys and local data (ID-12).
+    Deregistered deregistered = 2;
+  }
+}
+
+message QueuedMessage {
+  int64 id = 1;
+  bytes payload = 2;
+}
+
+message Deregistered {}
+
+message StreamAck {
+  repeated int64 ids = 1;
+}

@@ -48,6 +48,9 @@ message VerifyResponse {
   bytes as_signature = 4;
   // True when the account already existed (re-registration, ID-09).
   bool existing_account = 5;
+  // Authentication Service Ed25519 public key. Clients pin it here and use it to check
+  // every member's credential binding (CRY-08).
+  bytes as_public_key = 6;
 }
 
 service UsernameService {

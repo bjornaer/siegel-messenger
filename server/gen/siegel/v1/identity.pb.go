@@ -247,8 +247,11 @@ type VerifyResponse struct {
 	AsSignature []byte `protobuf:"bytes,4,opt,name=as_signature,json=asSignature,proto3" json:"as_signature,omitempty"`
 	// True when the account already existed (re-registration, ID-09).
 	ExistingAccount bool `protobuf:"varint,5,opt,name=existing_account,json=existingAccount,proto3" json:"existing_account,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Authentication Service Ed25519 public key. Clients pin it here and use it to check
+	// every member's credential binding (CRY-08).
+	AsPublicKey   []byte `protobuf:"bytes,6,opt,name=as_public_key,json=asPublicKey,proto3" json:"as_public_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *VerifyResponse) Reset() {
@@ -314,6 +317,13 @@ func (x *VerifyResponse) GetExistingAccount() bool {
 		return x.ExistingAccount
 	}
 	return false
+}
+
+func (x *VerifyResponse) GetAsPublicKey() []byte {
+	if x != nil {
+		return x.AsPublicKey
+	}
+	return nil
 }
 
 type UsernameServiceSetRequest struct {
@@ -668,14 +678,15 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\x03otp\x18\x02 \x01(\tR\x03otp\x12!\n" +
 	"\fidentity_pub\x18\x03 \x01(\fR\videntityPub\x122\n" +
 	"\x15registration_lock_pin\x18\x04 \x01(\tR\x13registrationLockPin\x12/\n" +
-	"\bplatform\x18\x05 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"\xbd\x01\n" +
+	"\bplatform\x18\x05 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"\xe1\x01\n" +
 	"\x0eVerifyResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\fR\taccountId\x12\x1b\n" +
 	"\tdevice_id\x18\x02 \x01(\fR\bdeviceId\x12!\n" +
 	"\fdevice_token\x18\x03 \x01(\tR\vdeviceToken\x12!\n" +
 	"\fas_signature\x18\x04 \x01(\fR\vasSignature\x12)\n" +
-	"\x10existing_account\x18\x05 \x01(\bR\x0fexistingAccount\"7\n" +
+	"\x10existing_account\x18\x05 \x01(\bR\x0fexistingAccount\x12\"\n" +
+	"\ras_public_key\x18\x06 \x01(\fR\vasPublicKey\"7\n" +
 	"\x19UsernameServiceSetRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\"\x1c\n" +
 	"\x1aUsernameServiceSetResponse\":\n" +
