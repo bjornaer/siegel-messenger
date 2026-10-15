@@ -89,8 +89,11 @@ Takes over the victim's phone number and receives the OTP.
 
 - SMS pumping: device attestation (ID-02, **not yet implemented; server refuses non-dev mode until it is**),
   3/number/hour, 10/IP/hour in memory, global daily cap, prefix denylist (ID-04).
-- Username enumeration: exact-match lookup only (ID-08). There is no lookup rate limit yet; add one if
-  scraping by dictionary shows up.
+- Username enumeration: exact-match lookup only (ID-08), 200 lookups per account per day.
+- Endpoint abuse: only registration is unauthenticated; `Verify` is limited to 30/IP/hour on top of 5
+  guesses per code. Request bodies are capped at 64 KiB; read/write timeouts 30 s, idle 2 min.
+- SMS pumping detection: hourly aggregate counters; an operator alert fires when the OTP completion rate
+  over 24 h drops below 50% (ID-04).
 - Phone discovery enumeration: OPRF rate limits (DISC-06, M5).
 
 ### T7 Hosting provider / backup holder
@@ -116,4 +119,3 @@ Hetzner (EU, D8) has physical and hypervisor access to the host.
 | Unverified key substitution by server | Medium | Safety numbers now, key transparency later | SEC-12 |
 | Backups unencrypted on host | Medium | Encrypted volume / encrypted off-host copy | A9 |
 | Registration Lock lapse after 7 days | Accepted | Product decision | ID-10 |
-| No username lookup rate limit | Low | Add if abused | ID-08 |
