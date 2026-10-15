@@ -10,3 +10,6 @@ backups/
 
 # Rust build output
 core/target/
+
+# macOS
+.DS_Store
