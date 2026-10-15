@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -303,11 +304,12 @@ func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 	send()
 	quiet() // live stream: no push
 	ws.CloseNow()
-	for e.s.hub.online([16]byte(b.DeviceId)) {
-		time.Sleep(10 * time.Millisecond)
-	}
+	// It left without acknowledging: what it never got is pushed for once it's gone.
+	want(t, waitPush(), "tok-b")
+	e.s.db.Exec(e.ctx, `DELETE FROM queue`)
+	e.s.pushes.connected([16]byte(b.DeviceId))
 	send()
-	want(t, waitPush(), "tok-b") // the connection reset collapsing
+	want(t, waitPush(), "tok-b") // collapsing resets once the device has connected
 
 	// A token the push service no longer knows is cleared.
 	acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "gone"}))
@@ -325,4 +327,35 @@ func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+func TestInactiveAccounts(t *testing.T) { // section 10 retention, SRV-01
+	e := setup(t)
+	pushed := make(chan string, 10)
+	e.s.sendPush = func(_ context.Context, _ siegelv1.Platform, token string) error { pushed <- token; return nil }
+	old, idle, fresh := e.device("+34600000091"), e.device("+34600000092"), e.device("+34600000093")
+	name := "oldtimer"
+	want(t, e.setUsername(old.DeviceToken, name), "")
+	for _, d := range []device{old, idle} {
+		_, acct := e.clients(d.DeviceToken)
+		acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "tok"}))
+	}
+	e.s.db.Exec(e.ctx, `UPDATE devices SET last_seen_day = current_date - 181 WHERE device_id = $1`, old.DeviceId)
+	e.s.db.Exec(e.ctx, `UPDATE devices SET last_seen_day = current_date - 176 WHERE device_id = $1`, idle.DeviceId)
+
+	e.s.expireInactive(e.ctx)
+	select {
+	case <-pushed: // the idle one is woken in its last week
+	case <-time.After(3 * time.Second):
+		t.Fatal("no warning push")
+	}
+	var accounts int
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM accounts`).Scan(&accounts)
+	want(t, fmt.Sprint(accounts), "2") // old deleted; idle and fresh kept
+	var quarantined bool
+	e.s.db.QueryRow(e.ctx, `SELECT quarantined_until IS NOT NULL FROM usernames WHERE name = $1`, name).Scan(&quarantined)
+	if !quarantined {
+		t.Fatal("deleted account's username not quarantined")
+	}
+	_ = fresh // seen today: untouched
 }

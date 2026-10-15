@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -190,17 +191,51 @@ func (s *server) SetRegistrationLock(ctx context.Context, req *connect.Request[s
 
 // Delete removes the account synchronously, well inside the 24-hour bound of ID-16.
 func (s *server) Delete(ctx context.Context, _ *connect.Request[siegelv1.AccountServiceDeleteRequest]) (*connect.Response[siegelv1.AccountServiceDeleteResponse], error) {
-	me := account(ctx)
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE usernames SET quarantined_until = now() + $2 * interval '1 day'
-			WHERE account_id = $1 AND quarantined_until IS NULL`, me, s.cfg.userQuarDay); err != nil {
-			return err
-		}
-		_, err := tx.Exec(ctx, `DELETE FROM accounts WHERE id = $1`, me) // devices cascade; usernames.account_id -> NULL
-		return err
-	})
-	if err != nil {
+	if err := s.deleteAccount(ctx, account(ctx)); err != nil {
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&siegelv1.AccountServiceDeleteResponse{}), nil
+}
+
+// deleteAccount removes everything the server holds for the account and quarantines its
+// username (ID-16, ID-07).
+func (s *server) deleteAccount(ctx context.Context, id [16]byte) error {
+	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE usernames SET quarantined_until = now() + $2 * interval '1 day'
+			WHERE account_id = $1 AND quarantined_until IS NULL`, id, s.cfg.userQuarDay); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `DELETE FROM accounts WHERE id = $1`, id) // devices cascade; usernames.account_id -> NULL
+		return err
+	})
+}
+
+// expireInactive deletes accounts with no device seen for inactiveDays (section 10), after
+// waking their devices on each janitor run during the last week. A woken app connects, which counts as
+// activity, so only accounts whose app is gone (or whose phone stays off) are deleted.
+func (s *server) expireInactive(ctx context.Context) {
+	rows, err := s.db.Query(ctx, `SELECT device_id FROM devices WHERE push_token IS NOT NULL
+		AND last_seen_day BETWEEN current_date - $1::int + 1 AND current_date - $1::int + 7`, s.cfg.inactiveDays)
+	if err == nil {
+		devices, _ := pgx.CollectRows(rows, pgx.RowTo[[16]byte])
+		for _, d := range devices {
+			s.wakeDevice(d)
+		}
+	}
+	rows, err = s.db.Query(ctx, `SELECT id FROM accounts a WHERE NOT EXISTS (SELECT 1 FROM devices d
+		WHERE d.account_id = a.id AND d.last_seen_day > current_date - $1::int)`, s.cfg.inactiveDays)
+	if err != nil {
+		slog.Error("inactive accounts", "err", err)
+		return
+	}
+	ids, _ := pgx.CollectRows(rows, pgx.RowTo[[16]byte])
+	for _, id := range ids {
+		if err := s.deleteAccount(ctx, id); err != nil {
+			slog.Error("inactive account delete", "err", err)
+			return
+		}
+	}
+	if len(ids) > 0 {
+		s.count(ctx, "accounts_expired")
+	}
 }

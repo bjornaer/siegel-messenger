@@ -62,6 +62,7 @@ type config struct {
 	otpAlertRate  float64 // ID-04: alert below this OTP completion rate over 24 h
 	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
 	fcmKey        []byte  // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
+	inactiveDays  int     // section 10: accounts with no device seen this long are deleted
 	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
 }
@@ -97,6 +98,7 @@ func loadConfig() config {
 		alertURL:      os.Getenv("SIEGEL_ALERT_WEBHOOK"),
 		otpAlertRate:  env("SIEGEL_OTP_ALERT_RATE", 0.5, func(s string) (float64, error) { return strconv.ParseFloat(s, 64) }),
 		otpAlertMin:   env("SIEGEL_OTP_ALERT_MIN", 20, strconv.Atoi),
+		inactiveDays:  env("SIEGEL_INACTIVE_DAYS", 180, strconv.Atoi),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
@@ -250,6 +252,7 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			}
 		}
 		s.checkOtpRate(ctx)
+		s.expireInactive(ctx)
 		if err := b.renew(ctx); err != nil {
 			slog.Warn("openbao token renew", "err", err) // expected for the non-expiring dev root token
 		}

@@ -140,7 +140,16 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wake, unsub := s.hub.sub(c.device)
-	defer unsub()
+	defer func() {
+		unsub()
+		// Messages that came in while this connection was already dead (pings find out within
+		// 40 s) were never delivered and got no push: wake the device now (SRV-06).
+		var pending bool
+		if s.db.QueryRow(context.Background(), `SELECT EXISTS (SELECT 1 FROM queue WHERE account_id = $1 AND device_id = $2)`,
+			c.account, c.device).Scan(&pending) == nil && pending {
+			s.wakeDevice(c.device)
+		}
+	}()
 	s.pushes.connected(c.device)
 	go func() { // acknowledgements delete delivered messages
 		defer cancel()

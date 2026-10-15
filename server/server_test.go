@@ -58,7 +58,7 @@ func setup(t *testing.T) *env_ {
 		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, claimPerDay: 1000, sealedPerIP: 1000, newChatPerDay: 1000, smsDailyCap: 1000,
 		denyPrefixes: []string{"+882"},
 		userMin:      4, userMax: 32, userChangeDay: 30, userQuarDay: 30,
-		lockAttempts: 3, lockLockout: 3600e9, lockLapseDay: 7,
+		lockAttempts: 3, lockLockout: 3600e9, lockLapseDay: 7, inactiveDays: 180,
 	}
 	e := &env_{t: t, sms: map[string]string{}, ctx: ctx, asPub: asKey.Public().(ed25519.PublicKey)}
 	e.s = newServer(cfg, db)
