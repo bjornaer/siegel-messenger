@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -107,7 +110,69 @@ func (b bao) renew(ctx context.Context) error {
 }
 
 // gatewayAPI sends OTPs through GatewayAPI's Messaging API (EU platform by default).
-func gatewayAPI(url, token, sender string) func(ctx context.Context, phone, code string) error {
+type smsSender func(ctx context.Context, phone, code string) error
+
+// smsProvider is one SMS gateway; the server tries them in order (ID-03).
+type smsProvider struct {
+	name string
+	send smsSender
+}
+
+// smsChain sends through the first provider that works: when one fails (out of credit, down,
+// rejected), the next takes over. Errors never include the number (SEC-03).
+// ponytail: a provider that times out after accepting can lead to a second SMS with the same code.
+func smsChain(providers []smsProvider) smsSender {
+	return func(ctx context.Context, phone, code string) error {
+		var errs []error
+		for _, p := range providers {
+			err := p.send(ctx, phone, code)
+			if err == nil {
+				return nil
+			}
+			slog.Warn("sms provider failed, trying the next", "provider", p.name, "err", err)
+			errs = append(errs, fmt.Errorf("%s: %w", p.name, err))
+		}
+		return errors.Join(errs...)
+	}
+}
+
+// sevenURL is overridden in tests.
+var sevenURL = "https://gateway.seven.io/api/sms"
+
+// seven sends through seven.io. It answers HTTP 200 even on failure; the body's "success"
+// code says what happened ("100" = accepted, "500" = no credit, ...).
+func seven(key, sender string) smsSender {
+	return func(ctx context.Context, phone, code string) error {
+		form := url.Values{"to": {phone}, "text": {"Your Siegel code: " + code}, "from": {sender}}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, sevenURL, strings.NewReader(form.Encode()))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("X-Api-Key", key)
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		res, err := httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+		if res.StatusCode/100 != 2 {
+			return &statusError{sevenURL, res.StatusCode}
+		}
+		var out struct {
+			Success json.RawMessage `json:"success"`
+		}
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			return err
+		}
+		if c := strings.Trim(string(out.Success), `"`); c != "100" {
+			return fmt.Errorf("seven: code %s", c)
+		}
+		return nil
+	}
+}
+
+func gatewayAPI(url, token, sender string) smsSender {
 	return func(ctx context.Context, phone, code string) error {
 		return postJSON(ctx, url, http.Header{"Authorization": {"Token " + token}}, map[string]any{
 			"sender":    sender,

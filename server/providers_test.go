@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -179,5 +180,48 @@ func TestPlayIntegrity(t *testing.T) { // ID-02
 	}
 	if check(context.Background(), siegelv1.Platform_PLATFORM_IOS, phone, "tok") == nil || check(context.Background(), android, phone, "") == nil {
 		t.Error("iOS or empty token accepted")
+	}
+}
+
+func TestSMSFallback(t *testing.T) { // ID-03: one provider failing doesn't stop sign-ups
+	var sevenCode string
+	var gotForm url.Values
+	sv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		gotForm = r.PostForm
+		if r.Header.Get("X-Api-Key") != "k" {
+			t.Error("missing api key")
+		}
+		w.Write([]byte(`{"success":"` + sevenCode + `","messages":[]}`))
+	}))
+	defer sv.Close()
+	sevenURL = sv.URL
+	gwDown := true
+	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if gwDown {
+			w.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+		w.Write([]byte(`{}`))
+	}))
+	defer gw.Close()
+	send := smsChain([]smsProvider{{"gatewayapi", gatewayAPI(gw.URL, "t", "Siegel")}, {"seven", seven("k", "Siegel")}})
+	ctx := context.Background()
+
+	sevenCode = "100"
+	if err := send(ctx, "+34600000001", "123456"); err != nil {
+		t.Fatal("seven should take over when GatewayAPI fails:", err)
+	}
+	if gotForm.Get("to") != "+34600000001" || gotForm.Get("text") != "Your Siegel code: 123456" || gotForm.Get("from") != "Siegel" {
+		t.Fatal(gotForm)
+	}
+	sevenCode = "500" // seven.io: no credit, still HTTP 200
+	err := send(ctx, "+34600000001", "123456")
+	if err == nil || !strings.Contains(err.Error(), "seven: code 500") || strings.Contains(err.Error(), "600000001") {
+		t.Fatal("both failing must fail, without the number in the error:", err)
+	}
+	gwDown = false
+	if err := send(ctx, "+34600000001", "123456"); err != nil {
+		t.Fatal("the first provider is used when it works:", err)
 	}
 }

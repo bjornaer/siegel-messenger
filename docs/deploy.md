@@ -83,6 +83,10 @@ curl -XPOST https://siegel.schlk.in/siegel.v1.RegistrationService/RequestOtp \
 5. Sender ID is `Siegel` (`SIEGEL_SMS_SENDER`). Check whether your launch countries require
    alphanumeric sender registration; until it is approved, some carriers replace or drop the sender.
 6. Sign their data processing agreement (CMP-07).
+7. Fallback: with `SIEGEL_SEVEN_API_KEY` set (a seven.io API key), codes go out through seven.io
+   whenever GatewayAPI fails, for example once its credit runs out. `SIEGEL_SMS_PROVIDERS`
+   sets the order (`gatewayapi,seven` by default; `seven,gatewayapi` makes seven.io first).
+   The server log names the provider that failed, never the number.
 
 ## 5. Automatic deploys
 

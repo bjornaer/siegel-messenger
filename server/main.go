@@ -40,6 +40,8 @@ type config struct {
 	smsToken      string // GatewayAPI
 	smsURL        string
 	smsSender     string
+	sevenKey      string   // seven.io
+	smsProviders  []string // order to try them in; only those with a key are used
 	otpTTL        time.Duration
 	otpAttempts   int
 	otpPerNumber  int // per hour
@@ -80,6 +82,8 @@ func loadConfig() config {
 		smsToken:      os.Getenv("SIEGEL_GATEWAYAPI_TOKEN"),
 		smsURL:        env("SIEGEL_GATEWAYAPI_URL", "https://messaging.gatewayapi.eu/mobile/single", ok),
 		smsSender:     env("SIEGEL_SMS_SENDER", "Siegel", ok),
+		sevenKey:      os.Getenv("SIEGEL_SEVEN_API_KEY"),
+		smsProviders:  strings.Split(env("SIEGEL_SMS_PROVIDERS", "gatewayapi,seven", ok), ","),
 		otpTTL:        env("SIEGEL_OTP_TTL", 10*time.Minute, time.ParseDuration),
 		otpAttempts:   env("SIEGEL_OTP_ATTEMPTS", 5, strconv.Atoi),
 		otpPerNumber:  env("SIEGEL_OTP_PER_NUMBER_HOUR", 3, strconv.Atoi),
@@ -156,16 +160,31 @@ func main() {
 	s.hmacPhone, s.signAS = b.hmacPhone, b.signAS
 	s.fetchASPublic = b.asPublicKey
 	go s.listen(ctx)
+	var sms []smsProvider
+	for _, name := range cfg.smsProviders {
+		switch strings.TrimSpace(name) {
+		case "gatewayapi":
+			if cfg.smsToken != "" {
+				sms = append(sms, smsProvider{"gatewayapi", gatewayAPI(cfg.smsURL, cfg.smsToken, cfg.smsSender)})
+			}
+		case "seven":
+			if cfg.sevenKey != "" {
+				sms = append(sms, smsProvider{"seven", seven(cfg.sevenKey, cfg.smsSender)})
+			}
+		default:
+			fatal("unknown SMS provider in SIEGEL_SMS_PROVIDERS", "name", name)
+		}
+	}
 	switch {
-	case cfg.smsToken != "":
-		s.sendSMS = gatewayAPI(cfg.smsURL, cfg.smsToken, cfg.smsSender)
+	case len(sms) > 0:
+		s.sendSMS = smsChain(sms)
 	case cfg.dev:
 		s.sendSMS = func(_ context.Context, _, code string) error {
 			slog.Info("dev sms stub", "code", code) // never the number (SEC-03)
 			return nil
 		}
 	default:
-		fatal("SIEGEL_GATEWAYAPI_TOKEN required outside dev mode")
+		fatal("an SMS provider key is required outside dev mode (SIEGEL_GATEWAYAPI_TOKEN or SIEGEL_SEVEN_API_KEY)")
 	}
 	var google *googleAccount
 	if cfg.fcmKey != nil {
