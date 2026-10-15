@@ -251,7 +251,7 @@ impl SiegelCore {
             .into_iter()
             .map(|k| k.key_package)
             .collect();
-        let out = self.with_mls(|m, _| m.create_group(&kps).map_err(mls_err))?;
+        let out = self.with_mls(|m, _| m.create_group(&kps, None).map_err(mls_err))?;
         let req = pb::GroupsServiceCommitRequest {
             group_id: out.group_id.clone(),
             epoch: out.epoch,
@@ -439,7 +439,9 @@ impl SiegelCore {
     fn handle(&self, payload: &[u8]) -> Result<Option<Handled>, CoreError> {
         let (read_receipts, typing) = (self.enabled(READ_RECEIPTS), self.enabled(TYPING));
         self.with_mls(|m, s| match m.receive(payload).map_err(mls_err)? {
-            Received::Joined { group_id, members } => {
+            Received::Joined {
+                group_id, members, ..
+            } => {
                 let first = members.first().ok_or(CoreError::new("mls"))?;
                 let (peer, identity) = (first.account_id.to_vec(), first.identity_pub);
                 let contact = storage(s.contact(&peer))?;
@@ -544,7 +546,7 @@ impl SiegelCore {
                     _ => Ok(None), // unknown or not yet supported types (MSG-01)
                 }
             }
-            Received::Commit { .. } | Received::Ignored => Ok(None),
+            _ => Ok(None), // commits, proposals and removals: handled with groups (M3)
         })
     }
 

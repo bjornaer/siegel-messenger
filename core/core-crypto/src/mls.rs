@@ -6,7 +6,18 @@ use openmls::prelude::tls_codec::{Deserialize as _, Serialize as _};
 use openmls::prelude::*;
 pub use openmls_basic_credential::SignatureKeyPair;
 
+use crate::groups::{Account, GROUP_STATE_EXT, GroupState};
 use crate::{IdentityKey, verify_as_binding};
+
+/// Every leaf declares the extensions we use: last resort (CRY-09) and group state (GRP-02).
+fn capabilities() -> Capabilities {
+    Capabilities::builder()
+        .extensions(vec![
+            ExtensionType::LastResort,
+            ExtensionType::Unknown(GROUP_STATE_EXT),
+        ])
+        .build()
+}
 
 /// CRY-02: the RFC 9420 mandatory-to-implement suite.
 pub const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
@@ -134,11 +145,25 @@ pub struct Outgoing {
     pub welcome_to: Vec<Member>,
 }
 
+/// A membership or metadata change someone committed, for system lines (GRP-12).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Change {
+    pub by: Account,
+    pub added: Vec<Account>,
+    pub removed: Vec<Account>,
+    pub old: GroupState,
+    pub new: GroupState,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Received {
     Joined {
         group_id: Vec<u8>,
         members: Vec<Member>,
+        /// Who added us (GRP-11 decides between joining and an invite).
+        adder: Option<Member>,
+        /// None for a 1:1 chat.
+        state: Option<GroupState>,
     },
     Message {
         group_id: Vec<u8>,
@@ -146,6 +171,15 @@ pub enum Received {
         plaintext: Vec<u8>,
     },
     Commit {
+        group_id: Vec<u8>,
+        change: Option<Change>,
+    },
+    /// We were removed from the group; it no longer accepts messages.
+    Removed {
+        group_id: Vec<u8>,
+    },
+    /// A proposal (a member leaving, GRP-10) waits for someone to commit it.
+    Proposal {
         group_id: Vec<u8>,
     },
     Ignored,
@@ -196,11 +230,7 @@ impl<P: OpenMlsProvider> Mls<P> {
     pub fn key_packages(&self, n: usize, last_resort: bool) -> Result<Vec<Vec<u8>>, Error> {
         (0..n)
             .map(|_| {
-                // Leaves must declare the last-resort extension or peers reject such KeyPackages.
-                let caps = Capabilities::builder()
-                    .extensions(vec![ExtensionType::LastResort])
-                    .build();
-                let mut b = KeyPackage::builder().leaf_node_capabilities(caps);
+                let mut b = KeyPackage::builder().leaf_node_capabilities(capabilities());
                 if last_resort {
                     b = b.mark_as_last_resort();
                 }
@@ -217,8 +247,23 @@ impl<P: OpenMlsProvider> Mls<P> {
             .collect()
     }
 
-    fn create_config() -> MlsGroupCreateConfig {
-        MlsGroupCreateConfig::builder()
+    fn create_config(state: Option<&GroupState>) -> MlsGroupCreateConfig {
+        let mut b = MlsGroupCreateConfig::builder();
+        if let Some(st) = state {
+            // Members must support the state extension, so it can change by commit (GRP-02).
+            let required = RequiredCapabilitiesExtension::new(
+                &[ExtensionType::Unknown(GROUP_STATE_EXT)],
+                &[],
+                &[],
+            );
+            let exts = Extensions::from_vec(vec![
+                Extension::Unknown(GROUP_STATE_EXT, UnknownExtension(st.encode())),
+                Extension::RequiredCapabilities(required),
+            ])
+            .expect("valid group context extensions");
+            b = b.with_group_context_extensions(exts);
+        }
+        b.capabilities(capabilities())
             .ciphersuite(CIPHERSUITE)
             .use_ratchet_tree_extension(true) // the Welcome carries the tree; the server never sees it
             .wire_format_policy(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY) // CRY-04, GRP-03
@@ -252,9 +297,14 @@ impl<P: OpenMlsProvider> Mls<P> {
             .collect()
     }
 
-    /// Starts a group with the given KeyPackages (a 1:1 chat is the peer's devices, CRY-03).
-    /// Every KeyPackage must carry a valid credential (CRY-08).
-    pub fn create_group(&self, key_packages: &[Vec<u8>]) -> Result<Outgoing, Error> {
+    /// Starts a group with the given KeyPackages (a 1:1 chat is the peer's devices, CRY-03;
+    /// a group chat carries its state, GRP-01). Every KeyPackage must carry a valid credential
+    /// (CRY-08).
+    pub fn create_group(
+        &self,
+        key_packages: &[Vec<u8>],
+        state: Option<&GroupState>,
+    ) -> Result<Outgoing, Error> {
         let mut kps = Vec::new();
         let mut welcome_to = Vec::new();
         for b in key_packages {
@@ -270,10 +320,24 @@ impl<P: OpenMlsProvider> Mls<P> {
             )?);
             kps.push(kp);
         }
+        // GRP-04: the creator is the first admin; the join order starts with the creator.
+        let state = state.map(|st| {
+            let mut joined = vec![self.me()];
+            for m in &welcome_to {
+                if !joined.contains(&m.account_id) {
+                    joined.push(m.account_id);
+                }
+            }
+            GroupState {
+                admins: vec![self.me()],
+                joined,
+                ..st.clone()
+            }
+        });
         let mut g = MlsGroup::new(
             &self.provider,
             &self.signer,
-            &Self::create_config(),
+            &Self::create_config(state.as_ref()),
             self.credential.clone(),
         )
         .map_err(err)?;
@@ -306,6 +370,212 @@ impl<P: OpenMlsProvider> Mls<P> {
             welcome: vec![],
             welcome_to: vec![],
         })
+    }
+
+    fn me(&self) -> Account {
+        DeviceCredential::decode(self.credential.credential.serialized_content())
+            .map(|c| c.account_id)
+            .unwrap_or_default()
+    }
+
+    /// The group's state, or None for a 1:1 chat.
+    pub fn state(&self, group_id: &[u8]) -> Result<Option<GroupState>, Error> {
+        Ok(state_of(self.group(group_id)?.extensions()))
+    }
+
+    /// Every member device, this one included.
+    pub fn roster(&self, group_id: &[u8]) -> Result<Vec<Member>, Error> {
+        self.group(group_id)?
+            .members()
+            .map(|m| member(&m.credential, &m.signature_key, &self.as_pub))
+            .collect()
+    }
+
+    /// One commit for any mix of changes (GRP-05, GRP-06, GRP-09): add the KeyPackages' devices,
+    /// remove every device of the given accounts, apply `edit` (name, roles, settings), and
+    /// commit pending proposals such as members leaving (GRP-10). The new state's join order is
+    /// derived here, and the whole change must pass the same check receivers apply (GRP-07).
+    pub fn commit(
+        &self,
+        group_id: &[u8],
+        adds: &[Vec<u8>],
+        remove: &[Account],
+        edit: Option<GroupState>,
+    ) -> Result<Outgoing, Error> {
+        let mut g = self.group(group_id)?;
+        let epoch = g.epoch().as_u64();
+        let commit_to = self.others(group_id)?;
+        let mut kps = Vec::new();
+        let mut welcome_to = Vec::new();
+        for b in adds {
+            let kp = KeyPackageIn::tls_deserialize_exact(b)
+                .map_err(err)?
+                .validate(self.provider.crypto(), ProtocolVersion::Mls10)
+                .map_err(err)?;
+            let leaf = kp.leaf_node();
+            welcome_to.push(member(
+                leaf.credential(),
+                leaf.signature_key().as_slice(),
+                &self.as_pub,
+            )?);
+            kps.push(kp);
+        }
+        let mut leaves = Vec::new();
+        for m in g.members() {
+            if remove.contains(&member(&m.credential, &m.signature_key, &self.as_pub)?.account_id) {
+                leaves.push(m.index);
+            }
+        }
+        let mut new_ext = None;
+        if let Some(old) = state_of(g.extensions()) {
+            // Pending leaves count as removals proposed by the leaver.
+            let mut removed: Vec<(Account, Account)> = Vec::new();
+            for p in g.pending_proposals() {
+                if let (Proposal::Remove(r), Sender::Member(by)) = (p.proposal(), p.sender()) {
+                    let gone = self.account_at(&g, r.removed())?;
+                    removed.push((gone, self.account_at(&g, *by)?));
+                }
+            }
+            removed.extend(remove.iter().map(|a| (*a, self.me())));
+            // Like receivers: an account with a device left or rejoining hasn't left.
+            let mut staying: Vec<Account> = welcome_to.iter().map(|m| m.account_id).collect();
+            for m in g.members() {
+                let a = member(&m.credential, &m.signature_key, &self.as_pub)?.account_id;
+                let leaving = leaves.contains(&m.index)
+                    || g.pending_proposals().any(
+                        |p| matches!(p.proposal(), Proposal::Remove(r) if r.removed() == m.index),
+                    );
+                if !leaving {
+                    staying.push(a);
+                }
+            }
+            removed.retain(|(a, _)| !staying.contains(a));
+            removed.dedup();
+            let added = new_accounts(&g, &welcome_to, &self.as_pub)?;
+            let gone: Vec<Account> = removed.iter().map(|(a, _)| *a).collect();
+            let new = edit.unwrap_or(old.clone()).with_members(&added, &gone);
+            old.check(&self.me(), &added, &removed, &new)
+                .map_err(|r| Error(r.0.into()))?;
+            // A GroupContextExtensions proposal replaces the whole set: keep the others.
+            let mut exts: Vec<Extension> = g
+                .extensions()
+                .iter()
+                .filter(|e| e.extension_type() != ExtensionType::Unknown(GROUP_STATE_EXT))
+                .cloned()
+                .collect();
+            exts.push(Extension::Unknown(
+                GROUP_STATE_EXT,
+                UnknownExtension(new.encode()),
+            ));
+            new_ext = Some(Extensions::from_vec(exts).map_err(err)?);
+        }
+        let mut b = g
+            .commit_builder()
+            .consume_proposal_store(true)
+            .propose_adds(kps)
+            .propose_removals(leaves);
+        if let Some(e) = new_ext {
+            b = b.propose_group_context_extensions(e).map_err(err)?;
+        }
+        let bundle = b
+            .load_psks(self.provider.storage())
+            .map_err(err)?
+            .build(
+                self.provider.rand(),
+                self.provider.crypto(),
+                &self.signer,
+                |_| true,
+            )
+            .map_err(err)?
+            .stage_commit(&self.provider)
+            .map_err(err)?;
+        let (commit, welcome, _) = bundle.into_contents();
+        Ok(Outgoing {
+            group_id: group_id.to_vec(),
+            epoch,
+            commit: commit.tls_serialize_detached().map_err(err)?,
+            commit_to,
+            welcome: match welcome {
+                Some(w) => MlsMessageOut::from_welcome(w, ProtocolVersion::Mls10)
+                    .tls_serialize_detached()
+                    .map_err(err)?,
+                None => vec![],
+            },
+            welcome_to,
+        })
+    }
+
+    /// GRP-10: a proposal removing this device; another member commits it.
+    pub fn leave(&self, group_id: &[u8]) -> Result<Vec<u8>, Error> {
+        self.group(group_id)?
+            .leave_group(&self.provider, &self.signer)
+            .map_err(err)?
+            .tls_serialize_detached()
+            .map_err(err)
+    }
+
+    /// Proposals waiting for a commit (GRP-10).
+    pub fn has_pending_proposals(&self, group_id: &[u8]) -> Result<bool, Error> {
+        Ok(self.group(group_id)?.pending_proposals().next().is_some())
+    }
+
+    fn account_at(&self, g: &MlsGroup, leaf: LeafNodeIndex) -> Result<Account, Error> {
+        let m = g.member_at(leaf).ok_or(Error("unknown_sender".into()))?;
+        Ok(member(&m.credential, &m.signature_key, &self.as_pub)?.account_id)
+    }
+
+    /// GRP-07: checks a received commit against the group's rules before it is merged.
+    fn check_commit(
+        &self,
+        g: &MlsGroup,
+        by: Account,
+        c: &StagedCommit,
+    ) -> Result<Option<Change>, Error> {
+        let Some(old) = state_of(g.extensions()) else {
+            return Ok(None); // 1:1 chats have no roles
+        };
+        let refused = |r: &str| Error(format!("unauthorized_commit:{r}"));
+        let new = state_of(c.group_context().extensions()).ok_or(refused("state_missing"))?;
+        let mut joining = Vec::new();
+        for add in c.add_proposals() {
+            let leaf = add.add_proposal().key_package().leaf_node();
+            joining.push(member(
+                leaf.credential(),
+                leaf.signature_key().as_slice(),
+                &self.as_pub,
+            )?); // CRY-08
+        }
+        let added = new_accounts(g, &joining, &self.as_pub)?;
+        // An account is gone once all of its devices are removed and none rejoins.
+        let mut removed_leaves = Vec::new();
+        let mut removed = Vec::new();
+        for r in c.remove_proposals() {
+            let leaf = r.remove_proposal().removed();
+            removed_leaves.push(leaf);
+            let proposer = match r.sender() {
+                Sender::Member(i) => self.account_at(g, *i)?,
+                _ => return Err(refused("external_remove")),
+            };
+            removed.push((self.account_at(g, leaf)?, proposer));
+        }
+        let mut staying = Vec::new();
+        for m in g.members() {
+            if !removed_leaves.contains(&m.index) {
+                staying.push(member(&m.credential, &m.signature_key, &self.as_pub)?.account_id);
+            }
+        }
+        staying.extend(joining.iter().map(|m| m.account_id));
+        removed.retain(|(a, _)| !staying.contains(a));
+        removed.dedup();
+        old.check(&by, &added, &removed, &new)
+            .map_err(|r| refused(r.0))?;
+        Ok(Some(Change {
+            by,
+            added,
+            removed: removed.into_iter().map(|(a, _)| a).collect(),
+            old,
+            new,
+        }))
     }
 
     /// The server accepted our commit: apply it.
@@ -346,12 +616,38 @@ impl<P: OpenMlsProvider> Mls<P> {
                 let staged =
                     StagedWelcome::new_from_welcome(&self.provider, &Self::join_config(), w, None)
                         .map_err(err)?;
+                let adder = staged
+                    .welcome_sender()
+                    .ok()
+                    .map(|l| member(l.credential(), l.signature_key().as_slice(), &self.as_pub));
                 let mut g = staged.into_group(&self.provider).map_err(err)?;
                 let group_id = g.group_id().as_slice().to_vec();
+                let state = state_of(g.extensions());
+                // GRP-07: the join order must name exactly the members, or the roles can't be trusted.
+                if let Some(st) = &state {
+                    let mut accounts = Vec::new();
+                    for m in self.roster(&group_id)? {
+                        if !accounts.contains(&m.account_id) {
+                            accounts.push(m.account_id);
+                        }
+                    }
+                    let mut joined = st.joined.clone();
+                    joined.sort();
+                    accounts.sort();
+                    if joined != accounts {
+                        g.delete(self.provider.storage()).map_err(err)?;
+                        return Err(Error("unauthorized_commit:state_mismatch".into()));
+                    }
+                }
                 // CRY-08: every member must check out, or we leave without a trace.
-                match self.others(&group_id) {
-                    Ok(members) => Ok(Received::Joined { group_id, members }),
-                    Err(e) => {
+                match (self.others(&group_id), adder.transpose()) {
+                    (Ok(members), Ok(adder)) => Ok(Received::Joined {
+                        group_id,
+                        members,
+                        adder,
+                        state,
+                    }),
+                    (Err(e), _) | (_, Err(e)) => {
                         g.delete(self.provider.storage()).map_err(err)?;
                         Err(e)
                     }
@@ -378,21 +674,27 @@ impl<P: OpenMlsProvider> Mls<P> {
                         plaintext: m.into_bytes(),
                     }),
                     ProcessedMessageContent::StagedCommitMessage(c) => {
-                        for add in c.add_proposals() {
-                            let leaf = add.add_proposal().key_package().leaf_node();
-                            member(
-                                leaf.credential(),
-                                leaf.signature_key().as_slice(),
-                                &self.as_pub,
-                            )?; // CRY-08
-                        }
+                        let change = self.check_commit(&g, sender.account_id, &c)?;
+                        let removed = c.self_removed();
                         g.merge_staged_commit(&self.provider, *c).map_err(err)?;
-                        Ok(Received::Commit { group_id })
+                        Ok(if removed {
+                            Received::Removed { group_id }
+                        } else {
+                            Received::Commit { group_id, change }
+                        })
                     }
                     ProcessedMessageContent::ProposalMessage(p) => {
+                        // Only members leaving: anything else must come inline with a commit.
+                        let own = match (p.proposal(), p.sender()) {
+                            (Proposal::Remove(r), Sender::Member(by)) => r.removed() == *by,
+                            _ => false,
+                        };
+                        if !own {
+                            return Ok(Received::Ignored);
+                        }
                         g.store_pending_proposal(self.provider.storage(), *p)
                             .map_err(err)?;
-                        Ok(Received::Ignored)
+                        Ok(Received::Proposal { group_id })
                     }
                     _ => Ok(Received::Ignored),
                 }
@@ -400,6 +702,29 @@ impl<P: OpenMlsProvider> Mls<P> {
             _ => Ok(Received::Ignored),
         }
     }
+}
+
+fn state_of(e: &Extensions<GroupContext>) -> Option<GroupState> {
+    GroupState::decode(&e.unknown(GROUP_STATE_EXT)?.0)
+}
+
+/// Accounts among `joining` that aren't in the group yet (a new device of a member isn't new).
+fn new_accounts(
+    g: &MlsGroup,
+    joining: &[Member],
+    as_pub: &[u8; 32],
+) -> Result<Vec<Account>, Error> {
+    let mut present = Vec::new();
+    for m in g.members() {
+        present.push(member(&m.credential, &m.signature_key, as_pub)?.account_id);
+    }
+    let mut out: Vec<Account> = Vec::new();
+    for m in joining {
+        if !present.contains(&m.account_id) && !out.contains(&m.account_id) {
+            out.push(m.account_id);
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -429,12 +754,15 @@ mod tests {
         let (alice, bob) = (device(&as_key, 1, false), device(&as_key, 2, false));
 
         let kp = bob.key_packages(1, false).unwrap();
-        let out = alice.create_group(&kp).unwrap();
+        let out = alice.create_group(&kp, None).unwrap();
         assert_eq!((out.epoch, out.commit_to.len()), (0, 0));
         assert_eq!(out.welcome_to[0].account_id, [2; 16]);
         alice.confirm(&out.group_id).unwrap();
 
-        let Received::Joined { group_id, members } = bob.receive(&out.welcome).unwrap() else {
+        let Received::Joined {
+            group_id, members, ..
+        } = bob.receive(&out.welcome).unwrap()
+        else {
             panic!("join")
         };
         assert_eq!(
@@ -487,7 +815,8 @@ mod tests {
         assert_eq!(
             alice.receive(&up.commit).unwrap(),
             Received::Commit {
-                group_id: group_id.clone()
+                group_id: group_id.clone(),
+                change: None
             }
         );
         assert!(matches!(
@@ -508,7 +837,7 @@ mod tests {
         let mallory = device(&as_key, 3, true); // identity key not bound by our AS (CRY-08)
         let kp = mallory.key_packages(1, false).unwrap();
         assert_eq!(
-            alice.create_group(&kp).unwrap_err(),
+            alice.create_group(&kp, None).unwrap_err(),
             Error("credential_invalid".into())
         );
     }
@@ -523,5 +852,148 @@ mod tests {
             .validate(bob.provider.crypto(), ProtocolVersion::Mls10)
             .unwrap();
         assert!(kp.last_resort());
+    }
+
+    #[test]
+    fn groups_roles_leaving_and_malicious_commits() {
+        // GRP-01..10, AC-10.
+        let as_key = IdentityKey::generate();
+        let (a, b, c, d) = (
+            device(&as_key, 1, false),
+            device(&as_key, 2, false),
+            device(&as_key, 3, false),
+            device(&as_key, 4, false),
+        );
+        let kps: Vec<_> = [&b, &c]
+            .iter()
+            .flat_map(|m| m.key_packages(1, false).unwrap())
+            .collect();
+        let init = GroupState {
+            name: "Hikers".into(),
+            admins_only_info: true,
+            admins_only_add: true,
+            ..Default::default()
+        };
+        let out = a.create_group(&kps, Some(&init)).unwrap();
+        a.confirm(&out.group_id).unwrap();
+        let gid = out.group_id.clone();
+        for m in [&b, &c] {
+            let Received::Joined { state, adder, .. } = m.receive(&out.welcome).unwrap() else {
+                panic!("join")
+            };
+            let st = state.unwrap();
+            assert_eq!(
+                (st.name.as_str(), st.admins.clone()),
+                ("Hikers", vec![[1; 16]])
+            );
+            assert_eq!(st.joined, vec![[1; 16], [2; 16], [3; 16]]);
+            assert_eq!(adder.unwrap().account_id, [1; 16]);
+        }
+
+        // AC-10: B is no admin; its own client refuses, and a hand-built commit is rejected by all.
+        assert!(
+            b.commit(&gid, &[], &[[3; 16]], None)
+                .unwrap_err()
+                .0
+                .contains("remove_not_allowed")
+        );
+        let mut g = b.group(&gid).unwrap();
+        let leaf = g
+            .members()
+            .find(|m| b.account_at(&g, m.index).unwrap() == [3; 16])
+            .unwrap()
+            .index;
+        let (evil, _, _) = g
+            .commit_builder()
+            .propose_removals([leaf])
+            .load_psks(b.provider.storage())
+            .unwrap()
+            .build(b.provider.rand(), b.provider.crypto(), &b.signer, |_| true)
+            .unwrap()
+            .stage_commit(&b.provider)
+            .unwrap()
+            .into_contents();
+        let evil = evil.tls_serialize_detached().unwrap();
+        for m in [&a, &c] {
+            assert!(
+                m.receive(&evil)
+                    .unwrap_err()
+                    .0
+                    .starts_with("unauthorized_commit")
+            );
+        }
+        g.clear_pending_commit(b.provider.storage()).unwrap();
+
+        // The admin adds D; everyone sees who did what (GRP-09, GRP-12).
+        let add = a
+            .commit(&gid, &d.key_packages(1, false).unwrap(), &[], None)
+            .unwrap();
+        a.confirm(&gid).unwrap();
+        for m in [&b, &c] {
+            let Received::Commit {
+                change: Some(ch), ..
+            } = m.receive(&add.commit).unwrap()
+            else {
+                panic!("commit")
+            };
+            assert_eq!((ch.by, ch.added.clone()), ([1; 16], vec![[4; 16]]));
+        }
+        assert!(matches!(
+            d.receive(&add.welcome).unwrap(),
+            Received::Joined { .. }
+        ));
+
+        // GRP-10: C leaves by proposal; B, no admin, may commit it.
+        let bye = c.leave(&gid).unwrap();
+        for m in [&a, &b, &d] {
+            assert_eq!(
+                m.receive(&bye).unwrap(),
+                Received::Proposal {
+                    group_id: gid.clone()
+                }
+            );
+        }
+        let out = b.commit(&gid, &[], &[], None).unwrap();
+        b.confirm(&gid).unwrap();
+        for m in [&a, &d] {
+            let Received::Commit {
+                change: Some(ch), ..
+            } = m.receive(&out.commit).unwrap()
+            else {
+                panic!("leave commit")
+            };
+            assert_eq!(ch.removed, vec![[3; 16]]);
+        }
+        assert_eq!(
+            c.receive(&out.commit).unwrap(),
+            Received::Removed {
+                group_id: gid.clone()
+            }
+        );
+
+        // GRP-08: the only admin leaves; B, longest-standing, may now rename.
+        let bye = a.leave(&gid).unwrap();
+        for m in [&b, &d] {
+            m.receive(&bye).unwrap();
+        }
+        let out = d.commit(&gid, &[], &[], None).unwrap();
+        d.confirm(&gid).unwrap();
+        b.receive(&out.commit).unwrap();
+        let st = b.state(&gid).unwrap().unwrap();
+        assert_eq!(st.effective_admins(), vec![[2; 16]]);
+        let renamed = GroupState {
+            name: "Hikers 2026".into(),
+            ..st.clone()
+        };
+        assert!(
+            d.commit(&gid, &[], &[], Some(renamed.clone()))
+                .unwrap_err()
+                .0
+                .contains("rename")
+        );
+        let out = b.commit(&gid, &[], &[], Some(renamed)).unwrap();
+        b.confirm(&gid).unwrap();
+        d.receive(&out.commit).unwrap();
+        assert_eq!(d.state(&gid).unwrap().unwrap().name, "Hikers 2026");
     }
 }
