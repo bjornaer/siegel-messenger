@@ -12,9 +12,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -255,4 +257,31 @@ func TestRegistrationLockAndRevocation(t *testing.T) { // ID-09, ID-10, ID-16
 	other, _ := e.register("+34600000023", "")
 	want(t, e.setUsername(other.DeviceToken, "leaver"), "username_taken")
 	want(t, e.setUsername(last.DeviceToken, "leaver2"), "unauthenticated")
+}
+
+func TestOtpCompletionAlert(t *testing.T) { // ID-04, SEC-04
+	e := setup(t)
+	var alerts []string
+	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		alerts = append(alerts, string(b))
+	}))
+	defer hook.Close()
+	e.s.cfg.alertURL, e.s.cfg.otpAlertRate, e.s.cfg.otpAlertMin = hook.URL, 0.5, 3
+
+	e.register("+34600000031", "")
+	e.otp("+34600000032")
+	e.s.checkOtpRate(e.ctx) // 2 sent: below the minimum volume
+	e.otp("+34600000033")
+	e.register("+34600000034", "")
+	e.s.checkOtpRate(e.ctx) // 4 sent, 2 verified = 50%: not below
+	if len(alerts) != 0 {
+		t.Fatal("alerted too early", alerts)
+	}
+	e.otp("+34600000035")
+	e.s.checkOtpRate(e.ctx) // 5 sent, 2 verified = 40%
+	e.s.checkOtpRate(e.ctx) // once a day only
+	if len(alerts) != 1 || !strings.Contains(alerts[0], "OTP completion 40%") {
+		t.Fatal("want one 40% alert", alerts)
+	}
 }

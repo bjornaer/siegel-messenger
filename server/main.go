@@ -46,6 +46,9 @@ type config struct {
 	lockAttempts  int
 	lockLockout   time.Duration
 	lockLapseDay  int
+	alertURL      string  // webhook for operator alerts (plain-text POST, e.g. an ntfy.sh topic)
+	otpAlertRate  float64 // ID-04: alert below this OTP completion rate over 24 h
+	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
 }
 
 func loadConfig() config {
@@ -71,6 +74,9 @@ func loadConfig() config {
 		lockAttempts:  env("SIEGEL_REGLOCK_ATTEMPTS", 10, strconv.Atoi),
 		lockLockout:   env("SIEGEL_REGLOCK_LOCKOUT", 24*time.Hour, time.ParseDuration),
 		lockLapseDay:  env("SIEGEL_REGLOCK_LAPSE_DAYS", 7, strconv.Atoi),
+		alertURL:      os.Getenv("SIEGEL_ALERT_WEBHOOK"),
+		otpAlertRate:  env("SIEGEL_OTP_ALERT_RATE", 0.5, func(s string) (float64, error) { return strconv.ParseFloat(s, 64) }),
+		otpAlertMin:   env("SIEGEL_OTP_ALERT_MIN", 20, strconv.Atoi),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
@@ -168,11 +174,13 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			`DELETE FROM otps WHERE expires_at < now()`,
 			`DELETE FROM rate_limits WHERE window_start < now() - interval '24 hours'`,
 			`DELETE FROM usernames WHERE quarantined_until < now() AND account_id IS NULL`,
+			`DELETE FROM metrics WHERE hour < now() - interval '30 days'`,
 		} {
 			if _, err := s.db.Exec(ctx, q); err != nil {
 				slog.Error("janitor", "err", err)
 			}
 		}
+		s.checkOtpRate(ctx)
 		if err := b.renew(ctx); err != nil {
 			slog.Warn("openbao token renew", "err", err) // expected for the non-expiring dev root token
 		}

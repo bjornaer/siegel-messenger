@@ -31,6 +31,7 @@ type server struct {
 	hmacPhone func(ctx context.Context, phone string) ([]byte, error)
 	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
 	ipHits    ipLimiter
+	lastAlert time.Time // janitor goroutine only
 }
 
 func newServer(cfg config, db *pgxpool.Pool) *server {
@@ -125,6 +126,7 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	if err := s.sendSMS(ctx, phone, code); err != nil {
 		return nil, internal(err)
 	}
+	s.count(ctx, "otp_sent")
 	return connect.NewResponse(&siegelv1.RequestOtpResponse{}), nil
 }
 
@@ -219,6 +221,7 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 	if err != nil {
 		return nil, internal(err)
 	}
+	s.count(ctx, "otp_verified")
 	return connect.NewResponse(&siegelv1.VerifyResponse{
 		AccountId:       accountID[:],
 		DeviceId:        deviceID[:],

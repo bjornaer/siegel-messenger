@@ -44,3 +44,11 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   count        int NOT NULL,
   PRIMARY KEY (key, window_start)
 );
+
+-- SEC-04: aggregate counters only, one row per counter per hour. Never per user.
+CREATE TABLE IF NOT EXISTS metrics (
+  name  text NOT NULL,
+  hour  timestamptz NOT NULL,
+  count bigint NOT NULL,
+  PRIMARY KEY (name, hour)
+);
