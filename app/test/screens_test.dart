@@ -120,7 +120,19 @@ class FakeCore implements Core {
   @override
   Future<void> block({required List<int> account}) async {
     await _maybeFail('block');
+    for (final c in chatList.where((c) => listEquals(c.peerAccount, account))) {
+      blockedList.add(BlockedContact(account: c.peerAccount, displayName: c.peerDisplayName));
+    }
     chatList.removeWhere((c) => listEquals(c.peerAccount, account)); // blocked chats are hidden
+  }
+
+  final blockedList = <BlockedContact>[];
+  @override
+  List<BlockedContact> blocked() => blockedList;
+  @override
+  Future<void> unblock({required List<int> account}) async {
+    await _maybeFail('unblock');
+    blockedList.removeWhere((c) => listEquals(c.account, account));
   }
 
   @override
@@ -590,5 +602,20 @@ void main() {
     await t.pump();
     await t.pump();
     expect(find.byIcon(Icons.verified_user), findsOneWidget);
+  });
+
+  testWidgets('blocked people are listed in Settings and can be unblocked (MSG-16)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    core.incomingRequest('Zoe');
+    await core.block(account: core.chatList.first.peerAccount);
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.scrollUntilVisible(find.text('Blocked people'), 100);
+    await tapText(t, 'Blocked people');
+    expect(find.text('Zoe'), findsOneWidget);
+    await tapText(t, 'Unblock');
+    expect(core.calls.last, 'unblock');
+    expect(find.text("You haven't blocked anyone."), findsOneWidget);
   });
 }

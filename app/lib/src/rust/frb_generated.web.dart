@@ -54,6 +54,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  BlockedContact dco_decode_blocked_contact(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -82,6 +85,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<BlockedContact> dco_decode_list_blocked_contact(dynamic raw);
 
   @protected
   List<ChatSummary> dco_decode_list_chat_summary(dynamic raw);
@@ -158,6 +164,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  BlockedContact sse_decode_blocked_contact(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -186,6 +195,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<BlockedContact> sse_decode_list_blocked_contact(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ChatSummary> sse_decode_list_chat_summary(SseDeserializer deserializer);
@@ -271,6 +285,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_blocked_contact(
+    BlockedContact self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -305,6 +325,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_blocked_contact(
+    List<BlockedContact> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_chat_summary(

@@ -186,5 +186,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "blockedPeople": "Blocked people",
+  "noBlocked": "You haven't blocked anyone.",
+  "unblock": "Unblock"
 }

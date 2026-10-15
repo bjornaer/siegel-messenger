@@ -753,6 +753,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name}\'s safety number changed, for example because they reinstalled Siegel or got a new phone. Tap to compare.'**
   String keyChanged(String name);
+
+  /// No description provided for @blockedPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked people'**
+  String get blockedPeople;
+
+  /// No description provided for @noBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t blocked anyone.'**
+  String get noBlocked;
+
+  /// No description provided for @unblock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock'**
+  String get unblock;
 }
 
 class _AppLocalizationsDelegate

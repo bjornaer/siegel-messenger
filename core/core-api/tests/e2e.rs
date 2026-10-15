@@ -371,6 +371,19 @@ async fn requests_profiles_sealed_sender_and_blocking() {
             .any(|m| m.text == "you there?"),
         "blocked sender's message must not arrive"
     );
+
+    assert_eq!(bob.blocked().unwrap()[0].account_id, alice_id);
+    bob.unblock(&alice_id).await.unwrap();
+    assert!(bob.blocked().unwrap().is_empty());
+    alice.send_text(&chat, "unblocked?", None).await.unwrap();
+    let core_api::Event::Message(m) = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(m.text, "unblocked?");
 }
 
 #[tokio::test]

@@ -142,6 +142,11 @@ class SettingsScreen extends StatelessWidget {
           AppLockSettings(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
+          ListTile(
+            leading: const Icon(Icons.block),
+            title: Text(t.blockedPeople),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BlockedScreen(core: core))),
+          ),
           const SizedBox(height: 16),
           OutlinedButton(onPressed: () => _delete(context), child: Text(t.deleteAccount)),
         ],
@@ -170,4 +175,48 @@ class _ToggleState extends State<_Toggle> {
     value: widget.core.setting(key: widget.setting) != 'off',
     onChanged: (on) => setState(() => widget.core.setSetting(key: widget.setting, value: on ? 'on' : 'off')),
   );
+}
+
+/// MSG-16: who is blocked, with unblock.
+class BlockedScreen extends StatefulWidget {
+  const BlockedScreen({super.key, required this.core});
+  final Core core;
+
+  @override
+  State<BlockedScreen> createState() => _BlockedScreenState();
+}
+
+class _BlockedScreenState extends State<BlockedScreen> {
+  bool _busy = false;
+
+  Future<void> _unblock(BlockedContact c) async {
+    setState(() => _busy = true);
+    try {
+      await widget.core.unblock(account: c.account);
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final blocked = widget.core.blocked();
+    return Scaffold(
+      appBar: AppBar(title: Text(t.blockedPeople)),
+      body: blocked.isEmpty
+          ? Center(child: Text(t.noBlocked))
+          : ListView(
+              children: [
+                for (final c in blocked)
+                  ListTile(
+                    title: Text(c.displayName ?? (c.username == null ? t.newContact : '@${c.username}')),
+                    trailing: TextButton(onPressed: _busy ? null : () => _unblock(c), child: Text(t.unblock)),
+                  ),
+              ],
+            ),
+    );
+  }
 }

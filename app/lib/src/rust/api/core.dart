@@ -17,6 +17,9 @@ abstract class Core implements RustOpaqueInterface {
   /// Blocks the account; they are not told (MSG-16).
   Future<void> block({required List<int> account});
 
+  /// Blocked accounts for Settings (MSG-16).
+  List<BlockedContact> blocked();
+
   /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
 
@@ -99,6 +102,9 @@ abstract class Core implements RustOpaqueInterface {
   /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
   Future<Uint8List> startChat({required String username});
 
+  /// They become a contact again and get our profile key.
+  Future<void> unblock({required List<int> account});
+
   String? username();
 
   /// Returns true when the number already had an account (re-registration).
@@ -117,6 +123,31 @@ abstract class Core implements RustOpaqueInterface {
 
   /// Earlier texts of an edited message, oldest first (MSG-09).
   List<String> versions({required List<int> messageId});
+}
+
+class BlockedContact {
+  final Uint8List account;
+  final String? displayName;
+  final String? username;
+
+  const BlockedContact({
+    required this.account,
+    this.displayName,
+    this.username,
+  });
+
+  @override
+  int get hashCode =>
+      account.hashCode ^ displayName.hashCode ^ username.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BlockedContact &&
+          runtimeType == other.runtimeType &&
+          account == other.account &&
+          displayName == other.displayName &&
+          username == other.username;
 }
 
 /// A conversation for the chat list.

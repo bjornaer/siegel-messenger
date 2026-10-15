@@ -395,4 +395,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String keyChanged(String name) {
     return '$name\'s safety number changed, for example because they reinstalled Siegel or got a new phone. Tap to compare.';
   }
+
+  @override
+  String get blockedPeople => 'Blocked people';
+
+  @override
+  String get noBlocked => 'You haven\'t blocked anyone.';
+
+  @override
+  String get unblock => 'Unblock';
 }

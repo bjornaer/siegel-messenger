@@ -160,6 +160,32 @@ impl SiegelCore {
         Ok(())
     }
 
+    /// Blocked accounts, for the list in Settings (MSG-16).
+    pub fn blocked(&self) -> Result<Vec<Contact>, CoreError> {
+        Ok(self
+            .with_store(|s| storage(s.contacts()))?
+            .into_iter()
+            .filter(|c| c.state == ContactState::Blocked)
+            .collect())
+    }
+
+    /// Unblocks an account: they are a contact again and get our current profile key, so their
+    /// messages arrive and they can send sealed (MSG-10, MSG-16).
+    pub async fn unblock(&self, account: &[u8]) -> Result<(), CoreError> {
+        let mut c = self
+            .contact(account)
+            .filter(|c| c.state == ContactState::Blocked)
+            .ok_or(CoreError::new("unknown_contact"))?;
+        c.state = ContactState::Accepted;
+        self.with_store(|s| storage(s.save_contact(&c)))?;
+        for conv in self.conversations()? {
+            if conv.peer_account == account {
+                self.share_profile_key(&conv.group_id).await?;
+            }
+        }
+        Ok(())
+    }
+
     /// CRY-12: the chat's 60-digit safety number, also what its QR code encodes. None until we
     /// have the peer's identity key.
     pub fn safety_number(&self, group_id: &[u8]) -> Result<Option<String>, CoreError> {

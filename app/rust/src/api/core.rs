@@ -176,6 +176,12 @@ impl From<core_api::ChatMessage> for MessageView {
     }
 }
 
+pub struct BlockedContact {
+    pub account: Vec<u8>,
+    pub display_name: Option<String>,
+    pub username: Option<String>,
+}
+
 pub enum CoreEventKind {
     ConversationStarted,
     Message,
@@ -240,6 +246,26 @@ impl Core {
     #[frb(sync)]
     pub fn delete_chat(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
         Ok(self.0.delete_chat(&group_id)?)
+    }
+
+    /// Blocked accounts for Settings (MSG-16).
+    #[frb(sync)]
+    pub fn blocked(&self) -> Result<Vec<BlockedContact>, CoreError> {
+        Ok(self
+            .0
+            .blocked()?
+            .into_iter()
+            .map(|c| BlockedContact {
+                account: c.account_id,
+                display_name: c.display_name,
+                username: c.username,
+            })
+            .collect())
+    }
+
+    /// They become a contact again and get our profile key.
+    pub async fn unblock(&self, account: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.unblock(&account).await?)
     }
 
     /// Blocks the account; they are not told (MSG-16).
