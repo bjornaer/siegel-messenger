@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package siegel.v1;
+
+option go_package = "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1";
+
+// MSG-01: the plaintext inside every MLS application message. Only clients see it; the
+// server never receives it outside MLS ciphertext. Receivers ignore bodies they don't know
+// (forward compatibility), so new MSG-02 types can be added without breaking old clients.
+message Content {
+  bytes message_id = 1; // UUIDv7, set by the sender
+  int64 sent_at = 2;    // sender clock, ms since the Unix epoch
+  oneof body {
+    Text text = 3;
+  }
+}
+
+message Text {
+  string body = 1; // MSG-05: up to 64 KB UTF-8
+}
