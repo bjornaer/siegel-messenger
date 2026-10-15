@@ -6,6 +6,7 @@ package main
 // The tests DROP the public schema: never point this at a database holding real data.
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/hmac"
@@ -54,7 +55,7 @@ func setup(t *testing.T) *env_ {
 	rand.Read(seed)
 	asKey := ed25519.NewKeyFromSeed(seed)
 	cfg := config{
-		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, smsDailyCap: 1000,
+		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, claimPerDay: 1000, smsDailyCap: 1000,
 		denyPrefixes: []string{"+882"},
 		userMin:      4, userMax: 32, userChangeDay: 30, userQuarDay: 30,
 		lockAttempts: 3, lockLockout: 3600e9, lockLapseDay: 7,
@@ -68,6 +69,10 @@ func setup(t *testing.T) *env_ {
 		return m.Sum(nil), nil
 	}
 	e.s.signAS = func(_ context.Context, msg []byte) ([]byte, error) { return ed25519.Sign(asKey, msg), nil }
+	e.s.fetchASPublic = func(context.Context) ([]byte, error) { return e.asPub, nil }
+	lctx, stop := context.WithCancel(ctx)
+	t.Cleanup(stop)
+	go e.s.listen(lctx)
 	e.s.sendSMS = func(_ context.Context, phone, code string) error { e.sms[phone] = code; return nil }
 	srv := httptest.NewServer(e.s.routes())
 	t.Cleanup(srv.Close)
@@ -150,7 +155,7 @@ func TestRegistration(t *testing.T) { // ID-01..ID-05, CRY-08
 		t.Fatal(err)
 	}
 	msg := append(append([]byte("siegel-as-v1"), res.AccountId...), pub...)
-	if !ed25519.Verify(e.asPub, msg, res.AsSignature) || res.ExistingAccount {
+	if !ed25519.Verify(e.asPub, msg, res.AsSignature) || res.ExistingAccount || !bytes.Equal(res.AsPublicKey, e.asPub) {
 		t.Fatal("bad AS signature or existing flag")
 	}
 	_, _, err = e.verify(phone, e.sms[phone], "") // OTP is single-use

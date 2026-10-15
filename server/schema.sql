@@ -52,3 +52,33 @@ CREATE TABLE IF NOT EXISTS metrics (
   count bigint NOT NULL,
   PRIMARY KEY (name, hour)
 );
+
+-- M2 Delivery Service (ARCH-04). Rows cascade from devices, so revocation (ID-09) clears them.
+CREATE TABLE IF NOT EXISTS key_packages (
+  id          bigserial PRIMARY KEY,
+  account_id  uuid NOT NULL,
+  device_id   uuid NOT NULL,
+  data        bytea NOT NULL,
+  last_resort boolean NOT NULL DEFAULT false,
+  FOREIGN KEY (account_id, device_id) REFERENCES devices ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS key_packages_device ON key_packages (account_id, device_id, last_resort);
+CREATE UNIQUE INDEX IF NOT EXISTS key_packages_one_last_resort ON key_packages (account_id, device_id) WHERE last_resort;
+
+-- Never contains the sender (MSG-10).
+CREATE TABLE IF NOT EXISTS queue (
+  id          bigserial PRIMARY KEY,
+  account_id  uuid NOT NULL,
+  device_id   uuid NOT NULL,
+  payload     bytea NOT NULL,
+  enqueued_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (account_id, device_id) REFERENCES devices ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS queue_device ON queue (account_id, device_id, id);
+
+-- Opaque group ID and epoch only (GRP-03); one commit per epoch (CRY-14).
+CREATE TABLE IF NOT EXISTS groups (
+  group_id   bytea PRIMARY KEY,
+  epoch      bigint NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

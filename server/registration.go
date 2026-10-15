@@ -30,12 +30,17 @@ type server struct {
 	sendSMS   func(ctx context.Context, phone, code string) error
 	hmacPhone func(ctx context.Context, phone string) ([]byte, error)
 	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
-	ipHits    ipLimiter
-	lastAlert time.Time // janitor goroutine only
+	hub       *hub
+
+	fetchASPublic func(ctx context.Context) ([]byte, error)
+	asMu          sync.Mutex
+	asPublic      []byte // AS public key, handed to clients at registration (CRY-08)
+	ipHits        ipLimiter
+	lastAlert     time.Time // janitor goroutine only
 }
 
 func newServer(cfg config, db *pgxpool.Pool) *server {
-	return &server{cfg: cfg, db: db}
+	return &server{cfg: cfg, db: db, hub: newHub()}
 }
 
 var e164 = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
@@ -81,6 +86,20 @@ func (l *ipLimiter) allow(ip string, max int) bool {
 	}
 	l.counts[ip]++
 	return l.counts[ip] <= max
+}
+
+// asPublicKey is fetched lazily so the server starts while OpenBao is still sealed.
+func (s *server) asPublicKey(ctx context.Context) ([]byte, error) {
+	s.asMu.Lock()
+	defer s.asMu.Unlock()
+	if s.asPublic == nil {
+		k, err := s.fetchASPublic(ctx)
+		if err != nil {
+			return nil, err
+		}
+		s.asPublic = k
+	}
+	return s.asPublic, nil
 }
 
 // peerIP is the direct peer. ponytail: read X-Forwarded-For once a trusted load balancer sits in front.
@@ -193,6 +212,10 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 	if !existing {
 		accountID = newUUID()
 	}
+	asPub, err := s.asPublicKey(ctx)
+	if err != nil {
+		return nil, internal(err)
+	}
 	sig, err := s.signAS(ctx, append(append([]byte("siegel-as-v1"), accountID[:]...), m.IdentityPub...))
 	if err != nil {
 		return nil, internal(err)
@@ -206,6 +229,11 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 			// ID-09: new identity key, every old device revoked. ponytail: queue, KeyPackages and push
 			// token go with the device row via ON DELETE CASCADE once those tables exist (M2).
 			// Open question: a lapsed lock is cleared so the new owner is not locked out by a PIN they never set.
+			// Wake the old devices' open streams so they get `deregistered` now (ID-12).
+			if _, err := tx.Exec(ctx, `SELECT pg_notify('queue', encode(uuid_send(device_id), 'hex'))
+				FROM devices WHERE account_id = $1`, accountID); err != nil {
+				return err
+			}
 			if _, err := tx.Exec(ctx, `DELETE FROM devices WHERE account_id = $1`, accountID); err != nil {
 				return err
 			}
@@ -236,5 +264,6 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 		DeviceToken:     token,
 		AsSignature:     sig,
 		ExistingAccount: existing,
+		AsPublicKey:     asPub,
 	}), nil
 }

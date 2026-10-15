@@ -5,8 +5,6 @@ import (
 	"cmp"
 	"context"
 	"crypto/ed25519"
-	"encoding/base64"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -54,23 +52,10 @@ func TestBao(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req, _ := http.NewRequest("GET", addr+"/v1/transit/keys/siegel-as", nil)
-	req.Header.Set("X-Vault-Token", b.token)
-	res, err := http.DefaultClient.Do(req)
+	pub, err := b.asPublicKey(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out struct {
-		Data struct {
-			Keys map[string]struct {
-				PublicKey string `json:"public_key"`
-			}
-		}
-	}
-	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		t.Fatal(err)
-	}
-	pub, _ := base64.StdEncoding.DecodeString(out.Data.Keys["1"].PublicKey)
 	if !ed25519.Verify(pub, []byte("msg"), sig) {
 		t.Fatal("AS signature does not verify with the transit public key")
 	}

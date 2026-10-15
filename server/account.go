@@ -19,31 +19,44 @@ import (
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
 
-type accountKey struct{}
+type callerKey struct{}
 
-// authed resolves the bearer device token to an account and bumps the coarse last-seen day.
+// caller is the authenticated account and device.
+type caller struct{ account, device [16]byte }
+
+// authenticate resolves an "Authorization: Bearer <token>" header and bumps the coarse
+// last-seen day. found is false for a missing or unknown token.
+func (s *server) authenticate(ctx context.Context, header string) (c caller, found bool, err error) {
+	token, ok := strings.CutPrefix(header, "Bearer ")
+	if !ok {
+		return c, false, nil
+	}
+	h := sha256.Sum256([]byte(token))
+	err = s.db.QueryRow(ctx, `UPDATE devices SET last_seen_day = current_date
+		WHERE token_hash = $1 RETURNING account_id, device_id`, h[:]).Scan(&c.account, &c.device)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return c, false, nil
+	}
+	return c, err == nil, err
+}
+
+// authed rejects calls without a valid device token.
 func (s *server) authed() connect.Option {
 	return connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			token, ok := strings.CutPrefix(req.Header().Get("Authorization"), "Bearer ")
-			if !ok {
-				return nil, cerr(connect.CodeUnauthenticated, "unauthenticated")
-			}
-			h := sha256.Sum256([]byte(token))
-			var id [16]byte
-			err := s.db.QueryRow(ctx, `UPDATE devices SET last_seen_day = current_date
-				WHERE token_hash = $1 RETURNING account_id`, h[:]).Scan(&id)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, cerr(connect.CodeUnauthenticated, "unauthenticated")
-			} else if err != nil {
+			c, found, err := s.authenticate(ctx, req.Header().Get("Authorization"))
+			if err != nil {
 				return nil, internal(err)
+			} else if !found {
+				return nil, cerr(connect.CodeUnauthenticated, "unauthenticated")
 			}
-			return next(context.WithValue(ctx, accountKey{}, id), req)
+			return next(context.WithValue(ctx, callerKey{}, c), req)
 		}
 	}))
 }
 
-func account(ctx context.Context) [16]byte { return ctx.Value(accountKey{}).([16]byte) }
+func who(ctx context.Context) caller       { return ctx.Value(callerKey{}).(caller) }
+func account(ctx context.Context) [16]byte { return who(ctx).account }
 
 // ponytail: tiny inline list; product owns the full reserved/offensive list (open question).
 var reserved = map[string]bool{"admin": true, "root": true, "siegel": true, "support": true, "system": true, "help": true, "official": true, "security": true}

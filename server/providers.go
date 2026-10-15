@@ -67,6 +67,34 @@ func (b bao) signAS(ctx context.Context, msg []byte) ([]byte, error) {
 		map[string]any{"input": base64.StdEncoding.EncodeToString(msg)})
 }
 
+// asPublicKey reads the AS signing public key (key version 1) from transit.
+func (b bao) asPublicKey(ctx context.Context) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.addr+"/v1/transit/keys/siegel-as", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Vault-Token", b.token)
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openbao keys/siegel-as: status %d", res.StatusCode)
+	}
+	var out struct {
+		Data struct {
+			Keys map[string]struct {
+				PublicKey string `json:"public_key"`
+			}
+		}
+	}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return base64.StdEncoding.DecodeString(out.Data.Keys["1"].PublicKey)
+}
+
 func (b bao) renew(ctx context.Context) error {
 	return postJSON(ctx, b.addr+"/v1/auth/token/renew-self", http.Header{"X-Vault-Token": {b.token}}, map[string]any{}, nil)
 }
