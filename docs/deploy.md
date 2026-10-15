@@ -137,7 +137,7 @@ Store reviewers can't receive our SMS, so one number can be given a fixed code.
 
 1. Firebase console → Project settings → Service accounts → Generate new private key. This
    key can send pushes to every install: treat it like the GatewayAPI token.
-2. On your laptop: `base64 -i key.json | tr -d '\n' | pbcopy`, then paste it into
+2. On your laptop: `openssl base64 -A -in key.json | pbcopy`, then paste it into
    `/opt/siegel/.env` as `SIEGEL_FCM_CREDENTIALS=...` and `docker compose up -d server`.
 3. Delete `key.json` from your laptop (keep an offline copy only if you want one; you can
    always generate a new key and delete the old one in the console).
