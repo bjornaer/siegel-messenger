@@ -1,12 +1,13 @@
 //! Profiles and contacts (MSG-10, MSG-15, MSG-16): our encrypted profile and profile key,
 //! contacts' profiles, and accepting, deleting and blocking.
 
+use core_crypto::IdentityKey;
 use core_crypto::profile::ProfileKey;
 use core_net::pb;
 use core_store::{Contact, ContactState, Store};
 use prost::Message as _;
 
-use crate::{CoreError, SiegelCore, storage};
+use crate::{ACCOUNT, CoreError, IDENTITY, SiegelCore, storage};
 
 const PROFILE_KEY: &str = "profile_key";
 /// Profiles are padded to this bucket so name length stays hidden.
@@ -14,7 +15,7 @@ const PROFILE_BUCKET: usize = 256;
 
 impl SiegelCore {
     /// Our profile key, created on first use (CRY-16).
-    fn profile_key(&self) -> Result<ProfileKey, CoreError> {
+    pub(crate) fn profile_key(&self) -> Result<ProfileKey, CoreError> {
         if let Some(k) = self.get(PROFILE_KEY)?
             && let Ok(k) = <[u8; 32]>::try_from(k.as_slice())
         {
@@ -117,7 +118,12 @@ impl SiegelCore {
     /// Deletes a chat from this device (declining a request, or MSG-12 for a whole chat).
     pub fn delete_chat(&self, group_id: &[u8]) -> Result<(), CoreError> {
         let peer = self.peer_contact(group_id).ok();
-        let _ = self.with_mls(|m, _| m.forget(group_id).map_err(|e| CoreError::new(&e.0)));
+        let _ = self.with_mls(|m, s| {
+            for g in storage(s.mls_groups(group_id))? {
+                let _ = m.forget(&g);
+            }
+            Ok(())
+        });
         self.with_store(|s| storage(s.delete_conversation(group_id)))?;
         if let Some(c) = peer.filter(|c| c.state == ContactState::Request) {
             // A declined requester can write again later; forget what we cached about them.
@@ -151,5 +157,44 @@ impl SiegelCore {
             }
         }
         Ok(())
+    }
+
+    /// CRY-12: the chat's 60-digit safety number, also what its QR code encodes. None until we
+    /// have the peer's identity key.
+    pub fn safety_number(&self, group_id: &[u8]) -> Result<Option<String>, CoreError> {
+        let peer = self.peer_contact(group_id)?;
+        let missing = || CoreError::new("not_registered");
+        let me: [u8; 16] = self
+            .get(ACCOUNT)?
+            .ok_or_else(missing)?
+            .try_into()
+            .map_err(|_| missing())?;
+        let secret: [u8; 32] = self
+            .get(IDENTITY)?
+            .ok_or_else(missing)?
+            .try_into()
+            .map_err(|_| missing())?;
+        let mine = IdentityKey::from_bytes(&secret).public();
+        let (Ok(account), Some(Ok(key))) = (
+            <[u8; 16]>::try_from(peer.account_id.as_slice()),
+            peer.identity_key.as_deref().map(<[u8; 32]>::try_from),
+        ) else {
+            return Ok(None);
+        };
+        Ok(Some(core_crypto::safety_number(
+            (&me, &mine),
+            (&account, &key),
+        )))
+    }
+
+    /// CRY-12: a scanned QR code that matches marks the contact verified. False on mismatch.
+    pub fn verify_safety_number(&self, group_id: &[u8], scanned: &str) -> Result<bool, CoreError> {
+        if self.safety_number(group_id)?.as_deref() != Some(scanned.trim()) {
+            return Ok(false);
+        }
+        let mut c = self.peer_contact(group_id)?;
+        c.verified = true;
+        self.with_store(|s| storage(s.save_contact(&c)))?;
+        Ok(true)
     }
 }

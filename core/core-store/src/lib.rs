@@ -25,10 +25,13 @@ impl Codec for JsonCodec {
     }
 }
 
+/// A chat. `group_id` is its stable local ID (the first MLS group's ID); `mls_group` is the
+/// MLS group we currently send in, which changes when the peer re-registers (ID-09).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Conversation {
     pub group_id: Vec<u8>,
     pub peer_account: Vec<u8>,
+    pub mls_group: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,14 +74,15 @@ impl Status {
 }
 
 /// MSG-15/16: someone who wrote to us first is a Request until we accept them.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ContactState {
+    #[default]
     Request = 0,
     Accepted = 1,
     Blocked = 2,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Contact {
     pub account_id: Vec<u8>,
     pub state: ContactState,
@@ -86,6 +90,10 @@ pub struct Contact {
     pub profile_key: Option<Vec<u8>>,
     pub display_name: Option<String>,
     pub username: Option<String>,
+    /// Their Account Identity Key as first seen (CRY-13 compares later ones against it).
+    pub identity_key: Option<Vec<u8>>,
+    /// Safety number checked in person (CRY-12); cleared when the key changes.
+    pub verified: bool,
 }
 
 pub trait Store: Send {
@@ -93,6 +101,12 @@ pub trait Store: Send {
     fn put(&self, key: &str, value: &[u8]) -> Result<()>;
     fn save_conversation(&self, c: &Conversation) -> Result<()>;
     fn conversations(&self) -> Result<Vec<Conversation>>;
+    /// The chat an MLS group belongs to; old groups stay mapped so late messages still land.
+    fn conversation_for_mls(&self, mls_group: &[u8]) -> Result<Option<Vec<u8>>>;
+    /// Makes `mls_group` the one the chat sends in.
+    fn set_mls_group(&self, group_id: &[u8], mls_group: &[u8]) -> Result<()>;
+    /// Every MLS group the chat ever used.
+    fn mls_groups(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>>;
     /// False when the message ID was already stored (MSG-03 deduplication).
     fn save_message(&self, m: &Message) -> Result<bool>;
     /// Oldest first, in arrival order (MSG-03).
@@ -169,6 +183,12 @@ impl SqlCipher {
              CREATE TABLE versions (seq INTEGER PRIMARY KEY AUTOINCREMENT,
                message_id BLOB NOT NULL, body BLOB NOT NULL);
              CREATE INDEX versions_message ON versions (message_id);",
+            "ALTER TABLE contacts ADD COLUMN identity_key BLOB;
+             ALTER TABLE contacts ADD COLUMN verified INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE conversations ADD COLUMN mls_group BLOB;
+             UPDATE conversations SET mls_group = group_id;
+             CREATE TABLE mls_groups (mls_group BLOB PRIMARY KEY, conversation BLOB NOT NULL);
+             INSERT INTO mls_groups SELECT group_id, group_id FROM conversations;",
         ];
         let version: usize = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         for (i, m) in MIGRATIONS.iter().enumerate().skip(version) {
@@ -191,7 +211,8 @@ impl SqlCipher {
 
     fn contacts_where(&self, filter: &str, arg: &[u8]) -> Result<Vec<Contact>> {
         let mut q = self.conn.prepare(&format!(
-            "SELECT account_id, state, profile_key, display_name, username FROM contacts {filter}"
+            "SELECT account_id, state, profile_key, display_name, username, identity_key, verified
+             FROM contacts {filter}"
         ))?;
         q.query_map([arg], |r| {
             Ok(Contact {
@@ -204,6 +225,8 @@ impl SqlCipher {
                 profile_key: r.get(2)?,
                 display_name: r.get(3)?,
                 username: r.get(4)?,
+                identity_key: r.get(5)?,
+                verified: r.get(6)?,
             })
         })?
         .collect()
@@ -256,8 +279,12 @@ impl Store for SqlCipher {
 
     fn save_conversation(&self, c: &Conversation) -> Result<()> {
         self.conn.execute(
-            "INSERT OR IGNORE INTO conversations (group_id, peer_account) VALUES (?1, ?2)",
-            (&c.group_id, &c.peer_account),
+            "INSERT OR IGNORE INTO conversations (group_id, peer_account, mls_group) VALUES (?1, ?2, ?3)",
+            (&c.group_id, &c.peer_account, &c.mls_group),
+        )?;
+        self.conn.execute(
+            "INSERT OR IGNORE INTO mls_groups (mls_group, conversation) VALUES (?1, ?2)",
+            (&c.mls_group, &c.group_id),
         )?;
         Ok(())
     }
@@ -265,14 +292,45 @@ impl Store for SqlCipher {
     fn conversations(&self) -> Result<Vec<Conversation>> {
         let mut q = self
             .conn
-            .prepare("SELECT group_id, peer_account FROM conversations")?;
+            .prepare("SELECT group_id, peer_account, mls_group FROM conversations")?;
         q.query_map([], |r| {
             Ok(Conversation {
                 group_id: r.get(0)?,
                 peer_account: r.get(1)?,
+                mls_group: r.get(2)?,
             })
         })?
         .collect()
+    }
+
+    fn conversation_for_mls(&self, mls_group: &[u8]) -> Result<Option<Vec<u8>>> {
+        match self.conn.query_row(
+            "SELECT conversation FROM mls_groups WHERE mls_group = ?1",
+            [mls_group],
+            |r| r.get(0),
+        ) {
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            r => r.map(Some),
+        }
+    }
+
+    fn set_mls_group(&self, group_id: &[u8], mls_group: &[u8]) -> Result<()> {
+        self.conn.execute(
+            "UPDATE conversations SET mls_group = ?2 WHERE group_id = ?1",
+            (group_id, mls_group),
+        )?;
+        self.conn.execute(
+            "INSERT OR REPLACE INTO mls_groups (mls_group, conversation) VALUES (?1, ?2)",
+            (mls_group, group_id),
+        )?;
+        Ok(())
+    }
+
+    fn mls_groups(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let mut q = self
+            .conn
+            .prepare("SELECT mls_group FROM mls_groups WHERE conversation = ?1")?;
+        q.query_map([group_id], |r| r.get(0))?.collect()
     }
 
     fn save_message(&self, m: &Message) -> Result<bool> {
@@ -407,9 +465,18 @@ impl Store for SqlCipher {
 
     fn save_contact(&self, c: &Contact) -> Result<()> {
         self.conn.execute(
-            "INSERT OR REPLACE INTO contacts (account_id, state, profile_key, display_name, username)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            (&c.account_id, c.state as i64, &c.profile_key, &c.display_name, &c.username),
+            "INSERT OR REPLACE INTO contacts
+               (account_id, state, profile_key, display_name, username, identity_key, verified)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            (
+                &c.account_id,
+                c.state as i64,
+                &c.profile_key,
+                &c.display_name,
+                &c.username,
+                &c.identity_key,
+                c.verified,
+            ),
         )?;
         Ok(())
     }
@@ -431,6 +498,8 @@ impl Store for SqlCipher {
             .execute("DELETE FROM messages WHERE group_id = ?1", [group_id])?;
         self.conn
             .execute("DELETE FROM conversations WHERE group_id = ?1", [group_id])?;
+        self.conn
+            .execute("DELETE FROM mls_groups WHERE conversation = ?1", [group_id])?;
         Ok(())
     }
 
@@ -539,8 +608,8 @@ mod tests {
             account_id: vec![2],
             state: ContactState::Request,
             profile_key: None,
-            display_name: None,
             username: Some("bob".into()),
+            ..Default::default()
         };
         s.save_contact(&c).unwrap();
         s.save_contact(&Contact {
@@ -554,7 +623,23 @@ mod tests {
         );
         assert_eq!(s.contacts().unwrap().len(), 1);
         assert_eq!(s.contact(&[3]).unwrap(), None);
+        s.save_conversation(&Conversation {
+            group_id: vec![9],
+            peer_account: vec![2],
+            mls_group: vec![9],
+        })
+        .unwrap();
+        s.set_mls_group(&[9], &[10]).unwrap();
+        assert_eq!(s.conversations().unwrap()[0].mls_group, vec![10]);
+        assert_eq!(
+            s.conversation_for_mls(&[9]).unwrap(),
+            Some(vec![9]),
+            "old group still maps"
+        );
+        assert_eq!(s.conversation_for_mls(&[10]).unwrap(), Some(vec![9]));
+        assert_eq!(s.mls_groups(&[9]).unwrap().len(), 2);
         s.delete_conversation(&[9]).unwrap();
+        assert_eq!(s.conversation_for_mls(&[10]).unwrap(), None);
         assert!(s.messages(&[9], 10).unwrap().is_empty());
 
         let s: Box<dyn Store> = Box::new(s);

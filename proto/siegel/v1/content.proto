@@ -18,8 +18,13 @@ message Content {
     Delete delete = 7;
     Receipt receipt = 8;
     Typing typing = 9;
+    KeyChange key_change = 15;
   }
 }
+
+// CRY-13: a notice the client stores locally when a contact's identity key changes. Never
+// sent; receivers ignore it if it arrives over the wire.
+message KeyChange {}
 
 // MSG-02 profile_key_update: shares the sender's profile key with the group, which lets
 // receivers fetch and decrypt the sender's profile and derive its delivery token (MSG-10).

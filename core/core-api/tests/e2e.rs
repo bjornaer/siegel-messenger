@@ -482,3 +482,92 @@ async fn replies_reactions_edits_deletes_receipts_typing() {
             .any(|m| m.message_id == second.message_id)
     );
 }
+
+#[tokio::test]
+async fn safety_numbers_and_reregistration_key_change() {
+    // CRY-12, CRY-13, ID-09.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    let (alice, _) = new_user(&url, "alice").await;
+    let n = fresh_number();
+    let bob_phone = format!("+346{n:08}");
+    let bob_dir = std::env::temp_dir().join(format!("siegel-e2e-rebob-{n}"));
+    std::fs::create_dir_all(&bob_dir).unwrap();
+    let open_bob = |file: &str| {
+        std::sync::Arc::new(
+            SiegelCore::open(bob_dir.join(file).to_str().unwrap(), &[7; 32], &url).unwrap(),
+        )
+    };
+    let bob = open_bob("one.db");
+    register(&bob, &bob_phone).await;
+    let bob_name = format!("rebob{n}");
+    bob.set_username(&bob_name).await.unwrap();
+    let mut bob_events = listen(&bob);
+    let mut alice_events = listen(&alice);
+
+    let chat = alice.start_chat(&bob_name).await.unwrap();
+    let Event::ConversationStarted {
+        group_id: bob_chat, ..
+    } = until(&mut bob_events, |e| {
+        matches!(e, Event::ConversationStarted { .. })
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    bob.accept(&bob_chat).await.unwrap();
+
+    let number = alice.safety_number(&chat).unwrap().unwrap();
+    assert_eq!(number.len(), 60);
+    assert_eq!(
+        bob.safety_number(&bob_chat).unwrap().as_deref(),
+        Some(number.as_str())
+    );
+    assert!(!alice.verify_safety_number(&chat, &"0".repeat(60)).unwrap());
+    assert!(alice.verify_safety_number(&chat, &number).unwrap());
+    let bob_id = alice.conversations().unwrap()[0].peer_account.clone();
+    assert!(alice.contact(&bob_id).unwrap().verified);
+
+    // Bob re-registers on a new phone: new identity key, old device revoked (ID-09).
+    let new_bob = open_bob("two.db");
+    register(&new_bob, &bob_phone).await;
+    until(&mut bob_events, |e| matches!(e, Event::Deregistered)).await;
+    let mut new_bob_events = listen(&new_bob);
+
+    // Alice's next message finds Bob's devices revoked, re-keys the same chat and delivers.
+    alice.send_text(&chat, "still there?", None).await.unwrap();
+    let Event::Message(m) = until(&mut new_bob_events, |e| matches!(e, Event::Message(_))).await
+    else {
+        unreachable!()
+    };
+    assert_eq!(m.text, "still there?");
+    let messages = alice.messages(&chat, 50).unwrap();
+    assert!(
+        messages.iter().any(|m| m.key_change),
+        "CRY-13 notice in the chat"
+    );
+    assert!(
+        !alice.contact(&bob_id).unwrap().verified,
+        "verified mark cleared"
+    );
+    assert_ne!(alice.safety_number(&chat).unwrap().unwrap(), number);
+    assert_eq!(
+        alice.conversations().unwrap().len(),
+        1,
+        "same chat, not a new one"
+    );
+
+    // New Bob answers in his new chat; it lands in Alice's existing one.
+    new_bob.accept(&m.group_id).await.unwrap();
+    new_bob
+        .send_text(&m.group_id, "new phone", None)
+        .await
+        .unwrap();
+    let Event::Message(r) = until(&mut alice_events, |e| matches!(e, Event::Message(_))).await
+    else {
+        unreachable!()
+    };
+    assert_eq!((r.group_id, r.text.as_str()), (chat, "new phone"));
+}
