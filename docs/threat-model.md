@@ -28,7 +28,11 @@ Can read the database, object store, backups, memory and logs, and change server
 - Can attempt to insert a rogue device or key for a user. Mitigated only by safety-number verification
   (CRY-12, CRY-13). Unverified users are exposed; key transparency is roadmap (SEC-12).
 - Sees A5 transiently: recipient of each message, online status, IPs at connection. Sealed sender hides the
-  sender (MSG-10). Mitigation is policy (no logging, SEC-03), not cryptography.
+  sender of messages between contacts (MSG-10): they are sent without credentials and authorised by the
+  recipient's delivery token, derived from a profile key only contacts hold. First contact with a
+  non-contact and group commits are still sent authenticated, so the server sees who started a chat.
+  The sending IP is visible on every request; mitigation is policy (no logging, SEC-03), not cryptography.
+- Profiles (name, @username) are AES-256-GCM ciphertext under the profile key, padded to 256 bytes.
 - **A4 via A6.** Phone HMACs are reversible by brute force once the pepper is known (the number space is small).
   **Current test deployment runs OpenBao on the same VM (`COMPOSE_PROFILES=bao`), so a host compromise
   still exposes phone numbers. Split it out before public launch (docs/deploy.md).**
