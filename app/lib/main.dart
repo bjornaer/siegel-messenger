@@ -102,6 +102,7 @@ class _SiegelAppState extends State<SiegelApp> {
 
   Widget _app(bool ready, SiegelTheme theme) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false, // also keeps it out of store screenshots
       navigatorKey: _navigator,
       onGenerateTitle: (c) => AppLocalizations.of(c)!.appTitle,
       localizationsDelegates: const [

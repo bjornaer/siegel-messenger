@@ -626,3 +626,66 @@ async fn push_token_and_drain_after_wake_up() {
             .any(|e| matches!(e, core_api::Event::Message(m) if m.text == "wake up"))
     );
 }
+
+/// Store screenshot extras: three named contacts that reply with scripted lines. Writes their
+/// @usernames to $DEMO_FILE, one per line, then answers for ten minutes.
+///   SIEGEL_TEST_SERVER_URL=... DEMO_FILE=/tmp/demo cargo test -p core-api --test e2e demo_peers -- --ignored
+#[tokio::test]
+#[ignore]
+async fn demo_peers() {
+    let url = std::env::var("SIEGEL_TEST_SERVER_URL").unwrap();
+    let scripts: [(&str, &str, &[&str]); 3] = [
+        (
+            "lena",
+            "Lena Weber",
+            &[
+                "Yes! 10:00 at the Hauptbahnhof 🚆",
+                "Bring the good coffee ☕",
+            ],
+        ),
+        (
+            "jonas",
+            "Jonas",
+            &["That hike was amazing. Same trail next month?"],
+        ),
+        (
+            "klara",
+            "Klara",
+            &["Happy birthday!! 🎉 Dinner on me this week"],
+        ),
+    ];
+    let mut names = Vec::new();
+    let mut tasks = Vec::new();
+    for (tag, display, lines) in scripts {
+        let (peer, name) = new_user(&url, tag).await;
+        peer.set_display_name(display).unwrap();
+        names.push(name);
+        let mut events = listen(&peer);
+        tasks.push(tokio::spawn(async move {
+            let mut next = 0;
+            let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(600);
+            while let Ok(Some(e)) = tokio::time::timeout_at(deadline, events.recv()).await {
+                match e {
+                    core_api::Event::ConversationStarted { group_id, .. } => {
+                        peer.accept(&group_id).await.unwrap();
+                    }
+                    core_api::Event::Message(m) if next < lines.len() => {
+                        peer.mark_read(&m.group_id).await.unwrap();
+                        peer.react(&m.group_id, &m.message_id, "❤️").await.unwrap();
+                        for line in &lines[next..] {
+                            peer.send_typing(&m.group_id).await.unwrap();
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            peer.send_text(&m.group_id, line, None).await.unwrap();
+                        }
+                        next = lines.len();
+                    }
+                    _ => {}
+                }
+            }
+        }));
+    }
+    std::fs::write(std::env::var("DEMO_FILE").unwrap(), names.join("\n")).unwrap();
+    for t in tasks {
+        t.await.unwrap();
+    }
+}
