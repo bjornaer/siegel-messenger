@@ -7,6 +7,7 @@ use core_net::pb;
 use core_store::{Contact, ContactState, Store};
 use prost::Message as _;
 
+use crate::chat::note_identity;
 use crate::{ACCOUNT, CoreError, IDENTITY, SiegelCore, storage};
 
 const PROFILE_KEY: &str = "profile_key";
@@ -162,7 +163,18 @@ impl SiegelCore {
     /// CRY-12: the chat's 60-digit safety number, also what its QR code encodes. None until we
     /// have the peer's identity key.
     pub fn safety_number(&self, group_id: &[u8]) -> Result<Option<String>, CoreError> {
-        let peer = self.peer_contact(group_id)?;
+        let mut peer = self.peer_contact(group_id)?;
+        if peer.identity_key.is_none() {
+            // Chats from before identity pinning: take the key from the MLS group.
+            let mls_group = self.conversation(group_id)?.mls_group;
+            self.with_mls(|m, s| {
+                if let Some(o) = m.others(&mls_group).ok().and_then(|o| o.into_iter().next()) {
+                    note_identity(s, &peer.account_id, &o.identity_pub)?;
+                }
+                Ok(())
+            })?;
+            peer = self.peer_contact(group_id)?;
+        }
         let missing = || CoreError::new("not_registered");
         let me: [u8; 16] = self
             .get(ACCOUNT)?

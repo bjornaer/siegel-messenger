@@ -29,7 +29,7 @@
 
 use crate::api::core::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -922466421;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1874803673;
 
 // Section: executor
 
@@ -963,6 +963,54 @@ fn wire__crate__api__core__Core_run_stream_impl(
         },
     )
 }
+fn wire__crate__api__core__Core_safety_number_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Core_safety_number",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>,
+            >>::sse_decode(&mut deserializer);
+            let api_group_id = <Vec<u8>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::core::CoreError>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok =
+                    crate::api::core::Core::safety_number(&*api_that_guard, api_group_id)?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__core__Core_send_text_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1518,6 +1566,58 @@ fn wire__crate__api__core__Core_verify_impl(
         },
     )
 }
+fn wire__crate__api__core__Core_verify_safety_number_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Core_verify_safety_number",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>,
+            >>::sse_decode(&mut deserializer);
+            let api_group_id = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_scanned = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, crate::api::core::CoreError>((move || {
+                let mut api_that_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_that, 0, false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_that_guard = api_that_guard.unwrap();
+                let output_ok = crate::api::core::Core::verify_safety_number(
+                    &*api_that_guard,
+                    api_group_id,
+                    api_scanned,
+                )?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__core__Core_versions_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1667,6 +1767,7 @@ impl SseDecode for crate::api::core::ChatSummary {
         let mut var_peerDisplayName = <Option<String>>::sse_decode(deserializer);
         let mut var_peerUsername = <Option<String>>::sse_decode(deserializer);
         let mut var_request = <bool>::sse_decode(deserializer);
+        let mut var_peerVerified = <bool>::sse_decode(deserializer);
         let mut var_last = <Option<crate::api::core::MessageView>>::sse_decode(deserializer);
         return crate::api::core::ChatSummary {
             group_id: var_groupId,
@@ -1674,6 +1775,7 @@ impl SseDecode for crate::api::core::ChatSummary {
             peer_display_name: var_peerDisplayName,
             peer_username: var_peerUsername,
             request: var_request,
+            peer_verified: var_peerVerified,
             last: var_last,
         };
     }
@@ -1832,6 +1934,7 @@ impl SseDecode for crate::api::core::MessageView {
         let mut var_edited = <bool>::sse_decode(deserializer);
         let mut var_deleted = <bool>::sse_decode(deserializer);
         let mut var_reactions = <Vec<crate::api::core::Reaction>>::sse_decode(deserializer);
+        let mut var_keyChange = <bool>::sse_decode(deserializer);
         return crate::api::core::MessageView {
             group_id: var_groupId,
             message_id: var_messageId,
@@ -1844,6 +1947,7 @@ impl SseDecode for crate::api::core::MessageView {
             edited: var_edited,
             deleted: var_deleted,
             reactions: var_reactions,
+            key_change: var_keyChange,
         };
     }
 }
@@ -1940,18 +2044,18 @@ fn pde_ffi_dispatcher_primary_impl(
         15 => wire__crate__api__core__Core_request_otp_impl(port, ptr, rust_vec_len, data_len),
         16 => wire__crate__api__core__Core_retry_impl(port, ptr, rust_vec_len, data_len),
         17 => wire__crate__api__core__Core_run_stream_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__core__Core_send_text_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__core__Core_send_typing_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__core__Core_set_registration_lock_impl(
+        19 => wire__crate__api__core__Core_send_text_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__core__Core_send_typing_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__core__Core_set_registration_lock_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__core__Core_set_username_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__core__Core_start_chat_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__core__Core_verify_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__core__init_app_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__core__Core_set_username_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__core__Core_start_chat_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__core__Core_verify_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__core__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1971,11 +2075,13 @@ fn pde_ffi_dispatcher_sync_impl(
         10 => wire__crate__api__core__Core_is_registered_impl(ptr, rust_vec_len, data_len),
         12 => wire__crate__api__core__Core_messages_impl(ptr, rust_vec_len, data_len),
         13 => wire__crate__api__core__Core_open_impl(ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__core__Core_set_display_name_impl(ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__core__Core_set_setting_impl(ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__core__Core_setting_impl(ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__core__Core_username_impl(ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__core__Core_versions_impl(ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__core__Core_safety_number_impl(ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__core__Core_set_display_name_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__core__Core_set_setting_impl(ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__core__Core_setting_impl(ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__core__Core_username_impl(ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__core__Core_verify_safety_number_impl(ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__core__Core_versions_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2006,6 +2112,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::ChatSummary {
             self.peer_display_name.into_into_dart().into_dart(),
             self.peer_username.into_into_dart().into_dart(),
             self.request.into_into_dart().into_dart(),
+            self.peer_verified.into_into_dart().into_dart(),
             self.last.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -2137,6 +2244,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::MessageView {
             self.edited.into_into_dart().into_dart(),
             self.deleted.into_into_dart().into_dart(),
             self.reactions.into_into_dart().into_dart(),
+            self.key_change.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2223,6 +2331,7 @@ impl SseEncode for crate::api::core::ChatSummary {
         <Option<String>>::sse_encode(self.peer_display_name, serializer);
         <Option<String>>::sse_encode(self.peer_username, serializer);
         <bool>::sse_encode(self.request, serializer);
+        <bool>::sse_encode(self.peer_verified, serializer);
         <Option<crate::api::core::MessageView>>::sse_encode(self.last, serializer);
     }
 }
@@ -2376,6 +2485,7 @@ impl SseEncode for crate::api::core::MessageView {
         <bool>::sse_encode(self.edited, serializer);
         <bool>::sse_encode(self.deleted, serializer);
         <Vec<crate::api::core::Reaction>>::sse_encode(self.reactions, serializer);
+        <bool>::sse_encode(self.key_change, serializer);
     }
 }
 
@@ -2458,7 +2568,7 @@ mod io {
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
@@ -2497,7 +2607,7 @@ mod web {
     };
     use flutter_rust_bridge::for_generated::wasm_bindgen;
     use flutter_rust_bridge::for_generated::wasm_bindgen::prelude::*;
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate

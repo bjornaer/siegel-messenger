@@ -705,6 +705,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get close;
+
+  /// No description provided for @safetyNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety number'**
+  String get safetyNumber;
+
+  /// No description provided for @safetyNumberHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare these numbers with {name}, or scan their code when you\'re together. If they match, nobody is in the middle of your chat.'**
+  String safetyNumberHelp(String name);
+
+  /// No description provided for @safetyNumberUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The safety number isn\'t available yet.'**
+  String get safetyNumberUnavailable;
+
+  /// No description provided for @scanCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan their code'**
+  String get scanCode;
+
+  /// No description provided for @verified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get verified;
+
+  /// No description provided for @verifiedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified. The safety number matches.'**
+  String get verifiedDone;
+
+  /// No description provided for @verifyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'This code doesn\'t match. Make sure you scan {name}\'s code for this chat.'**
+  String verifyMismatch(String name);
+
+  /// No description provided for @keyChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s safety number changed, for example because they reinstalled Siegel or got a new phone. Tap to compare.'**
+  String keyChanged(String name);
 }
 
 class _AppLocalizationsDelegate

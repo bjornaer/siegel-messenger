@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -922466421;
+  int get rustContentHash => 1874803673;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -159,6 +159,11 @@ abstract class RustLibApi extends BaseApi {
 
   Stream<CoreEvent> crateApiCoreCoreRunStream({required Core that});
 
+  String? crateApiCoreCoreSafetyNumber({
+    required Core that,
+    required List<int> groupId,
+  });
+
   Future<MessageView> crateApiCoreCoreSendText({
     required Core that,
     required List<int> groupId,
@@ -207,6 +212,12 @@ abstract class RustLibApi extends BaseApi {
     required String otp,
     required String pin,
     required DevicePlatform platform,
+  });
+
+  bool crateApiCoreCoreVerifySafetyNumber({
+    required Core that,
+    required List<int> groupId,
+    required String scanned,
   });
 
   List<String> crateApiCoreCoreVersions({
@@ -819,6 +830,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  String? crateApiCoreCoreSafetyNumber({
+    required Core that,
+    required List<int> groupId,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+            that,
+            serializer,
+          );
+          sse_encode_list_prim_u_8_loose(groupId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiCoreCoreSafetyNumberConstMeta,
+        argValues: [that, groupId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreCoreSafetyNumberConstMeta =>
+      const TaskConstMeta(
+        debugName: "Core_safety_number",
+        argNames: ["that", "groupId"],
+      );
+
+  @override
   Future<MessageView> crateApiCoreCoreSendText({
     required Core that,
     required List<int> groupId,
@@ -839,7 +883,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -876,7 +920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -910,7 +954,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -946,7 +990,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -983,7 +1027,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(key, serializer);
           sse_encode_String(value, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1018,7 +1062,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1050,7 +1094,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(key, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 24)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -1083,7 +1127,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1113,7 +1157,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -1152,7 +1196,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1173,6 +1217,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  bool crateApiCoreCoreVerifySafetyNumber({
+    required Core that,
+    required List<int> groupId,
+    required String scanned,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+            that,
+            serializer,
+          );
+          sse_encode_list_prim_u_8_loose(groupId, serializer);
+          sse_encode_String(scanned, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiCoreCoreVerifySafetyNumberConstMeta,
+        argValues: [that, groupId, scanned],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreCoreVerifySafetyNumberConstMeta =>
+      const TaskConstMeta(
+        debugName: "Core_verify_safety_number",
+        argNames: ["that", "groupId", "scanned"],
+      );
+
+  @override
   List<String> crateApiCoreCoreVersions({
     required Core that,
     required List<int> messageId,
@@ -1186,7 +1265,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_list_prim_u_8_loose(messageId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -1213,7 +1292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1300,15 +1379,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChatSummary dco_decode_chat_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return ChatSummary(
       groupId: dco_decode_list_prim_u_8_strict(arr[0]),
       peerAccount: dco_decode_list_prim_u_8_strict(arr[1]),
       peerDisplayName: dco_decode_opt_String(arr[2]),
       peerUsername: dco_decode_opt_String(arr[3]),
       request: dco_decode_bool(arr[4]),
-      last: dco_decode_opt_box_autoadd_message_view(arr[5]),
+      peerVerified: dco_decode_bool(arr[5]),
+      last: dco_decode_opt_box_autoadd_message_view(arr[6]),
     );
   }
 
@@ -1404,8 +1484,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageView dco_decode_message_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return MessageView(
       groupId: dco_decode_list_prim_u_8_strict(arr[0]),
       messageId: dco_decode_list_prim_u_8_strict(arr[1]),
@@ -1418,6 +1498,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       edited: dco_decode_bool(arr[8]),
       deleted: dco_decode_bool(arr[9]),
       reactions: dco_decode_list_reaction(arr[10]),
+      keyChange: dco_decode_bool(arr[11]),
     );
   }
 
@@ -1555,6 +1636,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_peerDisplayName = sse_decode_opt_String(deserializer);
     var var_peerUsername = sse_decode_opt_String(deserializer);
     var var_request = sse_decode_bool(deserializer);
+    var var_peerVerified = sse_decode_bool(deserializer);
     var var_last = sse_decode_opt_box_autoadd_message_view(deserializer);
     return ChatSummary(
       groupId: var_groupId,
@@ -1562,6 +1644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       peerDisplayName: var_peerDisplayName,
       peerUsername: var_peerUsername,
       request: var_request,
+      peerVerified: var_peerVerified,
       last: var_last,
     );
   }
@@ -1695,6 +1778,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_edited = sse_decode_bool(deserializer);
     var var_deleted = sse_decode_bool(deserializer);
     var var_reactions = sse_decode_list_reaction(deserializer);
+    var var_keyChange = sse_decode_bool(deserializer);
     return MessageView(
       groupId: var_groupId,
       messageId: var_messageId,
@@ -1707,6 +1791,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       edited: var_edited,
       deleted: var_deleted,
       reactions: var_reactions,
+      keyChange: var_keyChange,
     );
   }
 
@@ -1870,6 +1955,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.peerDisplayName, serializer);
     sse_encode_opt_String(self.peerUsername, serializer);
     sse_encode_bool(self.request, serializer);
+    sse_encode_bool(self.peerVerified, serializer);
     sse_encode_opt_box_autoadd_message_view(self.last, serializer);
   }
 
@@ -2001,6 +2087,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.edited, serializer);
     sse_encode_bool(self.deleted, serializer);
     sse_encode_list_reaction(self.reactions, serializer);
+    sse_encode_bool(self.keyChange, serializer);
   }
 
   @protected
@@ -2177,6 +2264,10 @@ class CoreImpl extends RustOpaque implements Core {
   Stream<CoreEvent> runStream() =>
       RustLib.instance.api.crateApiCoreCoreRunStream(that: this);
 
+  /// The chat's 60-digit safety number, also encoded in its QR code (CRY-12).
+  String? safetyNumber({required List<int> groupId}) => RustLib.instance.api
+      .crateApiCoreCoreSafetyNumber(that: this, groupId: groupId);
+
   /// Sends a text, optionally as a reply (MSG-07). On failure the message stays Failed.
   Future<MessageView> sendText({
     required List<int> groupId,
@@ -2233,6 +2324,16 @@ class CoreImpl extends RustOpaque implements Core {
     otp: otp,
     pin: pin,
     platform: platform,
+  );
+
+  /// A scanned code that matches marks the contact verified; false on mismatch.
+  bool verifySafetyNumber({
+    required List<int> groupId,
+    required String scanned,
+  }) => RustLib.instance.api.crateApiCoreCoreVerifySafetyNumber(
+    that: this,
+    groupId: groupId,
+    scanned: scanned,
   );
 
   /// Earlier texts of an edited message, oldest first (MSG-09).

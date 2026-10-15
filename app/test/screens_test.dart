@@ -80,6 +80,7 @@ class FakeCore implements Core {
         peerDisplayName: c.peerDisplayName,
         peerUsername: c.peerUsername,
         request: c.request,
+        peerVerified: verified.contains(base64Encode(c.groupId)),
         last: (history[base64Encode(c.groupId)] ?? []).lastOrNull,
       ),
   ];
@@ -90,12 +91,15 @@ class FakeCore implements Core {
     peerDisplayName: c.peerDisplayName,
     peerUsername: c.peerUsername,
     request: request,
+    peerVerified: false,
   );
 
   /// Someone who isn't a contact started a chat with us (MSG-15).
   void incomingRequest(String name) {
     final id = Uint8List.fromList(utf8.encode('g-req-$name'));
-    chatList.add(ChatSummary(groupId: id, peerAccount: Uint8List(16), peerDisplayName: name, request: true));
+    chatList.add(
+      ChatSummary(groupId: id, peerAccount: Uint8List(16), peerDisplayName: name, request: true, peerVerified: false),
+    );
     receive(id, 'hi, it is $name');
   }
 
@@ -125,7 +129,9 @@ class FakeCore implements Core {
   Future<Uint8List> startChat({required String username}) async {
     await _maybeFail('startChat $username');
     final id = Uint8List.fromList(utf8.encode('g-$username'));
-    chatList.add(ChatSummary(groupId: id, peerAccount: Uint8List(16), peerUsername: username, request: false));
+    chatList.add(
+      ChatSummary(groupId: id, peerAccount: Uint8List(16), peerUsername: username, request: false, peerVerified: false),
+    );
     return id;
   }
 
@@ -195,6 +201,16 @@ class FakeCore implements Core {
 
   @override
   List<String> versions({required List<int> messageId}) => versionsOf[base64Encode(messageId)] ?? [];
+  final verified = <String>{};
+  @override
+  String? safetyNumber({required List<int> groupId}) => '0123456789' * 6;
+  @override
+  bool verifySafetyNumber({required List<int> groupId, required String scanned}) {
+    final ok = scanned == safetyNumber(groupId: groupId);
+    if (ok) verified.add(base64Encode(groupId));
+    return ok;
+  }
+
   @override
   Future<void> markRead({required List<int> groupId}) async => calls.add('markRead');
   @override
@@ -211,7 +227,13 @@ class FakeCore implements Core {
 
   static int _n = 0;
   static int sentAt = DateTime(2026, 10, 15, 9, 30).millisecondsSinceEpoch;
-  static MessageView msg(List<int> groupId, String text, {required bool outgoing, Uint8List? replyTo}) => MessageView(
+  static MessageView msg(
+    List<int> groupId,
+    String text, {
+    required bool outgoing,
+    Uint8List? replyTo,
+    bool keyChange = false,
+  }) => MessageView(
     groupId: Uint8List.fromList(groupId),
     messageId: Uint8List.fromList([_n++]),
     senderAccount: Uint8List(16),
@@ -223,6 +245,7 @@ class FakeCore implements Core {
     edited: false,
     deleted: false,
     reactions: const [],
+    keyChange: keyChange,
   );
 
   static MessageView copy(
@@ -244,6 +267,7 @@ class FakeCore implements Core {
     edited: edited ?? m.edited,
     deleted: deleted ?? m.deleted,
     reactions: reactions ?? m.reactions,
+    keyChange: m.keyChange,
   );
 
   @override
@@ -541,5 +565,30 @@ void main() {
     await t.scrollUntilVisible(find.text('Typing indicators'), 100);
     await tapText(t, 'Typing indicators');
     expect(core.settings['typing_indicators'], 'off');
+  });
+
+  testWidgets('key change notice opens the safety number; verified shows a badge (CRY-12, CRY-13)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    (core.history[base64Encode(id)] ??= []).add(FakeCore.msg(id, '', outgoing: false, keyChange: true));
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.textContaining("@bob's safety number changed"), findsOneWidget);
+    expect(find.byIcon(Icons.verified_user), findsNothing);
+
+    await t.tap(find.textContaining('safety number changed'));
+    await t.pumpAndSettle();
+    expect(find.text('01234  56789  ' * 5 + '01234  56789'), findsOneWidget, reason: '60 digits in groups of 5');
+    expect(find.text('Scan their code'), findsOneWidget);
+
+    core.verifySafetyNumber(groupId: id, scanned: '0123456789' * 6); // what a successful scan does
+    await t.pageBack();
+    await t.pumpAndSettle();
+    core.events.add(const CoreEvent(kind: CoreEventKind.updated));
+    await t.pump();
+    await t.pump();
+    expect(find.byIcon(Icons.verified_user), findsOneWidget);
   });
 }

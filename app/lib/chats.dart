@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
+import 'safety.dart';
 import 'src/rust/api/core.dart';
 
 /// Keeps the message stream connected (SRV-03) and tells screens when something arrived.
@@ -500,14 +501,26 @@ class _ChatScreenState extends State<ChatScreen> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(chatTitle(t, c)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
+                    if (c.peerVerified) ...[
+                      const SizedBox(width: 6),
+                      Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
+                    ],
+                  ],
+                ),
                 if (widget.service.isTyping(_group)) Text(t.typing, style: Theme.of(context).textTheme.labelMedium),
               ],
             ),
             actions: [
               if (!c.request)
                 PopupMenuButton<void>(
-                  itemBuilder: (_) => [PopupMenuItem(onTap: () => _block(c), child: Text(t.block))],
+                  itemBuilder: (_) => [
+                    PopupMenuItem(onTap: () => _safety(c), child: Text(t.safetyNumber)),
+                    PopupMenuItem(onTap: () => _block(c), child: Text(t.block)),
+                  ],
                 ),
             ],
           ),
@@ -521,6 +534,13 @@ class _ChatScreenState extends State<ChatScreen> {
       },
     );
   }
+
+  void _safety(ChatSummary c) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          SafetyNumberScreen(core: core, groupId: _group, name: chatTitle(AppLocalizations.of(context)!, c)),
+    ),
+  );
 
   void _jumpTo(Uint8List messageId) {
     final ctx = _keys[base64Encode(messageId)]?.currentContext;
@@ -536,7 +556,12 @@ class _ChatScreenState extends State<ChatScreen> {
     return SingleChildScrollView(
       reverse: true,
       padding: const EdgeInsets.all(12),
-      child: Column(children: [for (final m in messages) _bubble(context, m, byId, c)]),
+      child: Column(
+        children: [
+          for (final m in messages)
+            if (m.keyChange) _keyChange(context, m, c) else _bubble(context, m, byId, c),
+        ],
+      ),
     );
   }
 
@@ -616,6 +641,22 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text([for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  ')),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// CRY-13: stays in the chat; no actions besides comparing the new number.
+  Widget _keyChange(BuildContext context, MessageView m, ChatSummary c) {
+    final t = AppLocalizations.of(context)!;
+    return Padding(
+      key: ValueKey(base64Encode(m.messageId)),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Card.outlined(
+        child: ListTile(
+          leading: const Icon(Icons.gpp_maybe_outlined),
+          title: Text(t.keyChanged(chatTitle(t, c)), style: Theme.of(context).textTheme.bodySmall),
+          onTap: () => _safety(c),
         ),
       ),
     );

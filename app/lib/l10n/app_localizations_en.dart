@@ -364,4 +364,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get close => 'Close';
+
+  @override
+  String get safetyNumber => 'Safety number';
+
+  @override
+  String safetyNumberHelp(String name) {
+    return 'Compare these numbers with $name, or scan their code when you\'re together. If they match, nobody is in the middle of your chat.';
+  }
+
+  @override
+  String get safetyNumberUnavailable =>
+      'The safety number isn\'t available yet.';
+
+  @override
+  String get scanCode => 'Scan their code';
+
+  @override
+  String get verified => 'Verified';
+
+  @override
+  String get verifiedDone => 'Verified. The safety number matches.';
+
+  @override
+  String verifyMismatch(String name) {
+    return 'This code doesn\'t match. Make sure you scan $name\'s code for this chat.';
+  }
+
+  @override
+  String keyChanged(String name) {
+    return '$name\'s safety number changed, for example because they reinstalled Siegel or got a new phone. Tap to compare.';
+  }
 }

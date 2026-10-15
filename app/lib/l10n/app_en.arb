@@ -157,5 +157,34 @@
   "typingIndicators": "Typing indicators",
   "typingIndicatorsHelp": "If you turn these off, you won't see when others are typing either.",
   "errNotAllowed": "That's no longer possible for this message.",
-  "close": "Close"
+  "close": "Close",
+  "safetyNumber": "Safety number",
+  "safetyNumberHelp": "Compare these numbers with {name}, or scan their code when you're together. If they match, nobody is in the middle of your chat.",
+  "@safetyNumberHelp": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "safetyNumberUnavailable": "The safety number isn't available yet.",
+  "scanCode": "Scan their code",
+  "verified": "Verified",
+  "verifiedDone": "Verified. The safety number matches.",
+  "verifyMismatch": "This code doesn't match. Make sure you scan {name}'s code for this chat.",
+  "@verifyMismatch": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "keyChanged": "{name}'s safety number changed, for example because they reinstalled Siegel or got a new phone. Tap to compare.",
+  "@keyChanged": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

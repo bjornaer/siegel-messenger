@@ -73,6 +73,9 @@ abstract class Core implements RustOpaqueInterface {
   /// Streams events until the connection closes; the caller reconnects with backoff.
   Stream<CoreEvent> runStream();
 
+  /// The chat's 60-digit safety number, also encoded in its QR code (CRY-12).
+  String? safetyNumber({required List<int> groupId});
+
   /// Sends a text, optionally as a reply (MSG-07). On failure the message stays Failed.
   Future<MessageView> sendText({
     required List<int> groupId,
@@ -106,6 +109,12 @@ abstract class Core implements RustOpaqueInterface {
     required DevicePlatform platform,
   });
 
+  /// A scanned code that matches marks the contact verified; false on mismatch.
+  bool verifySafetyNumber({
+    required List<int> groupId,
+    required String scanned,
+  });
+
   /// Earlier texts of an edited message, oldest first (MSG-09).
   List<String> versions({required List<int> messageId});
 }
@@ -121,6 +130,9 @@ class ChatSummary {
 
   /// An unaccepted message request (MSG-15).
   final bool request;
+
+  /// Safety number checked in person (CRY-12).
+  final bool peerVerified;
   final MessageView? last;
 
   const ChatSummary({
@@ -129,6 +141,7 @@ class ChatSummary {
     this.peerDisplayName,
     this.peerUsername,
     required this.request,
+    required this.peerVerified,
     this.last,
   });
 
@@ -139,6 +152,7 @@ class ChatSummary {
       peerDisplayName.hashCode ^
       peerUsername.hashCode ^
       request.hashCode ^
+      peerVerified.hashCode ^
       last.hashCode;
 
   @override
@@ -151,6 +165,7 @@ class ChatSummary {
           peerDisplayName == other.peerDisplayName &&
           peerUsername == other.peerUsername &&
           request == other.request &&
+          peerVerified == other.peerVerified &&
           last == other.last;
 }
 
@@ -231,6 +246,9 @@ class MessageView {
   final bool deleted;
   final List<Reaction> reactions;
 
+  /// CRY-13: a notice that the peer's safety number changed, not a message.
+  final bool keyChange;
+
   const MessageView({
     required this.groupId,
     required this.messageId,
@@ -243,6 +261,7 @@ class MessageView {
     required this.edited,
     required this.deleted,
     required this.reactions,
+    required this.keyChange,
   });
 
   @override
@@ -257,7 +276,8 @@ class MessageView {
       status.hashCode ^
       edited.hashCode ^
       deleted.hashCode ^
-      reactions.hashCode;
+      reactions.hashCode ^
+      keyChange.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -274,7 +294,8 @@ class MessageView {
           status == other.status &&
           edited == other.edited &&
           deleted == other.deleted &&
-          reactions == other.reactions;
+          reactions == other.reactions &&
+          keyChange == other.keyChange;
 }
 
 class Reaction {

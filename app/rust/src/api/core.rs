@@ -108,6 +108,8 @@ pub struct ChatSummary {
     pub peer_username: Option<String>,
     /// An unaccepted message request (MSG-15).
     pub request: bool,
+    /// Safety number checked in person (CRY-12).
+    pub peer_verified: bool,
     pub last: Option<MessageView>,
 }
 
@@ -126,6 +128,8 @@ pub struct MessageView {
     pub edited: bool,
     pub deleted: bool,
     pub reactions: Vec<Reaction>,
+    /// CRY-13: a notice that the peer's safety number changed, not a message.
+    pub key_change: bool,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -167,6 +171,7 @@ impl From<core_api::ChatMessage> for MessageView {
                 .into_iter()
                 .map(|(account, emoji)| Reaction { account, emoji })
                 .collect(),
+            key_change: m.key_change,
         }
     }
 }
@@ -213,7 +218,10 @@ impl Core {
             out.push(ChatSummary {
                 peer_display_name: contact.as_ref().and_then(|k| k.display_name.clone()),
                 peer_username: contact.as_ref().and_then(|k| k.username.clone()),
-                request: contact.is_none_or(|k| k.state != core_api::ContactState::Accepted),
+                request: contact
+                    .as_ref()
+                    .is_none_or(|k| k.state != core_api::ContactState::Accepted),
+                peer_verified: contact.is_some_and(|k| k.verified),
                 group_id: c.group_id,
                 peer_account: c.peer_account,
                 last,
@@ -307,6 +315,22 @@ impl Core {
 
     pub async fn mark_read(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
         Ok(self.0.mark_read(&group_id).await?)
+    }
+
+    /// The chat's 60-digit safety number, also encoded in its QR code (CRY-12).
+    #[frb(sync)]
+    pub fn safety_number(&self, group_id: Vec<u8>) -> Result<Option<String>, CoreError> {
+        Ok(self.0.safety_number(&group_id)?)
+    }
+
+    /// A scanned code that matches marks the contact verified; false on mismatch.
+    #[frb(sync)]
+    pub fn verify_safety_number(
+        &self,
+        group_id: Vec<u8>,
+        scanned: String,
+    ) -> Result<bool, CoreError> {
+        Ok(self.0.verify_safety_number(&group_id, &scanned)?)
     }
 
     /// Call at most every 3 seconds while typing (MSG-14).
