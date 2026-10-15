@@ -173,6 +173,18 @@ func TestRegistration(t *testing.T) { // ID-01..ID-05, CRY-08
 	e.otp(p2)
 	want(t, errMsg(e.otp(p2)), "rate_limited")
 
+	// The store review number gets its fixed code and no SMS.
+	e.s.cfg.reviewPhone, e.s.cfg.reviewCode = "+34600000099", "424242"
+	if err := e.otp("+34600000099"); err != nil {
+		t.Fatal(err)
+	}
+	if _, sent := e.sms["+34600000099"]; sent {
+		t.Fatal("review number got an SMS")
+	}
+	if _, _, err := e.verify("+34600000099", "424242", ""); err != nil {
+		t.Fatal(err)
+	}
+
 	var l ipLimiter
 	for range 10 {
 		l.allow("1.2.3.4", 10)

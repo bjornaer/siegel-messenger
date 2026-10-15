@@ -133,8 +133,11 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	} else if !ok {
 		return nil, cerr(connect.CodeResourceExhausted, "rate_limited")
 	}
+	review := s.cfg.reviewPhone != "" && phone == s.cfg.reviewPhone
 	// ponytail: caps SMS count, not spend; switch to per-country cost once the provider is chosen (Q2, Q9).
-	if ok, err := s.hit(ctx, "sms:global", 24*time.Hour, s.cfg.smsDailyCap); err != nil {
+	if review {
+		// App store reviewers can't receive our SMS: their number has a fixed code instead.
+	} else if ok, err := s.hit(ctx, "sms:global", 24*time.Hour, s.cfg.smsDailyCap); err != nil {
 		return nil, internal(err)
 	} else if !ok {
 		slog.Error("global daily SMS cap reached")
@@ -142,10 +145,16 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	}
 	n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	code := fmt.Sprintf("%06d", n)
+	if review {
+		code = s.cfg.reviewCode
+	}
 	if _, err := s.db.Exec(ctx, `INSERT INTO otps (phone_hmac, code, expires_at) VALUES ($1, $2, $3)
 		ON CONFLICT (phone_hmac) DO UPDATE SET code = $2, attempts = 0, expires_at = $3`,
 		h, code, time.Now().Add(s.cfg.otpTTL)); err != nil {
 		return nil, internal(err)
+	}
+	if review {
+		return connect.NewResponse(&siegelv1.RequestOtpResponse{}), nil
 	}
 	if err := s.sendSMS(ctx, phone, code); err != nil {
 		return nil, internal(err)

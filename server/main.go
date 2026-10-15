@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -55,6 +56,8 @@ type config struct {
 	alertURL      string  // webhook for operator alerts (plain-text POST, e.g. an ntfy.sh topic)
 	otpAlertRate  float64 // ID-04: alert below this OTP completion rate over 24 h
 	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
+	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
+	reviewCode    string
 }
 
 func loadConfig() config {
@@ -91,6 +94,9 @@ func loadConfig() config {
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
+	}
+	if c.reviewPhone, c.reviewCode = os.Getenv("SIEGEL_REVIEW_PHONE"), os.Getenv("SIEGEL_REVIEW_CODE"); c.reviewPhone != "" && !regexp.MustCompile(`^\d{6}$`).MatchString(c.reviewCode) {
+		fatal("SIEGEL_REVIEW_CODE must be 6 digits when SIEGEL_REVIEW_PHONE is set")
 	}
 	if c.baoAddr == "" || c.baoToken == "" {
 		fatal("SIEGEL_BAO_ADDR and SIEGEL_BAO_TOKEN are required")

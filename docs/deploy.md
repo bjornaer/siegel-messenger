@@ -119,3 +119,17 @@ phone numbers again (threat model T1). Before launch:
 3. Migrate the keys: either move the `baodata` volume as-is (same unseal key), or init fresh and
    re-register test accounts (a new pepper orphans existing ones).
 4. In `.env`: drop `COMPOSE_PROFILES`, set `SIEGEL_BAO_ADDR=http://<private IP>:8200`.
+
+## 6. App store review account
+
+Store reviewers can't receive our SMS, so one number can be given a fixed code.
+
+1. Pick a number nobody uses and that can't be someone's real phone: for example one from
+   a range your telecom regulator reserves for fiction or testing in the launch country,
+   otherwise a number you own.
+2. Set `SIEGEL_REVIEW_PHONE` (E.164) and `SIEGEL_REVIEW_CODE` (6 random digits) in
+   `/opt/siegel/.env`, then `docker compose up -d server`. That number never gets an SMS and
+   doesn't count against the SMS cap.
+3. Give both to the store in the review notes. Anyone who learns them can register that
+   number, so it must never hold a real person's account. Rotate the code after each review.
+
