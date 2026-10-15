@@ -5,6 +5,11 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+  # Unmaintained, not vulnerable: a compile-time proc-macro helper (hax-lib-macros <- libcrux,
+  # OpenMLS's crypto). No code from it ships in the app. Revisit when libcrux drops it.
+  { id = "RUSTSEC-2026-0173", reason = "build-time only, unmaintained notice" },
+]
 
 [licenses]
 version = 2
