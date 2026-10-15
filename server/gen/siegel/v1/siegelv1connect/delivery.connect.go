@@ -41,6 +41,9 @@ const (
 	KeysServiceUploadProcedure = "/siegel.v1.KeysService/Upload"
 	// KeysServiceClaimProcedure is the fully-qualified name of the KeysService's Claim RPC.
 	KeysServiceClaimProcedure = "/siegel.v1.KeysService/Claim"
+	// MessagesServiceSendSealedProcedure is the fully-qualified name of the MessagesService's
+	// SendSealed RPC.
+	MessagesServiceSendSealedProcedure = "/siegel.v1.MessagesService/SendSealed"
 	// MessagesServiceSendIdentifiedProcedure is the fully-qualified name of the MessagesService's
 	// SendIdentified RPC.
 	MessagesServiceSendIdentifiedProcedure = "/siegel.v1.MessagesService/SendIdentified"
@@ -154,8 +157,12 @@ func (UnimplementedKeysServiceHandler) Claim(context.Context, *connect.Request[v
 
 // MessagesServiceClient is a client for the siegel.v1.MessagesService service.
 type MessagesServiceClient interface {
-	// Queues one payload for each recipient device. Authenticated: used for first contact
-	// (MSG-15) until sealed sender lands (MSG-10).
+	// Sealed sender (MSG-10): no authentication, so the server learns recipients but not the
+	// sender. Each recipient needs its delivery token, which only holders of its profile key can
+	// derive. Rate-limited per IP.
+	SendSealed(context.Context, *connect.Request[v1.MessagesServiceSendSealedRequest]) (*connect.Response[v1.MessagesServiceSendSealedResponse], error)
+	// Queues one payload for each recipient device, authenticated. For first contact with
+	// non-contacts, whose messages land in message requests (MSG-15).
 	SendIdentified(context.Context, *connect.Request[v1.MessagesServiceSendIdentifiedRequest]) (*connect.Response[v1.MessagesServiceSendIdentifiedResponse], error)
 }
 
@@ -170,6 +177,12 @@ func NewMessagesServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	messagesServiceMethods := v1.File_siegel_v1_delivery_proto.Services().ByName("MessagesService").Methods()
 	return &messagesServiceClient{
+		sendSealed: connect.NewClient[v1.MessagesServiceSendSealedRequest, v1.MessagesServiceSendSealedResponse](
+			httpClient,
+			baseURL+MessagesServiceSendSealedProcedure,
+			connect.WithSchema(messagesServiceMethods.ByName("SendSealed")),
+			connect.WithClientOptions(opts...),
+		),
 		sendIdentified: connect.NewClient[v1.MessagesServiceSendIdentifiedRequest, v1.MessagesServiceSendIdentifiedResponse](
 			httpClient,
 			baseURL+MessagesServiceSendIdentifiedProcedure,
@@ -181,7 +194,13 @@ func NewMessagesServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // messagesServiceClient implements MessagesServiceClient.
 type messagesServiceClient struct {
+	sendSealed     *connect.Client[v1.MessagesServiceSendSealedRequest, v1.MessagesServiceSendSealedResponse]
 	sendIdentified *connect.Client[v1.MessagesServiceSendIdentifiedRequest, v1.MessagesServiceSendIdentifiedResponse]
+}
+
+// SendSealed calls siegel.v1.MessagesService.SendSealed.
+func (c *messagesServiceClient) SendSealed(ctx context.Context, req *connect.Request[v1.MessagesServiceSendSealedRequest]) (*connect.Response[v1.MessagesServiceSendSealedResponse], error) {
+	return c.sendSealed.CallUnary(ctx, req)
 }
 
 // SendIdentified calls siegel.v1.MessagesService.SendIdentified.
@@ -191,8 +210,12 @@ func (c *messagesServiceClient) SendIdentified(ctx context.Context, req *connect
 
 // MessagesServiceHandler is an implementation of the siegel.v1.MessagesService service.
 type MessagesServiceHandler interface {
-	// Queues one payload for each recipient device. Authenticated: used for first contact
-	// (MSG-15) until sealed sender lands (MSG-10).
+	// Sealed sender (MSG-10): no authentication, so the server learns recipients but not the
+	// sender. Each recipient needs its delivery token, which only holders of its profile key can
+	// derive. Rate-limited per IP.
+	SendSealed(context.Context, *connect.Request[v1.MessagesServiceSendSealedRequest]) (*connect.Response[v1.MessagesServiceSendSealedResponse], error)
+	// Queues one payload for each recipient device, authenticated. For first contact with
+	// non-contacts, whose messages land in message requests (MSG-15).
 	SendIdentified(context.Context, *connect.Request[v1.MessagesServiceSendIdentifiedRequest]) (*connect.Response[v1.MessagesServiceSendIdentifiedResponse], error)
 }
 
@@ -203,6 +226,12 @@ type MessagesServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMessagesServiceHandler(svc MessagesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	messagesServiceMethods := v1.File_siegel_v1_delivery_proto.Services().ByName("MessagesService").Methods()
+	messagesServiceSendSealedHandler := connect.NewUnaryHandler(
+		MessagesServiceSendSealedProcedure,
+		svc.SendSealed,
+		connect.WithSchema(messagesServiceMethods.ByName("SendSealed")),
+		connect.WithHandlerOptions(opts...),
+	)
 	messagesServiceSendIdentifiedHandler := connect.NewUnaryHandler(
 		MessagesServiceSendIdentifiedProcedure,
 		svc.SendIdentified,
@@ -211,6 +240,8 @@ func NewMessagesServiceHandler(svc MessagesServiceHandler, opts ...connect.Handl
 	)
 	return "/siegel.v1.MessagesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MessagesServiceSendSealedProcedure:
+			messagesServiceSendSealedHandler.ServeHTTP(w, r)
 		case MessagesServiceSendIdentifiedProcedure:
 			messagesServiceSendIdentifiedHandler.ServeHTTP(w, r)
 		default:
@@ -221,6 +252,10 @@ func NewMessagesServiceHandler(svc MessagesServiceHandler, opts ...connect.Handl
 
 // UnimplementedMessagesServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMessagesServiceHandler struct{}
+
+func (UnimplementedMessagesServiceHandler) SendSealed(context.Context, *connect.Request[v1.MessagesServiceSendSealedRequest]) (*connect.Response[v1.MessagesServiceSendSealedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.MessagesService.SendSealed is not implemented"))
+}
 
 func (UnimplementedMessagesServiceHandler) SendIdentified(context.Context, *connect.Request[v1.MessagesServiceSendIdentifiedRequest]) (*connect.Response[v1.MessagesServiceSendIdentifiedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.MessagesService.SendIdentified is not implemented"))

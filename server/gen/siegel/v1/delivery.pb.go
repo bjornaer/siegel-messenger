@@ -309,6 +309,164 @@ func (x *KeysServiceClaimResponse) GetKeyPackages() []*ClaimedKeyPackage {
 	return nil
 }
 
+type SealedRecipient struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       *DeviceAddress         `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	DeliveryToken []byte                 `protobuf:"bytes,2,opt,name=delivery_token,json=deliveryToken,proto3" json:"delivery_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SealedRecipient) Reset() {
+	*x = SealedRecipient{}
+	mi := &file_siegel_v1_delivery_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SealedRecipient) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SealedRecipient) ProtoMessage() {}
+
+func (x *SealedRecipient) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_delivery_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SealedRecipient.ProtoReflect.Descriptor instead.
+func (*SealedRecipient) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SealedRecipient) GetAddress() *DeviceAddress {
+	if x != nil {
+		return x.Address
+	}
+	return nil
+}
+
+func (x *SealedRecipient) GetDeliveryToken() []byte {
+	if x != nil {
+		return x.DeliveryToken
+	}
+	return nil
+}
+
+type MessagesServiceSendSealedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Recipients    []*SealedRecipient     `protobuf:"bytes,1,rep,name=recipients,proto3" json:"recipients,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessagesServiceSendSealedRequest) Reset() {
+	*x = MessagesServiceSendSealedRequest{}
+	mi := &file_siegel_v1_delivery_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessagesServiceSendSealedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessagesServiceSendSealedRequest) ProtoMessage() {}
+
+func (x *MessagesServiceSendSealedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_delivery_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessagesServiceSendSealedRequest.ProtoReflect.Descriptor instead.
+func (*MessagesServiceSendSealedRequest) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MessagesServiceSendSealedRequest) GetRecipients() []*SealedRecipient {
+	if x != nil {
+		return x.Recipients
+	}
+	return nil
+}
+
+func (x *MessagesServiceSendSealedRequest) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+type MessagesServiceSendSealedResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Revoked []*DeviceAddress       `protobuf:"bytes,1,rep,name=revoked,proto3" json:"revoked,omitempty"`
+	// Recipients whose token did not match (profile key rotated, e.g. after a block). Nothing
+	// was queued for them; the client may retry identified.
+	Rejected      []*DeviceAddress `protobuf:"bytes,2,rep,name=rejected,proto3" json:"rejected,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessagesServiceSendSealedResponse) Reset() {
+	*x = MessagesServiceSendSealedResponse{}
+	mi := &file_siegel_v1_delivery_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessagesServiceSendSealedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessagesServiceSendSealedResponse) ProtoMessage() {}
+
+func (x *MessagesServiceSendSealedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_delivery_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessagesServiceSendSealedResponse.ProtoReflect.Descriptor instead.
+func (*MessagesServiceSendSealedResponse) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MessagesServiceSendSealedResponse) GetRevoked() []*DeviceAddress {
+	if x != nil {
+		return x.Revoked
+	}
+	return nil
+}
+
+func (x *MessagesServiceSendSealedResponse) GetRejected() []*DeviceAddress {
+	if x != nil {
+		return x.Rejected
+	}
+	return nil
+}
+
 type MessagesServiceSendIdentifiedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Recipients    []*DeviceAddress       `protobuf:"bytes,1,rep,name=recipients,proto3" json:"recipients,omitempty"`
@@ -319,7 +477,7 @@ type MessagesServiceSendIdentifiedRequest struct {
 
 func (x *MessagesServiceSendIdentifiedRequest) Reset() {
 	*x = MessagesServiceSendIdentifiedRequest{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[6]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +489,7 @@ func (x *MessagesServiceSendIdentifiedRequest) String() string {
 func (*MessagesServiceSendIdentifiedRequest) ProtoMessage() {}
 
 func (x *MessagesServiceSendIdentifiedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[6]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +502,7 @@ func (x *MessagesServiceSendIdentifiedRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use MessagesServiceSendIdentifiedRequest.ProtoReflect.Descriptor instead.
 func (*MessagesServiceSendIdentifiedRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{6}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MessagesServiceSendIdentifiedRequest) GetRecipients() []*DeviceAddress {
@@ -371,7 +529,7 @@ type MessagesServiceSendIdentifiedResponse struct {
 
 func (x *MessagesServiceSendIdentifiedResponse) Reset() {
 	*x = MessagesServiceSendIdentifiedResponse{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[7]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -383,7 +541,7 @@ func (x *MessagesServiceSendIdentifiedResponse) String() string {
 func (*MessagesServiceSendIdentifiedResponse) ProtoMessage() {}
 
 func (x *MessagesServiceSendIdentifiedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[7]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -396,7 +554,7 @@ func (x *MessagesServiceSendIdentifiedResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use MessagesServiceSendIdentifiedResponse.ProtoReflect.Descriptor instead.
 func (*MessagesServiceSendIdentifiedResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{7}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MessagesServiceSendIdentifiedResponse) GetRevoked() []*DeviceAddress {
@@ -420,7 +578,7 @@ type GroupsServiceCommitRequest struct {
 
 func (x *GroupsServiceCommitRequest) Reset() {
 	*x = GroupsServiceCommitRequest{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[8]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +590,7 @@ func (x *GroupsServiceCommitRequest) String() string {
 func (*GroupsServiceCommitRequest) ProtoMessage() {}
 
 func (x *GroupsServiceCommitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[8]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +603,7 @@ func (x *GroupsServiceCommitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupsServiceCommitRequest.ProtoReflect.Descriptor instead.
 func (*GroupsServiceCommitRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{8}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GroupsServiceCommitRequest) GetGroupId() []byte {
@@ -499,7 +657,7 @@ type GroupsServiceCommitResponse struct {
 
 func (x *GroupsServiceCommitResponse) Reset() {
 	*x = GroupsServiceCommitResponse{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[9]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +669,7 @@ func (x *GroupsServiceCommitResponse) String() string {
 func (*GroupsServiceCommitResponse) ProtoMessage() {}
 
 func (x *GroupsServiceCommitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[9]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +682,7 @@ func (x *GroupsServiceCommitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupsServiceCommitResponse.ProtoReflect.Descriptor instead.
 func (*GroupsServiceCommitResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{9}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GroupsServiceCommitResponse) GetRevoked() []*DeviceAddress {
@@ -549,7 +707,7 @@ type StreamFrame struct {
 
 func (x *StreamFrame) Reset() {
 	*x = StreamFrame{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[10]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -561,7 +719,7 @@ func (x *StreamFrame) String() string {
 func (*StreamFrame) ProtoMessage() {}
 
 func (x *StreamFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[10]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +732,7 @@ func (x *StreamFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamFrame.ProtoReflect.Descriptor instead.
 func (*StreamFrame) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{10}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StreamFrame) GetKind() isStreamFrame_Kind {
@@ -629,7 +787,7 @@ type QueuedMessage struct {
 
 func (x *QueuedMessage) Reset() {
 	*x = QueuedMessage{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[11]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +799,7 @@ func (x *QueuedMessage) String() string {
 func (*QueuedMessage) ProtoMessage() {}
 
 func (x *QueuedMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[11]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +812,7 @@ func (x *QueuedMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueuedMessage.ProtoReflect.Descriptor instead.
 func (*QueuedMessage) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{11}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *QueuedMessage) GetId() int64 {
@@ -679,7 +837,7 @@ type Deregistered struct {
 
 func (x *Deregistered) Reset() {
 	*x = Deregistered{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[12]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +849,7 @@ func (x *Deregistered) String() string {
 func (*Deregistered) ProtoMessage() {}
 
 func (x *Deregistered) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[12]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +862,7 @@ func (x *Deregistered) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Deregistered.ProtoReflect.Descriptor instead.
 func (*Deregistered) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{12}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{15}
 }
 
 type StreamAck struct {
@@ -716,7 +874,7 @@ type StreamAck struct {
 
 func (x *StreamAck) Reset() {
 	*x = StreamAck{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[13]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +886,7 @@ func (x *StreamAck) String() string {
 func (*StreamAck) ProtoMessage() {}
 
 func (x *StreamAck) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[13]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +899,7 @@ func (x *StreamAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamAck.ProtoReflect.Descriptor instead.
 func (*StreamAck) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{13}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StreamAck) GetIds() []int64 {
@@ -774,7 +932,18 @@ const file_siegel_v1_delivery_proto_rawDesc = "" +
 	"\vkey_package\x18\x02 \x01(\fR\n" +
 	"keyPackage\"[\n" +
 	"\x18KeysServiceClaimResponse\x12?\n" +
-	"\fkey_packages\x18\x01 \x03(\v2\x1c.siegel.v1.ClaimedKeyPackageR\vkeyPackages\"z\n" +
+	"\fkey_packages\x18\x01 \x03(\v2\x1c.siegel.v1.ClaimedKeyPackageR\vkeyPackages\"l\n" +
+	"\x0fSealedRecipient\x122\n" +
+	"\aaddress\x18\x01 \x01(\v2\x18.siegel.v1.DeviceAddressR\aaddress\x12%\n" +
+	"\x0edelivery_token\x18\x02 \x01(\fR\rdeliveryToken\"x\n" +
+	" MessagesServiceSendSealedRequest\x12:\n" +
+	"\n" +
+	"recipients\x18\x01 \x03(\v2\x1a.siegel.v1.SealedRecipientR\n" +
+	"recipients\x12\x18\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\"\x8d\x01\n" +
+	"!MessagesServiceSendSealedResponse\x122\n" +
+	"\arevoked\x18\x01 \x03(\v2\x18.siegel.v1.DeviceAddressR\arevoked\x124\n" +
+	"\brejected\x18\x02 \x03(\v2\x18.siegel.v1.DeviceAddressR\brejected\"z\n" +
 	"$MessagesServiceSendIdentifiedRequest\x128\n" +
 	"\n" +
 	"recipients\x18\x01 \x03(\v2\x18.siegel.v1.DeviceAddressR\n" +
@@ -805,8 +974,10 @@ const file_siegel_v1_delivery_proto_rawDesc = "" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids2\xb4\x01\n" +
 	"\vKeysService\x12S\n" +
 	"\x06Upload\x12#.siegel.v1.KeysServiceUploadRequest\x1a$.siegel.v1.KeysServiceUploadResponse\x12P\n" +
-	"\x05Claim\x12\".siegel.v1.KeysServiceClaimRequest\x1a#.siegel.v1.KeysServiceClaimResponse2\x86\x01\n" +
-	"\x0fMessagesService\x12s\n" +
+	"\x05Claim\x12\".siegel.v1.KeysServiceClaimRequest\x1a#.siegel.v1.KeysServiceClaimResponse2\xef\x01\n" +
+	"\x0fMessagesService\x12g\n" +
+	"\n" +
+	"SendSealed\x12+.siegel.v1.MessagesServiceSendSealedRequest\x1a,.siegel.v1.MessagesServiceSendSealedResponse\x12s\n" +
 	"\x0eSendIdentified\x12/.siegel.v1.MessagesServiceSendIdentifiedRequest\x1a0.siegel.v1.MessagesServiceSendIdentifiedResponse2h\n" +
 	"\rGroupsService\x12W\n" +
 	"\x06Commit\x12%.siegel.v1.GroupsServiceCommitRequest\x1a&.siegel.v1.GroupsServiceCommitResponseBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
@@ -823,7 +994,7 @@ func file_siegel_v1_delivery_proto_rawDescGZIP() []byte {
 	return file_siegel_v1_delivery_proto_rawDescData
 }
 
-var file_siegel_v1_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_siegel_v1_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_siegel_v1_delivery_proto_goTypes = []any{
 	(*DeviceAddress)(nil),                         // 0: siegel.v1.DeviceAddress
 	(*KeysServiceUploadRequest)(nil),              // 1: siegel.v1.KeysServiceUploadRequest
@@ -831,37 +1002,46 @@ var file_siegel_v1_delivery_proto_goTypes = []any{
 	(*KeysServiceClaimRequest)(nil),               // 3: siegel.v1.KeysServiceClaimRequest
 	(*ClaimedKeyPackage)(nil),                     // 4: siegel.v1.ClaimedKeyPackage
 	(*KeysServiceClaimResponse)(nil),              // 5: siegel.v1.KeysServiceClaimResponse
-	(*MessagesServiceSendIdentifiedRequest)(nil),  // 6: siegel.v1.MessagesServiceSendIdentifiedRequest
-	(*MessagesServiceSendIdentifiedResponse)(nil), // 7: siegel.v1.MessagesServiceSendIdentifiedResponse
-	(*GroupsServiceCommitRequest)(nil),            // 8: siegel.v1.GroupsServiceCommitRequest
-	(*GroupsServiceCommitResponse)(nil),           // 9: siegel.v1.GroupsServiceCommitResponse
-	(*StreamFrame)(nil),                           // 10: siegel.v1.StreamFrame
-	(*QueuedMessage)(nil),                         // 11: siegel.v1.QueuedMessage
-	(*Deregistered)(nil),                          // 12: siegel.v1.Deregistered
-	(*StreamAck)(nil),                             // 13: siegel.v1.StreamAck
+	(*SealedRecipient)(nil),                       // 6: siegel.v1.SealedRecipient
+	(*MessagesServiceSendSealedRequest)(nil),      // 7: siegel.v1.MessagesServiceSendSealedRequest
+	(*MessagesServiceSendSealedResponse)(nil),     // 8: siegel.v1.MessagesServiceSendSealedResponse
+	(*MessagesServiceSendIdentifiedRequest)(nil),  // 9: siegel.v1.MessagesServiceSendIdentifiedRequest
+	(*MessagesServiceSendIdentifiedResponse)(nil), // 10: siegel.v1.MessagesServiceSendIdentifiedResponse
+	(*GroupsServiceCommitRequest)(nil),            // 11: siegel.v1.GroupsServiceCommitRequest
+	(*GroupsServiceCommitResponse)(nil),           // 12: siegel.v1.GroupsServiceCommitResponse
+	(*StreamFrame)(nil),                           // 13: siegel.v1.StreamFrame
+	(*QueuedMessage)(nil),                         // 14: siegel.v1.QueuedMessage
+	(*Deregistered)(nil),                          // 15: siegel.v1.Deregistered
+	(*StreamAck)(nil),                             // 16: siegel.v1.StreamAck
 }
 var file_siegel_v1_delivery_proto_depIdxs = []int32{
 	4,  // 0: siegel.v1.KeysServiceClaimResponse.key_packages:type_name -> siegel.v1.ClaimedKeyPackage
-	0,  // 1: siegel.v1.MessagesServiceSendIdentifiedRequest.recipients:type_name -> siegel.v1.DeviceAddress
-	0,  // 2: siegel.v1.MessagesServiceSendIdentifiedResponse.revoked:type_name -> siegel.v1.DeviceAddress
-	0,  // 3: siegel.v1.GroupsServiceCommitRequest.recipients:type_name -> siegel.v1.DeviceAddress
-	0,  // 4: siegel.v1.GroupsServiceCommitRequest.welcome_recipients:type_name -> siegel.v1.DeviceAddress
-	0,  // 5: siegel.v1.GroupsServiceCommitResponse.revoked:type_name -> siegel.v1.DeviceAddress
-	11, // 6: siegel.v1.StreamFrame.message:type_name -> siegel.v1.QueuedMessage
-	12, // 7: siegel.v1.StreamFrame.deregistered:type_name -> siegel.v1.Deregistered
-	1,  // 8: siegel.v1.KeysService.Upload:input_type -> siegel.v1.KeysServiceUploadRequest
-	3,  // 9: siegel.v1.KeysService.Claim:input_type -> siegel.v1.KeysServiceClaimRequest
-	6,  // 10: siegel.v1.MessagesService.SendIdentified:input_type -> siegel.v1.MessagesServiceSendIdentifiedRequest
-	8,  // 11: siegel.v1.GroupsService.Commit:input_type -> siegel.v1.GroupsServiceCommitRequest
-	2,  // 12: siegel.v1.KeysService.Upload:output_type -> siegel.v1.KeysServiceUploadResponse
-	5,  // 13: siegel.v1.KeysService.Claim:output_type -> siegel.v1.KeysServiceClaimResponse
-	7,  // 14: siegel.v1.MessagesService.SendIdentified:output_type -> siegel.v1.MessagesServiceSendIdentifiedResponse
-	9,  // 15: siegel.v1.GroupsService.Commit:output_type -> siegel.v1.GroupsServiceCommitResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	0,  // 1: siegel.v1.SealedRecipient.address:type_name -> siegel.v1.DeviceAddress
+	6,  // 2: siegel.v1.MessagesServiceSendSealedRequest.recipients:type_name -> siegel.v1.SealedRecipient
+	0,  // 3: siegel.v1.MessagesServiceSendSealedResponse.revoked:type_name -> siegel.v1.DeviceAddress
+	0,  // 4: siegel.v1.MessagesServiceSendSealedResponse.rejected:type_name -> siegel.v1.DeviceAddress
+	0,  // 5: siegel.v1.MessagesServiceSendIdentifiedRequest.recipients:type_name -> siegel.v1.DeviceAddress
+	0,  // 6: siegel.v1.MessagesServiceSendIdentifiedResponse.revoked:type_name -> siegel.v1.DeviceAddress
+	0,  // 7: siegel.v1.GroupsServiceCommitRequest.recipients:type_name -> siegel.v1.DeviceAddress
+	0,  // 8: siegel.v1.GroupsServiceCommitRequest.welcome_recipients:type_name -> siegel.v1.DeviceAddress
+	0,  // 9: siegel.v1.GroupsServiceCommitResponse.revoked:type_name -> siegel.v1.DeviceAddress
+	14, // 10: siegel.v1.StreamFrame.message:type_name -> siegel.v1.QueuedMessage
+	15, // 11: siegel.v1.StreamFrame.deregistered:type_name -> siegel.v1.Deregistered
+	1,  // 12: siegel.v1.KeysService.Upload:input_type -> siegel.v1.KeysServiceUploadRequest
+	3,  // 13: siegel.v1.KeysService.Claim:input_type -> siegel.v1.KeysServiceClaimRequest
+	7,  // 14: siegel.v1.MessagesService.SendSealed:input_type -> siegel.v1.MessagesServiceSendSealedRequest
+	9,  // 15: siegel.v1.MessagesService.SendIdentified:input_type -> siegel.v1.MessagesServiceSendIdentifiedRequest
+	11, // 16: siegel.v1.GroupsService.Commit:input_type -> siegel.v1.GroupsServiceCommitRequest
+	2,  // 17: siegel.v1.KeysService.Upload:output_type -> siegel.v1.KeysServiceUploadResponse
+	5,  // 18: siegel.v1.KeysService.Claim:output_type -> siegel.v1.KeysServiceClaimResponse
+	8,  // 19: siegel.v1.MessagesService.SendSealed:output_type -> siegel.v1.MessagesServiceSendSealedResponse
+	10, // 20: siegel.v1.MessagesService.SendIdentified:output_type -> siegel.v1.MessagesServiceSendIdentifiedResponse
+	12, // 21: siegel.v1.GroupsService.Commit:output_type -> siegel.v1.GroupsServiceCommitResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_delivery_proto_init() }
@@ -869,7 +1049,7 @@ func file_siegel_v1_delivery_proto_init() {
 	if File_siegel_v1_delivery_proto != nil {
 		return
 	}
-	file_siegel_v1_delivery_proto_msgTypes[10].OneofWrappers = []any{
+	file_siegel_v1_delivery_proto_msgTypes[13].OneofWrappers = []any{
 		(*StreamFrame_Message)(nil),
 		(*StreamFrame_Deregistered)(nil),
 	}
@@ -879,7 +1059,7 @@ func file_siegel_v1_delivery_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_delivery_proto_rawDesc), len(file_siegel_v1_delivery_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

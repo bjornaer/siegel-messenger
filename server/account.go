@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/argon2"
 
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
+	"github.com/bjornaer/siegel-messenger/server/gen/siegel/v1/siegelv1connect"
 )
 
 type callerKey struct{}
@@ -44,6 +45,9 @@ func (s *server) authenticate(ctx context.Context, header string) (c caller, fou
 func (s *server) authed() connect.Option {
 	return connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			if req.Spec().Procedure == siegelv1connect.MessagesServiceSendSealedProcedure {
+				return next(ctx, req) // sealed sender: deliberately anonymous (MSG-10)
+			}
 			c, found, err := s.authenticate(ctx, req.Header().Get("Authorization"))
 			if err != nil {
 				return nil, internal(err)

@@ -12,7 +12,21 @@ message Content {
   int64 sent_at = 2;    // sender clock, ms since the Unix epoch
   oneof body {
     Text text = 3;
+    ProfileKeyUpdate profile_key_update = 4;
   }
+}
+
+// MSG-02 profile_key_update: shares the sender's profile key with the group, which lets
+// receivers fetch and decrypt the sender's profile and derive its delivery token (MSG-10).
+message ProfileKeyUpdate {
+  bytes profile_key = 1;
+}
+
+// The plaintext of an encrypted profile (server stores only the ciphertext).
+message Profile {
+  string display_name = 1;
+  string username = 2;
+  bytes padding = 15; // fills the plaintext to a 256-byte bucket so name length stays hidden
 }
 
 message Text {

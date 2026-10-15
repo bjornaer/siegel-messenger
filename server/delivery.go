@@ -120,6 +120,12 @@ func (s *server) Commit(ctx context.Context, req *connect.Request[siegelv1.Group
 		// First writer wins (CRY-14): only the commit built on the current epoch moves it forward.
 		q := `UPDATE groups SET epoch = epoch + 1, updated_at = now() WHERE group_id = $1 AND epoch = $2`
 		if m.Epoch == 0 {
+			// CMP-04: cap new conversations per account per day (spam without content access).
+			if ok, err := s.hit(ctx, fmt.Sprintf("newchat:%x", account(ctx)), 24*time.Hour, s.cfg.newChatPerDay); err != nil {
+				return err
+			} else if !ok {
+				return cerr(connect.CodeResourceExhausted, "rate_limited")
+			}
 			q = `INSERT INTO groups (group_id, epoch) VALUES ($1, 1) ON CONFLICT DO NOTHING`
 		}
 		args := []any{m.GroupId}

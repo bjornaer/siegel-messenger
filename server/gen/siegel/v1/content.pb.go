@@ -31,6 +31,7 @@ type Content struct {
 	// Types that are valid to be assigned to Body:
 	//
 	//	*Content_Text
+	//	*Content_ProfileKeyUpdate
 	Body          isContent_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -96,6 +97,15 @@ func (x *Content) GetText() *Text {
 	return nil
 }
 
+func (x *Content) GetProfileKeyUpdate() *ProfileKeyUpdate {
+	if x != nil {
+		if x, ok := x.Body.(*Content_ProfileKeyUpdate); ok {
+			return x.ProfileKeyUpdate
+		}
+	}
+	return nil
+}
+
 type isContent_Body interface {
 	isContent_Body()
 }
@@ -104,7 +114,120 @@ type Content_Text struct {
 	Text *Text `protobuf:"bytes,3,opt,name=text,proto3,oneof"`
 }
 
+type Content_ProfileKeyUpdate struct {
+	ProfileKeyUpdate *ProfileKeyUpdate `protobuf:"bytes,4,opt,name=profile_key_update,json=profileKeyUpdate,proto3,oneof"`
+}
+
 func (*Content_Text) isContent_Body() {}
+
+func (*Content_ProfileKeyUpdate) isContent_Body() {}
+
+// MSG-02 profile_key_update: shares the sender's profile key with the group, which lets
+// receivers fetch and decrypt the sender's profile and derive its delivery token (MSG-10).
+type ProfileKeyUpdate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProfileKey    []byte                 `protobuf:"bytes,1,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfileKeyUpdate) Reset() {
+	*x = ProfileKeyUpdate{}
+	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileKeyUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileKeyUpdate) ProtoMessage() {}
+
+func (x *ProfileKeyUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileKeyUpdate.ProtoReflect.Descriptor instead.
+func (*ProfileKeyUpdate) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ProfileKeyUpdate) GetProfileKey() []byte {
+	if x != nil {
+		return x.ProfileKey
+	}
+	return nil
+}
+
+// The plaintext of an encrypted profile (server stores only the ciphertext).
+type Profile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DisplayName   string                 `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Padding       []byte                 `protobuf:"bytes,15,opt,name=padding,proto3" json:"padding,omitempty"` // fills the plaintext to a 256-byte bucket so name length stays hidden
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Profile) Reset() {
+	*x = Profile{}
+	mi := &file_siegel_v1_content_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Profile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Profile) ProtoMessage() {}
+
+func (x *Profile) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Profile.ProtoReflect.Descriptor instead.
+func (*Profile) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Profile) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *Profile) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *Profile) GetPadding() []byte {
+	if x != nil {
+		return x.Padding
+	}
+	return nil
+}
 
 type Text struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -115,7 +238,7 @@ type Text struct {
 
 func (x *Text) Reset() {
 	*x = Text{}
-	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	mi := &file_siegel_v1_content_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -127,7 +250,7 @@ func (x *Text) String() string {
 func (*Text) ProtoMessage() {}
 
 func (x *Text) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	mi := &file_siegel_v1_content_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -140,7 +263,7 @@ func (x *Text) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Text.ProtoReflect.Descriptor instead.
 func (*Text) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{1}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Text) GetBody() string {
@@ -154,13 +277,21 @@ var File_siegel_v1_content_proto protoreflect.FileDescriptor
 
 const file_siegel_v1_content_proto_rawDesc = "" +
 	"\n" +
-	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"p\n" +
+	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\xbd\x01\n" +
 	"\aContent\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x17\n" +
 	"\asent_at\x18\x02 \x01(\x03R\x06sentAt\x12%\n" +
-	"\x04text\x18\x03 \x01(\v2\x0f.siegel.v1.TextH\x00R\x04textB\x06\n" +
-	"\x04body\"\x1a\n" +
+	"\x04text\x18\x03 \x01(\v2\x0f.siegel.v1.TextH\x00R\x04text\x12K\n" +
+	"\x12profile_key_update\x18\x04 \x01(\v2\x1b.siegel.v1.ProfileKeyUpdateH\x00R\x10profileKeyUpdateB\x06\n" +
+	"\x04body\"3\n" +
+	"\x10ProfileKeyUpdate\x12\x1f\n" +
+	"\vprofile_key\x18\x01 \x01(\fR\n" +
+	"profileKey\"b\n" +
+	"\aProfile\x12!\n" +
+	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x18\n" +
+	"\apadding\x18\x0f \x01(\fR\apadding\"\x1a\n" +
 	"\x04Text\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04bodyBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
 
@@ -176,18 +307,21 @@ func file_siegel_v1_content_proto_rawDescGZIP() []byte {
 	return file_siegel_v1_content_proto_rawDescData
 }
 
-var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_siegel_v1_content_proto_goTypes = []any{
-	(*Content)(nil), // 0: siegel.v1.Content
-	(*Text)(nil),    // 1: siegel.v1.Text
+	(*Content)(nil),          // 0: siegel.v1.Content
+	(*ProfileKeyUpdate)(nil), // 1: siegel.v1.ProfileKeyUpdate
+	(*Profile)(nil),          // 2: siegel.v1.Profile
+	(*Text)(nil),             // 3: siegel.v1.Text
 }
 var file_siegel_v1_content_proto_depIdxs = []int32{
-	1, // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
+	1, // 1: siegel.v1.Content.profile_key_update:type_name -> siegel.v1.ProfileKeyUpdate
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_content_proto_init() }
@@ -197,6 +331,7 @@ func file_siegel_v1_content_proto_init() {
 	}
 	file_siegel_v1_content_proto_msgTypes[0].OneofWrappers = []any{
 		(*Content_Text)(nil),
+		(*Content_ProfileKeyUpdate)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -204,7 +339,7 @@ func file_siegel_v1_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_content_proto_rawDesc), len(file_siegel_v1_content_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

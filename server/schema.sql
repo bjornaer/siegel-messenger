@@ -82,3 +82,10 @@ CREATE TABLE IF NOT EXISTS groups (
   epoch      bigint NOT NULL,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- MSG-10: encrypted profile and the hash of its delivery token. Never a name or picture.
+CREATE TABLE IF NOT EXISTS profiles (
+  account_id uuid PRIMARY KEY REFERENCES accounts ON DELETE CASCADE,
+  encrypted  bytea NOT NULL,
+  verifier   bytea NOT NULL
+);

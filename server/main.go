@@ -41,6 +41,8 @@ type config struct {
 	verifyPerIP   int // per hour
 	lookupPerDay  int // per account
 	claimPerDay   int // KeyPackage claims per account
+	sealedPerIP   int // sealed-sender sends per IP per hour
+	newChatPerDay int // CMP-04: new conversations per account per day
 	smsDailyCap   int
 	denyPrefixes  []string
 	userMin       int
@@ -73,6 +75,8 @@ func loadConfig() config {
 		verifyPerIP:   env("SIEGEL_VERIFY_PER_IP_HOUR", 30, strconv.Atoi),
 		lookupPerDay:  env("SIEGEL_LOOKUP_PER_DAY", 200, strconv.Atoi),
 		claimPerDay:   env("SIEGEL_CLAIM_PER_DAY", 200, strconv.Atoi),
+		sealedPerIP:   env("SIEGEL_SEALED_PER_IP_HOUR", 3000, strconv.Atoi),
+		newChatPerDay: env("SIEGEL_NEW_CHATS_PER_DAY", 50, strconv.Atoi),
 		smsDailyCap:   env("SIEGEL_SMS_DAILY_CAP", 1000, strconv.Atoi),
 		userMin:       env("SIEGEL_USERNAME_MIN", 4, strconv.Atoi),
 		userMax:       env("SIEGEL_USERNAME_MAX", 32, strconv.Atoi),
@@ -182,6 +186,7 @@ func (s *server) routes() http.Handler {
 	mux.Handle(siegelv1connect.NewRegistrationServiceHandler(s, small))
 	mux.Handle(siegelv1connect.NewUsernameServiceHandler(s, s.authed(), small))
 	mux.Handle(siegelv1connect.NewAccountServiceHandler(s, s.authed(), small))
+	mux.Handle(siegelv1connect.NewProfileServiceHandler(profiles{s}, s.authed(), small))
 	payload := connect.WithReadMaxBytes(256 << 10) // MLS messages: 64 KiB text (MSG-05) plus padding and overhead
 	mux.Handle(siegelv1connect.NewKeysServiceHandler(s, s.authed(), payload))
 	mux.Handle(siegelv1connect.NewMessagesServiceHandler(s, s.authed(), payload))

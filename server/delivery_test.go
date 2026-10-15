@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"net/http"
 	"strings"
 	"testing"
@@ -187,4 +188,67 @@ func TestStream(t *testing.T) { // SRV-03, MSG-06, ID-12, ID-13
 	if next(t, old).GetDeregistered() == nil {
 		t.Fatal("reconnecting revoked device must get deregistered")
 	}
+}
+
+func TestProfilesAndSealedSender(t *testing.T) { // MSG-10, CMP-04
+	e := setup(t)
+	a, b := e.device("+34600000081"), e.device("+34600000082")
+	auth := func(token string) connect.ClientOption {
+		return connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+				r.Header().Set("Authorization", "Bearer "+token)
+				return next(ctx, r)
+			}
+		}))
+	}
+	bp := siegelv1connect.NewProfileServiceClient(http.DefaultClient, e.url, auth(b.DeviceToken))
+	ap := siegelv1connect.NewProfileServiceClient(http.DefaultClient, e.url, auth(a.DeviceToken))
+	token := []byte("bob's delivery token, derived from his profile key")
+	verifier := sha256.Sum256(token)
+	if _, err := bp.Set(e.ctx, connect.NewRequest(&siegelv1.ProfileServiceSetRequest{
+		EncryptedProfile: []byte("ciphertext"), DeliveryTokenVerifier: verifier[:]})); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ap.Get(e.ctx, connect.NewRequest(&siegelv1.ProfileServiceGetRequest{AccountId: b.AccountId}))
+	if err != nil || string(got.Msg.EncryptedProfile) != "ciphertext" {
+		t.Fatal("profile get", err)
+	}
+	_, err = bp.Get(e.ctx, connect.NewRequest(&siegelv1.ProfileServiceGetRequest{AccountId: a.AccountId}))
+	want(t, errMsg(err), "profile_not_found")
+
+	// Anonymous client: no Authorization header at all.
+	anon := siegelv1connect.NewMessagesServiceClient(http.DefaultClient, e.url)
+	send := func(to device, tok []byte) *siegelv1.MessagesServiceSendSealedResponse {
+		res, err := anon.SendSealed(e.ctx, connect.NewRequest(&siegelv1.MessagesServiceSendSealedRequest{
+			Recipients: []*siegelv1.SealedRecipient{{Address: to.addr(), DeliveryToken: tok}}, Payload: []byte("sealed")}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Msg
+	}
+	if r := send(b, token); len(r.Rejected) != 0 {
+		t.Fatal("valid token rejected")
+	}
+	if r := send(b, []byte("guess")); len(r.Rejected) != 1 {
+		t.Fatal("wrong token accepted")
+	}
+	if r := send(a, token); len(r.Rejected) != 1 {
+		t.Fatal("recipient without a profile must reject")
+	}
+	var queued int
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM queue WHERE payload = 'sealed'`).Scan(&queued)
+	if queued != 1 {
+		t.Fatal("exactly the valid sealed message is queued", queued)
+	}
+
+	e.s.cfg.newChatPerDay = 1
+	commit := func(id string) error {
+		_, err := a.groups.Commit(e.ctx, connect.NewRequest(&siegelv1.GroupsServiceCommitRequest{
+			GroupId: []byte(id), Epoch: 0, Commit: []byte("c")}))
+		return err
+	}
+	if err := commit("chat-1"); err != nil {
+		t.Fatal(err)
+	}
+	want(t, errMsg(commit("chat-2")), "rate_limited") // CMP-04
 }

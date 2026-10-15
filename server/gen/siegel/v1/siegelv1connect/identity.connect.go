@@ -27,6 +27,8 @@ const (
 	UsernameServiceName = "siegel.v1.UsernameService"
 	// AccountServiceName is the fully-qualified name of the AccountService service.
 	AccountServiceName = "siegel.v1.AccountService"
+	// ProfileServiceName is the fully-qualified name of the ProfileService service.
+	ProfileServiceName = "siegel.v1.ProfileService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -52,6 +54,10 @@ const (
 	AccountServiceSetRegistrationLockProcedure = "/siegel.v1.AccountService/SetRegistrationLock"
 	// AccountServiceDeleteProcedure is the fully-qualified name of the AccountService's Delete RPC.
 	AccountServiceDeleteProcedure = "/siegel.v1.AccountService/Delete"
+	// ProfileServiceSetProcedure is the fully-qualified name of the ProfileService's Set RPC.
+	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
+	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
+	ProfileServiceGetProcedure = "/siegel.v1.ProfileService/Get"
 )
 
 // RegistrationServiceClient is a client for the siegel.v1.RegistrationService service.
@@ -354,4 +360,106 @@ func (UnimplementedAccountServiceHandler) SetRegistrationLock(context.Context, *
 
 func (UnimplementedAccountServiceHandler) Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.Delete is not implemented"))
+}
+
+// ProfileServiceClient is a client for the siegel.v1.ProfileService service.
+type ProfileServiceClient interface {
+	// Stores the caller's encrypted profile and the hash of its delivery token (MSG-10). The
+	// server cannot read the profile; only contacts hold the profile key. Auth: device.
+	Set(context.Context, *connect.Request[v1.ProfileServiceSetRequest]) (*connect.Response[v1.ProfileServiceSetResponse], error)
+	// Fetches an account's encrypted profile. Auth: device.
+	Get(context.Context, *connect.Request[v1.ProfileServiceGetRequest]) (*connect.Response[v1.ProfileServiceGetResponse], error)
+}
+
+// NewProfileServiceClient constructs a client for the siegel.v1.ProfileService service. By default,
+// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
+// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
+// or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewProfileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ProfileServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	profileServiceMethods := v1.File_siegel_v1_identity_proto.Services().ByName("ProfileService").Methods()
+	return &profileServiceClient{
+		set: connect.NewClient[v1.ProfileServiceSetRequest, v1.ProfileServiceSetResponse](
+			httpClient,
+			baseURL+ProfileServiceSetProcedure,
+			connect.WithSchema(profileServiceMethods.ByName("Set")),
+			connect.WithClientOptions(opts...),
+		),
+		get: connect.NewClient[v1.ProfileServiceGetRequest, v1.ProfileServiceGetResponse](
+			httpClient,
+			baseURL+ProfileServiceGetProcedure,
+			connect.WithSchema(profileServiceMethods.ByName("Get")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// profileServiceClient implements ProfileServiceClient.
+type profileServiceClient struct {
+	set *connect.Client[v1.ProfileServiceSetRequest, v1.ProfileServiceSetResponse]
+	get *connect.Client[v1.ProfileServiceGetRequest, v1.ProfileServiceGetResponse]
+}
+
+// Set calls siegel.v1.ProfileService.Set.
+func (c *profileServiceClient) Set(ctx context.Context, req *connect.Request[v1.ProfileServiceSetRequest]) (*connect.Response[v1.ProfileServiceSetResponse], error) {
+	return c.set.CallUnary(ctx, req)
+}
+
+// Get calls siegel.v1.ProfileService.Get.
+func (c *profileServiceClient) Get(ctx context.Context, req *connect.Request[v1.ProfileServiceGetRequest]) (*connect.Response[v1.ProfileServiceGetResponse], error) {
+	return c.get.CallUnary(ctx, req)
+}
+
+// ProfileServiceHandler is an implementation of the siegel.v1.ProfileService service.
+type ProfileServiceHandler interface {
+	// Stores the caller's encrypted profile and the hash of its delivery token (MSG-10). The
+	// server cannot read the profile; only contacts hold the profile key. Auth: device.
+	Set(context.Context, *connect.Request[v1.ProfileServiceSetRequest]) (*connect.Response[v1.ProfileServiceSetResponse], error)
+	// Fetches an account's encrypted profile. Auth: device.
+	Get(context.Context, *connect.Request[v1.ProfileServiceGetRequest]) (*connect.Response[v1.ProfileServiceGetResponse], error)
+}
+
+// NewProfileServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewProfileServiceHandler(svc ProfileServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	profileServiceMethods := v1.File_siegel_v1_identity_proto.Services().ByName("ProfileService").Methods()
+	profileServiceSetHandler := connect.NewUnaryHandler(
+		ProfileServiceSetProcedure,
+		svc.Set,
+		connect.WithSchema(profileServiceMethods.ByName("Set")),
+		connect.WithHandlerOptions(opts...),
+	)
+	profileServiceGetHandler := connect.NewUnaryHandler(
+		ProfileServiceGetProcedure,
+		svc.Get,
+		connect.WithSchema(profileServiceMethods.ByName("Get")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/siegel.v1.ProfileService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case ProfileServiceSetProcedure:
+			profileServiceSetHandler.ServeHTTP(w, r)
+		case ProfileServiceGetProcedure:
+			profileServiceGetHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedProfileServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedProfileServiceHandler struct{}
+
+func (UnimplementedProfileServiceHandler) Set(context.Context, *connect.Request[v1.ProfileServiceSetRequest]) (*connect.Response[v1.ProfileServiceSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.ProfileService.Set is not implemented"))
+}
+
+func (UnimplementedProfileServiceHandler) Get(context.Context, *connect.Request[v1.ProfileServiceGetRequest]) (*connect.Response[v1.ProfileServiceGetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.ProfileService.Get is not implemented"))
 }

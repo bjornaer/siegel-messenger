@@ -44,9 +44,30 @@ message KeysServiceClaimResponse {
 }
 
 service MessagesService {
-  // Queues one payload for each recipient device. Authenticated: used for first contact
-  // (MSG-15) until sealed sender lands (MSG-10).
+  // Sealed sender (MSG-10): no authentication, so the server learns recipients but not the
+  // sender. Each recipient needs its delivery token, which only holders of its profile key can
+  // derive. Rate-limited per IP.
+  rpc SendSealed(MessagesServiceSendSealedRequest) returns (MessagesServiceSendSealedResponse);
+  // Queues one payload for each recipient device, authenticated. For first contact with
+  // non-contacts, whose messages land in message requests (MSG-15).
   rpc SendIdentified(MessagesServiceSendIdentifiedRequest) returns (MessagesServiceSendIdentifiedResponse);
+}
+
+message SealedRecipient {
+  DeviceAddress address = 1;
+  bytes delivery_token = 2;
+}
+
+message MessagesServiceSendSealedRequest {
+  repeated SealedRecipient recipients = 1;
+  bytes payload = 2;
+}
+
+message MessagesServiceSendSealedResponse {
+  repeated DeviceAddress revoked = 1;
+  // Recipients whose token did not match (profile key rotated, e.g. after a block). Nothing
+  // was queued for them; the client may retry identified.
+  repeated DeviceAddress rejected = 2;
 }
 
 message MessagesServiceSendIdentifiedRequest {

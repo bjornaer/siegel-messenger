@@ -96,6 +96,7 @@ jobs:
       COMPOSE_PROFILES: localbao
       SIEGEL_OTP_PER_IP_HOUR: "10000"
       SIEGEL_VERIFY_PER_IP_HOUR: "10000"
+      SIEGEL_NEW_CHATS_PER_DAY: "10000"
     steps:
       - uses: actions/checkout@v5
       - run: docker compose up -d --build --wait

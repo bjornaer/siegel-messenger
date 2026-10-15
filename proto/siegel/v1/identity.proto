@@ -92,3 +92,26 @@ message SetRegistrationLockResponse {}
 message AccountServiceDeleteRequest {}
 
 message AccountServiceDeleteResponse {}
+
+service ProfileService {
+  // Stores the caller's encrypted profile and the hash of its delivery token (MSG-10). The
+  // server cannot read the profile; only contacts hold the profile key. Auth: device.
+  rpc Set(ProfileServiceSetRequest) returns (ProfileServiceSetResponse);
+  // Fetches an account's encrypted profile. Auth: device.
+  rpc Get(ProfileServiceGetRequest) returns (ProfileServiceGetResponse);
+}
+
+message ProfileServiceSetRequest {
+  bytes encrypted_profile = 1; // at most 4 KiB
+  bytes delivery_token_verifier = 2; // SHA-256 of the delivery token, 32 bytes
+}
+
+message ProfileServiceSetResponse {}
+
+message ProfileServiceGetRequest {
+  bytes account_id = 1;
+}
+
+message ProfileServiceGetResponse {
+  bytes encrypted_profile = 1;
+}
