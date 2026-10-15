@@ -189,5 +189,6 @@
   },
   "blockedPeople": "Blocked people",
   "noBlocked": "You haven't blocked anyone.",
-  "unblock": "Unblock"
+  "unblock": "Unblock",
+  "notificationChannel": "Messages"
 }

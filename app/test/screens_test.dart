@@ -228,13 +228,23 @@ class FakeCore implements Core {
   @override
   Future<void> sendTyping({required List<int> groupId}) async => calls.add('sendTyping');
 
+  int connects = 0;
   @override
-  Stream<CoreEvent> runStream() => events.stream;
+  Stream<CoreEvent> runStream() {
+    connects++;
+    return events.stream;
+  }
+
+  @override
+  Stream<CoreEvent> drain() => const Stream.empty();
+  @override
+  Future<void> setPushToken({required String pushToken}) async => calls.add('setPushToken');
 
   /// Simulates a message arriving from the peer.
   void receive(List<int> groupId, String text) {
-    (history[base64Encode(groupId)] ??= []).add(msg(groupId, text, outgoing: false));
-    events.add(CoreEvent(kind: CoreEventKind.message, groupId: Uint8List.fromList(groupId)));
+    final m = msg(groupId, text, outgoing: false);
+    (history[base64Encode(groupId)] ??= []).add(m);
+    events.add(CoreEvent(kind: CoreEventKind.message, groupId: Uint8List.fromList(groupId), message: m));
   }
 
   static int _n = 0;
@@ -617,5 +627,21 @@ void main() {
     await tapText(t, 'Unblock');
     expect(core.calls.last, 'unblock');
     expect(find.text("You haven't blocked anyone."), findsOneWidget);
+  });
+
+  testWidgets('a push wake-up reconnects the stream; new messages reach onMessage (MSG-17)', (t) async {
+    final core = FakeCore()..registered = true;
+    final got = <String>[];
+    final service = ChatService(core, onDeregistered: () {}, onMessage: (m) => got.add(m.text))..start();
+    addTearDown(service.dispose);
+    await t.pump();
+    expect(core.connects, 1);
+    service.wake();
+    await t.pump();
+    await t.pump();
+    expect(core.connects, 2, reason: 'reconnects at once, no backoff');
+    core.receive(Uint8List.fromList([1]), 'hello');
+    await t.pump();
+    expect(got, ['hello']);
   });
 }

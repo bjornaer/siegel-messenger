@@ -404,4 +404,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unblock => 'Unblock';
+
+  @override
+  String get notificationChannel => 'Messages';
 }

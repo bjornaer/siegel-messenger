@@ -366,37 +366,40 @@ impl Core {
 
     /// Streams events until the connection closes; the caller reconnects with backoff.
     pub async fn run_stream(&self, sink: StreamSink<CoreEvent>) -> Result<(), CoreError> {
-        Ok(self
-            .0
-            .run_stream(move |e| {
-                let (kind, group_id, message) = match e {
-                    core_api::Event::ConversationStarted { group_id, .. } => {
-                        (CoreEventKind::ConversationStarted, Some(group_id), None)
-                    }
-                    core_api::Event::Message(m) => (
-                        CoreEventKind::Message,
-                        Some(m.group_id.clone()),
-                        Some(m.into()),
-                    ),
-                    core_api::Event::Updated { group_id } => {
-                        (CoreEventKind::Updated, Some(group_id), None)
-                    }
-                    core_api::Event::Typing { group_id } => {
-                        (CoreEventKind::Typing, Some(group_id), None)
-                    }
-                    core_api::Event::ProfileUpdated { .. } => {
-                        (CoreEventKind::ProfileUpdated, None, None)
-                    }
-                    core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
-                };
-                let _ = sink.add(CoreEvent {
-                    kind,
-                    group_id,
-                    message,
-                });
-            })
-            .await?)
+        Ok(self.0.run_stream(move |e| send_event(&sink, e)).await?)
     }
+
+    /// After a push wake-up: streams what was queued, then ends (MSG-17).
+    pub async fn drain(&self, sink: StreamSink<CoreEvent>) -> Result<(), CoreError> {
+        Ok(self.0.drain(move |e| send_event(&sink, e)).await?)
+    }
+
+    /// This device's FCM token, for content-free wake-ups (MSG-17).
+    pub async fn set_push_token(&self, push_token: String) -> Result<(), CoreError> {
+        Ok(self.0.set_push_token(&push_token).await?)
+    }
+}
+
+fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
+    let (kind, group_id, message) = match e {
+        core_api::Event::ConversationStarted { group_id, .. } => {
+            (CoreEventKind::ConversationStarted, Some(group_id), None)
+        }
+        core_api::Event::Message(m) => (
+            CoreEventKind::Message,
+            Some(m.group_id.clone()),
+            Some(m.into()),
+        ),
+        core_api::Event::Updated { group_id } => (CoreEventKind::Updated, Some(group_id), None),
+        core_api::Event::Typing { group_id } => (CoreEventKind::Typing, Some(group_id), None),
+        core_api::Event::ProfileUpdated { .. } => (CoreEventKind::ProfileUpdated, None, None),
+        core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
+    };
+    let _ = sink.add(CoreEvent {
+        kind,
+        group_id,
+        message,
+    });
 }
 
 #[frb(init)]

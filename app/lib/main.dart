@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -10,6 +11,7 @@ import 'app_lock.dart';
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart';
+import 'push.dart';
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -54,7 +56,21 @@ class _SiegelAppState extends State<SiegelApp> {
   late Core core = widget.core;
   ChatService? _chats;
 
-  ChatService _service() => _chats ??= ChatService(core, onDeregistered: _reset)..start();
+  ChatService _service() => _chats ??= _startChats();
+
+  ChatService _startChats() {
+    final c = core;
+    final service = ChatService(
+      c,
+      onDeregistered: _reset,
+      // MSG-17: in the foreground the chat itself shows new messages.
+      onMessage: (m) {
+        if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) notifyMessage(c, m);
+      },
+    )..start();
+    unawaited(startPush(c, service.wake));
+    return service;
+  }
 
   /// Back to onboarding with a fresh, empty database (account deleted or device deregistered).
   Future<void> _reset() async {

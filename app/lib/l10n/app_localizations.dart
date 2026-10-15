@@ -771,6 +771,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unblock'**
   String get unblock;
+
+  /// No description provided for @notificationChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get notificationChannel;
 }
 
 class _AppLocalizationsDelegate

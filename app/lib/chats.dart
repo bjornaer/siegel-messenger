@@ -14,10 +14,16 @@ import 'src/rust/api/core.dart';
 
 /// Keeps the message stream connected (SRV-03) and tells screens when something arrived.
 class ChatService extends ChangeNotifier {
-  ChatService(this.core, {required this.onDeregistered});
+  ChatService(this.core, {required this.onDeregistered, this.onMessage});
   final Core core;
   final VoidCallback onDeregistered;
+
+  /// Every new incoming message, e.g. to notify while the app is in the background.
+  final void Function(MessageView)? onMessage;
   bool _stopped = false;
+  StreamSubscription<CoreEvent>? _sub;
+  Completer<void>? _waiting; // the current connection, or the backoff before the next
+  bool _woken = false;
   final _typing = <String, Timer>{};
 
   /// MSG-14: the peer typed within the last few seconds.
@@ -39,27 +45,48 @@ class ChatService extends ChangeNotifier {
   /// Our own actions change chats too (last message, ticks); screens rebuild on this.
   void refresh() => notifyListeners();
 
+  /// A push arrived (MSG-17): the server thinks we're offline, so reconnect now, even if this
+  /// connection still looks open (a sleeping phone can leave it half-dead).
+  void wake() {
+    _woken = true;
+    _sub?.cancel();
+    _sub = null;
+    if (_waiting?.isCompleted == false) _waiting!.complete();
+  }
+
   Future<void> _loop() async {
     var backoff = const Duration(seconds: 1);
     while (!_stopped) {
-      try {
-        await for (final e in core.runStream()) {
+      final done = _waiting = Completer<void>();
+      void finish([Object? _]) => done.isCompleted ? null : done.complete();
+      _sub = core.runStream().listen(
+        (e) {
           backoff = const Duration(seconds: 1);
           if (e.kind == CoreEventKind.deregistered) {
             _stopped = true;
+            finish();
             onDeregistered(); // ID-12: the core already wiped local data
             return;
           }
           if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
             _setTyping(e.groupId!, e.kind == CoreEventKind.typing);
           }
+          if (e.kind == CoreEventKind.message && e.message != null) onMessage?.call(e.message!);
           notifyListeners();
-        }
-      } on Object {
-        // network error or server restart: reconnect below
-      }
+        },
+        onError: finish, // network error or server restart: reconnect below
+        onDone: finish,
+      );
+      await done.future;
       if (_stopped) return;
-      await Future<void>.delayed(backoff);
+      if (_woken) {
+        _woken = false;
+        continue; // reconnect without backoff
+      }
+      final sleep = _waiting = Completer<void>();
+      final timer = Timer(backoff, () => sleep.isCompleted ? null : sleep.complete());
+      await sleep.future;
+      timer.cancel();
       backoff = Duration(seconds: min(backoff.inSeconds * 2, 60));
     }
   }
@@ -67,6 +94,7 @@ class ChatService extends ChangeNotifier {
   @override
   void dispose() {
     _stopped = true;
+    wake();
     for (final t in _typing.values) {
       t.cancel();
     }

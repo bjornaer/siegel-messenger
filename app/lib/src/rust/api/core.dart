@@ -7,6 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `send_event`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
@@ -36,6 +37,9 @@ abstract class Core implements RustOpaqueInterface {
   void deleteForMe({required List<int> messageId});
 
   String? displayName();
+
+  /// After a push wake-up: streams what was queued, then ends (MSG-17).
+  Stream<CoreEvent> drain();
 
   Future<void> edit({
     required List<int> groupId,
@@ -90,6 +94,9 @@ abstract class Core implements RustOpaqueInterface {
   Future<void> sendTyping({required List<int> groupId});
 
   void setDisplayName({required String name});
+
+  /// This device's FCM token, for content-free wake-ups (MSG-17).
+  Future<void> setPushToken({required String pushToken});
 
   Future<void> setRegistrationLock({required String pin});
 
