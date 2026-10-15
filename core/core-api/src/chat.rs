@@ -4,20 +4,21 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use core_crypto::mls::{DeviceCredential, Member, Mls, Received};
 use core_net::{Frame, pb};
-use core_store::{Contact, ContactState, Conversation, Message, MlsStorage, SqlCipher, Store};
+use core_store::{
+    Contact, ContactState, Conversation, Message, MlsStorage, SqlCipher, Status, Store,
+};
 use openmls_rust_crypto::RustCrypto;
 use openmls_traits::OpenMlsProvider;
 use prost::Message as _;
 
 use core_crypto::profile::ProfileKey;
 
-use crate::{ACCOUNT, AS_PUBLIC, CREDENTIAL, CoreError, SIGNER, SiegelCore, storage};
+use crate::messages::{READ_RECEIPTS, TYPING, TYPING_STALE_MS, apply_change};
+use crate::{AS_PUBLIC, CREDENTIAL, CoreError, SIGNER, SiegelCore, storage};
 
 /// CRY-09: keep about this many one-time KeyPackages on the server; refill below the threshold.
 const KEY_PACKAGES: u32 = 100;
 const REFILL_BELOW: u32 = 20;
-/// MSG-05.
-const MAX_TEXT: usize = 64 * 1024;
 
 /// OpenMLS provider over the encrypted store: RustCrypto for crypto and randomness.
 pub(crate) struct Provider<'a> {
@@ -65,7 +66,7 @@ fn addr(m: &Member) -> pb::DeviceAddress {
     }
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
@@ -82,6 +83,14 @@ pub enum Event {
         request: bool,
     },
     Message(ChatMessage),
+    /// A message in the chat changed: reaction, edit, delete or receipt.
+    Updated {
+        group_id: Vec<u8>,
+    },
+    /// The peer is typing (MSG-14); show it for a few seconds.
+    Typing {
+        group_id: Vec<u8>,
+    },
     /// A contact's name or @username arrived or changed.
     ProfileUpdated {
         account: Vec<u8>,
@@ -94,6 +103,8 @@ pub enum Event {
 enum Handled {
     Event(Event),
     ProfileKey(Vec<u8>),
+    /// A new text: shown, and acknowledged with a delivery receipt (MSG-13).
+    Text(ChatMessage),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,15 +114,28 @@ pub struct ChatMessage {
     pub sender_account: Vec<u8>,
     /// Sender clock (MSG-03: shown, not used for ordering).
     pub sent_at: i64,
+    /// Empty once deleted for everyone.
     pub text: String,
     pub outgoing: bool,
+    /// MSG-07: the quoted message.
+    pub reply_to: Option<Vec<u8>>,
+    pub status: Status,
+    pub edited: bool,
+    pub deleted: bool,
+    /// MSG-08: (account, emoji), one per account.
+    pub reactions: Vec<(Vec<u8>, String)>,
 }
 
-fn chat_message(m: Message) -> Option<ChatMessage> {
-    let c = pb::Content::decode(m.body.as_slice()).ok()?;
-    let Some(pb::content::Body::Text(t)) = c.body else {
-        return None;
-    }; // unknown types skipped (MSG-01)
+pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Option<ChatMessage> {
+    let t = if m.deleted {
+        pb::Text::default()
+    } else {
+        let c = pb::Content::decode(m.body.as_slice()).ok()?;
+        let Some(pb::content::Body::Text(t)) = c.body else {
+            return None;
+        }; // unknown types skipped (MSG-01)
+        t
+    };
     Some(ChatMessage {
         group_id: m.group_id,
         message_id: m.message_id,
@@ -119,6 +143,11 @@ fn chat_message(m: Message) -> Option<ChatMessage> {
         sent_at: m.sent_at,
         text: t.body,
         outgoing: m.outgoing,
+        reply_to: Some(t.reply_to).filter(|r| !r.is_empty()),
+        status: m.status,
+        edited: m.edited,
+        deleted: m.deleted,
+        reactions,
     })
 }
 
@@ -233,10 +262,13 @@ impl SiegelCore {
     /// The newest `limit` messages of a conversation, oldest first.
     pub fn messages(&self, group_id: &[u8], limit: u32) -> Result<Vec<ChatMessage>, CoreError> {
         self.with_store(|s| {
-            Ok(storage(s.messages(group_id, limit))?
-                .into_iter()
-                .filter_map(chat_message)
-                .collect())
+            // ponytail: one reactions query per message; join them if long chats get slow.
+            let mut out = Vec::new();
+            for m in storage(s.messages(group_id, limit))? {
+                let r = storage(s.reactions(&m.message_id))?;
+                out.extend(chat_message(m, r));
+            }
+            Ok(out)
         })
     }
 
@@ -248,12 +280,17 @@ impl SiegelCore {
         group_id: &[u8],
         body: pb::content::Body,
     ) -> Result<pb::Content, CoreError> {
+        let content = self.new_content(body);
+        self.deliver(group_id, &content).await?;
+        Ok(content)
+    }
+
+    pub(crate) async fn deliver(
+        &self,
+        group_id: &[u8],
+        content: &pb::Content,
+    ) -> Result<(), CoreError> {
         let token = self.token()?;
-        let content = pb::Content {
-            message_id: uuid::Uuid::now_v7().as_bytes().to_vec(), // MSG-01
-            sent_at: now_ms(),
-            body: Some(body),
-        };
         let (payload, sealed, mut identified) = self.with_mls(|m, s| {
             let payload = m
                 .encrypt(group_id, &content.encode_to_vec())
@@ -287,38 +324,12 @@ impl SiegelCore {
                 .send_identified(&token, identified, payload)
                 .await?;
         }
-        Ok(content)
-    }
-
-    /// Encrypts and sends a text message (MSG-05). Returns the stored message.
-    pub async fn send_text(&self, group_id: &[u8], text: &str) -> Result<ChatMessage, CoreError> {
-        if text.is_empty() || text.len() > MAX_TEXT {
-            return Err(CoreError::new("text_invalid"));
-        }
-        if self.is_request(group_id)? {
-            return Err(CoreError::new("request_pending")); // accept first (MSG-15)
-        }
-        let content = self
-            .send_content(
-                group_id,
-                pb::content::Body::Text(pb::Text { body: text.into() }),
-            )
-            .await?;
-        let me = self.get(ACCOUNT)?.ok_or(CoreError::new("not_registered"))?;
-        let msg = Message {
-            message_id: content.message_id.clone(),
-            group_id: group_id.to_vec(),
-            sender_account: me,
-            sent_at: content.sent_at,
-            body: content.encode_to_vec(),
-            outgoing: true,
-        };
-        self.with_store(|s| storage(s.save_message(&msg)))?;
-        chat_message(msg).ok_or(CoreError::new("storage"))
+        Ok(())
     }
 
     /// Decrypts one queued payload and stores what it carries.
     fn handle(&self, payload: &[u8]) -> Result<Option<Handled>, CoreError> {
+        let (read_receipts, typing) = (self.enabled(READ_RECEIPTS), self.enabled(TYPING));
         self.with_mls(|m, s| match m.receive(payload).map_err(mls_err)? {
             Received::Joined { group_id, members } => {
                 let peer = members
@@ -385,12 +396,35 @@ impl SiegelCore {
                             sent_at: c.sent_at,
                             body: plaintext,
                             outgoing: false,
+                            status: Status::Delivered,
+                            edited: false,
+                            deleted: false,
                         };
                         // MSG-03: a redelivered message (same ID) is dropped here.
                         if !storage(s.save_message(&msg))? {
                             return Ok(None);
                         }
-                        Ok(chat_message(msg).map(|m| Handled::Event(Event::Message(m))))
+                        Ok(chat_message(msg, vec![]).map(Handled::Text))
+                    }
+                    Some(
+                        pb::content::Body::Reaction(_)
+                        | pb::content::Body::Edit(_)
+                        | pb::content::Body::Delete(_),
+                    ) => Ok(apply_change(s, &group_id, &from, &c, true)?
+                        .then_some(Handled::Event(Event::Updated { group_id }))),
+                    Some(pb::content::Body::Receipt(r)) => {
+                        let status = match r.kind() {
+                            pb::receipt::Kind::Delivered => Status::Delivered,
+                            pb::receipt::Kind::Read if read_receipts => Status::Read,
+                            _ => return Ok(None), // MSG-13: ours off hides theirs
+                        };
+                        storage(s.advance_status(&group_id, &r.message_ids, status))?;
+                        Ok(Some(Handled::Event(Event::Updated { group_id })))
+                    }
+                    Some(pb::content::Body::Typing(_))
+                        if typing && now_ms() - c.sent_at < TYPING_STALE_MS =>
+                    {
+                        Ok(Some(Handled::Event(Event::Typing { group_id })))
                     }
                     _ => Ok(None), // unknown or not yet supported types (MSG-01)
                 }
@@ -415,6 +449,17 @@ impl SiegelCore {
                     stream.ack(vec![id]).await?;
                     match handled {
                         Ok(Some(Handled::Event(e))) => on_event(e),
+                        Ok(Some(Handled::Text(m))) => {
+                            // ponytail: one receipt per message; batch per frame burst if chatty.
+                            let _ = self
+                                .send_receipt(
+                                    &m.group_id,
+                                    pb::receipt::Kind::Delivered,
+                                    vec![m.message_id.clone()],
+                                )
+                                .await;
+                            on_event(Event::Message(m));
+                        }
                         Ok(Some(Handled::ProfileKey(account))) => {
                             let fetched = self.refresh_profile(&account).await.is_ok();
                             if fetched {

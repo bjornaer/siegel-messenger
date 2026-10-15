@@ -13,6 +13,11 @@ message Content {
   oneof body {
     Text text = 3;
     ProfileKeyUpdate profile_key_update = 4;
+    Reaction reaction = 5;
+    Edit edit = 6;
+    Delete delete = 7;
+    Receipt receipt = 8;
+    Typing typing = 9;
   }
 }
 
@@ -31,4 +36,36 @@ message Profile {
 
 message Text {
   string body = 1; // MSG-05: up to 64 KB UTF-8
+  bytes reply_to = 2; // MSG-07 reply: the quoted message_id, empty when not a reply
 }
+
+// MSG-08: one emoji per sender per message; a new one replaces it, empty removes it.
+message Reaction {
+  bytes message_id = 1;
+  string emoji = 2;
+}
+
+// MSG-09: new text for the sender's own message, within 15 minutes of sending it.
+message Edit {
+  bytes message_id = 1;
+  string body = 2;
+}
+
+// MSG-11: delete for everyone, within 48 hours of sending.
+message Delete {
+  bytes message_id = 1;
+}
+
+// MSG-13: delivery receipts always; read receipts only when both sides have them on.
+message Receipt {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_DELIVERED = 1;
+    KIND_READ = 2;
+  }
+  Kind kind = 1;
+  repeated bytes message_ids = 2;
+}
+
+// MSG-14: sent at most every 3 seconds while typing.
+message Typing {}

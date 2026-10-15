@@ -40,6 +40,34 @@ pub struct Message {
     /// The decrypted MSG-01 content payload. Never leaves the device.
     pub body: Vec<u8>,
     pub outgoing: bool,
+    pub status: Status,
+    /// MSG-09: earlier versions are kept, see `versions`.
+    pub edited: bool,
+    /// MSG-11: the body is already erased.
+    pub deleted: bool,
+}
+
+/// MSG-04 for outgoing messages; incoming ones are Delivered until read. Ordered, so a
+/// receipt only moves a message forward.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Status {
+    Failed = 0,
+    Sending = 1,
+    Sent = 2,
+    Delivered = 3,
+    Read = 4,
+}
+
+impl Status {
+    fn from_i64(v: i64) -> Self {
+        match v {
+            0 => Self::Failed,
+            1 => Self::Sending,
+            2 => Self::Sent,
+            4 => Self::Read,
+            _ => Self::Delivered,
+        }
+    }
 }
 
 /// MSG-15/16: someone who wrote to us first is a Request until we accept them.
@@ -69,6 +97,28 @@ pub trait Store: Send {
     fn save_message(&self, m: &Message) -> Result<bool>;
     /// Oldest first, in arrival order (MSG-03).
     fn messages(&self, group_id: &[u8], limit: u32) -> Result<Vec<Message>>;
+    fn message(&self, message_id: &[u8]) -> Result<Option<Message>>;
+    /// Rewrites body, status and the edited/deleted flags; deleting also drops reactions
+    /// and earlier versions.
+    fn update_message(&self, m: &Message) -> Result<()>;
+    /// MSG-12 delete for me, with its reactions and earlier versions.
+    fn delete_message(&self, message_id: &[u8]) -> Result<()>;
+    /// Moves our messages in the group forward to `status` (receipts); never backwards.
+    fn advance_status(
+        &self,
+        group_id: &[u8],
+        message_ids: &[Vec<u8>],
+        status: Status,
+    ) -> Result<()>;
+    /// Marks incoming messages read and returns their IDs.
+    fn mark_read(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>>;
+    /// MSG-09: keeps a superseded body.
+    fn save_version(&self, message_id: &[u8], body: &[u8]) -> Result<()>;
+    /// Superseded bodies, oldest first.
+    fn versions(&self, message_id: &[u8]) -> Result<Vec<Vec<u8>>>;
+    /// MSG-08: one reaction per account; empty removes it.
+    fn set_reaction(&self, message_id: &[u8], account: &[u8], emoji: &str) -> Result<()>;
+    fn reactions(&self, message_id: &[u8]) -> Result<Vec<(Vec<u8>, String)>>;
     fn contact(&self, account_id: &[u8]) -> Result<Option<Contact>>;
     fn save_contact(&self, c: &Contact) -> Result<()>;
     fn contacts(&self) -> Result<Vec<Contact>>;
@@ -109,6 +159,24 @@ impl SqlCipher {
                display_name TEXT,
                username TEXT);",
         )?;
+        // Schema changes after the first release, applied once each (PRAGMA user_version).
+        const MIGRATIONS: &[&str] = &[
+            "ALTER TABLE messages ADD COLUMN status INTEGER NOT NULL DEFAULT 3;
+             ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE messages ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0;
+             CREATE TABLE reactions (message_id BLOB NOT NULL, account BLOB NOT NULL,
+               emoji TEXT NOT NULL, PRIMARY KEY (message_id, account));
+             CREATE TABLE versions (seq INTEGER PRIMARY KEY AUTOINCREMENT,
+               message_id BLOB NOT NULL, body BLOB NOT NULL);
+             CREATE INDEX versions_message ON versions (message_id);",
+        ];
+        let version: usize = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        for (i, m) in MIGRATIONS.iter().enumerate().skip(version) {
+            conn.execute_batch(&format!(
+                "BEGIN; {m} PRAGMA user_version = {}; COMMIT;",
+                i + 1
+            ))?;
+        }
         let mut conn = conn;
         SqliteStorageProvider::<JsonCodec, &mut rusqlite::Connection>::new(&mut conn)
             .run_migrations()
@@ -136,6 +204,27 @@ impl SqlCipher {
                 profile_key: r.get(2)?,
                 display_name: r.get(3)?,
                 username: r.get(4)?,
+            })
+        })?
+        .collect()
+    }
+
+    fn messages_where(&self, filter: &str, params: impl rusqlite::Params) -> Result<Vec<Message>> {
+        let mut q = self.conn.prepare(&format!(
+            "SELECT message_id, group_id, sender_account, sent_at, body, outgoing, status, edited, deleted
+             FROM messages {filter}"
+        ))?;
+        q.query_map(params, |r| {
+            Ok(Message {
+                message_id: r.get(0)?,
+                group_id: r.get(1)?,
+                sender_account: r.get(2)?,
+                sent_at: r.get(3)?,
+                body: r.get(4)?,
+                outgoing: r.get(5)?,
+                status: Status::from_i64(r.get(6)?),
+                edited: r.get(7)?,
+                deleted: r.get(8)?,
             })
         })?
         .collect()
@@ -188,29 +277,126 @@ impl Store for SqlCipher {
 
     fn save_message(&self, m: &Message) -> Result<bool> {
         let n = self.conn.execute(
-            "INSERT OR IGNORE INTO messages (message_id, group_id, sender_account, sent_at, body, outgoing)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            (&m.message_id, &m.group_id, &m.sender_account, m.sent_at, &m.body, m.outgoing),
+            "INSERT OR IGNORE INTO messages
+               (message_id, group_id, sender_account, sent_at, body, outgoing, status, edited, deleted)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                &m.message_id,
+                &m.group_id,
+                &m.sender_account,
+                m.sent_at,
+                &m.body,
+                m.outgoing,
+                m.status as i64,
+                m.edited,
+                m.deleted
+            ],
         )?;
         Ok(n == 1)
     }
 
     fn messages(&self, group_id: &[u8], limit: u32) -> Result<Vec<Message>> {
-        let mut q = self.conn.prepare(
-            "SELECT message_id, group_id, sender_account, sent_at, body, outgoing FROM (
-               SELECT * FROM messages WHERE group_id = ?1 ORDER BY seq DESC LIMIT ?2) ORDER BY seq",
+        let mut m = self.messages_where(
+            "WHERE group_id = ?1 ORDER BY seq DESC LIMIT ?2",
+            (group_id, limit),
         )?;
-        q.query_map((group_id, limit), |r| {
-            Ok(Message {
-                message_id: r.get(0)?,
-                group_id: r.get(1)?,
-                sender_account: r.get(2)?,
-                sent_at: r.get(3)?,
-                body: r.get(4)?,
-                outgoing: r.get(5)?,
-            })
-        })?
-        .collect()
+        m.reverse();
+        Ok(m)
+    }
+
+    fn message(&self, message_id: &[u8]) -> Result<Option<Message>> {
+        Ok(self
+            .messages_where("WHERE message_id = ?1", [message_id])?
+            .pop())
+    }
+
+    fn update_message(&self, m: &Message) -> Result<()> {
+        self.conn.execute(
+            "UPDATE messages SET body = ?2, status = ?3, edited = ?4, deleted = ?5 WHERE message_id = ?1",
+            (&m.message_id, &m.body, m.status as i64, m.edited, m.deleted),
+        )?;
+        if m.deleted {
+            // MSG-11: nothing of a deleted message stays behind.
+            for t in ["reactions", "versions"] {
+                self.conn.execute(
+                    &format!("DELETE FROM {t} WHERE message_id = ?1"),
+                    [&m.message_id],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn delete_message(&self, message_id: &[u8]) -> Result<()> {
+        for t in ["messages", "reactions", "versions"] {
+            self.conn.execute(
+                &format!("DELETE FROM {t} WHERE message_id = ?1"),
+                [message_id],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn advance_status(
+        &self,
+        group_id: &[u8],
+        message_ids: &[Vec<u8>],
+        status: Status,
+    ) -> Result<()> {
+        for id in message_ids {
+            self.conn.execute(
+                "UPDATE messages SET status = ?3
+                 WHERE message_id = ?1 AND group_id = ?2 AND outgoing = 1 AND status < ?3",
+                (id, group_id, status as i64),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn mark_read(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let mut q = self.conn.prepare(
+            "UPDATE messages SET status = 4 WHERE group_id = ?1 AND outgoing = 0 AND status < 4
+             RETURNING message_id",
+        )?;
+        q.query_map([group_id], |r| r.get(0))?.collect()
+    }
+
+    fn save_version(&self, message_id: &[u8], body: &[u8]) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO versions (message_id, body) VALUES (?1, ?2)",
+            (message_id, body),
+        )?;
+        Ok(())
+    }
+
+    fn versions(&self, message_id: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let mut q = self
+            .conn
+            .prepare("SELECT body FROM versions WHERE message_id = ?1 ORDER BY seq")?;
+        q.query_map([message_id], |r| r.get(0))?.collect()
+    }
+
+    fn set_reaction(&self, message_id: &[u8], account: &[u8], emoji: &str) -> Result<()> {
+        if emoji.is_empty() {
+            self.conn.execute(
+                "DELETE FROM reactions WHERE message_id = ?1 AND account = ?2",
+                (message_id, account),
+            )?;
+        } else {
+            self.conn.execute(
+                "INSERT OR REPLACE INTO reactions (message_id, account, emoji) VALUES (?1, ?2, ?3)",
+                (message_id, account, emoji),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn reactions(&self, message_id: &[u8]) -> Result<Vec<(Vec<u8>, String)>> {
+        let mut q = self
+            .conn
+            .prepare("SELECT account, emoji FROM reactions WHERE message_id = ?1")?;
+        q.query_map([message_id], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect()
     }
 
     fn contact(&self, account_id: &[u8]) -> Result<Option<Contact>> {
@@ -233,6 +419,14 @@ impl Store for SqlCipher {
     }
 
     fn delete_conversation(&self, group_id: &[u8]) -> Result<()> {
+        for t in ["reactions", "versions"] {
+            self.conn.execute(
+                &format!(
+                    "DELETE FROM {t} WHERE message_id IN (SELECT message_id FROM messages WHERE group_id = ?1)"
+                ),
+                [group_id],
+            )?;
+        }
         self.conn
             .execute("DELETE FROM messages WHERE group_id = ?1", [group_id])?;
         self.conn
@@ -286,6 +480,9 @@ mod tests {
             sent_at: 5,
             body: b"hi".to_vec(),
             outgoing: false,
+            status: Status::Delivered,
+            edited: false,
+            deleted: false,
         };
         assert!(s.save_message(&m).unwrap());
         assert!(!s.save_message(&m).unwrap(), "MSG-03: duplicate ignored");
@@ -298,11 +495,45 @@ mod tests {
         );
         let got = s.messages(&[9], 10).unwrap();
         assert_eq!((got.len(), got[0].message_id.clone()), (2, vec![1]));
+        s.update_message(&Message {
+            body: b"edited".to_vec(),
+            edited: true,
+            ..m.clone()
+        })
+        .unwrap();
+        assert!(s.message(&[1]).unwrap().unwrap().edited);
         assert_eq!(
             s.messages(&[9], 1).unwrap()[0].message_id,
             vec![2],
             "limit keeps the newest"
         );
+
+        // Receipts only move our own messages forward; mark_read returns what it changed.
+        let mine = Message {
+            message_id: vec![3],
+            outgoing: true,
+            status: Status::Sent,
+            ..m.clone()
+        };
+        s.save_message(&mine).unwrap();
+        s.advance_status(&[9], &[vec![3], vec![1]], Status::Read)
+            .unwrap();
+        s.advance_status(&[9], &[vec![3]], Status::Delivered)
+            .unwrap();
+        assert_eq!(s.message(&[3]).unwrap().unwrap().status, Status::Read);
+        assert_eq!(s.message(&[1]).unwrap().unwrap().status, Status::Delivered);
+        assert_eq!(s.mark_read(&[9]).unwrap(), vec![vec![1], vec![2]]);
+        assert!(s.mark_read(&[9]).unwrap().is_empty());
+        s.set_reaction(&[1], &[2], "👍").unwrap();
+        s.set_reaction(&[1], &[2], "❤️").unwrap();
+        assert_eq!(s.reactions(&[1]).unwrap(), vec![(vec![2], "❤️".into())]);
+        s.save_version(&[1], b"old").unwrap();
+        assert_eq!(s.versions(&[1]).unwrap(), vec![b"old".to_vec()]);
+        s.delete_message(&[1]).unwrap();
+        assert!(s.message(&[1]).unwrap().is_none());
+        assert!(s.reactions(&[1]).unwrap().is_empty() && s.versions(&[1]).unwrap().is_empty());
+        drop(s);
+        let s = SqlCipher::open(&path, &[1; 32]).unwrap(); // migrations run only once
 
         let c = Contact {
             account_id: vec![2],

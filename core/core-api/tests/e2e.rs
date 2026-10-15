@@ -173,7 +173,7 @@ async fn two_users_chat_over_mls() {
 
     let canary = format!("canary-{}", std::process::id());
     alice
-        .send_text(&chat, &format!("hello bob {canary}"))
+        .send_text(&chat, &format!("hello bob {canary}"), None)
         .await
         .unwrap();
     let core_api::Event::Message(m) = until(&mut bob_events, |e| {
@@ -189,7 +189,7 @@ async fn two_users_chat_over_mls() {
     );
 
     bob.accept(&chat).await.unwrap();
-    bob.send_text(&chat, "hi alice").await.unwrap();
+    bob.send_text(&chat, "hi alice", None).await.unwrap();
     let core_api::Event::Message(m) = until(&mut alice_events, |e| {
         matches!(e, core_api::Event::Message(_))
     })
@@ -248,15 +248,27 @@ async fn echo_peer() {
     // ECHO_TARGET=<username>: start the chat ourselves, so the app gets a message request.
     if let Ok(target) = std::env::var("ECHO_TARGET") {
         let chat = peer.start_chat(&target).await.unwrap();
-        peer.send_text(&chat, "hello from echo").await.unwrap();
+        peer.send_text(&chat, "hello from echo", None)
+            .await
+            .unwrap();
     }
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
     while let Ok(Some(e)) = tokio::time::timeout_at(deadline, events.recv()).await {
         if let core_api::Event::Message(m) = e {
-            peer.send_text(&m.group_id, &format!("pong: {}", m.text))
+            peer.send_text(&m.group_id, &format!("pong: {}", m.text), None)
                 .await
                 .unwrap();
         }
+    }
+}
+
+/// Waits until `done` holds, re-checking after every event (it may already hold).
+async fn settle(
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<core_api::Event>,
+    done: impl Fn() -> bool,
+) {
+    while !done() {
+        next_event(rx).await;
     }
 }
 
@@ -311,11 +323,14 @@ async fn requests_profiles_sealed_sender_and_blocking() {
     );
     assert!(bob.is_request(&chat).unwrap());
     assert_eq!(
-        bob.send_text(&chat, "too early").await.unwrap_err().code,
+        bob.send_text(&chat, "too early", None)
+            .await
+            .unwrap_err()
+            .code,
         "request_pending"
     );
 
-    alice.send_text(&chat, "hello").await.unwrap();
+    alice.send_text(&chat, "hello", None).await.unwrap();
     until(&mut bob_events, |e| {
         matches!(e, core_api::Event::Message(_))
     })
@@ -335,7 +350,7 @@ async fn requests_profiles_sealed_sender_and_blocking() {
     );
 
     // Both hold each other's profile key now, so these go sealed (MSG-10).
-    bob.send_text(&chat, "sealed hi").await.unwrap();
+    bob.send_text(&chat, "sealed hi", None).await.unwrap();
     let core_api::Event::Message(m) = until(&mut alice_events, |e| {
         matches!(e, core_api::Event::Message(_))
     })
@@ -347,7 +362,7 @@ async fn requests_profiles_sealed_sender_and_blocking() {
 
     // MSG-16: after Bob blocks Alice her messages vanish silently; her send still succeeds.
     bob.block(&alice_id).await.unwrap();
-    alice.send_text(&chat, "you there?").await.unwrap();
+    alice.send_text(&chat, "you there?", None).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     assert!(
         !bob.messages(&chat, 100)
@@ -355,5 +370,115 @@ async fn requests_profiles_sealed_sender_and_blocking() {
             .iter()
             .any(|m| m.text == "you there?"),
         "blocked sender's message must not arrive"
+    );
+}
+
+#[tokio::test]
+async fn replies_reactions_edits_deletes_receipts_typing() {
+    // MSG-04, MSG-07..09, MSG-11..14.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, Status};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let mut bob_events = listen(&bob);
+    let mut alice_events = listen(&alice);
+    let chat = alice.start_chat(&bob_name).await.unwrap();
+    until(&mut bob_events, |e| {
+        matches!(e, Event::ConversationStarted { .. })
+    })
+    .await;
+    bob.accept(&chat).await.unwrap();
+    until(&mut alice_events, |e| {
+        matches!(e, Event::ProfileUpdated { .. })
+    })
+    .await;
+
+    let first = alice.send_text(&chat, "first", None).await.unwrap();
+    assert_eq!(first.status, Status::Sent);
+    until(&mut bob_events, |e| matches!(e, Event::Message(_))).await;
+
+    let status = |c: &core_api::SiegelCore, id: &[u8]| {
+        c.messages(&chat, 50)
+            .unwrap()
+            .into_iter()
+            .find(|m| m.message_id == id)
+            .unwrap()
+    };
+    settle(&mut alice_events, || {
+        status(&alice, &first.message_id).status == Status::Delivered
+    })
+    .await;
+
+    bob.mark_read(&chat).await.unwrap();
+    settle(&mut alice_events, || {
+        status(&alice, &first.message_id).status == Status::Read
+    })
+    .await;
+
+    let reply = bob
+        .send_text(&chat, "a reply", Some(&first.message_id))
+        .await
+        .unwrap();
+    let Event::Message(m) = until(&mut alice_events, |e| matches!(e, Event::Message(_))).await
+    else {
+        unreachable!()
+    };
+    assert_eq!(m.reply_to.as_deref(), Some(first.message_id.as_slice()));
+
+    bob.react(&chat, &first.message_id, "👍").await.unwrap();
+    settle(&mut alice_events, || {
+        !status(&alice, &first.message_id).reactions.is_empty()
+    })
+    .await;
+    assert_eq!(status(&alice, &first.message_id).reactions[0].1, "👍");
+
+    assert_eq!(
+        bob.edit(&chat, &first.message_id, "not mine")
+            .await
+            .unwrap_err()
+            .code,
+        "not_allowed",
+        "only the sender edits"
+    );
+    alice
+        .edit(&chat, &first.message_id, "first!")
+        .await
+        .unwrap();
+
+    settle(&mut bob_events, || status(&bob, &first.message_id).edited).await;
+    let m = status(&bob, &first.message_id);
+    assert_eq!((m.text.as_str(), m.edited), ("first!", true));
+    assert_eq!(bob.versions(&first.message_id).unwrap(), vec!["first"]);
+
+    bob.delete_for_everyone(&chat, &reply.message_id)
+        .await
+        .unwrap();
+    settle(&mut alice_events, || {
+        status(&alice, &reply.message_id).deleted
+    })
+    .await;
+    let m = status(&alice, &reply.message_id);
+    assert!(m.deleted && m.text.is_empty());
+
+    alice.send_typing(&chat).await.unwrap();
+    until(&mut bob_events, |e| matches!(e, Event::Typing { .. })).await;
+
+    // Reciprocal: with read receipts off, Alice sends none and ignores Bob's.
+    alice.set_setting(core_api::READ_RECEIPTS, "off").unwrap();
+    let second = alice.send_text(&chat, "second", None).await.unwrap();
+    until(&mut bob_events, |e| matches!(e, Event::Message(_))).await;
+    bob.mark_read(&chat).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    assert_eq!(status(&alice, &second.message_id).status, Status::Delivered);
+
+    alice.delete_for_me(&second.message_id).unwrap();
+    assert!(
+        !alice
+            .messages(&chat, 50)
+            .unwrap()
+            .iter()
+            .any(|m| m.message_id == second.message_id)
     );
 }

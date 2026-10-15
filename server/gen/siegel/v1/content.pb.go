@@ -21,6 +21,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type Receipt_Kind int32
+
+const (
+	Receipt_KIND_UNSPECIFIED Receipt_Kind = 0
+	Receipt_KIND_DELIVERED   Receipt_Kind = 1
+	Receipt_KIND_READ        Receipt_Kind = 2
+)
+
+// Enum value maps for Receipt_Kind.
+var (
+	Receipt_Kind_name = map[int32]string{
+		0: "KIND_UNSPECIFIED",
+		1: "KIND_DELIVERED",
+		2: "KIND_READ",
+	}
+	Receipt_Kind_value = map[string]int32{
+		"KIND_UNSPECIFIED": 0,
+		"KIND_DELIVERED":   1,
+		"KIND_READ":        2,
+	}
+)
+
+func (x Receipt_Kind) Enum() *Receipt_Kind {
+	p := new(Receipt_Kind)
+	*p = x
+	return p
+}
+
+func (x Receipt_Kind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Receipt_Kind) Descriptor() protoreflect.EnumDescriptor {
+	return file_siegel_v1_content_proto_enumTypes[0].Descriptor()
+}
+
+func (Receipt_Kind) Type() protoreflect.EnumType {
+	return &file_siegel_v1_content_proto_enumTypes[0]
+}
+
+func (x Receipt_Kind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Receipt_Kind.Descriptor instead.
+func (Receipt_Kind) EnumDescriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{7, 0}
+}
+
 // MSG-01: the plaintext inside every MLS application message. Only clients see it; the
 // server never receives it outside MLS ciphertext. Receivers ignore bodies they don't know
 // (forward compatibility), so new MSG-02 types can be added without breaking old clients.
@@ -32,6 +81,11 @@ type Content struct {
 	//
 	//	*Content_Text
 	//	*Content_ProfileKeyUpdate
+	//	*Content_Reaction
+	//	*Content_Edit
+	//	*Content_Delete
+	//	*Content_Receipt
+	//	*Content_Typing
 	Body          isContent_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -106,6 +160,51 @@ func (x *Content) GetProfileKeyUpdate() *ProfileKeyUpdate {
 	return nil
 }
 
+func (x *Content) GetReaction() *Reaction {
+	if x != nil {
+		if x, ok := x.Body.(*Content_Reaction); ok {
+			return x.Reaction
+		}
+	}
+	return nil
+}
+
+func (x *Content) GetEdit() *Edit {
+	if x != nil {
+		if x, ok := x.Body.(*Content_Edit); ok {
+			return x.Edit
+		}
+	}
+	return nil
+}
+
+func (x *Content) GetDelete() *Delete {
+	if x != nil {
+		if x, ok := x.Body.(*Content_Delete); ok {
+			return x.Delete
+		}
+	}
+	return nil
+}
+
+func (x *Content) GetReceipt() *Receipt {
+	if x != nil {
+		if x, ok := x.Body.(*Content_Receipt); ok {
+			return x.Receipt
+		}
+	}
+	return nil
+}
+
+func (x *Content) GetTyping() *Typing {
+	if x != nil {
+		if x, ok := x.Body.(*Content_Typing); ok {
+			return x.Typing
+		}
+	}
+	return nil
+}
+
 type isContent_Body interface {
 	isContent_Body()
 }
@@ -118,9 +217,39 @@ type Content_ProfileKeyUpdate struct {
 	ProfileKeyUpdate *ProfileKeyUpdate `protobuf:"bytes,4,opt,name=profile_key_update,json=profileKeyUpdate,proto3,oneof"`
 }
 
+type Content_Reaction struct {
+	Reaction *Reaction `protobuf:"bytes,5,opt,name=reaction,proto3,oneof"`
+}
+
+type Content_Edit struct {
+	Edit *Edit `protobuf:"bytes,6,opt,name=edit,proto3,oneof"`
+}
+
+type Content_Delete struct {
+	Delete *Delete `protobuf:"bytes,7,opt,name=delete,proto3,oneof"`
+}
+
+type Content_Receipt struct {
+	Receipt *Receipt `protobuf:"bytes,8,opt,name=receipt,proto3,oneof"`
+}
+
+type Content_Typing struct {
+	Typing *Typing `protobuf:"bytes,9,opt,name=typing,proto3,oneof"`
+}
+
 func (*Content_Text) isContent_Body() {}
 
 func (*Content_ProfileKeyUpdate) isContent_Body() {}
+
+func (*Content_Reaction) isContent_Body() {}
+
+func (*Content_Edit) isContent_Body() {}
+
+func (*Content_Delete) isContent_Body() {}
+
+func (*Content_Receipt) isContent_Body() {}
+
+func (*Content_Typing) isContent_Body() {}
 
 // MSG-02 profile_key_update: shares the sender's profile key with the group, which lets
 // receivers fetch and decrypt the sender's profile and derive its delivery token (MSG-10).
@@ -231,7 +360,8 @@ func (x *Profile) GetPadding() []byte {
 
 type Text struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Body          string                 `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"` // MSG-05: up to 64 KB UTF-8
+	Body          string                 `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`                      // MSG-05: up to 64 KB UTF-8
+	ReplyTo       []byte                 `protobuf:"bytes,2,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"` // MSG-07 reply: the quoted message_id, empty when not a reply
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -273,17 +403,270 @@ func (x *Text) GetBody() string {
 	return ""
 }
 
+func (x *Text) GetReplyTo() []byte {
+	if x != nil {
+		return x.ReplyTo
+	}
+	return nil
+}
+
+// MSG-08: one emoji per sender per message; a new one replaces it, empty removes it.
+type Reaction struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     []byte                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Emoji         string                 `protobuf:"bytes,2,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Reaction) Reset() {
+	*x = Reaction{}
+	mi := &file_siegel_v1_content_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Reaction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Reaction) ProtoMessage() {}
+
+func (x *Reaction) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Reaction.ProtoReflect.Descriptor instead.
+func (*Reaction) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Reaction) GetMessageId() []byte {
+	if x != nil {
+		return x.MessageId
+	}
+	return nil
+}
+
+func (x *Reaction) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+// MSG-09: new text for the sender's own message, within 15 minutes of sending it.
+type Edit struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     []byte                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Edit) Reset() {
+	*x = Edit{}
+	mi := &file_siegel_v1_content_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Edit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Edit) ProtoMessage() {}
+
+func (x *Edit) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Edit.ProtoReflect.Descriptor instead.
+func (*Edit) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Edit) GetMessageId() []byte {
+	if x != nil {
+		return x.MessageId
+	}
+	return nil
+}
+
+func (x *Edit) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+// MSG-11: delete for everyone, within 48 hours of sending.
+type Delete struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     []byte                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Delete) Reset() {
+	*x = Delete{}
+	mi := &file_siegel_v1_content_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Delete) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Delete) ProtoMessage() {}
+
+func (x *Delete) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Delete.ProtoReflect.Descriptor instead.
+func (*Delete) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Delete) GetMessageId() []byte {
+	if x != nil {
+		return x.MessageId
+	}
+	return nil
+}
+
+// MSG-13: delivery receipts always; read receipts only when both sides have them on.
+type Receipt struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          Receipt_Kind           `protobuf:"varint,1,opt,name=kind,proto3,enum=siegel.v1.Receipt_Kind" json:"kind,omitempty"`
+	MessageIds    [][]byte               `protobuf:"bytes,2,rep,name=message_ids,json=messageIds,proto3" json:"message_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Receipt) Reset() {
+	*x = Receipt{}
+	mi := &file_siegel_v1_content_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Receipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Receipt) ProtoMessage() {}
+
+func (x *Receipt) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Receipt.ProtoReflect.Descriptor instead.
+func (*Receipt) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Receipt) GetKind() Receipt_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return Receipt_KIND_UNSPECIFIED
+}
+
+func (x *Receipt) GetMessageIds() [][]byte {
+	if x != nil {
+		return x.MessageIds
+	}
+	return nil
+}
+
+// MSG-14: sent at most every 3 seconds while typing.
+type Typing struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Typing) Reset() {
+	*x = Typing{}
+	mi := &file_siegel_v1_content_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Typing) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Typing) ProtoMessage() {}
+
+func (x *Typing) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Typing.ProtoReflect.Descriptor instead.
+func (*Typing) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{8}
+}
+
 var File_siegel_v1_content_proto protoreflect.FileDescriptor
 
 const file_siegel_v1_content_proto_rawDesc = "" +
 	"\n" +
-	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\xbd\x01\n" +
+	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\xa1\x03\n" +
 	"\aContent\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x17\n" +
 	"\asent_at\x18\x02 \x01(\x03R\x06sentAt\x12%\n" +
 	"\x04text\x18\x03 \x01(\v2\x0f.siegel.v1.TextH\x00R\x04text\x12K\n" +
-	"\x12profile_key_update\x18\x04 \x01(\v2\x1b.siegel.v1.ProfileKeyUpdateH\x00R\x10profileKeyUpdateB\x06\n" +
+	"\x12profile_key_update\x18\x04 \x01(\v2\x1b.siegel.v1.ProfileKeyUpdateH\x00R\x10profileKeyUpdate\x121\n" +
+	"\breaction\x18\x05 \x01(\v2\x13.siegel.v1.ReactionH\x00R\breaction\x12%\n" +
+	"\x04edit\x18\x06 \x01(\v2\x0f.siegel.v1.EditH\x00R\x04edit\x12+\n" +
+	"\x06delete\x18\a \x01(\v2\x11.siegel.v1.DeleteH\x00R\x06delete\x12.\n" +
+	"\areceipt\x18\b \x01(\v2\x12.siegel.v1.ReceiptH\x00R\areceipt\x12+\n" +
+	"\x06typing\x18\t \x01(\v2\x11.siegel.v1.TypingH\x00R\x06typingB\x06\n" +
 	"\x04body\"3\n" +
 	"\x10ProfileKeyUpdate\x12\x1f\n" +
 	"\vprofile_key\x18\x01 \x01(\fR\n" +
@@ -291,9 +674,30 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\aProfile\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x18\n" +
-	"\apadding\x18\x0f \x01(\fR\apadding\"\x1a\n" +
+	"\apadding\x18\x0f \x01(\fR\apadding\"5\n" +
 	"\x04Text\x12\x12\n" +
-	"\x04body\x18\x01 \x01(\tR\x04bodyBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
+	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
+	"\breply_to\x18\x02 \x01(\fR\areplyTo\"?\n" +
+	"\bReaction\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x14\n" +
+	"\x05emoji\x18\x02 \x01(\tR\x05emoji\"9\n" +
+	"\x04Edit\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\"'\n" +
+	"\x06Delete\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\fR\tmessageId\"\x98\x01\n" +
+	"\aReceipt\x12+\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x17.siegel.v1.Receipt.KindR\x04kind\x12\x1f\n" +
+	"\vmessage_ids\x18\x02 \x03(\fR\n" +
+	"messageIds\"?\n" +
+	"\x04Kind\x12\x14\n" +
+	"\x10KIND_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eKIND_DELIVERED\x10\x01\x12\r\n" +
+	"\tKIND_READ\x10\x02\"\b\n" +
+	"\x06TypingBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
 
 var (
 	file_siegel_v1_content_proto_rawDescOnce sync.Once
@@ -307,21 +711,34 @@ func file_siegel_v1_content_proto_rawDescGZIP() []byte {
 	return file_siegel_v1_content_proto_rawDescData
 }
 
-var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_siegel_v1_content_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_siegel_v1_content_proto_goTypes = []any{
-	(*Content)(nil),          // 0: siegel.v1.Content
-	(*ProfileKeyUpdate)(nil), // 1: siegel.v1.ProfileKeyUpdate
-	(*Profile)(nil),          // 2: siegel.v1.Profile
-	(*Text)(nil),             // 3: siegel.v1.Text
+	(Receipt_Kind)(0),        // 0: siegel.v1.Receipt.Kind
+	(*Content)(nil),          // 1: siegel.v1.Content
+	(*ProfileKeyUpdate)(nil), // 2: siegel.v1.ProfileKeyUpdate
+	(*Profile)(nil),          // 3: siegel.v1.Profile
+	(*Text)(nil),             // 4: siegel.v1.Text
+	(*Reaction)(nil),         // 5: siegel.v1.Reaction
+	(*Edit)(nil),             // 6: siegel.v1.Edit
+	(*Delete)(nil),           // 7: siegel.v1.Delete
+	(*Receipt)(nil),          // 8: siegel.v1.Receipt
+	(*Typing)(nil),           // 9: siegel.v1.Typing
 }
 var file_siegel_v1_content_proto_depIdxs = []int32{
-	3, // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
-	1, // 1: siegel.v1.Content.profile_key_update:type_name -> siegel.v1.ProfileKeyUpdate
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
+	2, // 1: siegel.v1.Content.profile_key_update:type_name -> siegel.v1.ProfileKeyUpdate
+	5, // 2: siegel.v1.Content.reaction:type_name -> siegel.v1.Reaction
+	6, // 3: siegel.v1.Content.edit:type_name -> siegel.v1.Edit
+	7, // 4: siegel.v1.Content.delete:type_name -> siegel.v1.Delete
+	8, // 5: siegel.v1.Content.receipt:type_name -> siegel.v1.Receipt
+	9, // 6: siegel.v1.Content.typing:type_name -> siegel.v1.Typing
+	0, // 7: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_content_proto_init() }
@@ -332,19 +749,25 @@ func file_siegel_v1_content_proto_init() {
 	file_siegel_v1_content_proto_msgTypes[0].OneofWrappers = []any{
 		(*Content_Text)(nil),
 		(*Content_ProfileKeyUpdate)(nil),
+		(*Content_Reaction)(nil),
+		(*Content_Edit)(nil),
+		(*Content_Delete)(nil),
+		(*Content_Receipt)(nil),
+		(*Content_Typing)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_content_proto_rawDesc), len(file_siegel_v1_content_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   4,
+			NumEnums:      1,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_siegel_v1_content_proto_goTypes,
 		DependencyIndexes: file_siegel_v1_content_proto_depIdxs,
+		EnumInfos:         file_siegel_v1_content_proto_enumTypes,
 		MessageInfos:      file_siegel_v1_content_proto_msgTypes,
 	}.Build()
 	File_siegel_v1_content_proto = out.File
