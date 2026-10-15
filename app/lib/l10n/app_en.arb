@@ -92,5 +92,15 @@
   "unlock": "Unlock",
   "unlockReason": "Unlock Siegel",
   "errNoDeviceLock": "Couldn't verify it's you. Set up a screen lock on your phone first.",
-  "appLogo": "Siegel logo"
+  "appLogo": "Siegel logo",
+  "chatsTitle": "Chats",
+  "newChat": "New chat",
+  "noChats": "No chats yet. Start one with someone's @username.",
+  "newContact": "New contact",
+  "messageHint": "Message",
+  "send": "Send",
+  "startChat": "Start chat",
+  "errUsernameNotFound": "No one has that username.",
+  "errNoKeyPackages": "That account can't receive messages right now. Try again later.",
+  "errTextInvalid": "Messages can be up to 64 KB of text."
 }

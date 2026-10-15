@@ -25,6 +25,9 @@ void showError(BuildContext context, CoreError e) {
     'username_change_too_soon' => t.errUsernameTooSoon,
     'pin_invalid' => t.errPinInvalid,
     'display_name_invalid' => t.errDisplayNameInvalid,
+    'username_not_found' => t.errUsernameNotFound,
+    'no_key_packages' => t.errNoKeyPackages,
+    'text_invalid' => t.errTextInvalid,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };

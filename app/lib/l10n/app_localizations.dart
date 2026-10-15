@@ -441,6 +441,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Siegel logo'**
   String get appLogo;
+
+  /// No description provided for @chatsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats'**
+  String get chatsTitle;
+
+  /// No description provided for @newChat.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get newChat;
+
+  /// No description provided for @noChats.
+  ///
+  /// In en, this message translates to:
+  /// **'No chats yet. Start one with someone\'s @username.'**
+  String get noChats;
+
+  /// No description provided for @newContact.
+  ///
+  /// In en, this message translates to:
+  /// **'New contact'**
+  String get newContact;
+
+  /// No description provided for @messageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get messageHint;
+
+  /// No description provided for @send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// No description provided for @startChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Start chat'**
+  String get startChat;
+
+  /// No description provided for @errUsernameNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No one has that username.'**
+  String get errUsernameNotFound;
+
+  /// No description provided for @errNoKeyPackages.
+  ///
+  /// In en, this message translates to:
+  /// **'That account can\'t receive messages right now. Try again later.'**
+  String get errNoKeyPackages;
+
+  /// No description provided for @errTextInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages can be up to 64 KB of text.'**
+  String get errTextInvalid;
 }
 
 class _AppLocalizationsDelegate

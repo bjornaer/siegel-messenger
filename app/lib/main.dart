@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app_lock.dart';
+import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart';
 import 'src/rust/api/core.dart';
@@ -49,12 +50,32 @@ class SiegelApp extends StatefulWidget {
 }
 
 class _SiegelAppState extends State<SiegelApp> {
+  final _navigator = GlobalKey<NavigatorState>();
   late Core core = widget.core;
+  ChatService? _chats;
+
+  ChatService _service() => _chats ??= ChatService(core, onDeregistered: _reset)..start();
+
+  /// Back to onboarding with a fresh, empty database (account deleted or device deregistered).
+  Future<void> _reset() async {
+    _navigator.currentState?.popUntil((r) => r.isFirst);
+    _chats?.dispose();
+    _chats = null;
+    final fresh = await openCore();
+    setState(() => core = fresh);
+  }
+
+  @override
+  void dispose() {
+    _chats?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final ready = core.isRegistered() && core.username() != null;
     return MaterialApp(
+      navigatorKey: _navigator,
       onGenerateTitle: (c) => AppLocalizations.of(c)!.appTitle,
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -68,19 +89,19 @@ class _SiegelAppState extends State<SiegelApp> {
       home: ready
           ? AppLock(
               core: core,
-              child: Home(core: core, onDeleted: () async {
-                final fresh = await openCore();
-                setState(() => core = fresh);
-              }),
+              child: ChatListScreen(
+                core: core,
+                service: _service(),
+                settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
+              ),
             )
           : Onboarding(core: core, onDone: () => setState(() {})),
     );
   }
 }
 
-/// Placeholder until chats land in M2.
-class Home extends StatelessWidget {
-  const Home({super.key, required this.core, required this.onDeleted});
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key, required this.core, required this.onDeleted});
   final Core core;
   final Future<void> Function() onDeleted;
 
@@ -110,14 +131,13 @@ class Home extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(t.appTitle)),
+      appBar: AppBar(title: Text(t.settings)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(t.homeRegistered(core.username()!), style: Theme.of(context).textTheme.titleLarge),
           if (core.displayName() case final name?) Text(name),
           const SizedBox(height: 24),
-          Text(t.settings, style: Theme.of(context).textTheme.titleMedium),
           Text(t.historyNotice), // ID-14: also stated in Settings
           AppLockSettings(core: core),
           const SizedBox(height: 16),

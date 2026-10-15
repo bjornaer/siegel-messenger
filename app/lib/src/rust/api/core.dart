@@ -7,15 +7,19 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
 abstract class Core implements RustOpaqueInterface {
+  List<ChatSummary> chats();
+
   Future<void> deleteAccount();
 
   String? displayName();
 
   bool isRegistered();
+
+  List<MessageView> messages({required List<int> groupId, required int limit});
 
   static Core open({
     required String dbPath,
@@ -32,6 +36,14 @@ abstract class Core implements RustOpaqueInterface {
     required String attestationToken,
   });
 
+  /// Streams events until the connection closes; the caller reconnects with backoff.
+  Stream<CoreEvent> runStream();
+
+  Future<MessageView> sendText({
+    required List<int> groupId,
+    required String text,
+  });
+
   void setDisplayName({required String name});
 
   Future<void> setRegistrationLock({required String pin});
@@ -42,6 +54,9 @@ abstract class Core implements RustOpaqueInterface {
 
   String? setting({required String key});
 
+  /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
+  Future<Uint8List> startChat({required String username});
+
   String? username();
 
   /// Returns true when the number already had an account (re-registration).
@@ -51,6 +66,40 @@ abstract class Core implements RustOpaqueInterface {
     required String pin,
     required DevicePlatform platform,
   });
+}
+
+/// A conversation for the chat list.
+class ChatSummary {
+  final Uint8List groupId;
+  final Uint8List peerAccount;
+
+  /// Known when we started the chat; otherwise null until profiles land.
+  final String? peerUsername;
+  final MessageView? last;
+
+  const ChatSummary({
+    required this.groupId,
+    required this.peerAccount,
+    this.peerUsername,
+    this.last,
+  });
+
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      peerAccount.hashCode ^
+      peerUsername.hashCode ^
+      last.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatSummary &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          peerAccount == other.peerAccount &&
+          peerUsername == other.peerUsername &&
+          last == other.last;
 }
 
 /// Thrown in Dart with a stable machine code ("otp_invalid", "network", ...).
@@ -70,4 +119,74 @@ class CoreError implements FrbException {
           code == other.code;
 }
 
+/// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
+class CoreEvent {
+  final CoreEventKind kind;
+  final Uint8List? groupId;
+  final MessageView? message;
+
+  const CoreEvent({required this.kind, this.groupId, this.message});
+
+  @override
+  int get hashCode => kind.hashCode ^ groupId.hashCode ^ message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CoreEvent &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          groupId == other.groupId &&
+          message == other.message;
+}
+
+enum CoreEventKind {
+  conversationStarted,
+  message,
+
+  /// Local data is already wiped (ID-12): return to onboarding.
+  deregistered,
+}
+
 enum DevicePlatform { ios, android }
+
+class MessageView {
+  final Uint8List groupId;
+  final Uint8List messageId;
+  final Uint8List senderAccount;
+
+  /// Sender clock, ms since the Unix epoch.
+  final PlatformInt64 sentAt;
+  final String text;
+  final bool outgoing;
+
+  const MessageView({
+    required this.groupId,
+    required this.messageId,
+    required this.senderAccount,
+    required this.sentAt,
+    required this.text,
+    required this.outgoing,
+  });
+
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      messageId.hashCode ^
+      senderAccount.hashCode ^
+      sentAt.hashCode ^
+      text.hashCode ^
+      outgoing.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MessageView &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          messageId == other.messageId &&
+          senderAccount == other.senderAccount &&
+          sentAt == other.sentAt &&
+          text == other.text &&
+          outgoing == other.outgoing;
+}

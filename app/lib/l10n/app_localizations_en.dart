@@ -215,4 +215,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appLogo => 'Siegel logo';
+
+  @override
+  String get chatsTitle => 'Chats';
+
+  @override
+  String get newChat => 'New chat';
+
+  @override
+  String get noChats => 'No chats yet. Start one with someone\'s @username.';
+
+  @override
+  String get newContact => 'New contact';
+
+  @override
+  String get messageHint => 'Message';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get startChat => 'Start chat';
+
+  @override
+  String get errUsernameNotFound => 'No one has that username.';
+
+  @override
+  String get errNoKeyPackages =>
+      'That account can\'t receive messages right now. Try again later.';
+
+  @override
+  String get errTextInvalid => 'Messages can be up to 64 KB of text.';
 }

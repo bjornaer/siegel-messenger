@@ -1,9 +1,14 @@
 // Widget tests for every screen built so far (section 15: Flutter tests per screen), against a
 // fake core. Real network and storage paths are covered by core-api/tests/e2e.rs.
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:siegel/app_lock.dart';
+import 'package:siegel/chats.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/onboarding.dart';
@@ -60,6 +65,58 @@ class FakeCore implements Core {
   String? setting({required String key}) => settings[key];
   @override
   void setSetting({required String key, required String value}) => settings[key] = value;
+  // Chats: one list of messages per chat, keyed by group ID.
+  final chatList = <ChatSummary>[];
+  final history = <String, List<MessageView>>{};
+  final events = StreamController<CoreEvent>.broadcast();
+
+  @override
+  List<ChatSummary> chats() => [
+    for (final c in chatList)
+      ChatSummary(
+        groupId: c.groupId,
+        peerAccount: c.peerAccount,
+        peerUsername: c.peerUsername,
+        last: (history[base64Encode(c.groupId)] ?? []).lastOrNull,
+      ),
+  ];
+  @override
+  List<MessageView> messages({required List<int> groupId, required int limit}) => history[base64Encode(groupId)] ?? [];
+  @override
+  Future<Uint8List> startChat({required String username}) async {
+    await _maybeFail('startChat $username');
+    final id = Uint8List.fromList(utf8.encode('g-$username'));
+    chatList.add(ChatSummary(groupId: id, peerAccount: Uint8List(16), peerUsername: username));
+    return id;
+  }
+
+  @override
+  Future<MessageView> sendText({required List<int> groupId, required String text}) async {
+    await _maybeFail('sendText $text');
+    final m = msg(groupId, text, outgoing: true);
+    (history[base64Encode(groupId)] ??= []).add(m);
+    return m;
+  }
+
+  @override
+  Stream<CoreEvent> runStream() => events.stream;
+
+  /// Simulates a message arriving from the peer.
+  void receive(List<int> groupId, String text) {
+    (history[base64Encode(groupId)] ??= []).add(msg(groupId, text, outgoing: false));
+    events.add(CoreEvent(kind: CoreEventKind.message, groupId: Uint8List.fromList(groupId)));
+  }
+
+  static int _n = 0;
+  static MessageView msg(List<int> groupId, String text, {required bool outgoing}) => MessageView(
+    groupId: Uint8List.fromList(groupId),
+    messageId: Uint8List.fromList([_n++]),
+    senderAccount: Uint8List(16),
+    sentAt: DateTime(2026, 10, 15, 9, 30).millisecondsSinceEpoch,
+    text: text,
+    outgoing: outgoing,
+  );
+
   @override
   void dispose() {}
   @override
@@ -162,13 +219,13 @@ void main() {
     expect(done, isTrue);
   });
 
-  testWidgets('home shows the account and deletes it after confirmation (ID-16)', (t) async {
+  testWidgets('settings show the account and deletes it after confirmation (ID-16)', (t) async {
     final core = FakeCore()
       ..registered = true
       ..user = 'ana.b'
       ..name = 'Ana';
     var deleted = false;
-    await t.pumpWidget(wrap(Home(core: core, onDeleted: () async => deleted = true)));
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async => deleted = true)));
     expect(find.text('You are @ana.b'), findsOneWidget);
     expect(find.textContaining('stored only on this phone'), findsOneWidget, reason: 'ID-14 in Settings');
     expect(find.text('App lock'), findsOneWidget);
@@ -194,5 +251,50 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Siegel is locked'), findsNothing);
     expect(find.text('secret chats'), findsOneWidget);
+  });
+
+  testWidgets('chat list, new chat by @username, send and receive (M2)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const Text('settings'))));
+    expect(find.textContaining('No chats yet'), findsOneWidget);
+
+    await tapText(t, 'New chat');
+    core.failNext['startChat nobody'] = 'username_not_found';
+    await enter(t, '@username', '@Nobody');
+    await tapText(t, 'Start chat');
+    expect(find.text('No one has that username.'), findsOneWidget);
+
+    await enter(t, '@username', 'bob');
+    await tapText(t, 'Start chat');
+    expect(find.text('@bob'), findsOneWidget, reason: 'chat screen titled with the peer');
+
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'hello bob');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(find.text('hello bob'), findsOneWidget);
+    expect(find.text('09:30'), findsOneWidget, reason: 'sender clock shown');
+
+    core.receive(core.chatList.first.groupId, 'hi ana');
+    await t.pumpAndSettle();
+    expect(find.text('hi ana'), findsOneWidget, reason: 'stream event refreshes the open chat');
+
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('@bob'), findsOneWidget);
+    expect(find.text('hi ana'), findsOneWidget, reason: 'list shows the last message');
+  });
+
+  testWidgets('a deregistered event hands control back (ID-12)', (t) async {
+    final core = FakeCore();
+    var out = false;
+    final service = ChatService(core, onDeregistered: () => out = true)..start();
+    addTearDown(service.dispose);
+    core.events.add(const CoreEvent(kind: CoreEventKind.deregistered));
+    await t.pump();
+    expect(out, isTrue);
   });
 }
