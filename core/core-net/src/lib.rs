@@ -2,8 +2,11 @@
 
 use std::sync::Arc;
 
+use futures_util::{SinkExt, StreamExt};
 use prost::Message;
-use rustls::pki_types::{CertificateDer, pem::PemObject};
+use rustls::pki_types::{CertificateDer, ServerName, pem::PemObject};
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_tungstenite::{WebSocketStream, tungstenite};
 
 pub mod pb {
     include!(concat!(env!("OUT_DIR"), "/siegel.v1.rs"));
@@ -25,6 +28,7 @@ impl Error {
 pub struct Client {
     http: reqwest::Client,
     base: String,
+    tls: Option<Arc<rustls::ClientConfig>>,
 }
 
 /// SEC-06 pins: the server's certificate comes from Let's Encrypt, whose leaf key rotates on
@@ -56,12 +60,14 @@ impl Client {
     /// `https` bases get the pinned TLS config; `http` is for the local dev server only.
     pub fn new(base: &str) -> Self {
         let mut b = reqwest::Client::builder();
-        if base.starts_with("https://") {
-            b = b.use_preconfigured_tls(pinned_tls());
+        let tls = base.starts_with("https://").then(|| Arc::new(pinned_tls()));
+        if let Some(t) = &tls {
+            b = b.use_preconfigured_tls((**t).clone());
         }
         Self {
             http: b.build().expect("http client"),
             base: base.trim_end_matches('/').into(),
+            tls,
         }
     }
 
@@ -157,6 +163,158 @@ impl Client {
         )
         .await
         .map(|_| ())
+    }
+}
+
+impl Client {
+    /// Adds one-time KeyPackages and optionally replaces the last-resort one (CRY-09).
+    /// Returns how many one-time packages the server still holds for this device.
+    pub async fn upload_key_packages(
+        &self,
+        token: &str,
+        key_packages: Vec<Vec<u8>>,
+        last_resort: Vec<u8>,
+    ) -> Result<u32, Error> {
+        let req = pb::KeysServiceUploadRequest {
+            key_packages,
+            last_resort,
+        };
+        let res: pb::KeysServiceUploadResponse =
+            self.call("KeysService/Upload", &req, Some(token)).await?;
+        Ok(res.remaining)
+    }
+
+    /// One KeyPackage per device of the account (GRP-09).
+    pub async fn claim_key_packages(
+        &self,
+        token: &str,
+        account_id: &[u8],
+    ) -> Result<Vec<pb::ClaimedKeyPackage>, Error> {
+        let req = pb::KeysServiceClaimRequest {
+            account_id: account_id.to_vec(),
+        };
+        let res: pb::KeysServiceClaimResponse =
+            self.call("KeysService/Claim", &req, Some(token)).await?;
+        Ok(res.key_packages)
+    }
+
+    /// Queues an MLS message for each recipient; returns revoked devices (ID-13).
+    pub async fn send_identified(
+        &self,
+        token: &str,
+        recipients: Vec<pb::DeviceAddress>,
+        payload: Vec<u8>,
+    ) -> Result<Vec<pb::DeviceAddress>, Error> {
+        let req = pb::MessagesServiceSendIdentifiedRequest {
+            recipients,
+            payload,
+        };
+        let res: pb::MessagesServiceSendIdentifiedResponse = self
+            .call("MessagesService/SendIdentified", &req, Some(token))
+            .await?;
+        Ok(res.revoked)
+    }
+
+    /// Submits a commit for `req.epoch`; "epoch_conflict" means another commit won (CRY-14).
+    pub async fn commit(
+        &self,
+        token: &str,
+        req: pb::GroupsServiceCommitRequest,
+    ) -> Result<Vec<pb::DeviceAddress>, Error> {
+        let res: pb::GroupsServiceCommitResponse =
+            self.call("GroupsService/Commit", &req, Some(token)).await?;
+        Ok(res.revoked)
+    }
+
+    /// Opens WS /v1/stream (SRV-03), over the same pinned TLS as every other call.
+    pub async fn stream(&self, token: &str) -> Result<Stream, Error> {
+        let url = reqwest::Url::parse(&format!("{}/v1/stream", self.base)).map_err(net)?;
+        let host = url.host_str().ok_or(Error::new("network"))?.to_string();
+        let port = url.port_or_known_default().ok_or(Error::new("network"))?;
+        let ws_url = format!(
+            "{}://{}/v1/stream",
+            if self.tls.is_some() { "wss" } else { "ws" },
+            url.authority()
+        );
+        let mut req =
+            tungstenite::client::IntoClientRequest::into_client_request(ws_url).map_err(net)?;
+        req.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {token}").parse().map_err(net)?,
+        );
+        let tcp = tokio::net::TcpStream::connect((host.as_str(), port))
+            .await
+            .map_err(net)?;
+        let io: Box<dyn Io> = match &self.tls {
+            Some(cfg) => {
+                let name = ServerName::try_from(host).map_err(net)?;
+                Box::new(
+                    tokio_rustls::TlsConnector::from(cfg.clone())
+                        .connect(name, tcp)
+                        .await
+                        .map_err(net)?,
+                )
+            }
+            None => Box::new(tcp),
+        };
+        let (ws, _) = tokio_tungstenite::client_async(req, io)
+            .await
+            .map_err(|e| match e {
+                tungstenite::Error::Http(r) if r.status() == 401 => Error::new("unauthenticated"),
+                _ => Error::new("network"),
+            })?;
+        Ok(Stream { ws })
+    }
+}
+
+fn net<E>(_: E) -> Error {
+    Error::new("network")
+}
+
+trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> Io for T {}
+
+/// One device's message stream. Queued messages arrive in order; acknowledge them to delete
+/// them from the server. Unacknowledged ones come again on the next connection.
+pub struct Stream {
+    ws: WebSocketStream<Box<dyn Io>>,
+}
+
+pub enum Frame {
+    Message {
+        id: i64,
+        payload: Vec<u8>,
+    },
+    /// This device was revoked or its account deleted: wipe (ID-12).
+    Deregistered,
+}
+
+impl Stream {
+    /// The next frame, or None when the server closed the stream.
+    pub async fn next(&mut self) -> Result<Option<Frame>, Error> {
+        while let Some(msg) = self.ws.next().await {
+            let tungstenite::Message::Binary(b) = msg.map_err(|_| Error::new("network"))? else {
+                continue; // pings are answered by tungstenite
+            };
+            let f = pb::StreamFrame::decode(b).map_err(|_| Error::new("bad_response"))?;
+            return Ok(match f.kind {
+                Some(pb::stream_frame::Kind::Message(m)) => Some(Frame::Message {
+                    id: m.id,
+                    payload: m.payload,
+                }),
+                Some(pb::stream_frame::Kind::Deregistered(_)) => Some(Frame::Deregistered),
+                None => continue,
+            });
+        }
+        Ok(None)
+    }
+
+    pub async fn ack(&mut self, ids: Vec<i64>) -> Result<(), Error> {
+        let b = pb::StreamAck { ids }.encode_to_vec();
+        self.ws
+            .send(tungstenite::Message::Binary(b.into()))
+            .await
+            .map_err(|_| Error::new("network"))
     }
 }
 

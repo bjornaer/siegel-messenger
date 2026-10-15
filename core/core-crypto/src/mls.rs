@@ -4,7 +4,7 @@
 
 use openmls::prelude::tls_codec::{Deserialize as _, Serialize as _};
 use openmls::prelude::*;
-use openmls_basic_credential::SignatureKeyPair;
+pub use openmls_basic_credential::SignatureKeyPair;
 
 use crate::{IdentityKey, verify_as_binding};
 

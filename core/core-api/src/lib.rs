@@ -8,6 +8,9 @@ use core_crypto::IdentityKey;
 use core_net::{Client, pb};
 use core_store::{SqlCipher, Store};
 
+mod chat;
+pub use chat::{ChatMessage, Event};
+
 /// Machine-readable failure, e.g. "otp_invalid", "registration_lock_required", "network".
 #[derive(Debug, Clone, PartialEq)]
 pub struct CoreError {
@@ -20,10 +23,14 @@ impl From<core_net::Error> for CoreError {
     }
 }
 
+impl CoreError {
+    fn new(code: &str) -> Self {
+        Self { code: code.into() }
+    }
+}
+
 fn storage<T>(r: core_store::Result<T>) -> Result<T, CoreError> {
-    r.map_err(|_| CoreError {
-        code: "storage".into(),
-    })
+    r.map_err(|_| CoreError::new("storage"))
 }
 
 #[derive(Clone, Copy)]
@@ -38,9 +45,12 @@ const DEVICE: &str = "device_id";
 const TOKEN: &str = "device_token";
 const USERNAME: &str = "username";
 const DISPLAY_NAME: &str = "display_name";
+const AS_PUBLIC: &str = "as_public_key";
+const SIGNER: &str = "mls_signer_public";
+const CREDENTIAL: &str = "mls_credential";
 
 pub struct SiegelCore {
-    store: Mutex<Option<Box<dyn Store>>>,
+    store: Mutex<Option<SqlCipher>>,
     net: Client,
 }
 
@@ -52,7 +62,7 @@ impl SiegelCore {
         })?;
         let store = storage(SqlCipher::open(Path::new(db_path), key))?;
         Ok(Self {
-            store: Mutex::new(Some(Box::new(store))),
+            store: Mutex::new(Some(store)),
             net: Client::new(server_url),
         })
     }
@@ -123,18 +133,55 @@ impl SiegelCore {
                 } as i32,
             })
             .await?;
-        let guard = self.store.lock().unwrap();
-        let s = guard.as_ref().ok_or(CoreError {
-            code: "wiped".into(),
-        })?;
-        for (k, v) in [
-            (IDENTITY, &id.to_bytes()[..]),
-            (ACCOUNT, &res.account_id[..]),
-            (DEVICE, &res.device_id[..]),
-            (TOKEN, res.device_token.as_bytes()),
-        ] {
-            storage(s.put(k, v))?;
+        let account: [u8; 16] = res
+            .account_id
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::new("bad_response"))?;
+        let device: [u8; 16] = res
+            .device_id
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::new("bad_response"))?;
+        let as_sig: [u8; 64] = res
+            .as_signature
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::new("bad_response"))?;
+        let as_pub: [u8; 32] = res
+            .as_public_key
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::new("bad_response"))?;
+        // CRY-08: the binding we just got must verify under the AS key we now pin.
+        if !core_crypto::verify_as_binding(&as_pub, &account, &id.public(), &as_sig) {
+            return Err(CoreError::new("as_signature_invalid"));
         }
+        {
+            let guard = self.store.lock().unwrap();
+            let s = guard.as_ref().ok_or(CoreError::new("wiped"))?;
+            let signer = chat::new_signer(s)?; // CRY-07: this device's MLS signing key
+            let credential = core_crypto::mls::DeviceCredential::issue(
+                &id,
+                account,
+                device,
+                signer.public(),
+                as_sig,
+            );
+            for (k, v) in [
+                (IDENTITY, &id.to_bytes()[..]),
+                (ACCOUNT, &account[..]),
+                (DEVICE, &device[..]),
+                (TOKEN, res.device_token.as_bytes()),
+                (AS_PUBLIC, &as_pub[..]),
+                (SIGNER, signer.public()),
+                (CREDENTIAL, &credential.encode()),
+            ] {
+                storage(s.put(k, v))?;
+            }
+        }
+        // A failed upload is retried when the stream connects (refill below 20, CRY-09).
+        let _ = self.ensure_key_packages().await;
         Ok(res.existing_account)
     }
 
@@ -194,7 +241,7 @@ impl SiegelCore {
     /// Erases keys and the local database (ID-12). This instance is unusable afterwards.
     pub fn wipe(&self) -> Result<(), CoreError> {
         match self.store.lock().unwrap().take() {
-            Some(s) => storage(s.wipe()),
+            Some(s) => storage(Box::new(s).wipe()),
             None => Ok(()),
         }
     }

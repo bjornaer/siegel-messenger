@@ -9,6 +9,10 @@ publish.workspace = true
 core-crypto = { path = "../core-crypto" }
 core-net = { path = "../core-net" }
 core-store = { path = "../core-store" }
+openmls_rust_crypto = "0.6"
+openmls_traits = "0.6"
+prost = "0.14"
+uuid = { version = "1", features = ["v7"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
