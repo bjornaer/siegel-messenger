@@ -242,6 +242,8 @@ class _OnboardingState extends State<Onboarding> {
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
         child: ListView(
+          // Fresh fields per step: a reused field keeps the previous step's keyboard type (numeric after the code).
+          key: ValueKey(step),
           padding: const EdgeInsets.all(16),
           children: [for (final c in children) Padding(padding: const EdgeInsets.only(bottom: 16), child: c)],
         ),
