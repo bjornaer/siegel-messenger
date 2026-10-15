@@ -13,6 +13,13 @@ import (
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
+type statusError struct {
+	url  string
+	code int
+}
+
+func (e *statusError) Error() string { return fmt.Sprintf("%s: status %d", e.url, e.code) }
+
 func postJSON(ctx context.Context, url string, header http.Header, in, out any) error {
 	body, err := json.Marshal(in)
 	if err != nil {
@@ -30,7 +37,7 @@ func postJSON(ctx context.Context, url string, header http.Header, in, out any) 
 	}
 	defer res.Body.Close()
 	if res.StatusCode/100 != 2 {
-		return fmt.Errorf("%s: status %d", strings.SplitN(url, "?", 2)[0], res.StatusCode) // never echo the body: it may hold a number
+		return &statusError{strings.SplitN(url, "?", 2)[0], res.StatusCode} // never echo the body: it may hold a number
 	}
 	if out == nil {
 		return nil

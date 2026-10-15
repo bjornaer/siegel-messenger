@@ -133,3 +133,13 @@ Store reviewers can't receive our SMS, so one number can be given a fixed code.
 3. Give both to the store in the review notes. Anyone who learns them can register that
    number, so it must never hold a real person's account. Rotate the code after each review.
 
+## 7. Push notifications (FCM)
+
+1. Firebase console → Project settings → Service accounts → Generate new private key. This
+   key can send pushes to every install: treat it like the GatewayAPI token.
+2. On your laptop: `base64 -i key.json | tr -d '\n' | pbcopy`, then paste it into
+   `/opt/siegel/.env` as `SIEGEL_FCM_CREDENTIALS=...` and `docker compose up -d server`.
+3. Delete `key.json` from your laptop (keep an offline copy only if you want one; you can
+   always generate a new key and delete the old one in the console).
+4. Without it, a server in dev mode logs `dev push stub` instead of pushing.
+

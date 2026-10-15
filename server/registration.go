@@ -31,6 +31,8 @@ type server struct {
 	hmacPhone func(ctx context.Context, phone string) ([]byte, error)
 	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
 	hub       *hub
+	sendPush  func(ctx context.Context, platform siegelv1.Platform, token string) error
+	pushes    pushes
 
 	fetchASPublic func(ctx context.Context) ([]byte, error)
 	asMu          sync.Mutex

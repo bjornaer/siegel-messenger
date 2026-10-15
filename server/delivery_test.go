@@ -252,3 +252,77 @@ func TestProfilesAndSealedSender(t *testing.T) { // MSG-10, CMP-04
 	}
 	want(t, errMsg(commit("chat-2")), "rate_limited") // CMP-04
 }
+
+func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
+	e := setup(t)
+	pushed := make(chan string, 10)
+	e.s.sendPush = func(_ context.Context, p siegelv1.Platform, token string) error {
+		pushed <- token
+		if token == "gone" {
+			return errPushTokenGone
+		}
+		return nil
+	}
+	a, b := e.device("+34600000081"), e.device("+34600000082")
+	_, acct := e.clients(b.DeviceToken)
+	if _, err := acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "tok-b"})); err != nil {
+		t.Fatal(err)
+	}
+	send := func() {
+		if _, err := a.msgs.SendIdentified(e.ctx, connect.NewRequest(&siegelv1.MessagesServiceSendIdentifiedRequest{
+			Recipients: []*siegelv1.DeviceAddress{b.addr()}, Payload: []byte("x")})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	waitPush := func() string {
+		select {
+		case tok := <-pushed:
+			return tok
+		case <-time.After(3 * time.Second):
+			return ""
+		}
+	}
+	quiet := func() {
+		time.Sleep(300 * time.Millisecond)
+		if len(pushed) != 0 {
+			t.Fatal("unexpected push")
+		}
+	}
+
+	send()
+	want(t, waitPush(), "tok-b")
+	send()
+	send()
+	quiet() // SRV-06: one burst, one push
+
+	ws, _, err := dial(e, b.DeviceToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next(t, ws)
+	send()
+	quiet() // live stream: no push
+	ws.CloseNow()
+	for e.s.hub.online([16]byte(b.DeviceId)) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	send()
+	want(t, waitPush(), "tok-b") // the connection reset collapsing
+
+	// A token the push service no longer knows is cleared.
+	acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "gone"}))
+	e.s.pushes.connected([16]byte(b.DeviceId))
+	send()
+	want(t, waitPush(), "gone")
+	for i := 0; ; i++ {
+		var tok *string
+		e.s.db.QueryRow(e.ctx, `SELECT push_token FROM devices WHERE device_id = $1`, b.DeviceId).Scan(&tok)
+		if tok == nil {
+			break
+		}
+		if i > 100 {
+			t.Fatal("gone token not cleared")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

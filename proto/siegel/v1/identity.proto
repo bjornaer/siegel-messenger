@@ -81,7 +81,15 @@ service AccountService {
   rpc SetRegistrationLock(SetRegistrationLockRequest) returns (SetRegistrationLockResponse);
   // Deletes all server-side data for the account (ID-16). Auth: device.
   rpc Delete(AccountServiceDeleteRequest) returns (AccountServiceDeleteResponse);
+  // This device's FCM or APNs token; empty clears it (MSG-17, SRV-05). Auth: device.
+  rpc SetPushToken(SetPushTokenRequest) returns (SetPushTokenResponse);
 }
+
+message SetPushTokenRequest {
+  string push_token = 1;
+}
+
+message SetPushTokenResponse {}
 
 message SetRegistrationLockRequest {
   string pin = 1;

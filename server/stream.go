@@ -87,6 +87,7 @@ func (s *server) listen(ctx context.Context) {
 				if b, err := hex.DecodeString(n.Payload); err == nil && len(b) == 16 {
 					copy(d[:], b)
 					s.hub.wake(d, false)
+					s.wakeDevice(d)
 				}
 			}
 		}()
@@ -140,6 +141,7 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 
 	wake, unsub := s.hub.sub(c.device)
 	defer unsub()
+	s.pushes.connected(c.device)
 	go func() { // acknowledgements delete delivered messages
 		defer cancel()
 		for {

@@ -4,12 +4,24 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+
+	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
 
 func TestGatewayAPI(t *testing.T) {
@@ -58,5 +70,60 @@ func TestBao(t *testing.T) {
 	}
 	if !ed25519.Verify(pub, []byte("msg"), sig) {
 		t.Fatal("AS signature does not verify with the transit public key")
+	}
+}
+
+func TestFCM(t *testing.T) { // SRV-05
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	der, _ := x509.MarshalPKCS8PrivateKey(key)
+	var tokenCalls, sends int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			tokenCalls++
+			r.ParseForm()
+			parts := strings.Split(r.Form.Get("assertion"), ".")
+			sig, _ := base64.RawURLEncoding.DecodeString(parts[2])
+			sum := sha256.Sum256([]byte(parts[0] + "." + parts[1]))
+			if rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA256, sum[:], sig) != nil {
+				t.Error("bad JWT signature")
+			}
+			w.Write([]byte(`{"access_token":"at","expires_in":3600}`))
+		case "/v1/projects/p1/messages:send":
+			sends++
+			var m struct {
+				Message struct {
+					Token   string
+					Android struct{ Priority string }
+					Data    map[string]string
+				}
+			}
+			json.NewDecoder(r.Body).Decode(&m)
+			if r.Header.Get("Authorization") != "Bearer at" || m.Message.Android.Priority != "HIGH" || m.Message.Data != nil {
+				t.Errorf("bad send: %+v", m)
+			}
+			if m.Message.Token == "gone" {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	defer srv.Close()
+	fcmBase = srv.URL
+	creds, _ := json.Marshal(map[string]string{"project_id": "p1", "client_email": "x@p1", "token_uri": srv.URL + "/token",
+		"private_key": string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))})
+	send, err := fcm(creds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "t1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "gone"); !errors.Is(err, errPushTokenGone) {
+		t.Fatal("404 must mean token gone", err)
+	}
+	send(ctx, siegelv1.Platform_PLATFORM_IOS, "ios") // not until APNs ships
+	if tokenCalls != 1 || sends != 2 {
+		t.Fatal("token not cached or iOS sent", tokenCalls, sends)
 	}
 }

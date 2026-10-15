@@ -54,6 +54,9 @@ const (
 	AccountServiceSetRegistrationLockProcedure = "/siegel.v1.AccountService/SetRegistrationLock"
 	// AccountServiceDeleteProcedure is the fully-qualified name of the AccountService's Delete RPC.
 	AccountServiceDeleteProcedure = "/siegel.v1.AccountService/Delete"
+	// AccountServiceSetPushTokenProcedure is the fully-qualified name of the AccountService's
+	// SetPushToken RPC.
+	AccountServiceSetPushTokenProcedure = "/siegel.v1.AccountService/SetPushToken"
 	// ProfileServiceSetProcedure is the fully-qualified name of the ProfileService's Set RPC.
 	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
 	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
@@ -268,6 +271,8 @@ type AccountServiceClient interface {
 	SetRegistrationLock(context.Context, *connect.Request[v1.SetRegistrationLockRequest]) (*connect.Response[v1.SetRegistrationLockResponse], error)
 	// Deletes all server-side data for the account (ID-16). Auth: device.
 	Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error)
+	// This device's FCM or APNs token; empty clears it (MSG-17, SRV-05). Auth: device.
+	SetPushToken(context.Context, *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error)
 }
 
 // NewAccountServiceClient constructs a client for the siegel.v1.AccountService service. By default,
@@ -293,6 +298,12 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("Delete")),
 			connect.WithClientOptions(opts...),
 		),
+		setPushToken: connect.NewClient[v1.SetPushTokenRequest, v1.SetPushTokenResponse](
+			httpClient,
+			baseURL+AccountServiceSetPushTokenProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("SetPushToken")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -300,6 +311,7 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type accountServiceClient struct {
 	setRegistrationLock *connect.Client[v1.SetRegistrationLockRequest, v1.SetRegistrationLockResponse]
 	delete              *connect.Client[v1.AccountServiceDeleteRequest, v1.AccountServiceDeleteResponse]
+	setPushToken        *connect.Client[v1.SetPushTokenRequest, v1.SetPushTokenResponse]
 }
 
 // SetRegistrationLock calls siegel.v1.AccountService.SetRegistrationLock.
@@ -312,12 +324,19 @@ func (c *accountServiceClient) Delete(ctx context.Context, req *connect.Request[
 	return c.delete.CallUnary(ctx, req)
 }
 
+// SetPushToken calls siegel.v1.AccountService.SetPushToken.
+func (c *accountServiceClient) SetPushToken(ctx context.Context, req *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error) {
+	return c.setPushToken.CallUnary(ctx, req)
+}
+
 // AccountServiceHandler is an implementation of the siegel.v1.AccountService service.
 type AccountServiceHandler interface {
 	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
 	SetRegistrationLock(context.Context, *connect.Request[v1.SetRegistrationLockRequest]) (*connect.Response[v1.SetRegistrationLockResponse], error)
 	// Deletes all server-side data for the account (ID-16). Auth: device.
 	Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error)
+	// This device's FCM or APNs token; empty clears it (MSG-17, SRV-05). Auth: device.
+	SetPushToken(context.Context, *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error)
 }
 
 // NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -339,12 +358,20 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("Delete")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceSetPushTokenHandler := connect.NewUnaryHandler(
+		AccountServiceSetPushTokenProcedure,
+		svc.SetPushToken,
+		connect.WithSchema(accountServiceMethods.ByName("SetPushToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountServiceSetRegistrationLockProcedure:
 			accountServiceSetRegistrationLockHandler.ServeHTTP(w, r)
 		case AccountServiceDeleteProcedure:
 			accountServiceDeleteHandler.ServeHTTP(w, r)
+		case AccountServiceSetPushTokenProcedure:
+			accountServiceSetPushTokenHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -360,6 +387,10 @@ func (UnimplementedAccountServiceHandler) SetRegistrationLock(context.Context, *
 
 func (UnimplementedAccountServiceHandler) Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.Delete is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) SetPushToken(context.Context, *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.SetPushToken is not implemented"))
 }
 
 // ProfileServiceClient is a client for the siegel.v1.ProfileService service.

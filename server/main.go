@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	_ "embed"
+	"encoding/base64"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/bjornaer/siegel-messenger/server/gen/siegel/v1/siegelv1connect"
+
+	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
 
 //go:embed schema.sql
@@ -56,6 +59,7 @@ type config struct {
 	alertURL      string  // webhook for operator alerts (plain-text POST, e.g. an ntfy.sh topic)
 	otpAlertRate  float64 // ID-04: alert below this OTP completion rate over 24 h
 	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
+	fcmKey        []byte  // Google service account JSON for FCM (SRV-05); unset: push stubbed in dev
 	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
 }
@@ -97,6 +101,12 @@ func loadConfig() config {
 	}
 	if c.reviewPhone, c.reviewCode = os.Getenv("SIEGEL_REVIEW_PHONE"), os.Getenv("SIEGEL_REVIEW_CODE"); c.reviewPhone != "" && !regexp.MustCompile(`^\d{6}$`).MatchString(c.reviewCode) {
 		fatal("SIEGEL_REVIEW_CODE must be 6 digits when SIEGEL_REVIEW_PHONE is set")
+	}
+	if k := os.Getenv("SIEGEL_FCM_CREDENTIALS"); k != "" {
+		var err error
+		if c.fcmKey, err = base64.StdEncoding.DecodeString(k); err != nil {
+			fatal("SIEGEL_FCM_CREDENTIALS must be the service account JSON, base64-encoded")
+		}
 	}
 	if c.baoAddr == "" || c.baoToken == "" {
 		fatal("SIEGEL_BAO_ADDR and SIEGEL_BAO_TOKEN are required")
@@ -148,6 +158,19 @@ func main() {
 		}
 	default:
 		fatal("SIEGEL_GATEWAYAPI_TOKEN required outside dev mode")
+	}
+	switch {
+	case cfg.fcmKey != nil:
+		if s.sendPush, err = fcm(cfg.fcmKey); err != nil {
+			fatal("fcm credentials", "err", err)
+		}
+	case cfg.dev:
+		s.sendPush = func(context.Context, siegelv1.Platform, string) error {
+			slog.Info("dev push stub") // never the token
+			return nil
+		}
+	default:
+		fatal("SIEGEL_FCM_CREDENTIALS required outside dev mode")
 	}
 	if !cfg.dev {
 		// ponytail: App Attest / Play Integrity not wired yet; refuse to run without them.
