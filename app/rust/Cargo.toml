@@ -14,3 +14,9 @@ core-api = { path = "../../core/core-api" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+# Smaller app download: the core ships once per CPU architecture.
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
