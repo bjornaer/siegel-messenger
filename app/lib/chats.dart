@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
+import 'format.dart';
 import 'profile.dart';
 import 'safety.dart';
 import 'src/rust/api/core.dart';
@@ -672,7 +673,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (m.deleted)
                 Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
               else
-                Text(m.text),
+                Text.rich(formatText(m.text)),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
