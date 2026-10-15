@@ -1,4 +1,6 @@
-//! Cryptography. No platform-specific code here (CLI-04). OpenMLS joins in M2.
+//! Cryptography. No platform-specific code here (CLI-04).
+
+pub mod mls;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand_core::OsRng;
@@ -25,6 +27,15 @@ impl IdentityKey {
 
     pub fn sign(&self, msg: &[u8]) -> [u8; 64] {
         self.0.sign(msg).to_bytes()
+    }
+
+    /// Checks a signature made with the identity key whose public half is `public`.
+    pub fn verify(public: &[u8; 32], msg: &[u8], sig: &[u8]) -> bool {
+        let (Ok(key), Ok(sig)) = (VerifyingKey::from_bytes(public), Signature::from_slice(sig))
+        else {
+            return false;
+        };
+        key.verify(msg, &sig).is_ok()
     }
 }
 

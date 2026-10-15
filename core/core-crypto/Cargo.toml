@@ -6,5 +6,11 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+openmls = "0.9.1"
+openmls_basic_credential = "0.6"
+openmls_traits = "0.6"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
+
+[dev-dependencies]
+openmls_rust_crypto = "0.6"
