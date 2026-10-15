@@ -140,10 +140,34 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
           AppLockSettings(core: core),
+          _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
+          _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
           const SizedBox(height: 16),
           OutlinedButton(onPressed: () => _delete(context), child: Text(t.deleteAccount)),
         ],
       ),
     );
   }
+}
+
+/// MSG-13, MSG-14: on by default; the core reads the same setting keys.
+class _Toggle extends StatefulWidget {
+  const _Toggle({required this.core, required this.setting, required this.title, required this.help});
+  final Core core;
+  final String setting;
+  final String title;
+  final String help;
+
+  @override
+  State<_Toggle> createState() => _ToggleState();
+}
+
+class _ToggleState extends State<_Toggle> {
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    title: Text(widget.title),
+    subtitle: Text(widget.help),
+    value: widget.core.setting(key: widget.setting) != 'off',
+    onChanged: (on) => setState(() => widget.core.setSetting(key: widget.setting, value: on ? 'on' : 'off')),
+  );
 }

@@ -286,4 +286,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errRequestPending => 'Accept the request before replying.';
+
+  @override
+  String get reply => 'Reply';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get copied => 'Copied';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get editing => 'Editing message';
+
+  @override
+  String get edited => 'edited';
+
+  @override
+  String get editHistory => 'Edit history';
+
+  @override
+  String get deleteForMe => 'Delete for me';
+
+  @override
+  String get deleteForEveryone => 'Delete for everyone';
+
+  @override
+  String get deleteForEveryoneBody =>
+      'The message is replaced with \"This message was deleted\" for everyone in this chat. Someone using a modified app could still keep a copy.';
+
+  @override
+  String get messageDeleted => 'This message was deleted';
+
+  @override
+  String get originalMissing => 'Original message not available';
+
+  @override
+  String get you => 'You';
+
+  @override
+  String get typing => 'typing…';
+
+  @override
+  String get notSentRetry => 'Not sent. Tap to retry.';
+
+  @override
+  String get statusSending => 'Sending';
+
+  @override
+  String get statusSent => 'Sent';
+
+  @override
+  String get statusDelivered => 'Delivered';
+
+  @override
+  String get statusRead => 'Read';
+
+  @override
+  String get readReceipts => 'Read receipts';
+
+  @override
+  String get readReceiptsHelp =>
+      'If you turn these off, you won\'t see when others read your messages either.';
+
+  @override
+  String get typingIndicators => 'Typing indicators';
+
+  @override
+  String get typingIndicatorsHelp =>
+      'If you turn these off, you won\'t see when others are typing either.';
+
+  @override
+  String get errNotAllowed => 'That\'s no longer possible for this message.';
+
+  @override
+  String get close => 'Close';
 }

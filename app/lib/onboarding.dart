@@ -29,6 +29,7 @@ void showError(BuildContext context, CoreError e) {
     'no_key_packages' => t.errNoKeyPackages,
     'text_invalid' => t.errTextInvalid,
     'request_pending' => t.errRequestPending,
+    'not_allowed' => t.errNotAllowed,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };

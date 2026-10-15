@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
@@ -17,8 +17,26 @@ class ChatService extends ChangeNotifier {
   final Core core;
   final VoidCallback onDeregistered;
   bool _stopped = false;
+  final _typing = <String, Timer>{};
+
+  /// MSG-14: the peer typed within the last few seconds.
+  bool isTyping(Uint8List groupId) => _typing.containsKey(base64Encode(groupId));
+
+  void _setTyping(Uint8List groupId, bool on) {
+    final key = base64Encode(groupId);
+    _typing.remove(key)?.cancel();
+    if (!on) return;
+    // A little over the 3 s send interval.
+    _typing[key] = Timer(const Duration(seconds: 5), () {
+      _typing.remove(key);
+      if (!_stopped) notifyListeners();
+    });
+  }
 
   void start() => unawaited(_loop());
+
+  /// Our own actions change chats too (last message, ticks); screens rebuild on this.
+  void refresh() => notifyListeners();
 
   Future<void> _loop() async {
     var backoff = const Duration(seconds: 1);
@@ -30,6 +48,9 @@ class ChatService extends ChangeNotifier {
             _stopped = true;
             onDeregistered(); // ID-12: the core already wiped local data
             return;
+          }
+          if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
+            _setTyping(e.groupId!, e.kind == CoreEventKind.typing);
           }
           notifyListeners();
         }
@@ -45,6 +66,9 @@ class ChatService extends ChangeNotifier {
   @override
   void dispose() {
     _stopped = true;
+    for (final t in _typing.values) {
+      t.cancel();
+    }
     super.dispose();
   }
 }
@@ -61,7 +85,9 @@ Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSumma
   return ListTile(
     leading: const CircleAvatar(child: Icon(Icons.person_outline)),
     title: Text(chatTitle(t, c)),
-    subtitle: c.last == null ? null : Text(c.last!.text, maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: c.last == null
+        ? null
+        : Text(c.last!.deleted ? t.messageDeleted : c.last!.text, maxLines: 1, overflow: TextOverflow.ellipsis),
     trailing: c.last == null ? null : Text(_time(context, c.last!.sentAt)),
     onTap: () => Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -220,15 +246,44 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
+/// MSG-09, MSG-11 windows; the core enforces the same ones.
+const _editWindow = Duration(minutes: 15);
+const _deleteWindow = Duration(hours: 48);
+const _emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
 class _ChatScreenState extends State<ChatScreen> {
   final _text = TextEditingController();
+  final _focus = FocusNode();
+  final _keys = <String, GlobalKey>{};
   bool _busy = false;
+  MessageView? _replyTo;
+  MessageView? _editing;
+  DateTime _lastTyping = DateTime(0);
 
   Core get core => widget.core;
+  Uint8List get _group => widget.groupId;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.service.addListener(_markRead);
+    _markRead();
+  }
+
+  @override
+  void dispose() {
+    widget.service.removeListener(_markRead);
+    _text.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// MSG-13: what arrives in an open chat counts as read.
+  void _markRead() => unawaited(core.markRead(groupId: _group).catchError((Object _) {}));
 
   ChatSummary? _summary() {
     for (final c in core.chats()) {
-      if (listEquals(c.groupId, widget.groupId)) return c;
+      if (listEquals(c.groupId, _group)) return c;
     }
     return null; // deleted or blocked
   }
@@ -241,16 +296,41 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
+      widget.service.refresh();
     }
+  }
+
+  /// MSG-14: at most one typing event every 3 seconds.
+  void _onChanged(String v) {
+    final now = DateTime.now();
+    if (v.isEmpty || _editing != null || now.difference(_lastTyping) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastTyping = now;
+    unawaited(core.sendTyping(groupId: _group).catchError((Object _) {}));
   }
 
   Future<void> _send() async {
     final text = _text.text.trim();
     if (text.isEmpty) return;
-    await _run(() async {
-      await core.sendText(groupId: widget.groupId, text: text);
-      _text.clear();
-    });
+    final editing = _editing;
+    if (editing != null) {
+      if (text == editing.text) {
+        _text.clear();
+        return setState(() => _editing = null); // nothing changed: no edit to send
+      }
+      await _run(() async {
+        await core.edit(groupId: _group, messageId: editing.messageId, text: text);
+        _text.clear();
+        setState(() => _editing = null);
+      });
+      return;
+    }
+    // Cleared up front: a failed send stays in the chat with a retry (MSG-04), not in the composer.
+    final reply = _replyTo;
+    _text.clear();
+    setState(() => _replyTo = null);
+    await _run(() => core.sendText(groupId: _group, text: text, replyTo: reply?.messageId));
   }
 
   Future<void> _block(ChatSummary c) async {
@@ -273,10 +353,143 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Future<void> _deleteForEveryone(MessageView m) async {
+    final t = AppLocalizations.of(context)!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.deleteForEveryone),
+        content: Text(t.deleteForEveryoneBody), // MSG-11: promise no more than this
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: Text(t.delete)),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      await _run(() => core.deleteForEveryone(groupId: _group, messageId: m.messageId));
+    }
+  }
+
+  void _history(MessageView m) {
+    final t = AppLocalizations.of(context)!;
+    showDialog<void>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.editHistory),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: [
+              for (final v in core.versions(messageId: m.messageId))
+                Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(v)),
+              Text(m.text, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(d), child: Text(t.close))],
+      ),
+    );
+  }
+
+  /// Long-press actions. Edit and delete-for-everyone only show inside their windows;
+  /// the core checks the same rules (MSG-09, MSG-11).
+  void _actions(MessageView m, ChatSummary c) {
+    final t = AppLocalizations.of(context)!;
+    final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(m.sentAt));
+    // ponytail: in 1:1 any reaction not from the peer is ours; groups (M3) need our account ID.
+    final mine = m.reactions.where((r) => !listEquals(r.account, c.peerAccount)).firstOrNull?.emoji;
+    void act(VoidCallback f) {
+      Navigator.pop(context);
+      f();
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true, // all actions fit on small screens too
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          child: Wrap(
+            children: [
+              if (!m.deleted && !c.request)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (final e in _emojis)
+                      IconButton(
+                        isSelected: e == mine,
+                        icon: Text(e, style: const TextStyle(fontSize: 24)),
+                        onPressed: () => act(
+                          () => _run(
+                            () => core.react(groupId: _group, messageId: m.messageId, emoji: e == mine ? '' : e),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              if (!m.deleted && !c.request)
+                ListTile(
+                  leading: const Icon(Icons.reply),
+                  title: Text(t.reply),
+                  onTap: () => act(
+                    () => setState(() {
+                      _replyTo = m;
+                      _editing = null;
+                      _focus.requestFocus();
+                    }),
+                  ),
+                ),
+              if (!m.deleted)
+                ListTile(
+                  leading: const Icon(Icons.copy),
+                  title: Text(t.copy),
+                  onTap: () => act(() {
+                    Clipboard.setData(ClipboardData(text: m.text));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.copied)));
+                  }),
+                ),
+              if (m.outgoing && !m.deleted && age < _editWindow && m.status != MessageStatus.failed)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: Text(t.edit),
+                  onTap: () => act(() {
+                    _text.text = m.text;
+                    setState(() {
+                      _editing = m;
+                      _replyTo = null;
+                      _focus.requestFocus();
+                    });
+                  }),
+                ),
+              if (m.edited && !m.deleted)
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: Text(t.editHistory),
+                  onTap: () => act(() => _history(m)),
+                ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: Text(t.deleteForMe),
+                onTap: () => act(() {
+                  core.deleteForMe(messageId: m.messageId);
+                  widget.service.refresh();
+                }),
+              ),
+              if (m.outgoing && !m.deleted && age < _deleteWindow && m.status != MessageStatus.failed)
+                ListTile(
+                  leading: const Icon(Icons.delete_forever_outlined),
+                  title: Text(t.deleteForEveryone),
+                  onTap: () => act(() => _deleteForEveryone(m)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final colors = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: widget.service,
       builder: (context, _) {
@@ -284,7 +497,13 @@ class _ChatScreenState extends State<ChatScreen> {
         if (c == null) return Scaffold(appBar: AppBar());
         return Scaffold(
           appBar: AppBar(
-            title: Text(chatTitle(t, c)),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(chatTitle(t, c)),
+                if (widget.service.isTyping(_group)) Text(t.typing, style: Theme.of(context).textTheme.labelMedium),
+              ],
+            ),
             actions: [
               if (!c.request)
                 PopupMenuButton<void>(
@@ -294,8 +513,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           body: Column(
             children: [
-              Expanded(child: _messages(context, colors)),
-              SafeArea(top: false, child: c.request ? _requestBar(t, c) : _composer(t)),
+              Expanded(child: _messages(context, c)),
+              SafeArea(top: false, child: c.request ? _requestBar(t, c) : _composer(t, c)),
             ],
           ),
         );
@@ -303,37 +522,113 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _messages(BuildContext context, ColorScheme colors) {
-    final messages = core.messages(groupId: widget.groupId, limit: 500).reversed.toList();
-    return ListView.builder(
+  void _jumpTo(Uint8List messageId) {
+    final ctx = _keys[base64Encode(messageId)]?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5);
+    }
+  }
+
+  // ponytail: builds all (up to 500) bubbles so replies can jump to any of them; paginate if chats get long.
+  Widget _messages(BuildContext context, ChatSummary c) {
+    final messages = core.messages(groupId: _group, limit: 500);
+    final byId = {for (final m in messages) base64Encode(m.messageId): m};
+    return SingleChildScrollView(
       reverse: true,
       padding: const EdgeInsets.all(12),
-      itemCount: messages.length,
-      itemBuilder: (context, i) {
-        final m = messages[i];
-        return Align(
-          key: ValueKey(base64Encode(m.messageId)),
-          alignment: m.outgoing ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 3),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
-            decoration: BoxDecoration(
-              color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(m.text),
-                Text(_time(context, m.sentAt), style: Theme.of(context).textTheme.labelSmall),
-              ],
-            ),
-          ),
-        );
-      },
+      child: Column(children: [for (final m in messages) _bubble(context, m, byId, c)]),
     );
   }
+
+  Widget _bubble(BuildContext context, MessageView m, Map<String, MessageView> byId, ChatSummary c) {
+    final t = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
+    final small = Theme.of(context).textTheme.labelSmall;
+    final id = base64Encode(m.messageId);
+    final quoted = m.replyTo == null ? null : byId[base64Encode(m.replyTo!)];
+    final failed = m.status == MessageStatus.failed;
+    final counts = <String, int>{};
+    for (final r in m.reactions) {
+      counts[r.emoji] = (counts[r.emoji] ?? 0) + 1;
+    }
+    return Align(
+      key: _keys.putIfAbsent(id, GlobalKey.new),
+      alignment: m.outgoing ? Alignment.centerRight : Alignment.centerLeft,
+      child: GestureDetector(
+        onLongPress: () => _actions(m, c),
+        onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+          decoration: BoxDecoration(
+            color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (m.replyTo != null && !m.deleted)
+                GestureDetector(
+                  onTap: () => _jumpTo(m.replyTo!),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.only(left: 8),
+                    decoration: BoxDecoration(
+                      border: Border(left: BorderSide(color: colors.primary, width: 3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (quoted != null) Text(quoted.outgoing ? t.you : chatTitle(t, c), style: small),
+                        Text(
+                          quoted == null
+                              ? t.originalMissing
+                              : quoted.deleted
+                              ? t.messageDeleted
+                              : quoted.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (m.deleted)
+                Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+              else
+                Text(m.text),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (m.edited && !m.deleted)
+                    GestureDetector(
+                      onTap: () => _history(m),
+                      child: Text('${t.edited} ', style: small),
+                    ),
+                  Text(_time(context, m.sentAt), style: small),
+                  if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
+                ],
+              ),
+              if (failed) Text(t.notSentRetry, style: small?.copyWith(color: colors.error)),
+              if (counts.isNotEmpty)
+                Text([for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  ')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// MSG-04 ticks, with labels for screen readers.
+  Widget _status(AppLocalizations t, MessageStatus s, ColorScheme colors) => switch (s) {
+    MessageStatus.failed => Icon(Icons.error_outline, size: 14, color: colors.error, semanticLabel: t.notSentRetry),
+    MessageStatus.sending => Icon(Icons.schedule, size: 14, semanticLabel: t.statusSending),
+    MessageStatus.sent => Icon(Icons.check, size: 14, semanticLabel: t.statusSent),
+    MessageStatus.delivered => Icon(Icons.done_all, size: 14, semanticLabel: t.statusDelivered),
+    MessageStatus.read => Icon(Icons.done_all, size: 14, color: colors.primary, semanticLabel: t.statusRead),
+  };
 
   /// MSG-15: accept, delete or block before anything goes back to the requester.
   Widget _requestBar(AppLocalizations t, ChatSummary c) => Padding(
@@ -352,13 +647,13 @@ class _ChatScreenState extends State<ChatScreen> {
               onPressed: _busy
                   ? null
                   : () {
-                      core.deleteChat(groupId: widget.groupId);
+                      core.deleteChat(groupId: _group);
                       Navigator.of(context).pop();
                     },
               child: Text(t.delete),
             ),
             FilledButton(
-              onPressed: _busy ? null : () => _run(() => core.accept(groupId: widget.groupId)),
+              onPressed: _busy ? null : () => _run(() => core.accept(groupId: _group)),
               child: Text(t.accept),
             ),
           ],
@@ -367,21 +662,54 @@ class _ChatScreenState extends State<ChatScreen> {
     ),
   );
 
-  Widget _composer(AppLocalizations t) => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 4, 4, 8),
-    child: Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _text,
-            minLines: 1,
-            maxLines: 5,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(hintText: t.messageHint, border: const OutlineInputBorder()),
+  Widget _composer(AppLocalizations t, ChatSummary c) {
+    final target = _editing ?? _replyTo;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (target != null)
+            Row(
+              children: [
+                Icon(_editing != null ? Icons.edit_outlined : Icons.reply, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_editing != null ? t.editing : target.text, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                IconButton(
+                  tooltip: t.cancel,
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                    if (_editing != null) _text.clear();
+                    _editing = null;
+                    _replyTo = null;
+                  }),
+                ),
+              ],
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _text,
+                  focusNode: _focus,
+                  minLines: 1,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: _onChanged,
+                  decoration: InputDecoration(hintText: t.messageHint, border: const OutlineInputBorder()),
+                ),
+              ),
+              IconButton(
+                tooltip: t.send,
+                icon: Icon(_editing != null ? Icons.check : Icons.send),
+                onPressed: _busy ? null : _send,
+              ),
+            ],
           ),
-        ),
-        IconButton(tooltip: t.send, icon: const Icon(Icons.send), onPressed: _busy ? null : _send),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }

@@ -555,6 +555,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Accept the request before replying.'**
   String get errRequestPending;
+
+  /// No description provided for @reply.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get reply;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @editing.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing message'**
+  String get editing;
+
+  /// No description provided for @edited.
+  ///
+  /// In en, this message translates to:
+  /// **'edited'**
+  String get edited;
+
+  /// No description provided for @editHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit history'**
+  String get editHistory;
+
+  /// No description provided for @deleteForMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete for me'**
+  String get deleteForMe;
+
+  /// No description provided for @deleteForEveryone.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete for everyone'**
+  String get deleteForEveryone;
+
+  /// No description provided for @deleteForEveryoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The message is replaced with \"This message was deleted\" for everyone in this chat. Someone using a modified app could still keep a copy.'**
+  String get deleteForEveryoneBody;
+
+  /// No description provided for @messageDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'This message was deleted'**
+  String get messageDeleted;
+
+  /// No description provided for @originalMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Original message not available'**
+  String get originalMissing;
+
+  /// No description provided for @you.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get you;
+
+  /// No description provided for @typing.
+  ///
+  /// In en, this message translates to:
+  /// **'typing…'**
+  String get typing;
+
+  /// No description provided for @notSentRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Not sent. Tap to retry.'**
+  String get notSentRetry;
+
+  /// No description provided for @statusSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get statusSending;
+
+  /// No description provided for @statusSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get statusSent;
+
+  /// No description provided for @statusDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get statusDelivered;
+
+  /// No description provided for @statusRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get statusRead;
+
+  /// No description provided for @readReceipts.
+  ///
+  /// In en, this message translates to:
+  /// **'Read receipts'**
+  String get readReceipts;
+
+  /// No description provided for @readReceiptsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'If you turn these off, you won\'t see when others read your messages either.'**
+  String get readReceiptsHelp;
+
+  /// No description provided for @typingIndicators.
+  ///
+  /// In en, this message translates to:
+  /// **'Typing indicators'**
+  String get typingIndicators;
+
+  /// No description provided for @typingIndicatorsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'If you turn these off, you won\'t see when others are typing either.'**
+  String get typingIndicatorsHelp;
+
+  /// No description provided for @errNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s no longer possible for this message.'**
+  String get errNotAllowed;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
 }
 
 class _AppLocalizationsDelegate

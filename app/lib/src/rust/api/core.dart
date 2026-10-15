@@ -25,21 +25,63 @@ abstract class Core implements RustOpaqueInterface {
   /// Deletes a chat from this device.
   void deleteChat({required List<int> groupId});
 
+  Future<void> deleteForEveryone({
+    required List<int> groupId,
+    required List<int> messageId,
+  });
+
+  void deleteForMe({required List<int> messageId});
+
   String? displayName();
+
+  Future<void> edit({
+    required List<int> groupId,
+    required List<int> messageId,
+    required String text,
+  });
 
   bool isRegistered();
 
+  Future<void> markRead({required List<int> groupId});
+
   List<MessageView> messages({required List<int> groupId, required int limit});
 
-  static Core open({required String dbPath, required List<int> dbKey, required String serverUrl}) =>
-      RustLib.instance.api.crateApiCoreCoreOpen(dbPath: dbPath, dbKey: dbKey, serverUrl: serverUrl);
+  static Core open({
+    required String dbPath,
+    required List<int> dbKey,
+    required String serverUrl,
+  }) => RustLib.instance.api.crateApiCoreCoreOpen(
+    dbPath: dbPath,
+    dbKey: dbKey,
+    serverUrl: serverUrl,
+  );
 
-  Future<void> requestOtp({required String phoneE164, required String attestationToken});
+  /// MSG-08: empty removes our reaction.
+  Future<void> react({
+    required List<int> groupId,
+    required List<int> messageId,
+    required String emoji,
+  });
+
+  Future<void> requestOtp({
+    required String phoneE164,
+    required String attestationToken,
+  });
+
+  Future<void> retry({required List<int> messageId});
 
   /// Streams events until the connection closes; the caller reconnects with backoff.
   Stream<CoreEvent> runStream();
 
-  Future<MessageView> sendText({required List<int> groupId, required String text});
+  /// Sends a text, optionally as a reply (MSG-07). On failure the message stays Failed.
+  Future<MessageView> sendText({
+    required List<int> groupId,
+    required String text,
+    Uint8List? replyTo,
+  });
+
+  /// Call at most every 3 seconds while typing (MSG-14).
+  Future<void> sendTyping({required List<int> groupId});
 
   void setDisplayName({required String name});
 
@@ -63,6 +105,9 @@ abstract class Core implements RustOpaqueInterface {
     required String pin,
     required DevicePlatform platform,
   });
+
+  /// Earlier texts of an edited message, oldest first (MSG-09).
+  List<String> versions({required List<int> messageId});
 }
 
 /// A conversation for the chat list.
@@ -120,7 +165,10 @@ class CoreError implements FrbException {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is CoreError && runtimeType == other.runtimeType && code == other.code;
+      identical(this, other) ||
+      other is CoreError &&
+          runtimeType == other.runtimeType &&
+          code == other.code;
 }
 
 /// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
@@ -149,11 +197,20 @@ enum CoreEventKind {
   message,
   profileUpdated,
 
+  /// A reaction, edit, delete or receipt changed a message in `group_id`.
+  updated,
+
+  /// The peer in `group_id` is typing (MSG-14).
+  typing,
+
   /// Local data is already wiped (ID-12): return to onboarding.
   deregistered,
 }
 
 enum DevicePlatform { ios, android }
+
+/// MSG-04. Incoming messages are Delivered until read.
+enum MessageStatus { failed, sending, sent, delivered, read }
 
 class MessageView {
   final Uint8List groupId;
@@ -162,8 +219,17 @@ class MessageView {
 
   /// Sender clock, ms since the Unix epoch.
   final PlatformInt64 sentAt;
+
+  /// Empty once deleted for everyone.
   final String text;
   final bool outgoing;
+
+  /// MSG-07: the quoted message's ID.
+  final Uint8List? replyTo;
+  final MessageStatus status;
+  final bool edited;
+  final bool deleted;
+  final List<Reaction> reactions;
 
   const MessageView({
     required this.groupId,
@@ -172,6 +238,11 @@ class MessageView {
     required this.sentAt,
     required this.text,
     required this.outgoing,
+    this.replyTo,
+    required this.status,
+    required this.edited,
+    required this.deleted,
+    required this.reactions,
   });
 
   @override
@@ -181,7 +252,12 @@ class MessageView {
       senderAccount.hashCode ^
       sentAt.hashCode ^
       text.hashCode ^
-      outgoing.hashCode;
+      outgoing.hashCode ^
+      replyTo.hashCode ^
+      status.hashCode ^
+      edited.hashCode ^
+      deleted.hashCode ^
+      reactions.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -193,5 +269,28 @@ class MessageView {
           senderAccount == other.senderAccount &&
           sentAt == other.sentAt &&
           text == other.text &&
-          outgoing == other.outgoing;
+          outgoing == other.outgoing &&
+          replyTo == other.replyTo &&
+          status == other.status &&
+          edited == other.edited &&
+          deleted == other.deleted &&
+          reactions == other.reactions;
+}
+
+class Reaction {
+  final Uint8List account;
+  final String emoji;
+
+  const Reaction({required this.account, required this.emoji});
+
+  @override
+  int get hashCode => account.hashCode ^ emoji.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Reaction &&
+          runtimeType == other.runtimeType &&
+          account == other.account &&
+          emoji == other.emoji;
 }

@@ -117,12 +117,34 @@ pub struct MessageView {
     pub sender_account: Vec<u8>,
     /// Sender clock, ms since the Unix epoch.
     pub sent_at: i64,
+    /// Empty once deleted for everyone.
     pub text: String,
     pub outgoing: bool,
+    /// MSG-07: the quoted message's ID.
+    pub reply_to: Option<Vec<u8>>,
+    pub status: MessageStatus,
+    pub edited: bool,
+    pub deleted: bool,
+    pub reactions: Vec<Reaction>,
+}
+
+/// MSG-04. Incoming messages are Delivered until read.
+pub enum MessageStatus {
+    Failed,
+    Sending,
+    Sent,
+    Delivered,
+    Read,
+}
+
+pub struct Reaction {
+    pub account: Vec<u8>,
+    pub emoji: String,
 }
 
 impl From<core_api::ChatMessage> for MessageView {
     fn from(m: core_api::ChatMessage) -> Self {
+        use core_api::Status;
         Self {
             group_id: m.group_id,
             message_id: m.message_id,
@@ -130,6 +152,21 @@ impl From<core_api::ChatMessage> for MessageView {
             sent_at: m.sent_at,
             text: m.text,
             outgoing: m.outgoing,
+            reply_to: m.reply_to,
+            status: match m.status {
+                Status::Failed => MessageStatus::Failed,
+                Status::Sending => MessageStatus::Sending,
+                Status::Sent => MessageStatus::Sent,
+                Status::Delivered => MessageStatus::Delivered,
+                Status::Read => MessageStatus::Read,
+            },
+            edited: m.edited,
+            deleted: m.deleted,
+            reactions: m
+                .reactions
+                .into_iter()
+                .map(|(account, emoji)| Reaction { account, emoji })
+                .collect(),
         }
     }
 }
@@ -138,6 +175,10 @@ pub enum CoreEventKind {
     ConversationStarted,
     Message,
     ProfileUpdated,
+    /// A reaction, edit, delete or receipt changed a message in `group_id`.
+    Updated,
+    /// The peer in `group_id` is typing (MSG-14).
+    Typing,
     /// Local data is already wiped (ID-12): return to onboarding.
     Deregistered,
 }
@@ -208,12 +249,69 @@ impl Core {
             .collect())
     }
 
+    /// Sends a text, optionally as a reply (MSG-07). On failure the message stays Failed.
     pub async fn send_text(
         &self,
         group_id: Vec<u8>,
         text: String,
+        reply_to: Option<Vec<u8>>,
     ) -> Result<MessageView, CoreError> {
-        Ok(self.0.send_text(&group_id, &text).await?.into())
+        Ok(self
+            .0
+            .send_text(&group_id, &text, reply_to.as_deref())
+            .await?
+            .into())
+    }
+
+    pub async fn retry(&self, message_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.retry(&message_id).await?)
+    }
+
+    /// MSG-08: empty removes our reaction.
+    pub async fn react(
+        &self,
+        group_id: Vec<u8>,
+        message_id: Vec<u8>,
+        emoji: String,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.react(&group_id, &message_id, &emoji).await?)
+    }
+
+    pub async fn edit(
+        &self,
+        group_id: Vec<u8>,
+        message_id: Vec<u8>,
+        text: String,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.edit(&group_id, &message_id, &text).await?)
+    }
+
+    pub async fn delete_for_everyone(
+        &self,
+        group_id: Vec<u8>,
+        message_id: Vec<u8>,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.delete_for_everyone(&group_id, &message_id).await?)
+    }
+
+    #[frb(sync)]
+    pub fn delete_for_me(&self, message_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.delete_for_me(&message_id)?)
+    }
+
+    /// Earlier texts of an edited message, oldest first (MSG-09).
+    #[frb(sync)]
+    pub fn versions(&self, message_id: Vec<u8>) -> Result<Vec<String>, CoreError> {
+        Ok(self.0.versions(&message_id)?)
+    }
+
+    pub async fn mark_read(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.mark_read(&group_id).await?)
+    }
+
+    /// Call at most every 3 seconds while typing (MSG-14).
+    pub async fn send_typing(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.send_typing(&group_id).await?)
     }
 
     /// Streams events until the connection closes; the caller reconnects with backoff.
@@ -230,6 +328,12 @@ impl Core {
                         Some(m.group_id.clone()),
                         Some(m.into()),
                     ),
+                    core_api::Event::Updated { group_id } => {
+                        (CoreEventKind::Updated, Some(group_id), None)
+                    }
+                    core_api::Event::Typing { group_id } => {
+                        (CoreEventKind::Typing, Some(group_id), None)
+                    }
                     core_api::Event::ProfileUpdated { .. } => {
                         (CoreEventKind::ProfileUpdated, None, None)
                     }

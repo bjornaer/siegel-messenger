@@ -130,12 +130,75 @@ class FakeCore implements Core {
   }
 
   @override
-  Future<MessageView> sendText({required List<int> groupId, required String text}) async {
-    await _maybeFail('sendText $text');
-    final m = msg(groupId, text, outgoing: true);
+  Future<MessageView> sendText({required List<int> groupId, required String text, Uint8List? replyTo}) async {
+    final m = msg(groupId, text, outgoing: true, replyTo: replyTo);
     (history[base64Encode(groupId)] ??= []).add(m);
+    try {
+      await _maybeFail('sendText $text');
+    } on CoreError {
+      _update(m.messageId, (v) => copy(v, status: MessageStatus.failed));
+      rethrow;
+    }
     return m;
   }
+
+  /// Rewrites one stored message, like the core does for receipts and changes.
+  void _update(List<int> id, MessageView Function(MessageView) f) {
+    for (final list in history.values) {
+      final i = list.indexWhere((m) => listEquals(m.messageId, id));
+      if (i >= 0) list[i] = f(list[i]);
+    }
+    events.add(const CoreEvent(kind: CoreEventKind.updated));
+  }
+
+  final versionsOf = <String, List<String>>{};
+
+  @override
+  Future<void> retry({required List<int> messageId}) async {
+    await _maybeFail('retry');
+    _update(messageId, (v) => copy(v, status: MessageStatus.sent));
+  }
+
+  @override
+  Future<void> react({required List<int> groupId, required List<int> messageId, required String emoji}) async {
+    await _maybeFail('react $emoji');
+    _update(
+      messageId,
+      (v) => copy(
+        v,
+        reactions: [if (emoji.isNotEmpty) Reaction(account: Uint8List(1), emoji: emoji)],
+      ),
+    );
+  }
+
+  @override
+  Future<void> edit({required List<int> groupId, required List<int> messageId, required String text}) async {
+    await _maybeFail('edit $text');
+    _update(messageId, (v) {
+      (versionsOf[base64Encode(messageId)] ??= []).add(v.text);
+      return copy(v, text: text, edited: true);
+    });
+  }
+
+  @override
+  Future<void> deleteForEveryone({required List<int> groupId, required List<int> messageId}) async {
+    await _maybeFail('deleteForEveryone');
+    _update(messageId, (v) => copy(v, text: '', deleted: true));
+  }
+
+  @override
+  void deleteForMe({required List<int> messageId}) {
+    for (final list in history.values) {
+      list.removeWhere((m) => listEquals(m.messageId, messageId));
+    }
+  }
+
+  @override
+  List<String> versions({required List<int> messageId}) => versionsOf[base64Encode(messageId)] ?? [];
+  @override
+  Future<void> markRead({required List<int> groupId}) async => calls.add('markRead');
+  @override
+  Future<void> sendTyping({required List<int> groupId}) async => calls.add('sendTyping');
 
   @override
   Stream<CoreEvent> runStream() => events.stream;
@@ -147,13 +210,40 @@ class FakeCore implements Core {
   }
 
   static int _n = 0;
-  static MessageView msg(List<int> groupId, String text, {required bool outgoing}) => MessageView(
+  static int sentAt = DateTime(2026, 10, 15, 9, 30).millisecondsSinceEpoch;
+  static MessageView msg(List<int> groupId, String text, {required bool outgoing, Uint8List? replyTo}) => MessageView(
     groupId: Uint8List.fromList(groupId),
     messageId: Uint8List.fromList([_n++]),
     senderAccount: Uint8List(16),
-    sentAt: DateTime(2026, 10, 15, 9, 30).millisecondsSinceEpoch,
+    sentAt: sentAt,
     text: text,
     outgoing: outgoing,
+    replyTo: replyTo,
+    status: outgoing ? MessageStatus.sent : MessageStatus.delivered,
+    edited: false,
+    deleted: false,
+    reactions: const [],
+  );
+
+  static MessageView copy(
+    MessageView m, {
+    String? text,
+    MessageStatus? status,
+    bool? edited,
+    bool? deleted,
+    List<Reaction>? reactions,
+  }) => MessageView(
+    groupId: m.groupId,
+    messageId: m.messageId,
+    senderAccount: m.senderAccount,
+    sentAt: m.sentAt,
+    text: text ?? m.text,
+    outgoing: m.outgoing,
+    replyTo: m.replyTo,
+    status: status ?? m.status,
+    edited: edited ?? m.edited,
+    deleted: deleted ?? m.deleted,
+    reactions: reactions ?? m.reactions,
   );
 
   @override
@@ -375,5 +465,81 @@ void main() {
     await tapText(t, 'Delete');
     expect(core.calls, contains('deleteChat'));
     expect(core.chatList, isEmpty);
+  });
+
+  testWidgets('message actions: reply, react, edit, delete, retry, typing (MSG-04, 07-09, 11-14)', (t) async {
+    FakeCore.sentAt = DateTime.now().millisecondsSinceEpoch; // inside the edit and delete windows
+    addTearDown(() => FakeCore.sentAt = DateTime(2026, 10, 15, 9, 30).millisecondsSinceEpoch);
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    core.receive(id, 'lunch?');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(core.calls, contains('markRead'), reason: 'MSG-13: opening the chat reads it');
+
+    await t.longPress(find.text('lunch?'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Reply');
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'yes');
+    await t.pump();
+    expect(core.calls, contains('sendTyping'), reason: 'MSG-14');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(core.history.values.first.last.replyTo, isNotNull, reason: 'MSG-07');
+    expect(find.text('lunch?'), findsNWidgets(2), reason: 'quoted above the reply');
+
+    await t.longPress(find.text('lunch?').first);
+    await t.pumpAndSettle();
+    await tapText(t, '👍');
+    expect(find.text('👍'), findsOneWidget, reason: 'MSG-08');
+
+    await t.longPress(find.text('yes'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Edit');
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'yes!');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(find.text('yes!'), findsOneWidget);
+    await tapText(t, 'edited ');
+    expect(find.text('yes'), findsOneWidget, reason: 'MSG-09: prior version viewable');
+    await tapText(t, 'Close');
+
+    await t.longPress(find.text('yes!'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Delete for everyone');
+    expect(find.textContaining('modified app could still keep a copy'), findsOneWidget, reason: 'MSG-11');
+    await tapText(t, 'Delete');
+    expect(find.text('This message was deleted'), findsOneWidget);
+
+    core.failNext['sendText again'] = 'network';
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'again');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(find.text('Not sent. Tap to retry.'), findsOneWidget, reason: 'MSG-04');
+    await t.tap(find.text('again'));
+    await t.pumpAndSettle();
+    expect(find.text('Not sent. Tap to retry.'), findsNothing);
+
+    core.events.add(CoreEvent(kind: CoreEventKind.typing, groupId: id));
+    await t.pump(); // stream event
+    await t.pump(); // rebuild
+    expect(find.text('typing…'), findsOneWidget);
+    await t.pump(const Duration(seconds: 6));
+    expect(find.text('typing…'), findsNothing);
+  });
+
+  testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.scrollUntilVisible(find.text('Read receipts'), 100);
+    await tapText(t, 'Read receipts');
+    expect(core.settings['read_receipts'], 'off');
+    await t.scrollUntilVisible(find.text('Typing indicators'), 100);
+    await tapText(t, 'Typing indicators');
+    expect(core.settings['typing_indicators'], 'off');
   });
 }
