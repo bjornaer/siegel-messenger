@@ -83,6 +83,12 @@ func (l *ipLimiter) allow(ip string, max int) bool {
 	return l.counts[ip] <= max
 }
 
+// peerIP is the direct peer. ponytail: read X-Forwarded-For once a trusted load balancer sits in front.
+func peerIP(p connect.Peer) string {
+	ip, _, _ := net.SplitHostPort(p.Addr)
+	return ip
+}
+
 func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.RequestOtpRequest]) (*connect.Response[siegelv1.RequestOtpResponse], error) {
 	phone := req.Msg.PhoneE164
 	if !e164.MatchString(phone) {
@@ -96,8 +102,7 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 			return nil, cerr(connect.CodePermissionDenied, "phone_region_blocked")
 		}
 	}
-	ip, _, _ := net.SplitHostPort(req.Peer().Addr) // ponytail: direct peer; read X-Forwarded-For once a trusted LB is in front
-	if !s.ipHits.allow(ip, s.cfg.otpPerIP) {
+	if !s.ipHits.allow("otp|"+peerIP(req.Peer()), s.cfg.otpPerIP) {
 		return nil, cerr(connect.CodeResourceExhausted, "rate_limited")
 	}
 	h, err := s.hmacPhone(ctx, phone)
@@ -132,6 +137,9 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 
 func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.VerifyRequest]) (*connect.Response[siegelv1.VerifyResponse], error) {
 	m := req.Msg
+	if !s.ipHits.allow("verify|"+peerIP(req.Peer()), s.cfg.verifyPerIP) {
+		return nil, cerr(connect.CodeResourceExhausted, "rate_limited")
+	}
 	if len(m.IdentityPub) != ed25519.PublicKeySize {
 		return nil, cerr(connect.CodeInvalidArgument, "identity_pub_invalid")
 	}

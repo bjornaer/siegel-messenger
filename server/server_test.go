@@ -54,7 +54,7 @@ func setup(t *testing.T) *env_ {
 	rand.Read(seed)
 	asKey := ed25519.NewKeyFromSeed(seed)
 	cfg := config{
-		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, smsDailyCap: 1000,
+		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, smsDailyCap: 1000,
 		denyPrefixes: []string{"+882"},
 		userMin:      4, userMax: 32, userChangeDay: 30, userQuarDay: 30,
 		lockAttempts: 3, lockLockout: 3600e9, lockLapseDay: 7,
@@ -284,4 +284,30 @@ func TestOtpCompletionAlert(t *testing.T) { // ID-04, SEC-04
 	if len(alerts) != 1 || !strings.Contains(alerts[0], "OTP completion 40%") {
 		t.Fatal("want one 40% alert", alerts)
 	}
+}
+
+func TestAbuseLimits(t *testing.T) { // request size, Verify per IP, Lookup per account
+	e := setup(t)
+	big := strings.Repeat("x", 70<<10)
+	_, err := e.reg.RequestOtp(e.ctx, connect.NewRequest(&siegelv1.RequestOtpRequest{PhoneE164: big}))
+	if connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatal("oversized request must be refused", err)
+	}
+
+	a, _ := e.register("+34600000041", "")
+	e.s.cfg.lookupPerDay = 2
+	u, _ := e.clients(a.DeviceToken)
+	for range 2 {
+		u.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "nobody"}))
+	}
+	_, err = u.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "nobody"}))
+	want(t, errMsg(err), "rate_limited")
+
+	e.s.cfg.verifyPerIP = 2
+	e.s.ipHits = ipLimiter{} // the registration above already used Verify from this IP
+	for range 2 {
+		e.verify("+34600000042", "000000", "")
+	}
+	_, _, err = e.verify("+34600000042", "000000", "")
+	want(t, errMsg(err), "rate_limited")
 }

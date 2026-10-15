@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/acme/autocert"
 
@@ -37,6 +38,8 @@ type config struct {
 	otpAttempts   int
 	otpPerNumber  int // per hour
 	otpPerIP      int // per hour
+	verifyPerIP   int // per hour
+	lookupPerDay  int // per account
 	smsDailyCap   int
 	denyPrefixes  []string
 	userMin       int
@@ -66,6 +69,8 @@ func loadConfig() config {
 		otpAttempts:   env("SIEGEL_OTP_ATTEMPTS", 5, strconv.Atoi),
 		otpPerNumber:  env("SIEGEL_OTP_PER_NUMBER_HOUR", 3, strconv.Atoi),
 		otpPerIP:      env("SIEGEL_OTP_PER_IP_HOUR", 10, strconv.Atoi),
+		verifyPerIP:   env("SIEGEL_VERIFY_PER_IP_HOUR", 30, strconv.Atoi),
+		lookupPerDay:  env("SIEGEL_LOOKUP_PER_DAY", 200, strconv.Atoi),
 		smsDailyCap:   env("SIEGEL_SMS_DAILY_CAP", 1000, strconv.Atoi),
 		userMin:       env("SIEGEL_USERNAME_MIN", 4, strconv.Atoi),
 		userMax:       env("SIEGEL_USERNAME_MAX", 32, strconv.Atoi),
@@ -137,7 +142,14 @@ func main() {
 	s.attest = func(context.Context, string) error { return nil }
 	go s.janitor(ctx, b)
 
-	srv := &http.Server{Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second}
+	// ponytail: whole-request timeouts suit unary RPCs; the M2 WebSocket must manage its own deadlines.
+	srv := &http.Server{
+		Handler:           s.routes(),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+	}
 	if cfg.domain == "" {
 		srv.Addr = ":8080"
 		srv.Protocols = new(http.Protocols)
@@ -159,11 +171,13 @@ func main() {
 	fatal("server stopped", "err", srv.ListenAndServeTLS("", ""))
 }
 
+// routes is the whole public surface: registration is the only unauthenticated service.
 func (s *server) routes() http.Handler {
+	small := connect.WithReadMaxBytes(64 << 10) // identity messages are tiny
 	mux := http.NewServeMux()
-	mux.Handle(siegelv1connect.NewRegistrationServiceHandler(s))
-	mux.Handle(siegelv1connect.NewUsernameServiceHandler(s, s.authed()))
-	mux.Handle(siegelv1connect.NewAccountServiceHandler(s, s.authed()))
+	mux.Handle(siegelv1connect.NewRegistrationServiceHandler(s, small))
+	mux.Handle(siegelv1connect.NewUsernameServiceHandler(s, s.authed(), small))
+	mux.Handle(siegelv1connect.NewAccountServiceHandler(s, s.authed(), small))
 	return mux
 }
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -104,6 +105,12 @@ func (s *server) Set(ctx context.Context, req *connect.Request[siegelv1.Username
 }
 
 func (s *server) Lookup(ctx context.Context, req *connect.Request[siegelv1.UsernameServiceLookupRequest]) (*connect.Response[siegelv1.UsernameServiceLookupResponse], error) {
+	me := account(ctx)
+	if ok, err := s.hit(ctx, fmt.Sprintf("lookup:%x", me), 24*time.Hour, s.cfg.lookupPerDay); err != nil {
+		return nil, internal(err)
+	} else if !ok {
+		return nil, cerr(connect.CodeResourceExhausted, "rate_limited") // ID-08: slows dictionary scans
+	}
 	var id [16]byte
 	res := &siegelv1.UsernameServiceLookupResponse{}
 	err := s.db.QueryRow(ctx, `SELECT a.id, a.identity_pub, a.as_signature FROM usernames u JOIN accounts a ON a.id = u.account_id
