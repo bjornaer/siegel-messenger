@@ -783,6 +783,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This copy of Siegel couldn\'t be verified. Install it from Google Play and try again.'**
   String get errAttestation;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get selected;
+
+  /// No description provided for @themeSiegel.
+  ///
+  /// In en, this message translates to:
+  /// **'Seal. The green of our logo.'**
+  String get themeSiegel;
+
+  /// No description provided for @themeDrache.
+  ///
+  /// In en, this message translates to:
+  /// **'Dragon. Deep red, a little fierce.'**
+  String get themeDrache;
+
+  /// No description provided for @themeLoewe.
+  ///
+  /// In en, this message translates to:
+  /// **'Lion. Old gold, like a coat of arms.'**
+  String get themeLoewe;
+
+  /// No description provided for @themeLindwurm.
+  ///
+  /// In en, this message translates to:
+  /// **'The serpent dragon of Alpine legend. Teal and scales.'**
+  String get themeLindwurm;
+
+  /// No description provided for @themeSchnee.
+  ///
+  /// In en, this message translates to:
+  /// **'Snow. Quiet, pale blue.'**
+  String get themeSchnee;
+
+  /// No description provided for @themeKrampus.
+  ///
+  /// In en, this message translates to:
+  /// **'The Alpine winter demon. Ember orange.'**
+  String get themeKrampus;
+
+  /// No description provided for @themeNordlicht.
+  ///
+  /// In en, this message translates to:
+  /// **'Northern lights. Violet with a shimmer.'**
+  String get themeNordlicht;
+
+  /// No description provided for @themeFernweh.
+  ///
+  /// In en, this message translates to:
+  /// **'The longing for faraway places. Open-sea blue.'**
+  String get themeFernweh;
 }
 
 class _AppLocalizationsDelegate

@@ -191,5 +191,15 @@
   "noBlocked": "You haven't blocked anyone.",
   "unblock": "Unblock",
   "notificationChannel": "Messages",
-  "errAttestation": "This copy of Siegel couldn't be verified. Install it from Google Play and try again."
+  "errAttestation": "This copy of Siegel couldn't be verified. Install it from Google Play and try again.",
+  "theme": "Theme",
+  "selected": "Selected",
+  "themeSiegel": "Seal. The green of our logo.",
+  "themeDrache": "Dragon. Deep red, a little fierce.",
+  "themeLoewe": "Lion. Old gold, like a coat of arms.",
+  "themeLindwurm": "The serpent dragon of Alpine legend. Teal and scales.",
+  "themeSchnee": "Snow. Quiet, pale blue.",
+  "themeKrampus": "The Alpine winter demon. Ember orange.",
+  "themeNordlicht": "Northern lights. Violet with a shimmer.",
+  "themeFernweh": "The longing for faraway places. Open-sea blue."
 }

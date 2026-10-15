@@ -411,4 +411,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errAttestation =>
       'This copy of Siegel couldn\'t be verified. Install it from Google Play and try again.';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get selected => 'Selected';
+
+  @override
+  String get themeSiegel => 'Seal. The green of our logo.';
+
+  @override
+  String get themeDrache => 'Dragon. Deep red, a little fierce.';
+
+  @override
+  String get themeLoewe => 'Lion. Old gold, like a coat of arms.';
+
+  @override
+  String get themeLindwurm =>
+      'The serpent dragon of Alpine legend. Teal and scales.';
+
+  @override
+  String get themeSchnee => 'Snow. Quiet, pale blue.';
+
+  @override
+  String get themeKrampus => 'The Alpine winter demon. Ember orange.';
+
+  @override
+  String get themeNordlicht => 'Northern lights. Violet with a shimmer.';
+
+  @override
+  String get themeFernweh => 'The longing for faraway places. Open-sea blue.';
 }

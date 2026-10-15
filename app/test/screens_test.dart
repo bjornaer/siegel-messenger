@@ -13,6 +13,7 @@ import 'package:siegel/chats.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/onboarding.dart';
+import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
 
 class FakeCore implements Core {
@@ -408,6 +409,8 @@ void main() {
     expect(find.textContaining('stored only on this phone'), findsOneWidget, reason: 'ID-14 in Settings');
     expect(find.text('App lock'), findsOneWidget);
 
+    await t.ensureVisible(find.text('Delete account'));
+    await t.pumpAndSettle();
     await tapText(t, 'Delete account');
     await tapText(t, 'Cancel');
     expect(core.calls, isNot(contains('deleteAccount')));
@@ -646,5 +649,34 @@ void main() {
     core.receive(Uint8List.fromList([1]), 'hello');
     await t.pump();
     expect(got, ['hello']);
+  });
+
+  testWidgets('themes: pick one in Settings, saved and applied (Lions, Dragons, Krampus...)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    await t.pumpWidget(
+      ValueListenableBuilder(
+        valueListenable: themeChoice,
+        builder: (_, th, _) => MaterialApp(
+          theme: th.data(Brightness.light),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsScreen(core: core, onDeleted: () async {}),
+        ),
+      ),
+    );
+    addTearDown(() => themeChoice.value = siegelThemes.first);
+    await tapText(t, 'Theme');
+    await t.scrollUntilVisible(find.text('Krampus'), 100);
+    await tapText(t, 'Krampus');
+    expect(core.settings['theme'], 'krampus');
+    final scheme = Theme.of(t.element(find.text('Krampus'))).colorScheme;
+    expect(scheme, siegelThemes.firstWhere((x) => x.id == 'krampus').data(Brightness.light).colorScheme);
+    expect(themeById('nope').id, 'siegel', reason: 'unknown stored id falls back to the default');
   });
 }

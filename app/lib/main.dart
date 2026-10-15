@@ -12,10 +12,9 @@ import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart';
 import 'push.dart';
+import 'themes.dart';
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
-
-const siegelGreen = Color(0xFF2F543B); // from the logo
 
 const serverUrl = String.fromEnvironment('SIEGEL_SERVER', defaultValue: 'https://siegel.schlk.in');
 
@@ -54,6 +53,13 @@ class SiegelApp extends StatefulWidget {
 class _SiegelAppState extends State<SiegelApp> {
   final _navigator = GlobalKey<NavigatorState>();
   late Core core = widget.core;
+
+  @override
+  void initState() {
+    super.initState();
+    themeChoice.value = themeById(core.setting(key: 'theme'));
+  }
+
   ChatService? _chats;
 
   ChatService _service() => _chats ??= _startChats();
@@ -78,6 +84,7 @@ class _SiegelAppState extends State<SiegelApp> {
     _chats?.dispose();
     _chats = null;
     final fresh = await openCore();
+    themeChoice.value = siegelThemes.first;
     setState(() => core = fresh);
   }
 
@@ -90,6 +97,10 @@ class _SiegelAppState extends State<SiegelApp> {
   @override
   Widget build(BuildContext context) {
     final ready = core.isRegistered() && core.username() != null;
+    return ValueListenableBuilder(valueListenable: themeChoice, builder: (context, theme, _) => _app(ready, theme));
+  }
+
+  Widget _app(bool ready, SiegelTheme theme) {
     return MaterialApp(
       navigatorKey: _navigator,
       onGenerateTitle: (c) => AppLocalizations.of(c)!.appTitle,
@@ -100,8 +111,8 @@ class _SiegelAppState extends State<SiegelApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: ThemeData(colorSchemeSeed: siegelGreen),
-      darkTheme: ThemeData(colorSchemeSeed: siegelGreen, brightness: Brightness.dark),
+      theme: theme.data(Brightness.light),
+      darkTheme: theme.data(Brightness.dark),
       home: ready
           ? AppLock(
               core: core,
@@ -155,6 +166,21 @@ class SettingsScreen extends StatelessWidget {
           if (core.displayName() case final name?) Text(name),
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: Text(t.theme),
+            subtitle: ValueListenableBuilder(valueListenable: themeChoice, builder: (_, th, _) => Text(th.name)),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ThemePicker(
+                  onPick: (th) {
+                    core.setSetting(key: 'theme', value: th.id);
+                    themeChoice.value = th;
+                  },
+                ),
+              ),
+            ),
+          ),
           AppLockSettings(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
