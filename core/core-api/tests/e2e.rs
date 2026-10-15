@@ -236,10 +236,18 @@ async fn two_users_chat_over_mls() {
         .output()
         .expect("docker");
     assert!(!dump.stdout.is_empty());
-    assert!(
-        !String::from_utf8_lossy(&dump.stdout).contains(&canary),
-        "plaintext reached the server"
-    );
+    // AC-01: neither the database nor the server's logs hold message text or profile names.
+    let logs = std::process::Command::new("docker")
+        .args(["compose", "logs", "server"])
+        .output()
+        .expect("docker");
+    assert!(!logs.stdout.is_empty(), "no server logs to check");
+    for (what, out) in [("database", &dump.stdout), ("logs", &logs.stdout)] {
+        let text = String::from_utf8_lossy(out);
+        for secret in [canary.as_str(), "alice display", "bob display"] {
+            assert!(!text.contains(secret), "{secret} reached the server {what}");
+        }
+    }
 }
 
 /// Manual peer for device tests: registers, writes its @username to $ECHO_FILE and answers
