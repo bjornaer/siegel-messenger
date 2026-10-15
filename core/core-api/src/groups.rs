@@ -359,6 +359,20 @@ impl SiegelCore {
         remove: &[Account],
         edit: impl Fn(GroupState) -> GroupState,
     ) -> Result<(), CoreError> {
+        self.group_commit_from(conv, add, remove, edit, false).await
+    }
+
+    /// `on_stream`: called from the stream loop itself, which can't receive the winning commit
+    /// while it waits for it. Then a lost race just gives up; the loop processes the winner next
+    /// and retries what's still pending on a later tick.
+    async fn group_commit_from(
+        &self,
+        conv: &[u8],
+        add: &[Account],
+        remove: &[Account],
+        edit: impl Fn(GroupState) -> GroupState,
+        on_stream: bool,
+    ) -> Result<(), CoreError> {
         let c = self.group_conversation(conv)?;
         if c.left {
             return Err(CoreError::new("group_left"));
@@ -424,6 +438,9 @@ impl SiegelCore {
                 }
                 Err(e) if e.code == "epoch_conflict" => {
                     self.with_mls(|m, _| m.abort(&g).map_err(mls_err))?;
+                    if on_stream {
+                        return Err(e.into());
+                    }
                     let epoch = self.with_mls(|m, _| m.epoch(&g).map_err(mls_err))?;
                     // The winning commit comes in on the stream; give it a moment.
                     for _ in 0..50 {
@@ -522,6 +539,16 @@ impl SiegelCore {
         })
     }
 
+    /// GRP-10: proposes our removal again while we are still in the group (a proposal is only
+    /// valid in the epoch it was made for). Does nothing once we are out.
+    pub(crate) async fn repropose_leave(&self, conv: &[u8]) -> Result<(), CoreError> {
+        let g = self.group_conversation(conv)?.mls_group;
+        let Ok(proposal) = self.with_mls(|m, _| m.leave(&g).map_err(mls_err)) else {
+            return Ok(()); // group gone: we were removed
+        };
+        self.deliver_payload(conv, proposal).await
+    }
+
     /// GRP-11: accept an invite; members then get our profile key.
     pub async fn accept_invite(&self, conv: &[u8]) -> Result<(), CoreError> {
         let c = self.group_conversation(conv)?;
@@ -597,7 +624,9 @@ impl SiegelCore {
             match since {
                 None => self.put(&key, &now_ms().to_be_bytes())?,
                 Some(t) if now_ms() - t >= delay => {
-                    let _ = self.group_commit(&c.group_id, &[], &[], |s| s).await;
+                    let _ = self
+                        .group_commit_from(&c.group_id, &[], &[], |s| s, true)
+                        .await;
                 }
                 Some(_) => {}
             }
@@ -608,7 +637,9 @@ impl SiegelCore {
     /// AC-05: members whose devices were revoked re-registered; replace their devices with the
     /// new ones. Any member may do this: the membership itself doesn't change.
     pub(crate) async fn replace_devices(&self, conv: &[u8], accounts: &[Account]) {
-        let _ = self.group_commit(conv, accounts, accounts, |s| s).await;
+        let _ = self
+            .group_commit_from(conv, accounts, accounts, |s| s, true)
+            .await;
     }
 
     /// Shares our profile key with some members only (new members, or everyone but a blocked

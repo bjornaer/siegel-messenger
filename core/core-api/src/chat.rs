@@ -117,6 +117,9 @@ enum Handled {
         group_id: Vec<u8>,
         invite: bool,
     },
+    /// A commit arrived in a group we left but are still in: our leave proposal was for an
+    /// older epoch and got dropped, so propose again (GRP-10).
+    StillInGroup(Vec<u8>),
     /// Members joined a group: they get our profile key.
     MembersAdded {
         group_id: Vec<u8>,
@@ -650,6 +653,12 @@ impl SiegelCore {
                 let Some(group_id) = storage(s.conversation_for_mls(&mls_group))? else {
                     return Ok(None);
                 };
+                let left = storage(s.conversations())?
+                    .iter()
+                    .any(|c| c.group_id == group_id && c.left);
+                if left {
+                    return Ok(Some(Handled::StillInGroup(group_id)));
+                }
                 for a in &change.added {
                     Self::ensure_contact(s, a)?;
                 }
@@ -706,17 +715,25 @@ impl SiegelCore {
         let _ = self.ensure_key_packages().await;
         let _ = self.publish_profile().await; // retries a publish that failed at registration
         let _ = self.self_updates().await;
+        for c in self.conversations()? {
+            if c.is_group && c.left {
+                let _ = self.repropose_leave(&c.group_id).await;
+            }
+        }
         let mut stream = self.net.stream(&token).await?;
+        // Every 5 s while live, busy or not: commit members' pending leave proposals (GRP-10).
+        let tick = std::time::Duration::from_secs(5);
+        let mut last_tick = std::time::Instant::now();
         loop {
-            // Wake every 5 s while live to commit members' pending leave proposals (GRP-10).
-            let wait = idle.unwrap_or(std::time::Duration::from_secs(5));
+            if idle.is_none() && last_tick.elapsed() >= tick {
+                last_tick = std::time::Instant::now();
+                let _ = self.commit_due_proposals().await;
+            }
+            let wait = idle.unwrap_or(tick);
             let frame = match tokio::time::timeout(wait, stream.next()).await {
                 Ok(f) => f?,
                 Err(_) if idle.is_some() => return Ok(()), // drained
-                Err(_) => {
-                    let _ = self.commit_due_proposals().await;
-                    continue;
-                }
+                Err(_) => continue,
             };
             let Some(frame) = frame else { break };
             match frame {
@@ -754,6 +771,9 @@ impl SiegelCore {
                                 peer_account: vec![],
                                 request: invite,
                             });
+                        }
+                        Ok(Some(Handled::StillInGroup(group_id))) => {
+                            let _ = self.repropose_leave(&group_id).await;
                         }
                         Ok(Some(Handled::MembersAdded { group_id, accounts })) => {
                             if !self.is_request(&group_id).unwrap_or(true) {
