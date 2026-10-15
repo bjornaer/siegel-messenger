@@ -198,6 +198,45 @@ impl Client {
         Ok(res.key_packages)
     }
 
+    pub async fn set_profile(
+        &self,
+        token: &str,
+        encrypted_profile: Vec<u8>,
+        verifier: Vec<u8>,
+    ) -> Result<(), Error> {
+        let req = pb::ProfileServiceSetRequest {
+            encrypted_profile,
+            delivery_token_verifier: verifier,
+        };
+        self.call::<pb::ProfileServiceSetResponse>("ProfileService/Set", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn get_profile(&self, token: &str, account_id: &[u8]) -> Result<Vec<u8>, Error> {
+        let req = pb::ProfileServiceGetRequest {
+            account_id: account_id.to_vec(),
+        };
+        let res: pb::ProfileServiceGetResponse =
+            self.call("ProfileService/Get", &req, Some(token)).await?;
+        Ok(res.encrypted_profile)
+    }
+
+    /// Sealed sender (MSG-10): sent without credentials. Returns (revoked, rejected) devices.
+    pub async fn send_sealed(
+        &self,
+        recipients: Vec<pb::SealedRecipient>,
+        payload: Vec<u8>,
+    ) -> Result<(Vec<pb::DeviceAddress>, Vec<pb::DeviceAddress>), Error> {
+        let req = pb::MessagesServiceSendSealedRequest {
+            recipients,
+            payload,
+        };
+        let res: pb::MessagesServiceSendSealedResponse =
+            self.call("MessagesService/SendSealed", &req, None).await?;
+        Ok((res.revoked, res.rejected))
+    }
+
     /// Queues an MLS message for each recipient; returns revoked devices (ID-13).
     pub async fn send_identified(
         &self,

@@ -42,6 +42,24 @@ pub struct Message {
     pub outgoing: bool,
 }
 
+/// MSG-15/16: someone who wrote to us first is a Request until we accept them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ContactState {
+    Request = 0,
+    Accepted = 1,
+    Blocked = 2,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Contact {
+    pub account_id: Vec<u8>,
+    pub state: ContactState,
+    /// Their profile key, once they shared it (MSG-02 profile_key_update).
+    pub profile_key: Option<Vec<u8>>,
+    pub display_name: Option<String>,
+    pub username: Option<String>,
+}
+
 pub trait Store: Send {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>>;
     fn put(&self, key: &str, value: &[u8]) -> Result<()>;
@@ -51,6 +69,11 @@ pub trait Store: Send {
     fn save_message(&self, m: &Message) -> Result<bool>;
     /// Oldest first, in arrival order (MSG-03).
     fn messages(&self, group_id: &[u8], limit: u32) -> Result<Vec<Message>>;
+    fn contact(&self, account_id: &[u8]) -> Result<Option<Contact>>;
+    fn save_contact(&self, c: &Contact) -> Result<()>;
+    fn contacts(&self) -> Result<Vec<Contact>>;
+    /// Removes a conversation and its messages from this device (declined request, MSG-12).
+    fn delete_conversation(&self, group_id: &[u8]) -> Result<()>;
     /// Deletes everything on this device (ID-12, ID-16).
     fn wipe(self: Box<Self>) -> Result<()>;
 }
@@ -78,7 +101,13 @@ impl SqlCipher {
                sent_at INTEGER NOT NULL,
                body BLOB NOT NULL,
                outgoing INTEGER NOT NULL);
-             CREATE INDEX IF NOT EXISTS messages_group ON messages (group_id, seq);",
+             CREATE INDEX IF NOT EXISTS messages_group ON messages (group_id, seq);
+             CREATE TABLE IF NOT EXISTS contacts (
+               account_id BLOB PRIMARY KEY,
+               state INTEGER NOT NULL,
+               profile_key BLOB,
+               display_name TEXT,
+               username TEXT);",
         )?;
         let mut conn = conn;
         SqliteStorageProvider::<JsonCodec, &mut rusqlite::Connection>::new(&mut conn)
@@ -90,6 +119,26 @@ impl SqlCipher {
             conn,
             path: path.to_owned(),
         })
+    }
+
+    fn contacts_where(&self, filter: &str, arg: &[u8]) -> Result<Vec<Contact>> {
+        let mut q = self.conn.prepare(&format!(
+            "SELECT account_id, state, profile_key, display_name, username FROM contacts {filter}"
+        ))?;
+        q.query_map([arg], |r| {
+            Ok(Contact {
+                account_id: r.get(0)?,
+                state: match r.get::<_, i64>(1)? {
+                    1 => ContactState::Accepted,
+                    2 => ContactState::Blocked,
+                    _ => ContactState::Request,
+                },
+                profile_key: r.get(2)?,
+                display_name: r.get(3)?,
+                username: r.get(4)?,
+            })
+        })?
+        .collect()
     }
 
     pub fn mls(&self) -> MlsStorage<'_> {
@@ -164,6 +213,33 @@ impl Store for SqlCipher {
         .collect()
     }
 
+    fn contact(&self, account_id: &[u8]) -> Result<Option<Contact>> {
+        Ok(self
+            .contacts_where("WHERE account_id = ?1", account_id)?
+            .pop())
+    }
+
+    fn save_contact(&self, c: &Contact) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO contacts (account_id, state, profile_key, display_name, username)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            (&c.account_id, c.state as i64, &c.profile_key, &c.display_name, &c.username),
+        )?;
+        Ok(())
+    }
+
+    fn contacts(&self) -> Result<Vec<Contact>> {
+        self.contacts_where("WHERE ?1 IS NOT NULL", &[])
+    }
+
+    fn delete_conversation(&self, group_id: &[u8]) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM messages WHERE group_id = ?1", [group_id])?;
+        self.conn
+            .execute("DELETE FROM conversations WHERE group_id = ?1", [group_id])?;
+        Ok(())
+    }
+
     fn wipe(self: Box<Self>) -> Result<()> {
         let path = self.path.clone();
         drop(self.conn);
@@ -227,6 +303,28 @@ mod tests {
             vec![2],
             "limit keeps the newest"
         );
+
+        let c = Contact {
+            account_id: vec![2],
+            state: ContactState::Request,
+            profile_key: None,
+            display_name: None,
+            username: Some("bob".into()),
+        };
+        s.save_contact(&c).unwrap();
+        s.save_contact(&Contact {
+            state: ContactState::Blocked,
+            ..c.clone()
+        })
+        .unwrap();
+        assert_eq!(
+            s.contact(&[2]).unwrap().unwrap().state,
+            ContactState::Blocked
+        );
+        assert_eq!(s.contacts().unwrap().len(), 1);
+        assert_eq!(s.contact(&[3]).unwrap(), None);
+        s.delete_conversation(&[9]).unwrap();
+        assert!(s.messages(&[9], 10).unwrap().is_empty());
 
         let s: Box<dyn Store> = Box::new(s);
         s.wipe().unwrap();

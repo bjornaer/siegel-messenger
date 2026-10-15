@@ -4,10 +4,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use core_crypto::mls::{DeviceCredential, Member, Mls, Received};
 use core_net::{Frame, pb};
-use core_store::{Conversation, Message, MlsStorage, SqlCipher, Store};
+use core_store::{Contact, ContactState, Conversation, Message, MlsStorage, SqlCipher, Store};
 use openmls_rust_crypto::RustCrypto;
 use openmls_traits::OpenMlsProvider;
 use prost::Message as _;
+
+use core_crypto::profile::ProfileKey;
 
 use crate::{ACCOUNT, AS_PUBLIC, CREDENTIAL, CoreError, SIGNER, SiegelCore, storage};
 
@@ -18,7 +20,7 @@ const REFILL_BELOW: u32 = 20;
 const MAX_TEXT: usize = 64 * 1024;
 
 /// OpenMLS provider over the encrypted store: RustCrypto for crypto and randomness.
-struct Provider<'a> {
+pub(crate) struct Provider<'a> {
     crypto: RustCrypto,
     storage: MlsStorage<'a>,
 }
@@ -63,11 +65,6 @@ fn addr(m: &Member) -> pb::DeviceAddress {
     }
 }
 
-fn peer_name_key(account: &[u8]) -> String {
-    let hex: String = account.iter().map(|b| format!("{b:02x}")).collect();
-    format!("peer_username.{hex}")
-}
-
 fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -78,14 +75,25 @@ fn now_ms() -> i64 {
 /// Something that happened on the stream, for the UI.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
-    /// Someone started a chat with us.
+    /// Someone started a chat with us. `request` until we accept them (MSG-15).
     ConversationStarted {
         group_id: Vec<u8>,
         peer_account: Vec<u8>,
+        request: bool,
     },
     Message(ChatMessage),
+    /// A contact's name or @username arrived or changed.
+    ProfileUpdated {
+        account: Vec<u8>,
+    },
     /// This device was revoked or the account deleted; local data is already wiped (ID-12).
     Deregistered,
+}
+
+/// What processing one payload produced; a profile key also needs a network fetch afterwards.
+enum Handled {
+    Event(Event),
+    ProfileKey(Vec<u8>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,7 +124,7 @@ fn chat_message(m: Message) -> Option<ChatMessage> {
 
 impl SiegelCore {
     /// Runs `f` with this device's MLS client while holding the store lock (never across awaits).
-    fn with_mls<R>(
+    pub(crate) fn with_mls<R>(
         &self,
         f: impl FnOnce(&Mls<Provider<'_>>, &SqlCipher) -> Result<R, CoreError>,
     ) -> Result<R, CoreError> {
@@ -133,6 +141,17 @@ impl SiegelCore {
             .map_err(|_| missing())?;
         let mls = Mls::load(provider(s), &signer, &credential, as_pub).map_err(mls_err)?;
         f(&mls, s)
+    }
+
+    /// Runs `f` against the store without MLS.
+    pub(crate) fn with_store<R>(
+        &self,
+        f: impl FnOnce(&SqlCipher) -> Result<R, CoreError>,
+    ) -> Result<R, CoreError> {
+        match self.store.lock().unwrap().as_ref() {
+            Some(s) => f(s),
+            None => Err(CoreError::new("wiped")),
+        }
     }
 
     /// Tops the server up to ~100 one-time KeyPackages plus a last-resort one (CRY-09).
@@ -154,9 +173,11 @@ impl SiegelCore {
     }
 
     /// Starts (or returns the existing) 1:1 chat with @username. Returns the conversation ID.
+    /// Starting a chat makes them our contact and shares our profile key with them.
     pub async fn start_chat(&self, username: &str) -> Result<Vec<u8>, CoreError> {
         let token = self.token()?;
-        let peer = self.lookup_username(username).await?;
+        let username = username.to_lowercase();
+        let peer = self.lookup_username(&username).await?;
         if let Some(c) = self
             .conversations()?
             .into_iter()
@@ -180,45 +201,93 @@ impl SiegelCore {
             welcome: out.welcome,
             welcome_recipients: out.welcome_to.iter().map(addr).collect(),
         };
-        match self.net.commit(&token, req).await {
-            Ok(_) => self.with_mls(|m, s| {
-                m.confirm(&out.group_id).map_err(mls_err)?;
-                storage(s.put(&peer_name_key(&peer), username.to_lowercase().as_bytes()))?;
-                storage(s.save_conversation(&Conversation {
-                    group_id: out.group_id.clone(),
-                    peer_account: peer.clone(),
-                }))
-            })?,
-            Err(e) => {
-                let _ = self.with_mls(|m, _| m.forget(&out.group_id).map_err(mls_err));
-                return Err(e.into());
-            }
+        if let Err(e) = self.net.commit(&token, req).await {
+            let _ = self.with_mls(|m, _| m.forget(&out.group_id).map_err(mls_err));
+            return Err(e.into());
         }
+        self.with_mls(|m, s| {
+            m.confirm(&out.group_id).map_err(mls_err)?;
+            let mut c = storage(s.contact(&peer))?.unwrap_or(Contact {
+                account_id: peer.clone(),
+                state: ContactState::Accepted,
+                profile_key: None,
+                display_name: None,
+                username: None,
+            });
+            c.state = ContactState::Accepted;
+            c.username.get_or_insert(username.clone());
+            storage(s.save_contact(&c))?;
+            storage(s.save_conversation(&Conversation {
+                group_id: out.group_id.clone(),
+                peer_account: peer.clone(),
+            }))
+        })?;
+        self.share_profile_key(&out.group_id).await?;
         Ok(out.group_id)
     }
 
-    /// The @username we know for an account: the one we typed to start the chat.
-    /// ponytail: the receiving side learns names from encrypted profiles (MSG-10 slice).
-    pub fn peer_username(&self, account: &[u8]) -> Option<String> {
-        self.get_string(&peer_name_key(account))
-    }
-
     pub fn conversations(&self) -> Result<Vec<Conversation>, CoreError> {
-        match self.store.lock().unwrap().as_ref() {
-            Some(s) => storage(s.conversations()),
-            None => Err(CoreError::new("wiped")),
-        }
+        self.with_store(|s| storage(s.conversations()))
     }
 
     /// The newest `limit` messages of a conversation, oldest first.
     pub fn messages(&self, group_id: &[u8], limit: u32) -> Result<Vec<ChatMessage>, CoreError> {
-        match self.store.lock().unwrap().as_ref() {
-            Some(s) => Ok(storage(s.messages(group_id, limit))?
+        self.with_store(|s| {
+            Ok(storage(s.messages(group_id, limit))?
                 .into_iter()
                 .filter_map(chat_message)
-                .collect()),
-            None => Err(CoreError::new("wiped")),
+                .collect())
+        })
+    }
+
+    /// Encrypts content for the group and delivers it: sealed to contacts whose profile key we
+    /// hold (MSG-10), identified to everyone else (MSG-15). A rejected token (they rotated their
+    /// key, e.g. after blocking us) falls back to identified; their app then drops it (MSG-16).
+    pub(crate) async fn send_content(
+        &self,
+        group_id: &[u8],
+        body: pb::content::Body,
+    ) -> Result<pb::Content, CoreError> {
+        let token = self.token()?;
+        let content = pb::Content {
+            message_id: uuid::Uuid::now_v7().as_bytes().to_vec(), // MSG-01
+            sent_at: now_ms(),
+            body: Some(body),
+        };
+        let (payload, sealed, mut identified) = self.with_mls(|m, s| {
+            let payload = m
+                .encrypt(group_id, &content.encode_to_vec())
+                .map_err(mls_err)?;
+            let (mut sealed, mut identified) = (Vec::new(), Vec::new());
+            for r in m.others(group_id).map_err(mls_err)? {
+                match storage(s.contact(&r.account_id))? {
+                    Some(Contact {
+                        state: ContactState::Accepted,
+                        profile_key: Some(k),
+                        ..
+                    }) if k.len() == 32 => {
+                        let key = ProfileKey(k.try_into().expect("32 bytes"));
+                        sealed.push(pb::SealedRecipient {
+                            address: Some(addr(&r)),
+                            delivery_token: key.delivery_token().to_vec(),
+                        });
+                    }
+                    _ => identified.push(addr(&r)),
+                }
+            }
+            Ok((payload, sealed, identified))
+        })?;
+        if !sealed.is_empty() {
+            let (_revoked, rejected) = self.net.send_sealed(sealed, payload.clone()).await?;
+            identified.extend(rejected);
         }
+        // ponytail: revoked devices are reported but not yet removed from the group (ID-13, M3).
+        if !identified.is_empty() {
+            self.net
+                .send_identified(&token, identified, payload)
+                .await?;
+        }
+        Ok(content)
     }
 
     /// Encrypts and sends a text message (MSG-05). Returns the stored message.
@@ -226,23 +295,16 @@ impl SiegelCore {
         if text.is_empty() || text.len() > MAX_TEXT {
             return Err(CoreError::new("text_invalid"));
         }
-        let token = self.token()?;
-        let content = pb::Content {
-            message_id: uuid::Uuid::now_v7().as_bytes().to_vec(), // MSG-01
-            sent_at: now_ms(),
-            body: Some(pb::content::Body::Text(pb::Text { body: text.into() })),
-        };
-        let (payload, recipients, me) = self.with_mls(|m, s| {
-            let payload = m
-                .encrypt(group_id, &content.encode_to_vec())
-                .map_err(mls_err)?;
-            let me = storage(s.get(ACCOUNT))?.ok_or(CoreError::new("not_registered"))?;
-            Ok((payload, m.others(group_id).map_err(mls_err)?, me))
-        })?;
-        // ponytail: revoked devices are reported but not yet removed from the group (ID-13, M3).
-        self.net
-            .send_identified(&token, recipients.iter().map(addr).collect(), payload)
+        if self.is_request(group_id)? {
+            return Err(CoreError::new("request_pending")); // accept first (MSG-15)
+        }
+        let content = self
+            .send_content(
+                group_id,
+                pb::content::Body::Text(pb::Text { body: text.into() }),
+            )
             .await?;
+        let me = self.get(ACCOUNT)?.ok_or(CoreError::new("not_registered"))?;
         let msg = Message {
             message_id: content.message_id.clone(),
             group_id: group_id.to_vec(),
@@ -251,12 +313,12 @@ impl SiegelCore {
             body: content.encode_to_vec(),
             outgoing: true,
         };
-        self.with_mls(|_, s| storage(s.save_message(&msg)))?;
+        self.with_store(|s| storage(s.save_message(&msg)))?;
         chat_message(msg).ok_or(CoreError::new("storage"))
     }
 
     /// Decrypts one queued payload and stores what it carries.
-    fn handle(&self, payload: &[u8]) -> Result<Option<Event>, CoreError> {
+    fn handle(&self, payload: &[u8]) -> Result<Option<Handled>, CoreError> {
         self.with_mls(|m, s| match m.receive(payload).map_err(mls_err)? {
             Received::Joined { group_id, members } => {
                 let peer = members
@@ -264,36 +326,74 @@ impl SiegelCore {
                     .ok_or(CoreError::new("mls"))?
                     .account_id
                     .to_vec();
+                let contact = storage(s.contact(&peer))?;
+                if matches!(&contact, Some(c) if c.state == ContactState::Blocked) {
+                    m.forget(&group_id).map_err(mls_err)?; // MSG-16: blocked users can't start chats
+                    return Ok(None);
+                }
+                let state = contact.as_ref().map_or(ContactState::Request, |c| c.state);
+                if contact.is_none() {
+                    storage(s.save_contact(&Contact {
+                        account_id: peer.clone(),
+                        state,
+                        profile_key: None,
+                        display_name: None,
+                        username: None,
+                    }))?;
+                }
                 storage(s.save_conversation(&Conversation {
                     group_id: group_id.clone(),
                     peer_account: peer.clone(),
                 }))?;
-                Ok(Some(Event::ConversationStarted {
+                Ok(Some(Handled::Event(Event::ConversationStarted {
                     group_id,
                     peer_account: peer,
-                }))
+                    request: state != ContactState::Accepted,
+                })))
             }
             Received::Message {
                 group_id,
                 sender,
                 plaintext,
             } => {
+                let from = sender.account_id.to_vec();
+                if matches!(storage(s.contact(&from))?, Some(c) if c.state == ContactState::Blocked)
+                {
+                    return Ok(None); // MSG-16: dropped silently
+                }
                 let Ok(c) = pb::Content::decode(plaintext.as_slice()) else {
                     return Ok(None);
                 };
-                let msg = Message {
-                    message_id: c.message_id.clone(),
-                    group_id,
-                    sender_account: sender.account_id.to_vec(),
-                    sent_at: c.sent_at,
-                    body: plaintext,
-                    outgoing: false,
-                };
-                // MSG-03: a redelivered message (same ID) is dropped here.
-                if !storage(s.save_message(&msg))? {
-                    return Ok(None);
+                match c.body {
+                    Some(pb::content::Body::ProfileKeyUpdate(u)) if u.profile_key.len() == 32 => {
+                        let mut contact = storage(s.contact(&from))?.unwrap_or(Contact {
+                            account_id: from.clone(),
+                            state: ContactState::Request,
+                            profile_key: None,
+                            display_name: None,
+                            username: None,
+                        });
+                        contact.profile_key = Some(u.profile_key);
+                        storage(s.save_contact(&contact))?;
+                        Ok(Some(Handled::ProfileKey(from)))
+                    }
+                    Some(pb::content::Body::Text(_)) => {
+                        let msg = Message {
+                            message_id: c.message_id.clone(),
+                            group_id,
+                            sender_account: from,
+                            sent_at: c.sent_at,
+                            body: plaintext,
+                            outgoing: false,
+                        };
+                        // MSG-03: a redelivered message (same ID) is dropped here.
+                        if !storage(s.save_message(&msg))? {
+                            return Ok(None);
+                        }
+                        Ok(chat_message(msg).map(|m| Handled::Event(Event::Message(m))))
+                    }
+                    _ => Ok(None), // unknown or not yet supported types (MSG-01)
                 }
-                Ok(chat_message(msg).map(Event::Message))
             }
             Received::Commit { .. } | Received::Ignored => Ok(None),
         })
@@ -304,16 +404,25 @@ impl SiegelCore {
     pub async fn run_stream(&self, on_event: impl Fn(Event) + Send) -> Result<(), CoreError> {
         let token = self.token()?;
         let _ = self.ensure_key_packages().await;
+        let _ = self.publish_profile().await; // retries a publish that failed at registration
         let mut stream = self.net.stream(&token).await?;
         while let Some(frame) = stream.next().await? {
             match frame {
                 Frame::Message { id, payload } => {
                     // ponytail: a payload that fails to process is acked and dropped so it
                     // can't block the queue; surface these once error reporting exists.
-                    if let Ok(Some(e)) = self.handle(&payload) {
-                        on_event(e);
-                    }
+                    let handled = self.handle(&payload);
                     stream.ack(vec![id]).await?;
+                    match handled {
+                        Ok(Some(Handled::Event(e))) => on_event(e),
+                        Ok(Some(Handled::ProfileKey(account))) => {
+                            let fetched = self.refresh_profile(&account).await.is_ok();
+                            if fetched {
+                                on_event(Event::ProfileUpdated { account });
+                            }
+                        }
+                        _ => {}
+                    }
                 }
                 Frame::Deregistered => {
                     self.wipe()?;

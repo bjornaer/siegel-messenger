@@ -9,8 +9,9 @@ use core_net::{Client, pb};
 use core_store::{SqlCipher, Store};
 
 mod chat;
+mod contacts;
 pub use chat::{ChatMessage, Event};
-pub use core_store::Conversation;
+pub use core_store::{Contact, ContactState, Conversation};
 
 /// Machine-readable failure, e.g. "otp_invalid", "registration_lock_required", "network".
 #[derive(Debug, Clone, PartialEq)]
@@ -68,7 +69,7 @@ impl SiegelCore {
         })
     }
 
-    fn get(&self, key: &str) -> Result<Option<Vec<u8>>, CoreError> {
+    pub(crate) fn get(&self, key: &str) -> Result<Option<Vec<u8>>, CoreError> {
         match self.store.lock().unwrap().as_ref() {
             Some(s) => storage(s.get(key)),
             None => Err(CoreError {
@@ -77,7 +78,7 @@ impl SiegelCore {
         }
     }
 
-    fn put(&self, key: &str, value: &[u8]) -> Result<(), CoreError> {
+    pub(crate) fn put(&self, key: &str, value: &[u8]) -> Result<(), CoreError> {
         match self.store.lock().unwrap().as_ref() {
             Some(s) => storage(s.put(key, value)),
             None => Err(CoreError {
@@ -188,7 +189,10 @@ impl SiegelCore {
 
     pub async fn set_username(&self, username: &str) -> Result<(), CoreError> {
         self.net.set_username(&self.token()?, username).await?;
-        self.put(USERNAME, username.to_lowercase().as_bytes())
+        self.put(USERNAME, username.to_lowercase().as_bytes())?;
+        // Best effort: run_stream publishes again on every connect.
+        let _ = self.publish_profile().await;
+        Ok(())
     }
 
     pub fn username(&self) -> Option<String> {

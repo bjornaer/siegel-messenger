@@ -1,6 +1,7 @@
 //! Cryptography. No platform-specific code here (CLI-04).
 
 pub mod mls;
+pub mod profile;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand_core::OsRng;

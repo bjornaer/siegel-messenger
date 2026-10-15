@@ -5,6 +5,11 @@
 
 use core_api::{Platform, SiegelCore};
 
+/// A random 8-digit suffix: timestamps repeat across runs and would re-register old accounts.
+fn fresh_number() -> u128 {
+    uuid::Uuid::now_v7().as_u128() % 100_000_000
+}
+
 /// Tests run in parallel; "newest OTP in the DB" is only safe for one registration at a time.
 static REGISTER: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
@@ -48,11 +53,7 @@ async fn register_username_lock_delete() {
     let core = SiegelCore::open(db.to_str().unwrap(), &[9; 32], &url).unwrap();
     assert!(!core.is_registered());
 
-    let n = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_micros()
-        % 100_000_000;
+    let n = fresh_number();
     let phone = format!("+346{n:08}");
     assert_eq!(
         core.request_otp("0034", "").await.unwrap_err().code,
@@ -111,17 +112,14 @@ async fn register_username_lock_delete() {
 
 /// Registers a fresh account with a username; returns the core and its DB directory.
 async fn new_user(url: &str, tag: &str) -> (std::sync::Arc<SiegelCore>, String) {
-    let n = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_micros()
-        % 100_000_000;
+    let n = fresh_number();
     let dir = std::env::temp_dir().join(format!("siegel-e2e-{tag}-{n}"));
     std::fs::create_dir_all(&dir).unwrap();
     let core = SiegelCore::open(dir.join("core.db").to_str().unwrap(), &[7; 32], url).unwrap();
     let phone = format!("+346{n:08}");
     register(&core, &phone).await;
     let name = format!("{tag}{n}");
+    core.set_display_name(&format!("{tag} display")).unwrap();
     core.set_username(&name).await.unwrap();
     (std::sync::Arc::new(core), name)
 }
@@ -164,7 +162,7 @@ async fn two_users_chat_over_mls() {
     );
     let peer = alice.conversations().unwrap()[0].peer_account.clone();
     assert_eq!(
-        alice.peer_username(&peer).as_deref(),
+        alice.contact(&peer).unwrap().username.as_deref(),
         Some(bob_name.as_str())
     );
     let core_api::Event::ConversationStarted { group_id, .. } = next_event(&mut bob_events).await
@@ -178,7 +176,11 @@ async fn two_users_chat_over_mls() {
         .send_text(&chat, &format!("hello bob {canary}"))
         .await
         .unwrap();
-    let core_api::Event::Message(m) = next_event(&mut bob_events).await else {
+    let core_api::Event::Message(m) = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await
+    else {
         panic!("message")
     };
     assert_eq!(
@@ -186,8 +188,13 @@ async fn two_users_chat_over_mls() {
         (format!("hello bob {canary}").as_str(), false)
     );
 
+    bob.accept(&chat).await.unwrap();
     bob.send_text(&chat, "hi alice").await.unwrap();
-    let core_api::Event::Message(m) = next_event(&mut alice_events).await else {
+    let core_api::Event::Message(m) = until(&mut alice_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await
+    else {
         panic!("reply")
     };
     assert_eq!(m.text, "hi alice");
@@ -246,4 +253,102 @@ async fn echo_peer() {
                 .unwrap();
         }
     }
+}
+
+async fn until<F: Fn(&core_api::Event) -> bool>(
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<core_api::Event>,
+    want: F,
+) -> core_api::Event {
+    loop {
+        let e = next_event(rx).await;
+        if want(&e) {
+            return e;
+        }
+    }
+}
+
+#[tokio::test]
+async fn requests_profiles_sealed_sender_and_blocking() {
+    // MSG-10, MSG-15, MSG-16.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let mut bob_events = listen(&bob);
+    let mut alice_events = listen(&alice);
+
+    let chat = alice.start_chat(&bob_name).await.unwrap();
+    let core_api::Event::ConversationStarted {
+        request,
+        peer_account: alice_id,
+        ..
+    } = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    assert!(
+        request,
+        "a chat from a non-contact is a message request (MSG-15)"
+    );
+    until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::ProfileUpdated { .. })
+    })
+    .await;
+    let a = bob.contact(&alice_id).unwrap();
+    assert_eq!(
+        a.display_name.as_deref(),
+        Some("alice display"),
+        "requester's profile is visible"
+    );
+    assert!(bob.is_request(&chat).unwrap());
+    assert_eq!(
+        bob.send_text(&chat, "too early").await.unwrap_err().code,
+        "request_pending"
+    );
+
+    alice.send_text(&chat, "hello").await.unwrap();
+    until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await;
+
+    bob.accept(&chat).await.unwrap();
+    let core_api::Event::ProfileUpdated { account } = until(&mut alice_events, |e| {
+        matches!(e, core_api::Event::ProfileUpdated { .. })
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(
+        alice.contact(&account).unwrap().display_name.as_deref(),
+        Some("bob display")
+    );
+
+    // Both hold each other's profile key now, so these go sealed (MSG-10).
+    bob.send_text(&chat, "sealed hi").await.unwrap();
+    let core_api::Event::Message(m) = until(&mut alice_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(m.text, "sealed hi");
+
+    // MSG-16: after Bob blocks Alice her messages vanish silently; her send still succeeds.
+    bob.block(&alice_id).await.unwrap();
+    alice.send_text(&chat, "you there?").await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    assert!(
+        !bob.messages(&chat, 100)
+            .unwrap()
+            .iter()
+            .any(|m| m.text == "you there?"),
+        "blocked sender's message must not arrive"
+    );
 }

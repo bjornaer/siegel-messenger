@@ -6,6 +6,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+aes-gcm = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
 openmls = "0.9.1"
 openmls_basic_credential = "0.6"
 openmls_traits = "0.6"

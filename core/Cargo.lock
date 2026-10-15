@@ -285,12 +285,15 @@ dependencies = [
 name = "core-crypto"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "ed25519-dalek",
+ "hkdf 0.12.4",
  "openmls",
  "openmls_basic_credential",
  "openmls_rust_crypto",
  "openmls_traits",
  "rand_core 0.6.4",
+ "sha2 0.10.9",
 ]
 
 [[package]]
