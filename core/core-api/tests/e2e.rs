@@ -584,3 +584,30 @@ async fn safety_numbers_and_reregistration_key_change() {
     };
     assert_eq!((r.group_id, r.text.as_str()), (chat, "new phone"));
 }
+
+#[tokio::test]
+async fn push_token_and_drain_after_wake_up() {
+    // MSG-17: a woken app fetches what is queued, then returns.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    bob.set_push_token("fcm-token-for-test").await.unwrap();
+    let chat = alice.start_chat(&bob_name).await.unwrap();
+    alice.send_text(&chat, "wake up", None).await.unwrap();
+
+    let got = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = got.clone();
+    let start = std::time::Instant::now();
+    bob.drain(move |e| sink.lock().unwrap().push(e))
+        .await
+        .unwrap();
+    assert!(start.elapsed() < std::time::Duration::from_secs(15));
+    assert!(
+        got.lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, core_api::Event::Message(m) if m.text == "wake up"))
+    );
+}

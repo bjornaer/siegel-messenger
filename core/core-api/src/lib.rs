@@ -239,6 +239,11 @@ impl SiegelCore {
         Ok(self.net.set_registration_lock(&self.token()?, pin).await?)
     }
 
+    /// Registers this device's FCM or APNs token for content-free wake-ups (MSG-17).
+    pub async fn set_push_token(&self, push_token: &str) -> Result<(), CoreError> {
+        Ok(self.net.set_push_token(&self.token()?, push_token).await?)
+    }
+
     /// Deletes the account on the server (ID-16), then everything on this device.
     pub async fn delete_account(&self) -> Result<(), CoreError> {
         self.net.delete_account(&self.token()?).await?;

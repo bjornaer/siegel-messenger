@@ -155,6 +155,16 @@ impl Client {
         .map(|_| ())
     }
 
+    /// FCM or APNs token for this device; empty clears it (MSG-17).
+    pub async fn set_push_token(&self, token: &str, push_token: &str) -> Result<(), Error> {
+        let req = pb::SetPushTokenRequest {
+            push_token: push_token.into(),
+        };
+        self.call::<pb::SetPushTokenResponse>("AccountService/SetPushToken", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
     pub async fn delete_account(&self, token: &str) -> Result<(), Error> {
         self.call::<pb::AccountServiceDeleteResponse>(
             "AccountService/Delete",

@@ -551,12 +551,38 @@ impl SiegelCore {
     /// Connects the message stream and processes it until it closes or the device is
     /// deregistered. Call again (with backoff) to reconnect.
     pub async fn run_stream(&self, on_event: impl Fn(Event) + Send) -> Result<(), CoreError> {
+        self.stream_until(on_event, None).await
+    }
+
+    /// After a push wake-up (MSG-17): processes what is queued and returns once nothing new
+    /// arrived for a few seconds, or after 20 s (Android's background budget).
+    pub async fn drain(&self, on_event: impl Fn(Event) + Send) -> Result<(), CoreError> {
+        let idle = std::time::Duration::from_secs(3);
+        let all = std::time::Duration::from_secs(20);
+        tokio::time::timeout(all, self.stream_until(on_event, Some(idle)))
+            .await
+            .unwrap_or(Ok(()))
+    }
+
+    async fn stream_until(
+        &self,
+        on_event: impl Fn(Event) + Send,
+        idle: Option<std::time::Duration>,
+    ) -> Result<(), CoreError> {
         let token = self.token()?;
         let _ = self.ensure_key_packages().await;
         let _ = self.publish_profile().await; // retries a publish that failed at registration
         let _ = self.self_updates().await;
         let mut stream = self.net.stream(&token).await?;
-        while let Some(frame) = stream.next().await? {
+        loop {
+            let frame = match idle {
+                Some(d) => match tokio::time::timeout(d, stream.next()).await {
+                    Ok(f) => f?,
+                    Err(_) => return Ok(()), // drained
+                },
+                None => stream.next().await?,
+            };
+            let Some(frame) = frame else { break };
             match frame {
                 Frame::Message { id, payload } => {
                     // ponytail: a payload that fails to process is acked and dropped so it
