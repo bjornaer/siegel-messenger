@@ -43,6 +43,15 @@ pub enum Platform {
     Android,
 }
 
+impl From<Platform> for pb::Platform {
+    fn from(p: Platform) -> Self {
+        match p {
+            Platform::Ios => pb::Platform::Ios,
+            Platform::Android => pb::Platform::Android,
+        }
+    }
+}
+
 const IDENTITY: &str = "identity_secret";
 const ACCOUNT: &str = "account_id";
 const DEVICE: &str = "device_id";
@@ -110,8 +119,12 @@ impl SiegelCore {
         &self,
         phone_e164: &str,
         attestation_token: &str,
+        platform: Platform,
     ) -> Result<(), CoreError> {
-        Ok(self.net.request_otp(phone_e164, attestation_token).await?)
+        Ok(self
+            .net
+            .request_otp(phone_e164, attestation_token, platform.into())
+            .await?)
     }
 
     /// Verifies the OTP (and Registration Lock PIN if the account has one). Every registration
@@ -131,10 +144,7 @@ impl SiegelCore {
                 otp: otp.into(),
                 identity_pub: id.public().to_vec(),
                 registration_lock_pin: pin.into(),
-                platform: match platform {
-                    Platform::Ios => pb::Platform::Ios,
-                    Platform::Android => pb::Platform::Android,
-                } as i32,
+                platform: pb::Platform::from(platform) as i32,
             })
             .await?;
         let account: [u8; 16] = res

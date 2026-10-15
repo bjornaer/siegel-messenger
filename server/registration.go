@@ -26,7 +26,7 @@ import (
 type server struct {
 	cfg       config
 	db        *pgxpool.Pool
-	attest    func(ctx context.Context, token string) error
+	attest    func(ctx context.Context, platform siegelv1.Platform, phone, token string) error
 	sendSMS   func(ctx context.Context, phone, code string) error
 	hmacPhone func(ctx context.Context, phone string) ([]byte, error)
 	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
@@ -115,7 +115,8 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	if !e164.MatchString(phone) {
 		return nil, cerr(connect.CodeInvalidArgument, "phone_invalid")
 	}
-	if err := s.attest(ctx, req.Msg.AttestationToken); err != nil {
+	if err := s.attest(ctx, req.Msg.Platform, phone, req.Msg.AttestationToken); err != nil {
+		slog.Info("attestation rejected", "err", err) // reasons only: no number, token or IP
 		return nil, cerr(connect.CodePermissionDenied, "attestation_failed")
 	}
 	for _, p := range s.cfg.denyPrefixes {

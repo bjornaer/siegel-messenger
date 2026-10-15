@@ -5,6 +5,10 @@ import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import com.google.android.play.core.integrity.IntegrityManagerFactory
+import com.google.android.play.core.integrity.StandardIntegrityManager.PrepareIntegrityTokenRequest
+import com.google.android.play.core.integrity.StandardIntegrityManager.StandardIntegrityTokenRequest
+import java.security.MessageDigest
 
 // FragmentActivity is required by local_auth (app lock, ID-15).
 class MainActivity : FlutterFragmentActivity() {
@@ -23,5 +27,25 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        // ID-02: a Play Integrity token bound to the number being registered. The server checks
+        // requestHash == hex(SHA-256(E.164)), so the token can't be used for another number.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "siegel/attest").setMethodCallHandler { call, result ->
+            val phone = call.arguments as? String
+            if (call.method != "token" || phone == null) return@setMethodCallHandler result.notImplemented()
+            val hash = MessageDigest.getInstance("SHA-256").digest(phone.toByteArray()).joinToString("") { "%02x".format(it) }
+            val fail = { e: Exception -> result.error("attestation", e.javaClass.simpleName, null) }
+            IntegrityManagerFactory.createStandard(applicationContext)
+                .prepareIntegrityToken(PrepareIntegrityTokenRequest.builder().setCloudProjectNumber(CLOUD_PROJECT).build())
+                .addOnSuccessListener { provider ->
+                    provider.request(StandardIntegrityTokenRequest.builder().setRequestHash(hash).build())
+                        .addOnSuccessListener { result.success(it.token()) }
+                        .addOnFailureListener(fail)
+                }
+                .addOnFailureListener(fail)
+        }
+    }
+
+    private companion object {
+        const val CLOUD_PROJECT = 779364744809L // Google Cloud project linked in Play Console
     }
 }

@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import 'l10n/app_localizations.dart';
@@ -30,6 +31,7 @@ void showError(BuildContext context, CoreError e) {
     'text_invalid' => t.errTextInvalid,
     'request_pending' => t.errRequestPending,
     'not_allowed' => t.errNotAllowed,
+    'attestation_failed' => t.errAttestation,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };
@@ -37,6 +39,21 @@ void showError(BuildContext context, CoreError e) {
 }
 
 enum _Step { welcome, phone, code, pin, profile, lock }
+
+DevicePlatform get _platform => Platform.isIOS ? DevicePlatform.ios : DevicePlatform.android;
+
+/// ID-02: proof that this is a genuine app on a genuine device, bound to the number. Empty when
+/// unavailable (no Play services, iOS until App Attest); the server then refuses to send an SMS.
+Future<String> attestationToken(String phone) async {
+  if (!Platform.isAndroid) return '';
+  try {
+    return await const MethodChannel('siegel/attest').invokeMethod<String>('token', phone) ?? '';
+  } on PlatformException {
+    return '';
+  } on MissingPluginException {
+    return ''; // widget tests
+  }
+}
 
 class Onboarding extends StatefulWidget {
   const Onboarding({super.key, required this.core, required this.onDone});
@@ -94,7 +111,7 @@ class _OnboardingState extends State<Onboarding> {
       phoneE164: _parsed!.international,
       otp: _code.text.trim(),
       pin: _pin.text.trim(),
-      platform: Platform.isIOS ? DevicePlatform.ios : DevicePlatform.android,
+      platform: _platform,
     );
     setState(() => step = _Step.profile);
   });
@@ -159,8 +176,12 @@ class _OnboardingState extends State<Onboarding> {
             _parsed == null || !_ageOk
                 ? null
                 : () => _run(() async {
-                    // ponytail: attestation token is empty until App Attest / Play Integrity land (ID-02).
-                    await core.requestOtp(phoneE164: _parsed!.international, attestationToken: '');
+                    final phone = _parsed!.international;
+                    await core.requestOtp(
+                      phoneE164: phone,
+                      attestationToken: await attestationToken(phone),
+                      platform: _platform,
+                    );
                     setState(() => step = _Step.code);
                   }),
           ),

@@ -407,4 +407,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationChannel => 'Messages';
+
+  @override
+  String get errAttestation =>
+      'This copy of Siegel couldn\'t be verified. Install it from Google Play and try again.';
 }

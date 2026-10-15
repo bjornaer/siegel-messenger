@@ -31,7 +31,7 @@ var schema string
 
 // config holds every value the spec marks [default]; each is overridable by env.
 type config struct {
-	dev           bool   // stubs device attestation (and SMS when no provider token is set)
+	dev           bool   // stubs device attestation (and SMS / push when their credentials are unset)
 	domain        string // set: TLS 1.3 on :8443 with Let's Encrypt, ACME + redirect on :8080
 	certDir       string
 	dbURL         string
@@ -61,7 +61,7 @@ type config struct {
 	alertURL      string  // webhook for operator alerts (plain-text POST, e.g. an ntfy.sh topic)
 	otpAlertRate  float64 // ID-04: alert below this OTP completion rate over 24 h
 	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
-	fcmKey        []byte  // Google service account JSON for FCM (SRV-05); unset: push stubbed in dev
+	fcmKey        []byte  // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
 	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
 }
@@ -161,11 +161,15 @@ func main() {
 	default:
 		fatal("SIEGEL_GATEWAYAPI_TOKEN required outside dev mode")
 	}
-	switch {
-	case cfg.fcmKey != nil:
-		if s.sendPush, err = fcm(cfg.fcmKey); err != nil {
-			fatal("fcm credentials", "err", err)
+	var google *googleAccount
+	if cfg.fcmKey != nil {
+		if google, err = googleAuth(cfg.fcmKey); err != nil {
+			fatal("google credentials", "err", err)
 		}
+	}
+	switch {
+	case google != nil:
+		s.sendPush = fcm(google)
 	case cfg.dev:
 		s.sendPush = func(context.Context, siegelv1.Platform, string) error {
 			slog.Info("dev push stub") // never the token
@@ -174,11 +178,14 @@ func main() {
 	default:
 		fatal("SIEGEL_FCM_CREDENTIALS required outside dev mode")
 	}
-	if !cfg.dev {
-		// ponytail: App Attest / Play Integrity not wired yet; refuse to run without them.
-		fatal("attestation not implemented; set SIEGEL_DEV=1")
+	switch {
+	case cfg.dev:
+		s.attest = func(context.Context, siegelv1.Platform, string, string) error { return nil }
+	case google != nil:
+		s.attest = playIntegrity(google) // ID-02, same service account as push
+	default:
+		fatal("SIEGEL_FCM_CREDENTIALS required outside dev mode (push and attestation)")
 	}
-	s.attest = func(context.Context, string) error { return nil }
 	go s.janitor(ctx, b)
 
 	// ponytail: whole-request timeouts suit unary RPCs; the M2 WebSocket must manage its own deadlines.

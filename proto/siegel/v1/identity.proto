@@ -17,7 +17,9 @@ service RegistrationService {
 
 message RequestOtpRequest {
   string phone_e164 = 1;
+  // ID-02: Play Integrity token whose requestHash is hex(SHA-256(phone_e164)); App Attest on iOS.
   string attestation_token = 2;
+  Platform platform = 3;
 }
 
 message RequestOtpResponse {}

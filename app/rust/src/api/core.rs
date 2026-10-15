@@ -20,6 +20,15 @@ pub enum DevicePlatform {
     Android,
 }
 
+impl From<DevicePlatform> for core_api::Platform {
+    fn from(p: DevicePlatform) -> Self {
+        match p {
+            DevicePlatform::Ios => Self::Ios,
+            DevicePlatform::Android => Self::Android,
+        }
+    }
+}
+
 #[frb(opaque)]
 pub struct Core(core_api::SiegelCore);
 
@@ -42,8 +51,12 @@ impl Core {
         &self,
         phone_e164: String,
         attestation_token: String,
+        platform: DevicePlatform,
     ) -> Result<(), CoreError> {
-        Ok(self.0.request_otp(&phone_e164, &attestation_token).await?)
+        Ok(self
+            .0
+            .request_otp(&phone_e164, &attestation_token, platform.into())
+            .await?)
     }
 
     /// Returns true when the number already had an account (re-registration).
@@ -54,11 +67,10 @@ impl Core {
         pin: String,
         platform: DevicePlatform,
     ) -> Result<bool, CoreError> {
-        let p = match platform {
-            DevicePlatform::Ios => core_api::Platform::Ios,
-            DevicePlatform::Android => core_api::Platform::Android,
-        };
-        Ok(self.0.verify(&phone_e164, &otp, &pin, p).await?)
+        Ok(self
+            .0
+            .verify(&phone_e164, &otp, &pin, platform.into())
+            .await?)
     }
 
     pub async fn set_username(&self, username: String) -> Result<(), CoreError> {

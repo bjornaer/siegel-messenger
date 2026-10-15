@@ -110,10 +110,12 @@ impl Client {
         &self,
         phone_e164: &str,
         attestation_token: &str,
+        platform: pb::Platform,
     ) -> Result<(), Error> {
         let req = pb::RequestOtpRequest {
             phone_e164: phone_e164.into(),
             attestation_token: attestation_token.into(),
+            platform: platform as i32,
         };
         self.call::<pb::RequestOtpResponse>("RegistrationService/RequestOtp", &req, None)
             .await
@@ -382,13 +384,20 @@ mod tests {
     async fn pinning_accepts_our_server_and_rejects_other_cas() {
         let ours = Client::new("https://siegel.schlk.in");
         assert_eq!(
-            ours.request_otp("0034", "").await.unwrap_err().code,
+            ours.request_otp("0034", "", pb::Platform::Android)
+                .await
+                .unwrap_err()
+                .code,
             "phone_invalid",
             "reached our server"
         );
         let other = Client::new("https://www.google.com"); // Google Trust Services, not Let's Encrypt
         assert_eq!(
-            other.request_otp("0034", "").await.unwrap_err().code,
+            other
+                .request_otp("0034", "", pb::Platform::Android)
+                .await
+                .unwrap_err()
+                .code,
             "network",
             "foreign CA rejected"
         );

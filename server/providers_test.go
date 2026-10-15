@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -18,8 +19,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
@@ -111,10 +114,11 @@ func TestFCM(t *testing.T) { // SRV-05
 	fcmBase = srv.URL
 	creds, _ := json.Marshal(map[string]string{"project_id": "p1", "client_email": "x@p1", "token_uri": srv.URL + "/token",
 		"private_key": string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))})
-	send, err := fcm(creds)
+	g, err := googleAuth(creds)
 	if err != nil {
 		t.Fatal(err)
 	}
+	send := fcm(g)
 	ctx := context.Background()
 	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "t1"); err != nil {
 		t.Fatal(err)
@@ -125,5 +129,55 @@ func TestFCM(t *testing.T) { // SRV-05
 	send(ctx, siegelv1.Platform_PLATFORM_IOS, "ios") // not until APNs ships
 	if tokenCalls != 1 || sends != 2 {
 		t.Fatal("token not cached or iOS sent", tokenCalls, sends)
+	}
+}
+
+func TestPlayIntegrity(t *testing.T) { // ID-02
+	var verdict map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/in.schlk.siegel:decodeIntegrityToken" || r.Header.Get("Authorization") != "Bearer at" {
+			t.Errorf("bad call %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{"tokenPayloadExternal": verdict})
+	}))
+	defer srv.Close()
+	playIntegrityBase = srv.URL
+	check := playIntegrity(&googleAccount{project: "p1", bearer: func(context.Context) (string, error) { return "at", nil }})
+	phone := "+34600000001"
+	sum := sha256.Sum256([]byte(phone))
+	good := func() map[string]any {
+		return map[string]any{
+			"requestDetails": map[string]any{"requestPackageName": "in.schlk.siegel", "requestHash": hex.EncodeToString(sum[:]),
+				"timestampMillis": strconv.FormatInt(time.Now().UnixMilli(), 10)},
+			"appIntegrity":    map[string]any{"appRecognitionVerdict": "PLAY_RECOGNIZED"},
+			"deviceIntegrity": map[string]any{"deviceRecognitionVerdict": []string{"MEETS_BASIC_INTEGRITY", "MEETS_DEVICE_INTEGRITY"}},
+		}
+	}
+	android := siegelv1.Platform_PLATFORM_ANDROID
+	verdict = good()
+	if err := check(context.Background(), android, phone, "tok"); err != nil {
+		t.Fatal(err)
+	}
+	for name, spoil := range map[string]func(map[string]any){
+		"other number": func(v map[string]any) { v["requestDetails"].(map[string]any)["requestHash"] = "00" },
+		"old token": func(v map[string]any) {
+			v["requestDetails"].(map[string]any)["timestampMillis"] = strconv.FormatInt(time.Now().Add(-time.Hour).UnixMilli(), 10)
+		},
+		"sideloaded": func(v map[string]any) {
+			v["appIntegrity"].(map[string]any)["appRecognitionVerdict"] = "UNRECOGNIZED_VERSION"
+		},
+		"rooted": func(v map[string]any) {
+			v["deviceIntegrity"] = map[string]any{"deviceRecognitionVerdict": []string{"MEETS_BASIC_INTEGRITY"}}
+		},
+		"other app": func(v map[string]any) { v["requestDetails"].(map[string]any)["requestPackageName"] = "evil.app" },
+	} {
+		verdict = good()
+		spoil(verdict)
+		if check(context.Background(), android, phone, "tok") == nil {
+			t.Error(name, "accepted")
+		}
+	}
+	if check(context.Background(), siegelv1.Platform_PLATFORM_IOS, phone, "tok") == nil || check(context.Background(), android, phone, "") == nil {
+		t.Error("iOS or empty token accepted")
 	}
 }

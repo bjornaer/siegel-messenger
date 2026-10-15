@@ -62,7 +62,7 @@ func setup(t *testing.T) *env_ {
 	}
 	e := &env_{t: t, sms: map[string]string{}, ctx: ctx, asPub: asKey.Public().(ed25519.PublicKey)}
 	e.s = newServer(cfg, db)
-	e.s.attest = func(context.Context, string) error { return nil }
+	e.s.attest = func(context.Context, siegelv1.Platform, string, string) error { return nil }
 	e.s.hmacPhone = func(_ context.Context, p string) ([]byte, error) {
 		m := hmac.New(sha256.New, seed)
 		m.Write([]byte(p))

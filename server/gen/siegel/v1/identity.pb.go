@@ -71,9 +71,11 @@ func (Platform) EnumDescriptor() ([]byte, []int) {
 }
 
 type RequestOtpRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	PhoneE164        string                 `protobuf:"bytes,1,opt,name=phone_e164,json=phoneE164,proto3" json:"phone_e164,omitempty"`
-	AttestationToken string                 `protobuf:"bytes,2,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	PhoneE164 string                 `protobuf:"bytes,1,opt,name=phone_e164,json=phoneE164,proto3" json:"phone_e164,omitempty"`
+	// ID-02: Play Integrity token whose requestHash is hex(SHA-256(phone_e164)); App Attest on iOS.
+	AttestationToken string   `protobuf:"bytes,2,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
+	Platform         Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=siegel.v1.Platform" json:"platform,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -120,6 +122,13 @@ func (x *RequestOtpRequest) GetAttestationToken() string {
 		return x.AttestationToken
 	}
 	return ""
+}
+
+func (x *RequestOtpRequest) GetPlatform() Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return Platform_PLATFORM_UNSPECIFIED
 }
 
 type RequestOtpResponse struct {
@@ -922,11 +931,12 @@ var File_siegel_v1_identity_proto protoreflect.FileDescriptor
 
 const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\n" +
-	"\x18siegel/v1/identity.proto\x12\tsiegel.v1\"_\n" +
+	"\x18siegel/v1/identity.proto\x12\tsiegel.v1\"\x90\x01\n" +
 	"\x11RequestOtpRequest\x12\x1d\n" +
 	"\n" +
 	"phone_e164\x18\x01 \x01(\tR\tphoneE164\x12+\n" +
-	"\x11attestation_token\x18\x02 \x01(\tR\x10attestationToken\"\x14\n" +
+	"\x11attestation_token\x18\x02 \x01(\tR\x10attestationToken\x12/\n" +
+	"\bplatform\x18\x03 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"\x14\n" +
 	"\x12RequestOtpResponse\"\xc8\x01\n" +
 	"\rVerifyRequest\x12\x1d\n" +
 	"\n" +
@@ -1026,30 +1036,31 @@ var file_siegel_v1_identity_proto_goTypes = []any{
 	(*ProfileServiceGetResponse)(nil),     // 18: siegel.v1.ProfileServiceGetResponse
 }
 var file_siegel_v1_identity_proto_depIdxs = []int32{
-	0,  // 0: siegel.v1.VerifyRequest.platform:type_name -> siegel.v1.Platform
-	1,  // 1: siegel.v1.RegistrationService.RequestOtp:input_type -> siegel.v1.RequestOtpRequest
-	3,  // 2: siegel.v1.RegistrationService.Verify:input_type -> siegel.v1.VerifyRequest
-	5,  // 3: siegel.v1.UsernameService.Set:input_type -> siegel.v1.UsernameServiceSetRequest
-	7,  // 4: siegel.v1.UsernameService.Lookup:input_type -> siegel.v1.UsernameServiceLookupRequest
-	11, // 5: siegel.v1.AccountService.SetRegistrationLock:input_type -> siegel.v1.SetRegistrationLockRequest
-	13, // 6: siegel.v1.AccountService.Delete:input_type -> siegel.v1.AccountServiceDeleteRequest
-	9,  // 7: siegel.v1.AccountService.SetPushToken:input_type -> siegel.v1.SetPushTokenRequest
-	15, // 8: siegel.v1.ProfileService.Set:input_type -> siegel.v1.ProfileServiceSetRequest
-	17, // 9: siegel.v1.ProfileService.Get:input_type -> siegel.v1.ProfileServiceGetRequest
-	2,  // 10: siegel.v1.RegistrationService.RequestOtp:output_type -> siegel.v1.RequestOtpResponse
-	4,  // 11: siegel.v1.RegistrationService.Verify:output_type -> siegel.v1.VerifyResponse
-	6,  // 12: siegel.v1.UsernameService.Set:output_type -> siegel.v1.UsernameServiceSetResponse
-	8,  // 13: siegel.v1.UsernameService.Lookup:output_type -> siegel.v1.UsernameServiceLookupResponse
-	12, // 14: siegel.v1.AccountService.SetRegistrationLock:output_type -> siegel.v1.SetRegistrationLockResponse
-	14, // 15: siegel.v1.AccountService.Delete:output_type -> siegel.v1.AccountServiceDeleteResponse
-	10, // 16: siegel.v1.AccountService.SetPushToken:output_type -> siegel.v1.SetPushTokenResponse
-	16, // 17: siegel.v1.ProfileService.Set:output_type -> siegel.v1.ProfileServiceSetResponse
-	18, // 18: siegel.v1.ProfileService.Get:output_type -> siegel.v1.ProfileServiceGetResponse
-	10, // [10:19] is the sub-list for method output_type
-	1,  // [1:10] is the sub-list for method input_type
-	1,  // [1:1] is the sub-list for extension type_name
-	1,  // [1:1] is the sub-list for extension extendee
-	0,  // [0:1] is the sub-list for field type_name
+	0,  // 0: siegel.v1.RequestOtpRequest.platform:type_name -> siegel.v1.Platform
+	0,  // 1: siegel.v1.VerifyRequest.platform:type_name -> siegel.v1.Platform
+	1,  // 2: siegel.v1.RegistrationService.RequestOtp:input_type -> siegel.v1.RequestOtpRequest
+	3,  // 3: siegel.v1.RegistrationService.Verify:input_type -> siegel.v1.VerifyRequest
+	5,  // 4: siegel.v1.UsernameService.Set:input_type -> siegel.v1.UsernameServiceSetRequest
+	7,  // 5: siegel.v1.UsernameService.Lookup:input_type -> siegel.v1.UsernameServiceLookupRequest
+	11, // 6: siegel.v1.AccountService.SetRegistrationLock:input_type -> siegel.v1.SetRegistrationLockRequest
+	13, // 7: siegel.v1.AccountService.Delete:input_type -> siegel.v1.AccountServiceDeleteRequest
+	9,  // 8: siegel.v1.AccountService.SetPushToken:input_type -> siegel.v1.SetPushTokenRequest
+	15, // 9: siegel.v1.ProfileService.Set:input_type -> siegel.v1.ProfileServiceSetRequest
+	17, // 10: siegel.v1.ProfileService.Get:input_type -> siegel.v1.ProfileServiceGetRequest
+	2,  // 11: siegel.v1.RegistrationService.RequestOtp:output_type -> siegel.v1.RequestOtpResponse
+	4,  // 12: siegel.v1.RegistrationService.Verify:output_type -> siegel.v1.VerifyResponse
+	6,  // 13: siegel.v1.UsernameService.Set:output_type -> siegel.v1.UsernameServiceSetResponse
+	8,  // 14: siegel.v1.UsernameService.Lookup:output_type -> siegel.v1.UsernameServiceLookupResponse
+	12, // 15: siegel.v1.AccountService.SetRegistrationLock:output_type -> siegel.v1.SetRegistrationLockResponse
+	14, // 16: siegel.v1.AccountService.Delete:output_type -> siegel.v1.AccountServiceDeleteResponse
+	10, // 17: siegel.v1.AccountService.SetPushToken:output_type -> siegel.v1.SetPushTokenResponse
+	16, // 18: siegel.v1.ProfileService.Set:output_type -> siegel.v1.ProfileServiceSetResponse
+	18, // 19: siegel.v1.ProfileService.Get:output_type -> siegel.v1.ProfileServiceGetResponse
+	11, // [11:20] is the sub-list for method output_type
+	2,  // [2:11] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_identity_proto_init() }

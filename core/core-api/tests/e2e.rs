@@ -15,7 +15,9 @@ static REGISTER: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn register(core: &SiegelCore, phone: &str) {
     let _one_at_a_time = REGISTER.lock().await;
-    core.request_otp(phone, "").await.unwrap();
+    core.request_otp(phone, "", Platform::Android)
+        .await
+        .unwrap();
     core.verify(phone, &otp_from_db(), "", Platform::Android)
         .await
         .unwrap();
@@ -56,11 +58,16 @@ async fn register_username_lock_delete() {
     let n = fresh_number();
     let phone = format!("+346{n:08}");
     assert_eq!(
-        core.request_otp("0034", "").await.unwrap_err().code,
+        core.request_otp("0034", "", Platform::Android)
+            .await
+            .unwrap_err()
+            .code,
         "phone_invalid"
     );
     let one_at_a_time = REGISTER.lock().await;
-    core.request_otp(&phone, "").await.unwrap();
+    core.request_otp(&phone, "", Platform::Android)
+        .await
+        .unwrap();
     assert_eq!(
         core.verify(&phone, "000000x", "", Platform::Ios)
             .await

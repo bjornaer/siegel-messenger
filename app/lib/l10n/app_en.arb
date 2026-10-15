@@ -190,5 +190,6 @@
   "blockedPeople": "Blocked people",
   "noBlocked": "You haven't blocked anyone.",
   "unblock": "Unblock",
-  "notificationChannel": "Messages"
+  "notificationChannel": "Messages",
+  "errAttestation": "This copy of Siegel couldn't be verified. Install it from Google Play and try again."
 }

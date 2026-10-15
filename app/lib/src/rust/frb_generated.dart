@@ -154,6 +154,7 @@ abstract class RustLibApi extends BaseApi {
     required Core that,
     required String phoneE164,
     required String attestationToken,
+    required DevicePlatform platform,
   });
 
   Future<void> crateApiCoreCoreRetry({
@@ -796,6 +797,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required Core that,
     required String phoneE164,
     required String attestationToken,
+    required DevicePlatform platform,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -807,6 +809,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(phoneE164, serializer);
           sse_encode_String(attestationToken, serializer);
+          sse_encode_device_platform(platform, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -819,7 +822,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiCoreCoreRequestOtpConstMeta,
-        argValues: [that, phoneE164, attestationToken],
+        argValues: [that, phoneE164, attestationToken, platform],
         apiImpl: this,
       ),
     );
@@ -827,7 +830,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCoreCoreRequestOtpConstMeta => const TaskConstMeta(
     debugName: "Core_request_otp",
-    argNames: ["that", "phoneE164", "attestationToken"],
+    argNames: ["that", "phoneE164", "attestationToken", "platform"],
   );
 
   @override
@@ -2479,10 +2482,12 @@ class CoreImpl extends RustOpaque implements Core {
   Future<void> requestOtp({
     required String phoneE164,
     required String attestationToken,
+    required DevicePlatform platform,
   }) => RustLib.instance.api.crateApiCoreCoreRequestOtp(
     that: this,
     phoneE164: phoneE164,
     attestationToken: attestationToken,
+    platform: platform,
   );
 
   Future<void> retry({required List<int> messageId}) => RustLib.instance.api

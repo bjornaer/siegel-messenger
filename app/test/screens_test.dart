@@ -30,8 +30,11 @@ class FakeCore implements Core {
   }
 
   @override
-  Future<void> requestOtp({required String phoneE164, required String attestationToken}) =>
-      _maybeFail('requestOtp $phoneE164');
+  Future<void> requestOtp({
+    required String phoneE164,
+    required String attestationToken,
+    required DevicePlatform platform,
+  }) => _maybeFail('requestOtp $phoneE164');
   @override
   Future<bool> verify({
     required String phoneE164,

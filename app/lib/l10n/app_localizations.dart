@@ -777,6 +777,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Messages'**
   String get notificationChannel;
+
+  /// No description provided for @errAttestation.
+  ///
+  /// In en, this message translates to:
+  /// **'This copy of Siegel couldn\'t be verified. Install it from Google Play and try again.'**
+  String get errAttestation;
 }
 
 class _AppLocalizationsDelegate
