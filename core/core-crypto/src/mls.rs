@@ -290,6 +290,24 @@ impl<P: OpenMlsProvider> Mls<P> {
         })
     }
 
+    /// CRY-10: a commit that replaces this device's leaf keys, so a past key compromise stops
+    /// reaching future messages. Submit like any commit, then `confirm` or `abort`.
+    pub fn self_update(&self, group_id: &[u8]) -> Result<Outgoing, Error> {
+        let mut g = self.group(group_id)?;
+        let epoch = g.epoch().as_u64();
+        let bundle = g
+            .self_update(&self.provider, &self.signer, LeafNodeParameters::default())
+            .map_err(err)?;
+        Ok(Outgoing {
+            group_id: group_id.to_vec(),
+            epoch,
+            commit: bundle.commit().tls_serialize_detached().map_err(err)?,
+            commit_to: self.others(group_id)?,
+            welcome: vec![],
+            welcome_to: vec![],
+        })
+    }
+
     /// The server accepted our commit: apply it.
     pub fn confirm(&self, group_id: &[u8]) -> Result<(), Error> {
         self.group(group_id)?
@@ -460,6 +478,27 @@ mod tests {
             ([2; 16], &b"hello back"[..])
         );
         assert_eq!(alice.others(&group_id).unwrap()[0].device_id, [102; 16]);
+
+        // CRY-10: Bob refreshes his keys; a message Alice sent in the old epoch still opens.
+        let in_flight = alice.encrypt(&group_id, b"in flight").unwrap();
+        let up = bob.self_update(&group_id).unwrap();
+        assert_eq!((up.epoch, up.commit_to[0].account_id), (1, [1; 16]));
+        bob.confirm(&group_id).unwrap();
+        assert_eq!(
+            alice.receive(&up.commit).unwrap(),
+            Received::Commit {
+                group_id: group_id.clone()
+            }
+        );
+        assert!(matches!(
+            bob.receive(&in_flight).unwrap(),
+            Received::Message { .. }
+        ));
+        let after = bob.encrypt(&group_id, b"after").unwrap();
+        assert!(matches!(
+            alice.receive(&after).unwrap(),
+            Received::Message { .. }
+        ));
     }
 
     #[test]

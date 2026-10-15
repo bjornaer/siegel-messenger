@@ -19,6 +19,8 @@ use crate::{AS_PUBLIC, CREDENTIAL, CoreError, SIGNER, SiegelCore, storage};
 /// CRY-09: keep about this many one-time KeyPackages on the server; refill below the threshold.
 const KEY_PACKAGES: u32 = 100;
 const REFILL_BELOW: u32 = 20;
+/// CRY-10 default: refresh our leaf keys in each chat at least this often.
+const SELF_UPDATE_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 
 /// OpenMLS provider over the encrypted store: RustCrypto for crypto and randomness.
 pub(crate) struct Provider<'a> {
@@ -291,6 +293,48 @@ impl SiegelCore {
         Ok(())
     }
 
+    /// CRY-10: a self-update commit in every chat whose keys are 7 days old. A new group counts
+    /// as fresh (a reinstall re-registers and builds new groups, ID-09). Runs on each connect.
+    /// ponytail: a device that stays connected for over a week waits for its next reconnect.
+    async fn self_updates(&self) -> Result<(), CoreError> {
+        let token = self.token()?;
+        let now = now_ms();
+        for conv in self.conversations()? {
+            let key = format!("self_update.{}", hex(&conv.mls_group));
+            let last = self
+                .get(&key)?
+                .and_then(|v| <[u8; 8]>::try_from(v.as_slice()).ok())
+                .map(i64::from_be_bytes);
+            match last {
+                Some(t) if now - t < SELF_UPDATE_MS => continue,
+                None => {
+                    self.put(&key, &now.to_be_bytes())?;
+                    continue;
+                }
+                Some(_) => {}
+            }
+            let g = conv.mls_group.clone();
+            let out = self.with_mls(|m, _| m.self_update(&g).map_err(mls_err))?;
+            let req = pb::GroupsServiceCommitRequest {
+                group_id: g.clone(),
+                epoch: out.epoch,
+                commit: out.commit,
+                recipients: out.commit_to.iter().map(addr).collect(),
+                welcome: vec![],
+                welcome_recipients: vec![],
+            };
+            match self.net.commit(&token, req).await {
+                Ok(_) => {
+                    self.with_mls(|m, _| m.confirm(&g).map_err(mls_err))?;
+                    self.put(&key, &now.to_be_bytes())?;
+                }
+                // CRY-14: another commit won; theirs is in our queue, retry on the next connect.
+                Err(_) => self.with_mls(|m, _| m.abort(&g).map_err(mls_err))?,
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn conversation(&self, group_id: &[u8]) -> Result<Conversation, CoreError> {
         self.conversations()?
             .into_iter()
@@ -510,6 +554,7 @@ impl SiegelCore {
         let token = self.token()?;
         let _ = self.ensure_key_packages().await;
         let _ = self.publish_profile().await; // retries a publish that failed at registration
+        let _ = self.self_updates().await;
         let mut stream = self.net.stream(&token).await?;
         while let Some(frame) = stream.next().await? {
             match frame {
@@ -598,4 +643,8 @@ pub(crate) fn note_identity(s: &SqlCipher, peer: &[u8], identity: &[u8]) -> Resu
         }))?;
     }
     Ok(())
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
 }
