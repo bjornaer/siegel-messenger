@@ -162,6 +162,11 @@ async fn two_users_chat_over_mls() {
         chat,
         "one 1:1 chat per peer"
     );
+    let peer = alice.conversations().unwrap()[0].peer_account.clone();
+    assert_eq!(
+        alice.peer_username(&peer).as_deref(),
+        Some(bob_name.as_str())
+    );
     let core_api::Event::ConversationStarted { group_id, .. } = next_event(&mut bob_events).await
     else {
         panic!("welcome")
@@ -221,4 +226,24 @@ async fn two_users_chat_over_mls() {
         !String::from_utf8_lossy(&dump.stdout).contains(&canary),
         "plaintext reached the server"
     );
+}
+
+/// Manual peer for device tests: registers, writes its @username to $ECHO_FILE and answers
+/// every message with "pong: <text>" for five minutes.
+///   SIEGEL_TEST_SERVER_URL=... ECHO_FILE=/tmp/echo cargo test -p core-api --test e2e echo_peer -- --ignored
+#[tokio::test]
+#[ignore]
+async fn echo_peer() {
+    let url = std::env::var("SIEGEL_TEST_SERVER_URL").unwrap();
+    let (peer, name) = new_user(&url, "echo").await;
+    std::fs::write(std::env::var("ECHO_FILE").unwrap(), &name).unwrap();
+    let mut events = listen(&peer);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
+    while let Ok(Some(e)) = tokio::time::timeout_at(deadline, events.recv()).await {
+        if let core_api::Event::Message(m) = e {
+            peer.send_text(&m.group_id, &format!("pong: {}", m.text))
+                .await
+                .unwrap();
+        }
+    }
 }

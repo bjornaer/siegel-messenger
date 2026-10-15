@@ -10,6 +10,7 @@ use core_store::{SqlCipher, Store};
 
 mod chat;
 pub use chat::{ChatMessage, Event};
+pub use core_store::Conversation;
 
 /// Machine-readable failure, e.g. "otp_invalid", "registration_lock_required", "network".
 #[derive(Debug, Clone, PartialEq)]

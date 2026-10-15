@@ -63,6 +63,11 @@ fn addr(m: &Member) -> pb::DeviceAddress {
     }
 }
 
+fn peer_name_key(account: &[u8]) -> String {
+    let hex: String = account.iter().map(|b| format!("{b:02x}")).collect();
+    format!("peer_username.{hex}")
+}
+
 fn now_ms() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -178,6 +183,7 @@ impl SiegelCore {
         match self.net.commit(&token, req).await {
             Ok(_) => self.with_mls(|m, s| {
                 m.confirm(&out.group_id).map_err(mls_err)?;
+                storage(s.put(&peer_name_key(&peer), username.to_lowercase().as_bytes()))?;
                 storage(s.save_conversation(&Conversation {
                     group_id: out.group_id.clone(),
                     peer_account: peer.clone(),
@@ -189,6 +195,12 @@ impl SiegelCore {
             }
         }
         Ok(out.group_id)
+    }
+
+    /// The @username we know for an account: the one we typed to start the chat.
+    /// ponytail: the receiving side learns names from encrypted profiles (MSG-10 slice).
+    pub fn peer_username(&self, account: &[u8]) -> Option<String> {
+        self.get_string(&peer_name_key(account))
     }
 
     pub fn conversations(&self) -> Result<Vec<Conversation>, CoreError> {
