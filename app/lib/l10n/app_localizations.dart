@@ -843,6 +843,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The longing for faraway places. Open-sea blue.'**
   String get themeFernweh;
+
+  /// No description provided for @mute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute notifications'**
+  String get mute;
+
+  /// No description provided for @messageInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Message info'**
+  String get messageInfo;
+
+  /// No description provided for @sentAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent {when}'**
+  String sentAt(String when);
 }
 
 class _AppLocalizationsDelegate

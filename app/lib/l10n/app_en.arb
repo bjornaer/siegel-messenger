@@ -201,5 +201,15 @@
   "themeSchnee": "Snow. Quiet, pale blue.",
   "themeKrampus": "The Alpine winter demon. Ember orange.",
   "themeNordlicht": "Northern lights. Violet with a shimmer.",
-  "themeFernweh": "The longing for faraway places. Open-sea blue."
+  "themeFernweh": "The longing for faraway places. Open-sea blue.",
+  "mute": "Mute notifications",
+  "messageInfo": "Message info",
+  "sentAt": "Sent {when}",
+  "@sentAt": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
 }

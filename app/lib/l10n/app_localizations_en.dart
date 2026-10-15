@@ -442,4 +442,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeFernweh => 'The longing for faraway places. Open-sea blue.';
+
+  @override
+  String get mute => 'Mute notifications';
+
+  @override
+  String get messageInfo => 'Message info';
+
+  @override
+  String sentAt(String when) {
+    return 'Sent $when';
+  }
 }

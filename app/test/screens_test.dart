@@ -679,4 +679,27 @@ void main() {
     expect(scheme, siegelThemes.firstWhere((x) => x.id == 'krampus').data(Brightness.light).colorScheme);
     expect(themeById('nope').id, 'siegel', reason: 'unknown stored id falls back to the default');
   });
+
+  testWidgets('contact profile: safety number, mute, block; message info (section 11)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    await core.sendText(groupId: id, text: 'hi bob');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+
+    await t.longPress(find.text('hi bob'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Message info');
+    expect(find.text('@bob: Sent'), findsOneWidget);
+    await tapText(t, 'Close');
+
+    await tapText(t, '@bob'); // the title opens the profile
+    expect(find.text('Safety number'), findsOneWidget);
+    await tapText(t, 'Mute notifications');
+    expect(core.settings['mute.${base64Encode(id)}'], 'on');
+    await tapText(t, 'Block');
+    expect(find.text('Block @bob?'), findsOneWidget);
+  });
 }

@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
+import 'profile.dart';
 import 'safety.dart';
 import 'src/rust/api/core.dart';
 
@@ -489,6 +490,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     });
                   }),
                 ),
+              if (m.outgoing && !m.deleted)
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: Text(t.messageInfo),
+                  onTap: () => act(() => showMessageInfo(context, m, chatTitle(t, c))),
+                ),
               if (m.edited && !m.deleted)
                 ListTile(
                   leading: const Icon(Icons.history),
@@ -526,21 +533,35 @@ class _ChatScreenState extends State<ChatScreen> {
         if (c == null) return Scaffold(appBar: AppBar());
         return Scaffold(
           appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
-                    if (c.peerVerified) ...[
-                      const SizedBox(width: 6),
-                      Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
-                    ],
-                  ],
+            title: InkWell(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ContactProfileScreen(
+                    core: core,
+                    groupId: _group,
+                    onBlock: () {
+                      Navigator.of(context).pop(); // back to the chat, which closes once blocked
+                      _block(c);
+                    },
+                  ),
                 ),
-                if (widget.service.isTyping(_group)) Text(t.typing, style: Theme.of(context).textTheme.labelMedium),
-              ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
+                      if (c.peerVerified) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
+                      ],
+                    ],
+                  ),
+                  if (widget.service.isTyping(_group)) Text(t.typing, style: Theme.of(context).textTheme.labelMedium),
+                ],
+              ),
             ),
             actions: [
               if (!c.request)
