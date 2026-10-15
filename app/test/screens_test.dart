@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -76,17 +77,55 @@ class FakeCore implements Core {
       ChatSummary(
         groupId: c.groupId,
         peerAccount: c.peerAccount,
+        peerDisplayName: c.peerDisplayName,
         peerUsername: c.peerUsername,
+        request: c.request,
         last: (history[base64Encode(c.groupId)] ?? []).lastOrNull,
       ),
   ];
+
+  ChatSummary _with(ChatSummary c, {required bool request}) => ChatSummary(
+    groupId: c.groupId,
+    peerAccount: c.peerAccount,
+    peerDisplayName: c.peerDisplayName,
+    peerUsername: c.peerUsername,
+    request: request,
+  );
+
+  /// Someone who isn't a contact started a chat with us (MSG-15).
+  void incomingRequest(String name) {
+    final id = Uint8List.fromList(utf8.encode('g-req-$name'));
+    chatList.add(ChatSummary(groupId: id, peerAccount: Uint8List(16), peerDisplayName: name, request: true));
+    receive(id, 'hi, it is $name');
+  }
+
+  @override
+  Future<void> accept({required List<int> groupId}) async {
+    await _maybeFail('accept');
+    final i = chatList.indexWhere((c) => listEquals(c.groupId, groupId));
+    chatList[i] = _with(chatList[i], request: false);
+    events.add(const CoreEvent(kind: CoreEventKind.profileUpdated));
+  }
+
+  @override
+  void deleteChat({required List<int> groupId}) {
+    calls.add('deleteChat');
+    chatList.removeWhere((c) => listEquals(c.groupId, groupId));
+  }
+
+  @override
+  Future<void> block({required List<int> account}) async {
+    await _maybeFail('block');
+    chatList.removeWhere((c) => listEquals(c.peerAccount, account)); // blocked chats are hidden
+  }
+
   @override
   List<MessageView> messages({required List<int> groupId, required int limit}) => history[base64Encode(groupId)] ?? [];
   @override
   Future<Uint8List> startChat({required String username}) async {
     await _maybeFail('startChat $username');
     final id = Uint8List.fromList(utf8.encode('g-$username'));
-    chatList.add(ChatSummary(groupId: id, peerAccount: Uint8List(16), peerUsername: username));
+    chatList.add(ChatSummary(groupId: id, peerAccount: Uint8List(16), peerUsername: username, request: false));
     return id;
   }
 
@@ -296,5 +335,45 @@ void main() {
     core.events.add(const CoreEvent(kind: CoreEventKind.deregistered));
     await t.pump();
     expect(out, isTrue);
+  });
+
+  testWidgets('message requests: listed apart, accept to reply, block from the chat (MSG-15, MSG-16)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    core.incomingRequest('Zoe');
+    await t.pumpAndSettle();
+    expect(find.text('1 message request'), findsOneWidget);
+    expect(find.text('Zoe'), findsNothing, reason: 'requests stay out of the main list');
+
+    await tapText(t, '1 message request');
+    await tapText(t, 'Zoe');
+    expect(find.textContaining('Zoe wants to chat with you'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Message'), findsNothing, reason: 'no replying before accepting');
+
+    await tapText(t, 'Accept');
+    expect(core.calls, contains('accept'));
+    expect(find.widgetWithText(TextField, 'Message'), findsOneWidget);
+
+    await t.tap(find.byType(PopupMenuButton<void>));
+    await t.pumpAndSettle();
+    await tapText(t, 'Block');
+    expect(find.text('Block Zoe?'), findsOneWidget);
+    await t.tap(find.widgetWithText(TextButton, 'Block'));
+    await t.pumpAndSettle();
+    expect(core.chatList, isEmpty);
+  });
+
+  testWidgets('deleting a request removes it', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    core.incomingRequest('Spam');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: core.chatList.first.groupId)));
+    await t.pumpAndSettle();
+    await tapText(t, 'Delete');
+    expect(core.calls, contains('deleteChat'));
+    expect(core.chatList, isEmpty);
   });
 }

@@ -102,5 +102,35 @@
   "startChat": "Start chat",
   "errUsernameNotFound": "No one has that username.",
   "errNoKeyPackages": "That account can't receive messages right now. Try again later.",
-  "errTextInvalid": "Messages can be up to 64 KB of text."
+  "errTextInvalid": "Messages can be up to 64 KB of text.",
+  "messageRequests": "Message requests",
+  "messageRequestsCount": "{count, plural, =1{1 message request} other{{count} message requests}}",
+  "@messageRequestsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noRequests": "No message requests.",
+  "requestBanner": "{name} wants to chat with you. They won't see your name or know you read this until you accept.",
+  "@requestBanner": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accept": "Accept",
+  "block": "Block",
+  "blockConfirmTitle": "Block {name}?",
+  "@blockConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "blockConfirmBody": "They won't be able to message you or start new chats, and they won't be told.",
+  "errRequestPending": "Accept the request before replying."
 }

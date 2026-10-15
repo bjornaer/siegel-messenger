@@ -61,8 +61,7 @@ import 'app_localizations_en.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,8 +69,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -83,13 +81,12 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
@@ -501,10 +498,63 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Messages can be up to 64 KB of text.'**
   String get errTextInvalid;
+
+  /// No description provided for @messageRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Message requests'**
+  String get messageRequests;
+
+  /// No description provided for @messageRequestsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 message request} other{{count} message requests}}'**
+  String messageRequestsCount(int count);
+
+  /// No description provided for @noRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No message requests.'**
+  String get noRequests;
+
+  /// No description provided for @requestBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} wants to chat with you. They won\'t see your name or know you read this until you accept.'**
+  String requestBanner(String name);
+
+  /// No description provided for @accept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get accept;
+
+  /// No description provided for @block.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get block;
+
+  /// No description provided for @blockConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block {name}?'**
+  String blockConfirmTitle(String name);
+
+  /// No description provided for @blockConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They won\'t be able to message you or start new chats, and they won\'t be told.'**
+  String get blockConfirmBody;
+
+  /// No description provided for @errRequestPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept the request before replying.'**
+  String get errRequestPending;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -513,8 +563,7 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;

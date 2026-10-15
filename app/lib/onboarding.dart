@@ -28,6 +28,7 @@ void showError(BuildContext context, CoreError e) {
     'username_not_found' => t.errUsernameNotFound,
     'no_key_packages' => t.errNoKeyPackages,
     'text_invalid' => t.errTextInvalid,
+    'request_pending' => t.errRequestPending,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };
@@ -88,14 +89,14 @@ class _OnboardingState extends State<Onboarding> {
   }
 
   Future<void> _verify() => _run(() async {
-        await core.verify(
-          phoneE164: _parsed!.international,
-          otp: _code.text.trim(),
-          pin: _pin.text.trim(),
-          platform: Platform.isIOS ? DevicePlatform.ios : DevicePlatform.android,
-        );
-        setState(() => step = _Step.profile);
-      });
+    await core.verify(
+      phoneE164: _parsed!.international,
+      otp: _code.text.trim(),
+      pin: _pin.text.trim(),
+      platform: Platform.isIOS ? DevicePlatform.ios : DevicePlatform.android,
+    );
+    setState(() => step = _Step.profile);
+  });
 
   Future<void> _skipLock(AppLocalizations t) async {
     final ok = await showDialog<bool>(
@@ -120,7 +121,9 @@ class _OnboardingState extends State<Onboarding> {
         FilledButton(onPressed: _busy ? null : onPressed, child: Text(label));
 
     final (title, children) = switch (step) {
-      _Step.welcome => (t.welcomeTitle, [
+      _Step.welcome => (
+        t.welcomeTitle,
+        [
           Center(
             child: ClipOval(
               child: Image.asset(
@@ -132,8 +135,11 @@ class _OnboardingState extends State<Onboarding> {
           ),
           Text(t.historyNotice), // ID-14
           primary(t.continueButton, () => setState(() => step = _Step.phone)),
-        ]),
-      _Step.phone => (t.phoneTitle, [
+        ],
+      ),
+      _Step.phone => (
+        t.phoneTitle,
+        [
           TextField(
             controller: _phone,
             keyboardType: TextInputType.phone,
@@ -152,13 +158,16 @@ class _OnboardingState extends State<Onboarding> {
             _parsed == null || !_ageOk
                 ? null
                 : () => _run(() async {
-                      // ponytail: attestation token is empty until App Attest / Play Integrity land (ID-02).
-                      await core.requestOtp(phoneE164: _parsed!.international, attestationToken: '');
-                      setState(() => step = _Step.code);
-                    }),
+                    // ponytail: attestation token is empty until App Attest / Play Integrity land (ID-02).
+                    await core.requestOtp(phoneE164: _parsed!.international, attestationToken: '');
+                    setState(() => step = _Step.code);
+                  }),
           ),
-        ]),
-      _Step.code => (t.codeTitle(_parsed?.international ?? ''), [
+        ],
+      ),
+      _Step.code => (
+        t.codeTitle(_parsed?.international ?? ''),
+        [
           TextField(
             controller: _code,
             keyboardType: TextInputType.number,
@@ -167,8 +176,11 @@ class _OnboardingState extends State<Onboarding> {
             decoration: InputDecoration(labelText: t.codeLabel),
           ),
           primary(t.verify, _verify),
-        ]),
-      _Step.pin => (t.pinTitle, [
+        ],
+      ),
+      _Step.pin => (
+        t.pinTitle,
+        [
           Text(t.pinHelp),
           TextField(
             controller: _pin,
@@ -178,8 +190,11 @@ class _OnboardingState extends State<Onboarding> {
             decoration: InputDecoration(labelText: t.pinLabel),
           ),
           primary(t.verify, _verify),
-        ]),
-      _Step.profile => (t.profileTitle, [
+        ],
+      ),
+      _Step.profile => (
+        t.profileTitle,
+        [
           TextField(
             controller: _username,
             autocorrect: false,
@@ -198,8 +213,11 @@ class _OnboardingState extends State<Onboarding> {
               setState(() => step = _Step.lock);
             }),
           ),
-        ]),
-      _Step.lock => (t.lockOfferTitle, [
+        ],
+      ),
+      _Step.lock => (
+        t.lockOfferTitle,
+        [
           Text(t.lockOfferBody),
           TextField(
             controller: _pin,
@@ -216,7 +234,8 @@ class _OnboardingState extends State<Onboarding> {
             }),
           ),
           TextButton(onPressed: _busy ? null : () => _skipLock(t), child: Text(t.skip)),
-        ]),
+        ],
+      ),
     };
 
     return Scaffold(

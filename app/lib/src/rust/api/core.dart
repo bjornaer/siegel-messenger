@@ -11,9 +11,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
 abstract class Core implements RustOpaqueInterface {
+  /// Accepts a message request: they get our profile key and we can reply (MSG-15).
+  Future<void> accept({required List<int> groupId});
+
+  /// Blocks the account; they are not told (MSG-16).
+  Future<void> block({required List<int> account});
+
+  /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
 
   Future<void> deleteAccount();
+
+  /// Deletes a chat from this device.
+  void deleteChat({required List<int> groupId});
 
   String? displayName();
 
@@ -21,28 +31,15 @@ abstract class Core implements RustOpaqueInterface {
 
   List<MessageView> messages({required List<int> groupId, required int limit});
 
-  static Core open({
-    required String dbPath,
-    required List<int> dbKey,
-    required String serverUrl,
-  }) => RustLib.instance.api.crateApiCoreCoreOpen(
-    dbPath: dbPath,
-    dbKey: dbKey,
-    serverUrl: serverUrl,
-  );
+  static Core open({required String dbPath, required List<int> dbKey, required String serverUrl}) =>
+      RustLib.instance.api.crateApiCoreCoreOpen(dbPath: dbPath, dbKey: dbKey, serverUrl: serverUrl);
 
-  Future<void> requestOtp({
-    required String phoneE164,
-    required String attestationToken,
-  });
+  Future<void> requestOtp({required String phoneE164, required String attestationToken});
 
   /// Streams events until the connection closes; the caller reconnects with backoff.
   Stream<CoreEvent> runStream();
 
-  Future<MessageView> sendText({
-    required List<int> groupId,
-    required String text,
-  });
+  Future<MessageView> sendText({required List<int> groupId, required String text});
 
   void setDisplayName({required String name});
 
@@ -73,14 +70,20 @@ class ChatSummary {
   final Uint8List groupId;
   final Uint8List peerAccount;
 
-  /// Known when we started the chat; otherwise null until profiles land.
+  /// From their encrypted profile once they shared their profile key.
+  final String? peerDisplayName;
   final String? peerUsername;
+
+  /// An unaccepted message request (MSG-15).
+  final bool request;
   final MessageView? last;
 
   const ChatSummary({
     required this.groupId,
     required this.peerAccount,
+    this.peerDisplayName,
     this.peerUsername,
+    required this.request,
     this.last,
   });
 
@@ -88,7 +91,9 @@ class ChatSummary {
   int get hashCode =>
       groupId.hashCode ^
       peerAccount.hashCode ^
+      peerDisplayName.hashCode ^
       peerUsername.hashCode ^
+      request.hashCode ^
       last.hashCode;
 
   @override
@@ -98,7 +103,9 @@ class ChatSummary {
           runtimeType == other.runtimeType &&
           groupId == other.groupId &&
           peerAccount == other.peerAccount &&
+          peerDisplayName == other.peerDisplayName &&
           peerUsername == other.peerUsername &&
+          request == other.request &&
           last == other.last;
 }
 
@@ -113,10 +120,7 @@ class CoreError implements FrbException {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CoreError &&
-          runtimeType == other.runtimeType &&
-          code == other.code;
+      identical(this, other) || other is CoreError && runtimeType == other.runtimeType && code == other.code;
 }
 
 /// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
@@ -143,6 +147,7 @@ class CoreEvent {
 enum CoreEventKind {
   conversationStarted,
   message,
+  profileUpdated,
 
   /// Local data is already wiped (ID-12): return to onboarding.
   deregistered,

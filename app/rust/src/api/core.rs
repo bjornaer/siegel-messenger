@@ -103,8 +103,11 @@ impl Core {
 pub struct ChatSummary {
     pub group_id: Vec<u8>,
     pub peer_account: Vec<u8>,
-    /// Known when we started the chat; otherwise null until profiles land.
+    /// From their encrypted profile once they shared their profile key.
+    pub peer_display_name: Option<String>,
     pub peer_username: Option<String>,
+    /// An unaccepted message request (MSG-15).
+    pub request: bool,
     pub last: Option<MessageView>,
 }
 
@@ -134,6 +137,7 @@ impl From<core_api::ChatMessage> for MessageView {
 pub enum CoreEventKind {
     ConversationStarted,
     Message,
+    ProfileUpdated,
     /// Local data is already wiped (ID-12): return to onboarding.
     Deregistered,
 }
@@ -151,17 +155,24 @@ impl Core {
         Ok(self.0.start_chat(&username).await?)
     }
 
+    /// All chats except blocked ones, newest first.
     #[frb(sync)]
     pub fn chats(&self) -> Result<Vec<ChatSummary>, CoreError> {
         let mut out = Vec::new();
         for c in self.0.conversations()? {
+            let contact = self.0.contact(&c.peer_account);
+            if matches!(&contact, Some(k) if k.state == core_api::ContactState::Blocked) {
+                continue;
+            }
             let last = self
                 .0
                 .messages(&c.group_id, 1)?
                 .pop()
                 .map(MessageView::from);
             out.push(ChatSummary {
-                peer_username: self.0.peer_username(&c.peer_account),
+                peer_display_name: contact.as_ref().and_then(|k| k.display_name.clone()),
+                peer_username: contact.as_ref().and_then(|k| k.username.clone()),
+                request: contact.is_none_or(|k| k.state != core_api::ContactState::Accepted),
                 group_id: c.group_id,
                 peer_account: c.peer_account,
                 last,
@@ -169,6 +180,22 @@ impl Core {
         }
         out.sort_by_key(|c| std::cmp::Reverse(c.last.as_ref().map_or(0, |m| m.sent_at)));
         Ok(out)
+    }
+
+    /// Accepts a message request: they get our profile key and we can reply (MSG-15).
+    pub async fn accept(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.accept(&group_id).await?)
+    }
+
+    /// Deletes a chat from this device.
+    #[frb(sync)]
+    pub fn delete_chat(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.delete_chat(&group_id)?)
+    }
+
+    /// Blocks the account; they are not told (MSG-16).
+    pub async fn block(&self, account: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.block(&account).await?)
     }
 
     #[frb(sync)]
@@ -203,6 +230,9 @@ impl Core {
                         Some(m.group_id.clone()),
                         Some(m.into()),
                     ),
+                    core_api::Event::ProfileUpdated { .. } => {
+                        (CoreEventKind::ProfileUpdated, None, None)
+                    }
                     core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
                 };
                 let _ = sink.add(CoreEvent {
