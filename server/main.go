@@ -62,16 +62,17 @@ type config struct {
 	lockAttempts  int
 	lockLockout   time.Duration
 	lockLapseDay  int
-	alertURL      string  // webhook for operator alerts (plain-text POST, e.g. an ntfy.sh topic)
-	otpAlertRate  float64 // ID-04: alert below this OTP completion rate over 24 h
-	otpAlertMin   int     // ...once at least this many OTPs were sent, to avoid noise
-	fcmKey        []byte  // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
-	inactiveDays  int     // section 10: accounts with no device seen this long are deleted
-	contactEmail  string  // shown on the public privacy and deletion pages
-	androidLatest int     // newest Android build in the Play Store (update banner)
-	androidMin    int     // Android builds below this must update
-	operator      string  // legal name and postal address for the privacy policy
-	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
+	alertURL      string   // webhook for operator alerts (plain-text POST, e.g. an ntfy.sh topic)
+	otpAlertRate  float64  // ID-04: alert below this OTP completion rate over 24 h
+	otpAlertMin   int      // ...once at least this many OTPs were sent, to avoid noise
+	fcmKey        []byte   // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
+	inactiveDays  int      // section 10: accounts with no device seen this long are deleted
+	contactEmail  string   // shown on the public privacy and deletion pages
+	androidLatest int      // newest Android build in the Play Store (update banner)
+	androidMin    int      // Android builds below this must update
+	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
+	operator      string   // legal name and postal address for the privacy policy
+	reviewPhone   string   // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
 }
 
@@ -114,7 +115,9 @@ func loadConfig() config {
 		contactEmail:  os.Getenv("SIEGEL_CONTACT_EMAIL"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
-		operator:      os.Getenv("SIEGEL_OPERATOR"),
+		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
+			"93:43:99:00:88:1C:CE:F0:BF:39:66:96:C5:E1:5C:BC:B0:90:DF:A1:7C:BA:6A:E9:AF:F2:24:C1:E8:34:3C:08", ok), ","),
+		operator: os.Getenv("SIEGEL_OPERATOR"),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
@@ -269,6 +272,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /v1/stream", s.stream)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /delete-account", s.page("delete-account"))
+	mux.HandleFunc("GET /u/{username}", s.contactPage)
+	mux.HandleFunc("GET /.well-known/assetlinks.json", s.assetLinks)
 	return mux
 }
 

@@ -413,3 +413,21 @@ func TestAppVersion(t *testing.T) {
 		t.Fatal(res, err)
 	}
 }
+
+func TestContactPageAndAssetLinks(t *testing.T) { // DISC-08
+	e := setup(t)
+	e.s.cfg.androidCerts = []string{"AA:BB"}
+	res, _ := http.Get(e.url + "/u/Ana.B")
+	b, _ := io.ReadAll(res.Body)
+	if res.StatusCode != 200 || !strings.Contains(string(b), "@ana.b") {
+		t.Fatal(res.StatusCode)
+	}
+	if res, _ := http.Get(e.url + "/u/%3Cscript%3E"); res.StatusCode != 404 {
+		t.Fatal("bad usernames must 404")
+	}
+	res, _ = http.Get(e.url + "/.well-known/assetlinks.json")
+	b, _ = io.ReadAll(res.Body)
+	if !strings.Contains(string(b), `"in.schlk.siegel"`) || !strings.Contains(string(b), "AA:BB") {
+		t.Fatal(string(b))
+	}
+}

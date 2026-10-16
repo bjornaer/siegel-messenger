@@ -123,6 +123,8 @@ enum Handled {
     /// A commit arrived in a group we left but are still in: our leave proposal was for an
     /// older epoch and got dropped, so propose again (GRP-10).
     StillInGroup(Vec<u8>),
+    /// DISC-08: they opened our contact link, so their chat skipped the message request.
+    AcceptedByLink(Vec<u8>),
     /// Members joined a group: they get our profile key.
     MembersAdded {
         group_id: Vec<u8>,
@@ -653,6 +655,10 @@ impl SiegelCore {
                         }
                         Ok(Some(Handled::Event(Event::Updated { group_id })))
                     }
+                    Some(pb::content::Body::ContactLink(p)) if !conv.is_group => {
+                        Ok(crate::links::accept_by_link(s, &from, &p.secret)?
+                            .then_some(Handled::AcceptedByLink(group_id)))
+                    }
                     Some(pb::content::Body::Typing(_))
                         if typing && now_ms() - c.sent_at < TYPING_STALE_MS =>
                     {
@@ -789,6 +795,10 @@ impl SiegelCore {
                                 peer_account: vec![],
                                 request: invite,
                             });
+                        }
+                        Ok(Some(Handled::AcceptedByLink(group_id))) => {
+                            let _ = self.share_profile_key(&group_id).await;
+                            on_event(Event::Updated { group_id });
                         }
                         Ok(Some(Handled::StillInGroup(group_id))) => {
                             let _ = self.repropose_leave(&group_id).await;

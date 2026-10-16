@@ -11,6 +11,7 @@ use core_store::{SqlCipher, Store};
 mod chat;
 mod contacts;
 mod groups;
+mod links;
 mod messages;
 pub use chat::{ChatMessage, Event};
 pub use core_store::{Contact, ContactState, Conversation, Status};
@@ -68,6 +69,8 @@ const REG_LOCK: &str = "registration_lock";
 pub struct SiegelCore {
     store: Mutex<Option<SqlCipher>>,
     net: Client,
+    /// Base of share links (DISC-02, DISC-08): the server's own address.
+    server_url: String,
 }
 
 impl SiegelCore {
@@ -80,6 +83,7 @@ impl SiegelCore {
         Ok(Self {
             store: Mutex::new(Some(store)),
             net: Client::new(server_url),
+            server_url: server_url.trim_end_matches('/').to_string(),
         })
     }
 
@@ -209,6 +213,7 @@ impl SiegelCore {
         }
         // A failed upload is retried when the stream connects (refill below 20, CRY-09).
         let _ = self.ensure_key_packages().await;
+        self.set_contact_link(true)?; // DISC-08: on from the start, can be turned off
         Ok(res.existing_account)
     }
 

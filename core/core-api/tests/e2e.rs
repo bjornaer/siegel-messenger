@@ -1011,3 +1011,65 @@ async fn removed_member_cannot_read_later_messages() {
         "a removed member must not decrypt later messages"
     );
 }
+
+#[tokio::test]
+async fn contact_links_skip_the_request_and_verify() {
+    // DISC-08, DISC-02.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, _) = new_user(&url, "bob").await;
+    let (carol, _) = new_user(&url, "carol").await;
+    let mut bob_events = listen(&bob);
+    let link = bob.contact_link().unwrap().expect("on from registration");
+    assert!(link.starts_with(&format!("{url}/u/")));
+
+    // A tampered fingerprint means a different key: refused.
+    let (head, frag) = link.split_once('#').unwrap();
+    let forged = format!(
+        "{head}#AAAAAAAAAAAAAAAA{}",
+        &frag[frag.find('.').unwrap()..]
+    );
+    assert_eq!(
+        alice.open_contact_link(&forged).await.unwrap_err().code,
+        "link_key_mismatch"
+    );
+
+    let chat = alice.open_contact_link(&link).await.unwrap();
+    let bob_id = alice.conversations().unwrap()[0].peer_account.clone();
+    assert!(
+        alice.contact(&bob_id).unwrap().verified,
+        "the link verifies Bob (DISC-02)"
+    );
+    let core_api::Event::ConversationStarted { group_id, .. } = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    settle(&mut bob_events, || !bob.is_request(&group_id).unwrap()).await;
+    bob.send_text(&group_id, "no request needed", None)
+        .await
+        .unwrap();
+    assert!(!alice.is_request(&chat).unwrap());
+
+    // After a reset the old link is just a username: Carol lands in requests.
+    bob.reset_contact_link().unwrap();
+    carol.open_contact_link(&link).await.unwrap();
+    let core_api::Event::ConversationStarted {
+        group_id: from_carol,
+        ..
+    } = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    assert!(bob.is_request(&from_carol).unwrap());
+    bob.set_contact_link(false).unwrap();
+    assert_eq!(bob.contact_link().unwrap(), None);
+}

@@ -20,7 +20,15 @@ message Content {
     Typing typing = 9;
     KeyChange key_change = 15;
     GroupEvent group_event = 16;
+    ContactLinkProof contact_link = 17;
   }
+}
+
+// DISC-08: sent by whoever opened someone's contact link, in the chat it started. The secret
+// came from the link's fragment, which only the link's owner handed out; their app then skips
+// the message request.
+message ContactLinkProof {
+  bytes secret = 1;
 }
 
 // MSG-02 group_event, GRP-12: a system line the client stores locally ("Ana added Igor") when

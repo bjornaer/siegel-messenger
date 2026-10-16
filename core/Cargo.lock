@@ -271,12 +271,15 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 name = "core-api"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "core-crypto",
  "core-net",
  "core-store",
  "openmls_rust_crypto",
  "openmls_traits",
  "prost",
+ "rand_core 0.6.4",
+ "sha2 0.10.9",
  "tokio",
  "uuid",
 ]
