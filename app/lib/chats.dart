@@ -613,17 +613,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
               if (!m.deleted && !c.request)
-                ListTile(
-                  leading: const Icon(Icons.reply),
-                  title: Text(t.reply),
-                  onTap: () => act(
-                    () => setState(() {
-                      _replyTo = m;
-                      _editing = null;
-                      _focus.requestFocus();
-                    }),
-                  ),
-                ),
+                ListTile(leading: const Icon(Icons.reply), title: Text(t.reply), onTap: () => act(() => _reply(m))),
               if (!m.deleted)
                 ListTile(
                   leading: const Icon(Icons.copy),
@@ -797,6 +787,12 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void _reply(MessageView m) => setState(() {
+    _replyTo = m;
+    _editing = null;
+    _focus.requestFocus();
+  });
+
   Widget _bubble(BuildContext context, MessageView m, Map<String, MessageView> byId, ChatSummary c) {
     final t = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
@@ -811,94 +807,97 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       key: _keys.putIfAbsent(id, GlobalKey.new),
       alignment: m.outgoing ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        onLongPress: () => _actions(m, c),
-        onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
-          decoration: BoxDecoration(
-            color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-            // GRP-15: messages that @mention us stand out.
-            border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
-                ? Border.all(color: colors.primary, width: 2)
-                : null,
-          ),
-          // As wide as its widest line; text starts left, time and ticks end right.
-          child: IntrinsicWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (c.isGroup && !m.outgoing)
-                  Text(
-                    memberName(t, core, m.senderAccount),
-                    style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
-                  ),
-                if (m.replyTo != null && !m.deleted)
-                  GestureDetector(
-                    onTap: () => _jumpTo(m.replyTo!),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.only(left: 8),
-                      decoration: BoxDecoration(
-                        border: Border(left: BorderSide(color: colors.primary, width: 3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (quoted != null)
+      child: _SwipeToReply(
+        onReply: m.deleted || c.request ? null : () => _reply(m),
+        child: GestureDetector(
+          onLongPress: () => _actions(m, c),
+          onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+            decoration: BoxDecoration(
+              color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(16),
+              // GRP-15: messages that @mention us stand out.
+              border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
+                  ? Border.all(color: colors.primary, width: 2)
+                  : null,
+            ),
+            // As wide as its widest line; text starts left, time and ticks end right.
+            child: IntrinsicWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (c.isGroup && !m.outgoing)
+                    Text(
+                      memberName(t, core, m.senderAccount),
+                      style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
+                    ),
+                  if (m.replyTo != null && !m.deleted)
+                    GestureDetector(
+                      onTap: () => _jumpTo(m.replyTo!),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.only(left: 8),
+                        decoration: BoxDecoration(
+                          border: Border(left: BorderSide(color: colors.primary, width: 3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (quoted != null)
+                              Text(
+                                quoted.outgoing
+                                    ? t.you
+                                    : c.isGroup
+                                    ? memberName(t, core, quoted.senderAccount)
+                                    : chatTitle(t, c),
+                                style: small,
+                              ),
                             Text(
-                              quoted.outgoing
-                                  ? t.you
-                                  : c.isGroup
-                                  ? memberName(t, core, quoted.senderAccount)
-                                  : chatTitle(t, c),
-                              style: small,
+                              quoted == null
+                                  ? t.originalMissing
+                                  : quoted.deleted
+                                  ? t.messageDeleted
+                                  : quoted.text,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          Text(
-                            quoted == null
-                                ? t.originalMissing
-                                : quoted.deleted
-                                ? t.messageDeleted
-                                : quoted.text,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
+                  if (m.deleted)
+                    Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+                  else
+                    Text.rich(formatText(m.text)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (m.edited && !m.deleted)
+                        GestureDetector(
+                          onTap: () => _history(m),
+                          child: Text('${t.edited} ', style: small),
+                        ),
+                      Text(_time(context, m.sentAt), style: small),
+                      if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
+                    ],
                   ),
-                if (m.deleted)
-                  Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
-                else
-                  Text.rich(formatText(m.text)),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (m.edited && !m.deleted)
-                      GestureDetector(
-                        onTap: () => _history(m),
-                        child: Text('${t.edited} ', style: small),
-                      ),
-                    Text(_time(context, m.sentAt), style: small),
-                    if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
-                  ],
-                ),
-                if (failed)
-                  Text(
-                    t.notSentRetry,
-                    textAlign: TextAlign.end,
-                    style: small?.copyWith(color: colors.error),
-                  ),
-                if (counts.isNotEmpty)
-                  Text(
-                    [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
-                    textAlign: TextAlign.end,
-                  ),
-              ],
+                  if (failed)
+                    Text(
+                      t.notSentRetry,
+                      textAlign: TextAlign.end,
+                      style: small?.copyWith(color: colors.error),
+                    ),
+                  if (counts.isNotEmpty)
+                    Text(
+                      [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
+                      textAlign: TextAlign.end,
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1056,6 +1055,50 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// MSG-18: drag a bubble right to reply; a haptic tick says the drag went far enough.
+class _SwipeToReply extends StatefulWidget {
+  const _SwipeToReply({required this.onReply, required this.child});
+
+  final VoidCallback? onReply;
+  final Widget child;
+
+  @override
+  State<_SwipeToReply> createState() => _SwipeToReplyState();
+}
+
+class _SwipeToReplyState extends State<_SwipeToReply> {
+  static const _threshold = 64.0;
+  double _dx = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.onReply == null) return widget.child;
+    final armed = _dx >= _threshold;
+    return GestureDetector(
+      onHorizontalDragUpdate: (d) {
+        final dx = (_dx + d.delta.dx).clamp(0.0, _threshold * 1.4);
+        if (dx >= _threshold && _dx < _threshold) HapticFeedback.mediumImpact();
+        setState(() => _dx = dx);
+      },
+      onHorizontalDragEnd: (_) {
+        if (_dx >= _threshold) widget.onReply!();
+        setState(() => _dx = 0);
+      },
+      onHorizontalDragCancel: () => setState(() => _dx = 0),
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Opacity(
+            opacity: (_dx / _threshold).clamp(0.0, 1.0),
+            child: Icon(Icons.reply, size: armed ? 26 : 22),
+          ),
+          Transform.translate(offset: Offset(_dx, 0), child: widget.child),
         ],
       ),
     );

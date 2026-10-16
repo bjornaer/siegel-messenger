@@ -784,6 +784,30 @@ void main() {
     expect(find.text('typing…'), findsNothing);
   });
 
+  testWidgets('swipe a bubble right to reply, own messages too; short drags do nothing (MSG-18)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    core.receive(id, 'lunch?');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+
+    await t.drag(find.text('lunch?'), const Offset(30, 0));
+    await t.pumpAndSettle();
+    expect(find.text('lunch?'), findsOneWidget, reason: 'below the threshold: no reply');
+    await t.drag(find.text('lunch?'), const Offset(120, 0));
+    await t.pumpAndSettle();
+    expect(find.text('lunch?'), findsNWidgets(2), reason: 'quoted above the composer');
+
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'yes');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    await t.drag(find.text('yes'), const Offset(120, 0));
+    await t.pumpAndSettle();
+    expect(find.text('yes'), findsNWidgets(2), reason: 'own messages swipe too');
+  });
+
   testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {
     final core = FakeCore()
       ..registered = true
