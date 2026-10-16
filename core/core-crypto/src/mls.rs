@@ -278,7 +278,7 @@ impl<P: OpenMlsProvider> Mls<P> {
         b.capabilities(capabilities())
             .ciphersuite(CIPHERSUITE)
             .use_ratchet_tree_extension(true) // the Welcome carries the tree; the server never sees it
-            .wire_format_policy(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY) // CRY-04, GRP-03
+            .wire_format_policy(MIXED_CIPHERTEXT_WIRE_FORMAT_POLICY) // CRY-04: we send ciphertext only; joins by link (GRP-16) arrive as signed plaintext commits
             .padding_size(PADDING)
             .max_past_epochs(PAST_EPOCHS)
             .sender_ratchet_configuration(SenderRatchetConfiguration::new(5, MAX_FORWARD))
@@ -288,7 +288,7 @@ impl<P: OpenMlsProvider> Mls<P> {
     fn join_config() -> MlsGroupJoinConfig {
         MlsGroupJoinConfig::builder()
             .use_ratchet_tree_extension(true)
-            .wire_format_policy(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY)
+            .wire_format_policy(MIXED_CIPHERTEXT_WIRE_FORMAT_POLICY)
             .padding_size(PADDING)
             .max_past_epochs(PAST_EPOCHS)
             .sender_ratchet_configuration(SenderRatchetConfiguration::new(5, MAX_FORWARD))
@@ -473,8 +473,24 @@ impl<P: OpenMlsProvider> Mls<P> {
             removed.dedup();
             let added = new_accounts(&g, &welcome_to, &self.as_pub)?;
             let gone: Vec<Account> = removed.iter().map(|(a, _)| *a).collect();
-            let new = edit.unwrap_or(old.clone()).with_members(&added, &gone);
-            old.check(&self.me(), &added, &removed, &new)
+            let mut new = edit.unwrap_or(old.clone()).with_members(&added, &gone);
+            // Members who joined by link go into the join order with this commit (GRP-16).
+            let unlisted: Vec<Account> = staying
+                .iter()
+                .filter(|a| !old.joined.contains(a) && !added.contains(a))
+                .copied()
+                .fold(Vec::new(), |mut v, a| {
+                    if !v.contains(&a) {
+                        v.push(a);
+                    }
+                    v
+                });
+            for a in &unlisted {
+                if !new.joined.contains(a) {
+                    new.joined.push(*a);
+                }
+            }
+            old.check(&self.me(), &added, &removed, &unlisted, &new)
                 .map_err(|r| Error(r.0.into()))?;
             // A GroupContextExtensions proposal replaces the whole set: keep the others.
             let mut exts: Vec<Extension> = g
@@ -522,6 +538,70 @@ impl<P: OpenMlsProvider> Mls<P> {
                 None => vec![],
             },
             welcome_to,
+        })
+    }
+
+    /// GRP-16: the group's current snapshot (GroupInfo with the tree and the external key) for an
+    /// invite link. The caller encrypts it with the link key before it leaves the device.
+    pub fn snapshot(&self, group_id: &[u8]) -> Result<Vec<u8>, Error> {
+        self.group(group_id)?
+            .export_group_info(self.provider.crypto(), &self.signer, true)
+            .map_err(err)?
+            .tls_serialize_detached()
+            .map_err(err)
+    }
+
+    /// GRP-16: what a decrypted snapshot says about the group, without joining it: its state
+    /// and how many accounts are in it. Unverified: for showing the name before joining only.
+    pub fn peek(snapshot: &[u8]) -> Result<(GroupState, usize), Error> {
+        let gi = group_info(snapshot)?;
+        let st = state_of(gi.group_context().extensions()).ok_or(Error("not_a_group".into()))?;
+        let n = st.joined.len();
+        Ok((st, n))
+    }
+
+    /// GRP-16: joins a group by external commit from its snapshot, with the link's proof in the
+    /// commit's authenticated data. Submit the commit; `forget` the group if it is refused.
+    pub fn join_by_link(
+        &self,
+        snapshot: &[u8],
+        invite_id: &[u8; 16],
+        key: &[u8; 32],
+    ) -> Result<Outgoing, Error> {
+        let gi = group_info(snapshot)?;
+        let epoch = gi.epoch().as_u64();
+        let proof = crate::groups::Invite::proof(invite_id, key, &self.me(), epoch);
+        // The returned group is already merged: if the server refuses the commit, `forget` it.
+        let (g, bundle) = MlsGroup::external_commit_builder()
+            .with_aad(proof)
+            .with_config(Self::join_config())
+            .build_group(&self.provider, gi, self.credential.clone())
+            .map_err(err)?
+            .leaf_node_parameters(
+                LeafNodeParameters::builder()
+                    .with_capabilities(capabilities())
+                    .build(),
+            )
+            .load_psks(self.provider.storage())
+            .map_err(err)?
+            .build(
+                self.provider.rand(),
+                self.provider.crypto(),
+                &self.signer,
+                |_| true,
+            )
+            .map_err(err)?
+            .finalize(&self.provider)
+            .map_err(err)?;
+        let (commit, _, _) = bundle.into_contents();
+        let group_id = g.group_id().as_slice().to_vec();
+        Ok(Outgoing {
+            commit_to: self.others(&group_id)?,
+            group_id,
+            epoch,
+            commit: commit.tls_serialize_detached().map_err(err)?,
+            welcome: vec![],
+            welcome_to: vec![],
         })
     }
 
@@ -589,9 +669,14 @@ impl<P: OpenMlsProvider> Mls<P> {
             }
         }
         staying.extend(joining.iter().map(|m| m.account_id));
+        let unlisted: Vec<Account> = staying
+            .iter()
+            .filter(|a| !old.joined.contains(a) && !added.contains(a))
+            .copied()
+            .collect();
         removed.retain(|(a, _)| !staying.contains(a));
         removed.dedup();
-        old.check(&by, &added, &removed, &new)
+        old.check(&by, &added, &removed, &unlisted, &new)
             .map_err(|r| refused(r.0))?;
         Ok(Some(Change {
             by,
@@ -686,6 +771,70 @@ impl<P: OpenMlsProvider> Mls<P> {
                     }
                 }
             }
+            // GRP-16: someone joining by link. External commits are signed plaintext; members
+            // send everything else encrypted, so other plaintext is ignored.
+            MlsMessageBodyIn::PublicMessage(pm) => {
+                let pm: ProtocolMessage = pm.into();
+                let group_id = pm.group_id().as_slice().to_vec();
+                let mut g = self.group(&group_id)?;
+                if g.configuration().wire_format_policy() != MIXED_CIPHERTEXT_WIRE_FORMAT_POLICY {
+                    // Groups from before invite links only accepted ciphertext.
+                    g.set_configuration(self.provider.storage(), &Self::join_config())
+                        .map_err(err)?;
+                }
+                let epoch = g.epoch().as_u64();
+                let processed = g.process_message(&self.provider, pm).map_err(err)?;
+                if !matches!(processed.sender(), Sender::NewMemberCommit) {
+                    return Ok(Received::Ignored);
+                }
+                let proof = processed.aad().to_vec();
+                let ProcessedMessageContent::StagedCommitMessage(c) = processed.into_content()
+                else {
+                    return Ok(Received::Ignored);
+                };
+                let leaf = c
+                    .update_path_leaf_node()
+                    .ok_or(Error("unknown_sender".into()))?;
+                let joiner = member(
+                    leaf.credential(),
+                    leaf.signature_key().as_slice(),
+                    &self.as_pub,
+                )?;
+                let rejected = |r: &str| Received::Rejected {
+                    group_id: group_id.clone(),
+                    reason: format!("unauthorized_commit:{r}"),
+                };
+                let Some(old) = state_of(g.extensions()) else {
+                    return Ok(rejected("no_links_in_direct_chats"));
+                };
+                // A join adds the joiner and nothing else (a resync may drop their old leaf).
+                let mut others_removed = false;
+                for r in c.remove_proposals() {
+                    others_removed |=
+                        self.account_at(&g, r.remove_proposal().removed())? != joiner.account_id;
+                }
+                if c.add_proposals().next().is_some() || others_removed {
+                    return Ok(rejected("join_does_more"));
+                }
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_secs());
+                if let Err(r) = old.check_join(&joiner.account_id, &proof, epoch, now) {
+                    return Ok(rejected(r.0));
+                }
+                g.merge_staged_commit(&self.provider, *c).map_err(err)?;
+                Ok(Received::Commit {
+                    group_id,
+                    change: Some(Change {
+                        by: joiner.account_id,
+                        added: vec![joiner.account_id],
+                        removed: vec![],
+                        left: vec![],
+                        new: old.clone(),
+                        old,
+                    }),
+                })
+            }
             MlsMessageBodyIn::PrivateMessage(pm) => {
                 let pm: ProtocolMessage = pm.into();
                 let group_id = pm.group_id().as_slice().to_vec();
@@ -750,6 +899,18 @@ fn supports_groups(leaf: &LeafNode) -> bool {
     leaf.capabilities()
         .extensions()
         .contains(&ExtensionType::Unknown(GROUP_STATE_EXT))
+}
+
+fn group_info(
+    snapshot: &[u8],
+) -> Result<openmls::messages::group_info::VerifiableGroupInfo, Error> {
+    match MlsMessageIn::tls_deserialize_exact(snapshot)
+        .map_err(err)?
+        .extract()
+    {
+        MlsMessageBodyIn::GroupInfo(gi) => Ok(gi),
+        _ => Err(Error("not_a_snapshot".into())),
+    }
 }
 
 fn state_of(e: &Extensions<GroupContext>) -> Option<GroupState> {
@@ -1044,5 +1205,89 @@ mod tests {
         b.confirm(&gid).unwrap();
         d.receive(&out.commit).unwrap();
         assert_eq!(d.state(&gid).unwrap().unwrap().name, "Hikers 2026");
+    }
+
+    #[test]
+    fn joining_by_invite_link() {
+        // GRP-16: an outsider joins with the link alone; members check the proof.
+        let as_key = IdentityKey::generate();
+        let (a, b, d, e) = (
+            device(&as_key, 1, false),
+            device(&as_key, 2, false),
+            device(&as_key, 4, false),
+            device(&as_key, 5, false),
+        );
+        let init = GroupState {
+            name: "Climbers".into(),
+            admins_only_info: true,
+            admins_only_add: true,
+            ..Default::default()
+        };
+        let out = a
+            .create_group(&b.key_packages(1, false).unwrap(), Some(&init))
+            .unwrap();
+        a.confirm(&out.group_id).unwrap();
+        let gid = out.group_id.clone();
+        b.receive(&out.welcome).unwrap();
+
+        let invite = crate::groups::Invite {
+            id: [7; 16],
+            key: [8; 32],
+            write_key: [9; 16],
+            expires: u64::MAX,
+            by: [1; 16],
+        };
+        let st = a.state(&gid).unwrap().unwrap();
+        let out = a
+            .commit(
+                &gid,
+                &[],
+                &[],
+                Some(GroupState {
+                    invites: vec![invite.clone()],
+                    ..st
+                }),
+            )
+            .unwrap();
+        a.confirm(&gid).unwrap();
+        b.receive(&out.commit).unwrap();
+
+        let snap = a.snapshot(&gid).unwrap();
+        let (peek, n) = Mls::<OpenMlsRustCrypto>::peek(&snap).unwrap();
+        assert_eq!((peek.name.as_str(), n), ("Climbers", 2));
+
+        // A wrong key is refused by every member; the group stays as it was.
+        let forged = e.join_by_link(&snap, &invite.id, &[0; 32]).unwrap();
+        assert!(matches!(
+            b.receive(&forged.commit).unwrap(),
+            Received::Rejected { .. }
+        ));
+
+        let join = d.join_by_link(&snap, &invite.id, &invite.key).unwrap();
+        assert_eq!(join.commit_to.len(), 2);
+        for m in [&a, &b] {
+            let Received::Commit {
+                change: Some(ch), ..
+            } = m.receive(&join.commit).unwrap()
+            else {
+                panic!("join")
+            };
+            assert_eq!(ch.added, vec![[4; 16]]);
+        }
+        let hello = d.encrypt(&gid, b"hi all").unwrap();
+        assert!(matches!(
+            a.receive(&hello).unwrap(),
+            Received::Message { .. }
+        ));
+
+        // The next commit puts the newcomer into the join order.
+        let out = b.commit(&gid, &[], &[], None).unwrap();
+        b.confirm(&gid).unwrap();
+        a.receive(&out.commit).unwrap();
+        d.receive(&out.commit).unwrap();
+        assert_eq!(
+            a.state(&gid).unwrap().unwrap().joined,
+            vec![[1; 16], [2; 16], [4; 16]]
+        );
     }
 }

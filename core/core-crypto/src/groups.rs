@@ -20,6 +20,36 @@ pub struct GroupState {
     pub admins_only_add: bool,
     /// Members in the order they joined, for GRP-08.
     pub joined: Vec<Account>,
+    /// GRP-16: live invite links. Members hold the keys, so every member can check a joiner.
+    pub invites: Vec<Invite>,
+}
+
+/// One group invite link (GRP-16): `/g/<id>#<key>`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Invite {
+    pub id: [u8; 16],
+    /// In the link only: decrypts the group snapshot and proves a joiner had the link.
+    pub key: [u8; 32],
+    /// Lets members, and nobody holding just the link, update the snapshot on the server.
+    pub write_key: [u8; 16],
+    /// Unix seconds.
+    pub expires: u64,
+    pub by: Account,
+}
+
+impl Invite {
+    const LEN: usize = 16 + 32 + 16 + 8 + 16;
+
+    /// What a joiner puts in their external commit's authenticated data: the invite ID and a
+    /// MAC binding the link key to the joiner and the epoch.
+    pub fn proof(id: &[u8; 16], key: &[u8; 32], joiner: &Account, epoch: u64) -> Vec<u8> {
+        use hmac::{Hmac, Mac};
+        let mut m = <Hmac<sha2::Sha256> as Mac>::new_from_slice(key).expect("any key length");
+        m.update(b"siegel-invite-v1");
+        m.update(joiner);
+        m.update(&epoch.to_be_bytes());
+        [&id[..], &m.finalize().into_bytes()[..16]].concat()
+    }
 }
 
 /// Why a commit was refused.
@@ -27,7 +57,8 @@ pub struct GroupState {
 pub struct Refused(pub &'static str);
 
 impl GroupState {
-    const VERSION: u8 = 1;
+    /// 2 adds invites; version 1 states (before invite links) still decode.
+    const VERSION: u8 = 2;
 
     pub fn encode(&self) -> Vec<u8> {
         let mut b = vec![Self::VERSION];
@@ -39,12 +70,21 @@ impl GroupState {
             b.extend((list.len() as u16).to_be_bytes());
             list.iter().for_each(|a| b.extend(a));
         }
+        b.extend((self.invites.len() as u16).to_be_bytes());
+        for i in &self.invites {
+            b.extend(i.id);
+            b.extend(i.key);
+            b.extend(i.write_key);
+            b.extend(i.expires.to_be_bytes());
+            b.extend(i.by);
+        }
         b
     }
 
     pub fn decode(b: &[u8]) -> Option<Self> {
         let mut r = Reader(b);
-        if r.take(1)?[0] != Self::VERSION {
+        let version = r.take(1)?[0];
+        if !(1..=Self::VERSION).contains(&version) {
             return None;
         }
         let n = r.u16()?;
@@ -55,13 +95,50 @@ impl GroupState {
             (0..n).map(|_| r.take(16)?.try_into().ok()).collect()
         };
         let (admins, joined) = (list()?, list()?);
+        let mut invites = Vec::new();
+        if version >= 2 {
+            for _ in 0..r.u16()? {
+                let b = r.take(Invite::LEN)?;
+                invites.push(Invite {
+                    id: b[..16].try_into().ok()?,
+                    key: b[16..48].try_into().ok()?,
+                    write_key: b[48..64].try_into().ok()?,
+                    expires: u64::from_be_bytes(b[64..72].try_into().ok()?),
+                    by: b[72..88].try_into().ok()?,
+                });
+            }
+        }
         r.0.is_empty().then_some(Self {
             name,
             admins,
             admins_only_info: flags & 1 != 0,
             admins_only_add: flags & 2 != 0,
             joined,
+            invites,
         })
+    }
+
+    /// GRP-16: someone joined by link with an external commit. Valid only with a proof made from
+    /// a live invite's key for this joiner and epoch.
+    pub fn check_join(
+        &self,
+        joiner: &Account,
+        proof: &[u8],
+        epoch: u64,
+        now: u64,
+    ) -> Result<(), Refused> {
+        let invite = self
+            .invites
+            .iter()
+            .find(|i| proof.get(..16) == Some(&i.id[..]))
+            .ok_or(Refused("invite_unknown"))?;
+        if invite.expires <= now {
+            return Err(Refused("invite_expired"));
+        }
+        if Invite::proof(&invite.id, &invite.key, joiner, epoch) != proof {
+            return Err(Refused("invite_proof_invalid"));
+        }
+        Ok(())
     }
 
     /// GRP-08: the admins still in the group, or the longest-standing member if none is left.
@@ -104,6 +181,7 @@ impl GroupState {
         committer: &Account,
         added: &[Account],
         removed: &[(Account, Account)],
+        unlisted: &[Account],
         new: &GroupState,
     ) -> Result<(), Refused> {
         let admin = |a: &Account| self.is_admin(a);
@@ -117,7 +195,15 @@ impl GroupState {
         }
         let gone: Vec<Account> = removed.iter().map(|(a, _)| *a).collect();
         let expected = self.with_members(added, &gone);
-        if new.joined != expected.joined {
+        // Members who joined by link (GRP-16) aren't in the join order yet: any commit may
+        // append them, in any order, once each.
+        let tail = new.joined.get(expected.joined.len()..).unwrap_or_default();
+        let repaired = new.joined.starts_with(&expected.joined)
+            && tail
+                .iter()
+                .all(|a| unlisted.contains(a) && !gone.contains(a))
+            && tail.iter().enumerate().all(|(i, a)| !tail[..i].contains(a));
+        if !repaired {
             return Err(Refused("membership_mismatch"));
         }
         if new.name != self.name {
@@ -130,7 +216,8 @@ impl GroupState {
         }
         let roles_changed = new.admins != expected.admins
             || new.admins_only_info != self.admins_only_info
-            || new.admins_only_add != self.admins_only_add;
+            || new.admins_only_add != self.admins_only_add
+            || new.invites != self.invites; // GRP-16: admins create and revoke links
         if roles_changed && !admin(committer) {
             return Err(Refused("settings_not_allowed"));
         }
@@ -169,6 +256,7 @@ mod tests {
             admins_only_info: true,
             admins_only_add: true,
             joined: vec![A, B],
+            invites: vec![],
         }
     }
 
@@ -180,24 +268,24 @@ mod tests {
 
         // Admin adds C; member B may not (GRP-05, GRP-06).
         let with_c = g.with_members(&[C], &[]);
-        assert_eq!(g.check(&A, &[C], &[], &with_c), Ok(()));
+        assert_eq!(g.check(&A, &[C], &[], &[], &with_c), Ok(()));
         assert_eq!(
-            g.check(&B, &[C], &[], &with_c),
+            g.check(&B, &[C], &[], &[], &with_c),
             Err(Refused("add_not_allowed"))
         );
         // A commit must carry the matching join order.
         assert_eq!(
-            g.check(&A, &[C], &[], &g),
+            g.check(&A, &[C], &[], &[], &g),
             Err(Refused("membership_mismatch"))
         );
 
         // AC-10: a member removing someone else is refused; leaving yourself is fine.
         let without_a = g.with_members(&[], &[A]);
         assert_eq!(
-            g.check(&B, &[], &[(A, B)], &without_a),
+            g.check(&B, &[], &[(A, B)], &[], &without_a),
             Err(Refused("remove_not_allowed"))
         );
-        assert_eq!(g.check(&B, &[], &[(A, A)], &without_a), Ok(()));
+        assert_eq!(g.check(&B, &[], &[(A, A)], &[], &without_a), Ok(()));
         // GRP-08: with its only admin gone, the longest-standing member leads.
         assert_eq!(without_a.effective_admins(), vec![B]);
 
@@ -207,7 +295,7 @@ mod tests {
             ..g.clone()
         };
         assert_eq!(
-            g.check(&B, &[], &[], &renamed),
+            g.check(&B, &[], &[], &[], &renamed),
             Err(Refused("rename_not_allowed"))
         );
         let open = GroupState {
@@ -218,20 +306,85 @@ mod tests {
             name: "Hikers 2026".into(),
             ..open.clone()
         };
-        assert_eq!(open.check(&B, &[], &[], &renamed_open), Ok(()));
+        assert_eq!(open.check(&B, &[], &[], &[], &renamed_open), Ok(()));
         let promoted = GroupState {
             admins: vec![A, B],
             ..g.clone()
         };
         assert_eq!(
-            g.check(&B, &[], &[], &promoted),
+            g.check(&B, &[], &[], &[], &promoted),
             Err(Refused("settings_not_allowed"))
         );
-        assert_eq!(g.check(&A, &[], &[], &promoted), Ok(()));
+        assert_eq!(g.check(&A, &[], &[], &[], &promoted), Ok(()));
         let empty = GroupState {
             name: String::new(),
             ..g.clone()
         };
-        assert_eq!(g.check(&A, &[], &[], &empty), Err(Refused("name_invalid")));
+        assert_eq!(
+            g.check(&A, &[], &[], &[], &empty),
+            Err(Refused("name_invalid"))
+        );
+    }
+
+    #[test]
+    fn invites_and_link_joins() {
+        let mut g = group();
+        assert_eq!(
+            GroupState::decode(&[1, 0, 0, 0, 0, 0, 0, 0]).map(|s| s.invites),
+            Some(vec![]),
+            "version 1 still decodes"
+        );
+        let inv = Invite {
+            id: [7; 16],
+            key: [8; 32],
+            write_key: [9; 16],
+            expires: 1_000,
+            by: A,
+        };
+        let with = GroupState {
+            invites: vec![inv.clone()],
+            ..g.clone()
+        };
+        assert_eq!(GroupState::decode(&with.encode()), Some(with.clone()));
+        assert_eq!(
+            g.check(&B, &[], &[], &[], &with),
+            Err(Refused("settings_not_allowed")),
+            "only admins make links"
+        );
+        assert_eq!(g.check(&A, &[], &[], &[], &with), Ok(()));
+        g = with;
+
+        let proof = Invite::proof(&inv.id, &inv.key, &C, 5);
+        assert_eq!(g.check_join(&C, &proof, 5, 999), Ok(()));
+        assert_eq!(
+            g.check_join(&C, &proof, 6, 999),
+            Err(Refused("invite_proof_invalid")),
+            "bound to the epoch"
+        );
+        assert_eq!(
+            g.check_join(&B, &proof, 5, 999),
+            Err(Refused("invite_proof_invalid")),
+            "bound to the joiner"
+        );
+        assert_eq!(
+            g.check_join(&C, &proof, 5, 1_000),
+            Err(Refused("invite_expired"))
+        );
+        assert_eq!(
+            g.check_join(&C, &[0; 32], 5, 999),
+            Err(Refused("invite_unknown"))
+        );
+
+        // The joiner then appears in the join order by a repair commit anyone may make.
+        let repaired = GroupState {
+            joined: vec![A, B, C],
+            ..g.clone()
+        };
+        assert_eq!(g.check(&C, &[], &[], &[C], &repaired), Ok(()));
+        assert_eq!(
+            g.check(&C, &[], &[], &[], &repaired),
+            Err(Refused("membership_mismatch")),
+            "only unlisted members"
+        );
     }
 }
