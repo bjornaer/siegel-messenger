@@ -1251,6 +1251,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This link doesn\'t match this person\'s key. Don\'t trust this chat; ask them for a new link.'**
   String get errLinkKeyMismatch;
+
+  /// No description provided for @joinGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join {name}?'**
+  String joinGroupTitle(String name);
+
+  /// No description provided for @join.
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get join;
+
+  /// No description provided for @inviteLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite links'**
+  String get inviteLinks;
+
+  /// No description provided for @newInviteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Create invite link'**
+  String get newInviteLink;
+
+  /// No description provided for @inviteLinkHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with this link or code can join the group straight away, for one week. You can remove people afterwards, or revoke the link.'**
+  String get inviteLinkHelp;
+
+  /// No description provided for @expiresOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {when}'**
+  String expiresOn(String when);
+
+  /// No description provided for @revoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revoke;
+
+  /// No description provided for @errLinkStale.
+  ///
+  /// In en, this message translates to:
+  /// **'The group just changed. Try the link again in a moment.'**
+  String get errLinkStale;
+
+  /// No description provided for @errInviteNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This link has expired or was revoked.'**
+  String get errInviteNotFound;
+
+  /// No description provided for @errAlreadyMember.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re already in this group.'**
+  String get errAlreadyMember;
 }
 
 class _AppLocalizationsDelegate

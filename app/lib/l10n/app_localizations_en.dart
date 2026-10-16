@@ -688,4 +688,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errLinkKeyMismatch =>
       'This link doesn\'t match this person\'s key. Don\'t trust this chat; ask them for a new link.';
+
+  @override
+  String joinGroupTitle(String name) {
+    return 'Join $name?';
+  }
+
+  @override
+  String get join => 'Join';
+
+  @override
+  String get inviteLinks => 'Invite links';
+
+  @override
+  String get newInviteLink => 'Create invite link';
+
+  @override
+  String get inviteLinkHelp =>
+      'Anyone with this link or code can join the group straight away, for one week. You can remove people afterwards, or revoke the link.';
+
+  @override
+  String expiresOn(String when) {
+    return 'Expires $when';
+  }
+
+  @override
+  String get revoke => 'Revoke';
+
+  @override
+  String get errLinkStale =>
+      'The group just changed. Try the link again in a moment.';
+
+  @override
+  String get errInviteNotFound => 'This link has expired or was revoked.';
+
+  @override
+  String get errAlreadyMember => 'You\'re already in this group.';
 }

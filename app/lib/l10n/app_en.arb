@@ -375,5 +375,29 @@
   "resetLinkBody": "Your old link and code stop skipping the message request. Share the new one with people you want to hear from.",
   "scanQr": "Scan a QR code",
   "errLinkInvalid": "That isn't a Siegel link.",
-  "errLinkKeyMismatch": "This link doesn't match this person's key. Don't trust this chat; ask them for a new link."
+  "errLinkKeyMismatch": "This link doesn't match this person's key. Don't trust this chat; ask them for a new link.",
+  "joinGroupTitle": "Join {name}?",
+  "@joinGroupTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "join": "Join",
+  "inviteLinks": "Invite links",
+  "newInviteLink": "Create invite link",
+  "inviteLinkHelp": "Anyone with this link or code can join the group straight away, for one week. You can remove people afterwards, or revoke the link.",
+  "expiresOn": "Expires {when}",
+  "@expiresOn": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "revoke": "Revoke",
+  "errLinkStale": "The group just changed. Try the link again in a moment.",
+  "errInviteNotFound": "This link has expired or was revoked.",
+  "errAlreadyMember": "You're already in this group."
 }

@@ -41,6 +41,9 @@ abstract class Core implements RustOpaqueInterface {
     required List<String> usernames,
   });
 
+  /// GRP-16: a new invite link for the group (admins only), valid for a week.
+  Future<String> createGroupLink({required List<int> groupId});
+
   Future<void> deleteAccount();
 
   /// Deletes a chat from this device.
@@ -66,10 +69,16 @@ abstract class Core implements RustOpaqueInterface {
 
   GroupInfoView groupInfo({required List<int> groupId});
 
+  /// The group's live invite links.
+  List<GroupLinkView> groupLinks({required List<int> groupId});
+
   /// The account already has a Registration Lock PIN (ID-10).
   bool hasRegistrationLock();
 
   bool isRegistered();
+
+  /// Joins the group behind a link; returns its chat.
+  Future<Uint8List> joinGroupLink({required String link});
 
   /// GRP-10: leave; the chat stays, read-only.
   Future<void> leaveGroup({required List<int> groupId});
@@ -97,6 +106,9 @@ abstract class Core implements RustOpaqueInterface {
   /// Opens someone's contact link; returns the chat (already accepted on their side).
   Future<Uint8List> openContactLink({required String link});
 
+  /// Name and size of the group a link leads to, before joining.
+  Future<GroupPreviewView> previewGroupLink({required String link});
+
   /// MSG-08: empty removes our reaction.
   Future<void> react({
     required List<int> groupId,
@@ -122,6 +134,11 @@ abstract class Core implements RustOpaqueInterface {
   void resetContactLink();
 
   Future<void> retry({required List<int> messageId});
+
+  Future<void> revokeGroupLink({
+    required List<int> groupId,
+    required List<int> id,
+  });
 
   /// Streams events until the connection closes; the caller reconnects with backoff.
   Stream<CoreEvent> runStream();
@@ -443,6 +460,32 @@ class GroupInfoView {
           meAdmin == other.meAdmin;
 }
 
+class GroupLinkView {
+  final String link;
+
+  /// Unix seconds.
+  final PlatformInt64 expires;
+  final Uint8List id;
+
+  const GroupLinkView({
+    required this.link,
+    required this.expires,
+    required this.id,
+  });
+
+  @override
+  int get hashCode => link.hashCode ^ expires.hashCode ^ id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupLinkView &&
+          runtimeType == other.runtimeType &&
+          link == other.link &&
+          expires == other.expires &&
+          id == other.id;
+}
+
 class GroupMemberView {
   final Uint8List account;
   final String? displayName;
@@ -476,6 +519,24 @@ class GroupMemberView {
           username == other.username &&
           admin == other.admin &&
           me == other.me;
+}
+
+class GroupPreviewView {
+  final String name;
+  final int members;
+
+  const GroupPreviewView({required this.name, required this.members});
+
+  @override
+  int get hashCode => name.hashCode ^ members.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GroupPreviewView &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          members == other.members;
 }
 
 /// MSG-04. Incoming messages are Delivered until read.

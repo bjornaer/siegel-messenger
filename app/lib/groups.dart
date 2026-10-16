@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart' show Uint8List;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
+import 'links.dart';
 import 'onboarding.dart' show showError;
 import 'profile.dart';
 import 'src/rust/api/core.dart';
@@ -228,6 +230,41 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     );
   }
 
+  /// GRP-16: admins create, show and revoke invite links.
+  List<Widget> _inviteLinks(AppLocalizations t) {
+    List<GroupLinkView> links;
+    try {
+      links = core.groupLinks(groupId: widget.groupId);
+    } on Object {
+      links = [];
+    }
+    final date = DateFormat.yMMMd(Localizations.localeOf(context).toString());
+    return [
+      const Divider(),
+      ListTile(title: Text(t.inviteLinks, style: Theme.of(context).textTheme.titleSmall)),
+      for (final l in links)
+        ListTile(
+          leading: const Icon(Icons.link),
+          title: Text(t.expiresOn(date.format(DateTime.fromMillisecondsSinceEpoch(l.expires * 1000)))),
+          onTap: () => showLinkDialog(context, t.inviteLinks, l.link, t.inviteLinkHelp),
+          trailing: TextButton(
+            onPressed: _busy ? null : () => _run(() => core.revokeGroupLink(groupId: widget.groupId, id: l.id)),
+            child: Text(t.revoke),
+          ),
+        ),
+      ListTile(
+        leading: const Icon(Icons.add_link),
+        title: Text(t.newInviteLink),
+        enabled: !_busy,
+        onTap: () async {
+          String? link;
+          await _run(() async => link = await core.createGroupLink(groupId: widget.groupId));
+          if (link != null && mounted) showLinkDialog(context, t.inviteLinks, link!, t.inviteLinkHelp);
+        },
+      ),
+    ];
+  }
+
   Future<void> _leave() async {
     final t = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
@@ -339,6 +376,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                         ),
                 ),
               ],
+              if (g != null && g.meAdmin) ..._inviteLinks(t),
               const Divider(),
               MuteTile(core: core, groupId: widget.groupId),
               if (g != null)

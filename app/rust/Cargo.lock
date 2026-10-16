@@ -383,6 +383,7 @@ dependencies = [
  "aes-gcm",
  "ed25519-dalek",
  "hkdf 0.12.4",
+ "hmac 0.12.1",
  "openmls",
  "openmls_basic_credential",
  "openmls_traits",

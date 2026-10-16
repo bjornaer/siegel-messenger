@@ -71,14 +71,18 @@ class _SiegelAppState extends State<SiegelApp> {
   String? _pendingLink; // opened before onboarding finished
 
   Future<void> _openLink(String link) async {
-    if (!isContactLink(link)) return;
+    if (!isContactLink(link) && !isGroupLink(link)) return;
     if (!(core.isRegistered() && core.username() != null)) {
       _pendingLink = link;
       return;
     }
     final service = _service();
     try {
-      final chat = await core.openContactLink(link: link);
+      final ctx = _navigator.currentContext;
+      final chat = isGroupLink(link)
+          ? (ctx == null ? null : await joinGroupByLink(ctx, core, link))
+          : await core.openContactLink(link: link);
+      if (chat == null) return;
       service.refresh();
       _navigator.currentState?.push(
         MaterialPageRoute<void>(

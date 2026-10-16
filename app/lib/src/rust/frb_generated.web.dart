@@ -93,7 +93,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupInfoView dco_decode_group_info_view(dynamic raw);
 
   @protected
+  GroupLinkView dco_decode_group_link_view(dynamic raw);
+
+  @protected
   GroupMemberView dco_decode_group_member_view(dynamic raw);
+
+  @protected
+  GroupPreviewView dco_decode_group_preview_view(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -109,6 +115,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatSummary> dco_decode_list_chat_summary(dynamic raw);
+
+  @protected
+  List<GroupLinkView> dco_decode_list_group_link_view(dynamic raw);
 
   @protected
   List<GroupMemberView> dco_decode_list_group_member_view(dynamic raw);
@@ -238,7 +247,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupInfoView sse_decode_group_info_view(SseDeserializer deserializer);
 
   @protected
+  GroupLinkView sse_decode_group_link_view(SseDeserializer deserializer);
+
+  @protected
   GroupMemberView sse_decode_group_member_view(SseDeserializer deserializer);
+
+  @protected
+  GroupPreviewView sse_decode_group_preview_view(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -256,6 +271,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatSummary> sse_decode_list_chat_summary(SseDeserializer deserializer);
+
+  @protected
+  List<GroupLinkView> sse_decode_list_group_link_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GroupMemberView> sse_decode_list_group_member_view(
@@ -416,8 +436,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_group_info_view(GroupInfoView self, SseSerializer serializer);
 
   @protected
+  void sse_encode_group_link_view(GroupLinkView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_group_member_view(
     GroupMemberView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_group_preview_view(
+    GroupPreviewView self,
     SseSerializer serializer,
   );
 
@@ -439,6 +468,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_summary(
     List<ChatSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_group_link_view(
+    List<GroupLinkView> self,
     SseSerializer serializer,
   );
 

@@ -274,14 +274,16 @@ class _NewChatScreenState extends State<NewChatScreen> {
   Future<void> _scan() async {
     final code = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const ScanScreen()));
     if (code == null || !mounted) return;
-    if (!isContactLink(code)) {
+    if (!isContactLink(code) && !isGroupLink(code)) {
       showError(context, CoreError(code: 'link_invalid'));
       return;
     }
     setState(() => _busy = true);
     try {
-      final id = await widget.core.openContactLink(link: code);
-      if (!mounted) return;
+      final id = isGroupLink(code)
+          ? await joinGroupByLink(context, widget.core, code)
+          : await widget.core.openContactLink(link: code);
+      if (id == null || !mounted) return;
       widget.service.refresh();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(

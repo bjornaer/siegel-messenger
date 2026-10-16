@@ -15,6 +15,18 @@ impl From<core_api::CoreError> for CoreError {
     }
 }
 
+pub struct GroupLinkView {
+    pub link: String,
+    /// Unix seconds.
+    pub expires: i64,
+    pub id: Vec<u8>,
+}
+
+pub struct GroupPreviewView {
+    pub name: String,
+    pub members: u32,
+}
+
 pub struct AppVersion {
     pub latest: u32,
     pub minimum: u32,
@@ -112,6 +124,44 @@ impl Core {
     pub async fn app_version(&self, platform: DevicePlatform) -> Result<AppVersion, CoreError> {
         let (latest, minimum) = self.0.app_version(platform.into()).await?;
         Ok(AppVersion { latest, minimum })
+    }
+
+    /// GRP-16: a new invite link for the group (admins only), valid for a week.
+    pub async fn create_group_link(&self, group_id: Vec<u8>) -> Result<String, CoreError> {
+        Ok(self.0.create_group_link(&group_id).await?)
+    }
+
+    /// The group's live invite links.
+    #[frb(sync)]
+    pub fn group_links(&self, group_id: Vec<u8>) -> Result<Vec<GroupLinkView>, CoreError> {
+        Ok(self
+            .0
+            .group_links(&group_id)?
+            .into_iter()
+            .map(|l| GroupLinkView {
+                link: l.link,
+                expires: l.expires as i64,
+                id: l.id,
+            })
+            .collect())
+    }
+
+    pub async fn revoke_group_link(&self, group_id: Vec<u8>, id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.revoke_group_link(&group_id, &id).await?)
+    }
+
+    /// Name and size of the group a link leads to, before joining.
+    pub async fn preview_group_link(&self, link: String) -> Result<GroupPreviewView, CoreError> {
+        let p = self.0.preview_group_link(&link).await?;
+        Ok(GroupPreviewView {
+            name: p.name,
+            members: p.members,
+        })
+    }
+
+    /// Joins the group behind a link; returns its chat.
+    pub async fn join_group_link(&self, link: String) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.join_group_link(&link).await?)
     }
 
     /// DISC-08: our contact link, or None when it is off.

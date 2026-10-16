@@ -10,6 +10,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:siegel/app_lock.dart';
 import 'package:siegel/chats.dart';
+import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/onboarding.dart';
@@ -72,6 +73,25 @@ class FakeCore implements Core {
     await _maybeFail('openContactLink');
     return startChat(username: 'linked');
   }
+
+  final links = <GroupLinkView>[];
+  @override
+  Future<String> createGroupLink({required List<int> groupId}) async {
+    await _maybeFail('createGroupLink');
+    final l = GroupLinkView(link: 'https://siegel.schlk.in/g/abc#key', expires: 1893456000, id: Uint8List(1));
+    links.add(l);
+    return l.link;
+  }
+
+  @override
+  List<GroupLinkView> groupLinks({required List<int> groupId}) => links;
+  @override
+  Future<void> revokeGroupLink({required List<int> groupId, required List<int> id}) async => links.clear();
+  @override
+  Future<GroupPreviewView> previewGroupLink({required String link}) async =>
+      const GroupPreviewView(name: 'Climbers', members: 3);
+  @override
+  Future<Uint8List> joinGroupLink({required String link}) => createGroup(name: 'Climbers', usernames: const []);
 
   bool lockSet = false;
   @override
@@ -921,6 +941,8 @@ void main() {
     expect(core.calls, contains('renameGroup Hikers 2026'));
 
     await t.scrollUntilVisible(find.text('Leave group'), 100);
+    await t.ensureVisible(find.text('Leave group'));
+    await t.pumpAndSettle();
     await tapText(t, 'Leave group');
     await t.tap(find.widgetWithText(TextButton, 'Leave group'));
     await t.pumpAndSettle();
@@ -991,5 +1013,22 @@ void main() {
     await tapText(t, 'My link');
     expect(core.link, isNull, reason: 'turned off');
     expect(find.text('Show code'), findsNothing);
+  });
+
+  testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.createGroup(name: 'Hikers', usernames: ['bob']);
+    await t.pumpWidget(wrap(GroupInfoScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text('Create invite link'), 100);
+    await tapText(t, 'Create invite link');
+    expect(find.textContaining('join the group straight away'), findsOneWidget);
+    await tapText(t, 'Copy');
+    await t.scrollUntilVisible(find.text('Revoke'), 100);
+    expect(find.textContaining('Expires'), findsOneWidget);
+    await tapText(t, 'Revoke');
+    expect(core.links, isEmpty);
   });
 }
