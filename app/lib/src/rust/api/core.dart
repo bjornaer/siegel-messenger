@@ -125,6 +125,7 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> groupId,
     required String text,
     Uint8List? replyTo,
+    required List<Uint8List> mentions,
   });
 
   /// Call at most every 3 seconds while typing (MSG-14).
@@ -494,6 +495,9 @@ class MessageView {
   /// GRP-12: a system line, not a message.
   final GroupEventView? event;
 
+  /// GRP-15: accounts @mentioned in the text.
+  final List<Uint8List> mentions;
+
   const MessageView({
     required this.groupId,
     required this.messageId,
@@ -508,6 +512,7 @@ class MessageView {
     required this.reactions,
     required this.keyChange,
     this.event,
+    required this.mentions,
   });
 
   @override
@@ -524,7 +529,8 @@ class MessageView {
       deleted.hashCode ^
       reactions.hashCode ^
       keyChange.hashCode ^
-      event.hashCode;
+      event.hashCode ^
+      mentions.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -543,7 +549,8 @@ class MessageView {
           deleted == other.deleted &&
           reactions == other.reactions &&
           keyChange == other.keyChange &&
-          event == other.event;
+          event == other.event &&
+          mentions == other.mentions;
 }
 
 class Reaction {

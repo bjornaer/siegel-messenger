@@ -225,6 +225,7 @@ abstract class RustLibApi extends BaseApi {
     required List<int> groupId,
     required String text,
     Uint8List? replyTo,
+    required List<Uint8List> mentions,
   });
 
   Future<void> crateApiCoreCoreSendTyping({
@@ -1371,6 +1372,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required List<int> groupId,
     required String text,
     Uint8List? replyTo,
+    required List<Uint8List> mentions,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1383,6 +1385,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_list_prim_u_8_loose(groupId, serializer);
           sse_encode_String(text, serializer);
           sse_encode_opt_list_prim_u_8_strict(replyTo, serializer);
+          sse_encode_list_list_prim_u_8_strict(mentions, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1395,7 +1398,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiCoreCoreSendTextConstMeta,
-        argValues: [that, groupId, text, replyTo],
+        argValues: [that, groupId, text, replyTo, mentions],
         apiImpl: this,
       ),
     );
@@ -1403,7 +1406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCoreCoreSendTextConstMeta => const TaskConstMeta(
     debugName: "Core_send_text",
-    argNames: ["that", "groupId", "text", "replyTo"],
+    argNames: ["that", "groupId", "text", "replyTo", "mentions"],
   );
 
   @override
@@ -2254,8 +2257,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageView dco_decode_message_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return MessageView(
       groupId: dco_decode_list_prim_u_8_strict(arr[0]),
       messageId: dco_decode_list_prim_u_8_strict(arr[1]),
@@ -2270,6 +2273,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       reactions: dco_decode_list_reaction(arr[10]),
       keyChange: dco_decode_bool(arr[11]),
       event: dco_decode_opt_box_autoadd_group_event_view(arr[12]),
+      mentions: dco_decode_list_list_prim_u_8_strict(arr[13]),
     );
   }
 
@@ -2716,6 +2720,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_reactions = sse_decode_list_reaction(deserializer);
     var var_keyChange = sse_decode_bool(deserializer);
     var var_event = sse_decode_opt_box_autoadd_group_event_view(deserializer);
+    var var_mentions = sse_decode_list_list_prim_u_8_strict(deserializer);
     return MessageView(
       groupId: var_groupId,
       messageId: var_messageId,
@@ -2730,6 +2735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       reactions: var_reactions,
       keyChange: var_keyChange,
       event: var_event,
+      mentions: var_mentions,
     );
   }
 
@@ -3174,6 +3180,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_reaction(self.reactions, serializer);
     sse_encode_bool(self.keyChange, serializer);
     sse_encode_opt_box_autoadd_group_event_view(self.event, serializer);
+    sse_encode_list_list_prim_u_8_strict(self.mentions, serializer);
   }
 
   @protected
@@ -3454,11 +3461,13 @@ class CoreImpl extends RustOpaque implements Core {
     required List<int> groupId,
     required String text,
     Uint8List? replyTo,
+    required List<Uint8List> mentions,
   }) => RustLib.instance.api.crateApiCoreCoreSendText(
     that: this,
     groupId: groupId,
     text: text,
     replyTo: replyTo,
+    mentions: mentions,
   );
 
   /// Call at most every 3 seconds while typing (MSG-14).

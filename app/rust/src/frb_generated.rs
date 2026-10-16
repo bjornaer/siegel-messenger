@@ -1704,6 +1704,7 @@ fn wire__crate__api__core__Core_send_text_impl(
             let api_group_id = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_text = <String>::sse_decode(&mut deserializer);
             let api_reply_to = <Option<Vec<u8>>>::sse_decode(&mut deserializer);
+            let api_mentions = <Vec<Vec<u8>>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::core::CoreError>(
@@ -1730,6 +1731,7 @@ fn wire__crate__api__core__Core_send_text_impl(
                             api_group_id,
                             api_text,
                             api_reply_to,
+                            api_mentions,
                         )
                         .await?;
                         std::result::Result::Ok(output_ok)
@@ -3000,6 +3002,7 @@ impl SseDecode for crate::api::core::MessageView {
         let mut var_reactions = <Vec<crate::api::core::Reaction>>::sse_decode(deserializer);
         let mut var_keyChange = <bool>::sse_decode(deserializer);
         let mut var_event = <Option<crate::api::core::GroupEventView>>::sse_decode(deserializer);
+        let mut var_mentions = <Vec<Vec<u8>>>::sse_decode(deserializer);
         return crate::api::core::MessageView {
             group_id: var_groupId,
             message_id: var_messageId,
@@ -3014,6 +3017,7 @@ impl SseDecode for crate::api::core::MessageView {
             reactions: var_reactions,
             key_change: var_keyChange,
             event: var_event,
+            mentions: var_mentions,
         };
     }
 }
@@ -3495,6 +3499,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::MessageView {
             self.reactions.into_into_dart().into_dart(),
             self.key_change.into_into_dart().into_dart(),
             self.event.into_into_dart().into_dart(),
+            self.mentions.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3870,6 +3875,7 @@ impl SseEncode for crate::api::core::MessageView {
         <Vec<crate::api::core::Reaction>>::sse_encode(self.reactions, serializer);
         <bool>::sse_encode(self.key_change, serializer);
         <Option<crate::api::core::GroupEventView>>::sse_encode(self.event, serializer);
+        <Vec<Vec<u8>>>::sse_encode(self.mentions, serializer);
     }
 }
 

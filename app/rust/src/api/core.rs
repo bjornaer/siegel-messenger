@@ -220,6 +220,8 @@ pub struct MessageView {
     pub key_change: bool,
     /// GRP-12: a system line, not a message.
     pub event: Option<GroupEventView>,
+    /// GRP-15: accounts @mentioned in the text.
+    pub mentions: Vec<Vec<u8>>,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -255,6 +257,7 @@ impl From<core_api::ChatMessage> for MessageView {
                 .map(|(account, emoji)| Reaction { account, emoji })
                 .collect(),
             key_change: m.key_change,
+            mentions: m.mentions,
             event: m.event.map(|e| {
                 use core_api::GroupEventKind as K;
                 GroupEventView {
@@ -508,10 +511,11 @@ impl Core {
         group_id: Vec<u8>,
         text: String,
         reply_to: Option<Vec<u8>>,
+        mentions: Vec<Vec<u8>>,
     ) -> Result<MessageView, CoreError> {
         Ok(self
             .0
-            .send_text(&group_id, &text, reply_to.as_deref())
+            .send_text_mentioning(&group_id, &text, reply_to.as_deref(), &mentions)
             .await?
             .into())
     }
@@ -608,7 +612,7 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
         core_api::Event::Message(m) => (
             CoreEventKind::Message,
             Some(m.group_id.clone()),
-            Some(m.into()),
+            Some((*m).into()),
         ),
         core_api::Event::Updated { group_id } => (CoreEventKind::Updated, Some(group_id), None),
         core_api::Event::Typing {

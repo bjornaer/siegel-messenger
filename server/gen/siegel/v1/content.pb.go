@@ -569,6 +569,7 @@ type Text struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Body          string                 `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`                      // MSG-05: up to 64 KB UTF-8
 	ReplyTo       []byte                 `protobuf:"bytes,2,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"` // MSG-07 reply: the quoted message_id, empty when not a reply
+	Mentions      [][]byte               `protobuf:"bytes,3,rep,name=mentions,proto3" json:"mentions,omitempty"`              // GRP-15: accounts @mentioned in the text
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -613,6 +614,13 @@ func (x *Text) GetBody() string {
 func (x *Text) GetReplyTo() []byte {
 	if x != nil {
 		return x.ReplyTo
+	}
+	return nil
+}
+
+func (x *Text) GetMentions() [][]byte {
+	if x != nil {
+		return x.Mentions
 	}
 	return nil
 }
@@ -903,10 +911,11 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\aProfile\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x18\n" +
-	"\apadding\x18\x0f \x01(\fR\apadding\"5\n" +
+	"\apadding\x18\x0f \x01(\fR\apadding\"Q\n" +
 	"\x04Text\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
-	"\breply_to\x18\x02 \x01(\fR\areplyTo\"?\n" +
+	"\breply_to\x18\x02 \x01(\fR\areplyTo\x12\x1a\n" +
+	"\bmentions\x18\x03 \x03(\fR\bmentions\"?\n" +
 	"\bReaction\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x14\n" +

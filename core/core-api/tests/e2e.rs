@@ -837,6 +837,20 @@ async fn groups_invites_roles_rename_add_leave() {
         .find(|m| m.me)
         .unwrap()
         .account;
+    // GRP-15: a mention travels inside the encrypted message.
+    alice
+        .send_text_mentioning(&gid, "@bob look", None, std::slice::from_ref(&bob_id))
+        .await
+        .unwrap();
+    let Event::Message(m) = until(
+        &mut be,
+        |e| matches!(e, Event::Message(m) if m.text == "@bob look"),
+    )
+    .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(m.mentions, vec![bob_id.clone()]);
     alice.set_admin(&gid, &bob_id, true).await.unwrap();
     settle(&mut be, || bob.group_info(&gid).unwrap().me_admin).await;
     bob.rename_group(&gid, "Hikers 2026").await.unwrap();

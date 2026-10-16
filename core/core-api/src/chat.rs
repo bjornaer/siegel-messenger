@@ -89,7 +89,7 @@ pub enum Event {
         peer_account: Vec<u8>,
         request: bool,
     },
-    Message(ChatMessage),
+    Message(Box<ChatMessage>),
     /// A message in the chat changed: reaction, edit, delete or receipt.
     Updated {
         group_id: Vec<u8>,
@@ -114,7 +114,7 @@ enum Handled {
     Rejoined(Vec<u8>),
     ProfileKey(Vec<u8>),
     /// A new text: shown, and acknowledged with a delivery receipt (MSG-13).
-    Text(ChatMessage),
+    Text(Box<ChatMessage>),
     /// We are in a new group (GRP-09); an invite (GRP-11) gets nothing back until accepted.
     GroupJoined {
         group_id: Vec<u8>,
@@ -151,6 +151,8 @@ pub struct ChatMessage {
     pub key_change: bool,
     /// GRP-12: a system line in a group, not a message.
     pub event: Option<crate::groups::GroupEvent>,
+    /// GRP-15: accounts @mentioned in the text.
+    pub mentions: Vec<Vec<u8>>,
 }
 
 pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Option<ChatMessage> {
@@ -177,6 +179,7 @@ pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Opt
         reactions,
         key_change,
         event,
+        mentions: t.mentions,
     })
 }
 
@@ -629,7 +632,7 @@ impl SiegelCore {
                         if !storage(s.save_message(&msg))? {
                             return Ok(None);
                         }
-                        Ok(chat_message(msg, vec![]).map(Handled::Text))
+                        Ok(chat_message(msg, vec![]).map(|m| Handled::Text(Box::new(m))))
                     }
                     Some(
                         pb::content::Body::Reaction(_)

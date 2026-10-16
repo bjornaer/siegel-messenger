@@ -63,6 +63,7 @@ message Profile {
 message Text {
   string body = 1; // MSG-05: up to 64 KB UTF-8
   bytes reply_to = 2; // MSG-07 reply: the quoted message_id, empty when not a reply
+  repeated bytes mentions = 3; // GRP-15: accounts @mentioned in the text
 }
 
 // MSG-08: one emoji per sender per message; a new one replaces it, empty removes it.

@@ -351,6 +351,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Core get core => widget.core;
   Uint8List get _group => widget.groupId;
+  late final List<int>? _me = myAccount(core, _group);
 
   @override
   void initState() {
@@ -390,7 +391,61 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// MSG-14: at most one typing event every 3 seconds.
+  /// GRP-15: "@query" right before the cursor, in a group: offer members to mention.
+  String? _mentionQuery;
+  final _mentioned = <String, List<int>>{}; // inserted "@Name" -> account
+
+  void _updateMentionQuery() {
+    final sel = _text.selection;
+    final before = sel.isValid ? _text.text.substring(0, sel.baseOffset) : _text.text;
+    final m = RegExp(r'(?:^|\s)@([^\s@]*)$').firstMatch(before);
+    final q = m?.group(1);
+    if (q != _mentionQuery) setState(() => _mentionQuery = q);
+  }
+
+  void _mention(String name, List<int> account) {
+    final sel = _text.selection;
+    final end = sel.isValid ? sel.baseOffset : _text.text.length;
+    final start = _text.text.lastIndexOf('@', end - 1);
+    final insert = '@$name ';
+    _text.value = TextEditingValue(
+      text: _text.text.replaceRange(start, end, insert),
+      selection: TextSelection.collapsed(offset: start + insert.length),
+    );
+    _mentioned[name] = account;
+    setState(() => _mentionQuery = null);
+  }
+
+  Widget _mentionSuggestions(AppLocalizations t) {
+    final q = _mentionQuery!.toLowerCase();
+    List<GroupMemberView> members;
+    try {
+      members = core.groupInfo(groupId: _group).members.where((m) => !m.me).toList();
+    } on Object {
+      return const SizedBox.shrink();
+    }
+    final matches = members
+        .where((m) => (m.displayName ?? '').toLowerCase().contains(q) || (m.username ?? '').toLowerCase().startsWith(q))
+        .take(5)
+        .toList();
+    if (matches.isEmpty) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final m in matches)
+          ListTile(
+            dense: true,
+            leading: const CircleAvatar(radius: 14, child: Icon(Icons.person_outline, size: 16)),
+            title: Text(m.displayName ?? '@${m.username}'),
+            subtitle: m.displayName != null && m.username != null ? Text('@${m.username}') : null,
+            onTap: () => _mention(m.displayName ?? m.username ?? t.someone, m.account),
+          ),
+      ],
+    );
+  }
+
   void _onChanged(String v) {
+    _updateMentionQuery();
     final now = DateTime.now();
     if (v.isEmpty || _editing != null || now.difference(_lastTyping) < const Duration(seconds: 3)) {
       return;
@@ -417,9 +472,14 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     // Cleared up front: a failed send stays in the chat with a retry (MSG-04), not in the composer.
     final reply = _replyTo;
+    final mentions = [
+      for (final e in _mentioned.entries)
+        if (text.contains('@${e.key}')) Uint8List.fromList(e.value),
+    ];
     _text.clear();
+    _mentioned.clear();
     setState(() => _replyTo = null);
-    await _run(() => core.sendText(groupId: _group, text: text, replyTo: reply?.messageId));
+    await _run(() => core.sendText(groupId: _group, text: text, replyTo: reply?.messageId, mentions: mentions));
   }
 
   Future<void> _block(ChatSummary c) async {
@@ -727,6 +787,10 @@ class _ChatScreenState extends State<ChatScreen> {
           decoration: BoxDecoration(
             color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
+            // GRP-15: messages that @mention us stand out.
+            border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
+                ? Border.all(color: colors.primary, width: 2)
+                : null,
           ),
           // As wide as its widest line; text starts left, time and ticks end right.
           child: IntrinsicWidth(
@@ -918,6 +982,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (c.isGroup && _mentionQuery != null) _mentionSuggestions(t),
           if (target != null)
             Row(
               children: [

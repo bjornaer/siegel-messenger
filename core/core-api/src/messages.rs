@@ -106,6 +106,18 @@ impl SiegelCore {
         text: &str,
         reply_to: Option<&[u8]>,
     ) -> Result<ChatMessage, CoreError> {
+        self.send_text_mentioning(group_id, text, reply_to, &[])
+            .await
+    }
+
+    /// GRP-15: a text that @mentions these accounts (in groups).
+    pub async fn send_text_mentioning(
+        &self,
+        group_id: &[u8],
+        text: &str,
+        reply_to: Option<&[u8]>,
+        mentions: &[Vec<u8>],
+    ) -> Result<ChatMessage, CoreError> {
         if text.is_empty() || text.len() > MAX_TEXT {
             return Err(CoreError::new("text_invalid"));
         }
@@ -118,6 +130,7 @@ impl SiegelCore {
         let content = self.new_content(pb::content::Body::Text(pb::Text {
             body: text.into(),
             reply_to: reply_to.unwrap_or_default().to_vec(),
+            mentions: mentions.iter().take(256).cloned().collect(),
         }));
         let mut msg = Message {
             message_id: content.message_id.clone(),

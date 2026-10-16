@@ -181,8 +181,15 @@ class FakeCore implements Core {
     return id;
   }
 
+  final sentMentions = <List<int>>[];
   @override
-  Future<MessageView> sendText({required List<int> groupId, required String text, Uint8List? replyTo}) async {
+  Future<MessageView> sendText({
+    required List<int> groupId,
+    required String text,
+    Uint8List? replyTo,
+    required List<Uint8List> mentions,
+  }) async {
+    sentMentions.addAll(mentions);
     final m = msg(groupId, text, outgoing: true, replyTo: replyTo);
     (history[base64Encode(groupId)] ??= []).add(m);
     try {
@@ -430,6 +437,7 @@ class FakeCore implements Core {
     reactions: const [],
     keyChange: keyChange,
     event: event,
+    mentions: const [],
   );
 
   static MessageView copy(
@@ -453,6 +461,7 @@ class FakeCore implements Core {
     reactions: reactions ?? m.reactions,
     keyChange: m.keyChange,
     event: m.event,
+    mentions: m.mentions,
   );
 
   @override
@@ -847,7 +856,7 @@ void main() {
     final service = ChatService(core, onDeregistered: () {})..start();
     addTearDown(service.dispose);
     final id = await core.startChat(username: 'bob');
-    await core.sendText(groupId: id, text: 'hi bob');
+    await core.sendText(groupId: id, text: 'hi bob', mentions: const []);
     await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
     await t.pumpAndSettle();
 
@@ -936,5 +945,24 @@ void main() {
     expect(core.calls.where((c) => c.startsWith('requestOtp')).length, 2);
     expect(find.text('Code sent again.'), findsOneWidget);
     await t.pump(const Duration(seconds: 31)); // let the countdown timer finish
+  });
+
+  testWidgets('@mentions: typing @ suggests members; the mention goes with the message (GRP-15)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.createGroup(name: 'Hikers', usernames: ['bob', 'carol']);
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'hey @bo');
+    await t.pump();
+    expect(find.text('@bob'), findsOneWidget, reason: 'suggestion');
+    expect(find.text('@carol'), findsNothing);
+    await t.tap(find.text('@bob'));
+    await t.pump();
+    expect(find.text('hey @bob '), findsOneWidget);
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(core.sentMentions, [core.groupInfo(groupId: id).members[1].account]);
   });
 }

@@ -21,6 +21,10 @@ bool isMuted(Core core, List<int> groupId) {
   return until != null && DateTime.now().millisecondsSinceEpoch < until;
 }
 
+/// Muted "always": not even @mentions get through (GRP-15).
+bool isMutedAlways(Core core, List<int> groupId) =>
+    const {'on', 'always'}.contains(core.setting(key: muteKey(groupId)));
+
 /// Mute for 8 hours, a week or always (GRP-14), or unmute.
 class MuteTile extends StatefulWidget {
   const MuteTile({super.key, required this.core, required this.groupId});
