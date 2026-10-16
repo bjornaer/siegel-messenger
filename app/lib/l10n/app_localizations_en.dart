@@ -654,4 +654,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get updateRequired =>
       'This version of Siegel is no longer supported. Update to keep using it.';
+
+  @override
+  String get myLink => 'My link';
+
+  @override
+  String get myLinkSubtitle =>
+      'People who open it chat with you straight away, no request.';
+
+  @override
+  String get myLinkHelp =>
+      'Anyone with this link or code can start a chat with you, without a message request. Scanning it in person also verifies you.';
+
+  @override
+  String get showLink => 'Show code';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String get resetLink => 'Reset link';
+
+  @override
+  String get resetLinkBody =>
+      'Your old link and code stop skipping the message request. Share the new one with people you want to hear from.';
+
+  @override
+  String get scanQr => 'Scan a QR code';
+
+  @override
+  String get errLinkInvalid => 'That isn\'t a Siegel link.';
+
+  @override
+  String get errLinkKeyMismatch =>
+      'This link doesn\'t match this person\'s key. Don\'t trust this chat; ask them for a new link.';
 }

@@ -57,6 +57,10 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 impl SiegelCore {
     /// Our contact link, or None when it is turned off (or before we have a username).
     pub fn contact_link(&self) -> Result<Option<String>, CoreError> {
+        // Accounts from before links existed get one on first use; turned off is stored as empty.
+        if self.get(LINK_SECRET)?.is_none() && self.get(USERNAME)?.is_some() {
+            self.reset_contact_link()?;
+        }
         let secret = self.get(LINK_SECRET)?.filter(|s| !s.is_empty());
         let (Some(user), Some(secret)) = (self.get(USERNAME)?, secret) else {
             return Ok(None);

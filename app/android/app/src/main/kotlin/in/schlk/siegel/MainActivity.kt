@@ -28,9 +28,21 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
         // Update prompt: our build number, and the Play Store page to update from.
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "siegel/app").setMethodCallHandler { call, result ->
+        appChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "siegel/app")
+        appChannel!!.setMethodCallHandler { call, result ->
             when (call.method) {
                 "build" -> result.success(packageManager.getPackageInfo(packageName, 0).longVersionCode)
+                // DISC-08: the link the app was opened with, once.
+                "takeLink" -> {
+                    result.success(pendingLink)
+                    pendingLink = null
+                }
+                "share" -> {
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+                        .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, call.arguments as String)
+                    startActivity(android.content.Intent.createChooser(send, null))
+                    result.success(null)
+                }
                 "openStore" -> {
                     val page = android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
                     val market = android.content.Intent(android.content.Intent.ACTION_VIEW,
@@ -59,6 +71,20 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 .addOnFailureListener(fail)
         }
+    }
+
+    private var pendingLink: String? = null
+    private var appChannel: MethodChannel? = null
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        pendingLink = intent?.dataString
+        super.onCreate(savedInstanceState)
+    }
+
+    // A link opened while the app runs: hand it to Dart right away.
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.dataString?.let { appChannel?.invokeMethod("link", it) }
     }
 
     private companion object {

@@ -60,6 +60,19 @@ class FakeCore implements Core {
 
   @override
   Future<AppVersion> appVersion({required DevicePlatform platform}) async => const AppVersion(latest: 0, minimum: 0);
+  String? link = 'https://siegel.schlk.in/u/ana#fp.c2VjcmV0';
+  @override
+  String? contactLink() => link;
+  @override
+  void setContactLink({required bool enabled}) => link = enabled ? 'https://siegel.schlk.in/u/ana#fp.bmV3' : null;
+  @override
+  void resetContactLink() => link = 'https://siegel.schlk.in/u/ana#fp.cmVzZXQ';
+  @override
+  Future<Uint8List> openContactLink({required String link}) async {
+    await _maybeFail('openContactLink');
+    return startChat(username: 'linked');
+  }
+
   bool lockSet = false;
   @override
   bool hasRegistrationLock() => lockSet;
@@ -964,5 +977,19 @@ void main() {
     await t.tap(find.byTooltip('Send'));
     await t.pumpAndSettle();
     expect(core.sentMentions, [core.groupInfo(groupId: id).members[1].account]);
+  });
+
+  testWidgets('my contact link: on by default, shown as a code, can be turned off (DISC-08)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    expect(find.text('My link'), findsOneWidget);
+    await tapText(t, 'Show code');
+    expect(find.textContaining('without a message request'), findsOneWidget);
+    await tapText(t, 'Copy');
+    await tapText(t, 'My link');
+    expect(core.link, isNull, reason: 'turned off');
+    expect(find.text('Show code'), findsNothing);
   });
 }

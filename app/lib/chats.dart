@@ -11,6 +11,7 @@ import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'format.dart';
 import 'groups.dart';
+import 'links.dart';
 import 'update.dart';
 import 'profile.dart';
 import 'safety.dart';
@@ -269,6 +270,31 @@ class _NewChatScreenState extends State<NewChatScreen> {
   final _username = TextEditingController();
   bool _busy = false;
 
+  /// DISC-02, DISC-08: someone's contact QR code opens the chat with them.
+  Future<void> _scan() async {
+    final code = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const ScanScreen()));
+    if (code == null || !mounted) return;
+    if (!isContactLink(code)) {
+      showError(context, CoreError(code: 'link_invalid'));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final id = await widget.core.openContactLink(link: code);
+      if (!mounted) return;
+      widget.service.refresh();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatScreen(core: widget.core, service: widget.service, groupId: id),
+        ),
+      );
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _start() async {
     final name = _username.text.trim().replaceFirst(RegExp('^@'), '').toLowerCase();
     setState(() => _busy = true);
@@ -304,6 +330,12 @@ class _NewChatScreenState extends State<NewChatScreen> {
                 builder: (_) => NewGroupScreen(core: widget.core, service: widget.service),
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.qr_code_scanner),
+            label: Text(t.scanQr),
+            onPressed: _busy ? null : _scan,
           ),
           const SizedBox(height: 24),
           const Divider(),

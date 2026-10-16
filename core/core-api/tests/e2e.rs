@@ -673,11 +673,13 @@ async fn demo_peers() {
         ),
     ];
     let mut names = Vec::new();
+    let mut links = Vec::new();
     let mut tasks = Vec::new();
     for (tag, display, lines) in scripts {
         let (peer, name) = new_user(&url, tag).await;
         peer.set_display_name(display).unwrap();
         names.push(name);
+        links.push(peer.contact_link().unwrap().unwrap_or_default());
         let mut events = listen(&peer);
         tasks.push(tokio::spawn(async move {
             let mut next = 0;
@@ -702,7 +704,9 @@ async fn demo_peers() {
             }
         }));
     }
-    std::fs::write(std::env::var("DEMO_FILE").unwrap(), names.join("\n")).unwrap();
+    let file = std::env::var("DEMO_FILE").unwrap();
+    std::fs::write(&file, names.join("\n")).unwrap();
+    std::fs::write(format!("{file}.links"), links.join("\n")).unwrap();
     for t in tasks {
         t.await.unwrap();
     }

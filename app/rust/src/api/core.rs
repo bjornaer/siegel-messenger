@@ -114,6 +114,28 @@ impl Core {
         Ok(AppVersion { latest, minimum })
     }
 
+    /// DISC-08: our contact link, or None when it is off.
+    #[frb(sync)]
+    pub fn contact_link(&self) -> Result<Option<String>, CoreError> {
+        Ok(self.0.contact_link()?)
+    }
+
+    #[frb(sync)]
+    pub fn set_contact_link(&self, enabled: bool) -> Result<(), CoreError> {
+        Ok(self.0.set_contact_link(enabled)?)
+    }
+
+    /// A new secret: links shared before lead to ordinary message requests.
+    #[frb(sync)]
+    pub fn reset_contact_link(&self) -> Result<(), CoreError> {
+        Ok(self.0.reset_contact_link()?)
+    }
+
+    /// Opens someone's contact link; returns the chat (already accepted on their side).
+    pub async fn open_contact_link(&self, link: String) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.open_contact_link(&link).await?)
+    }
+
     /// The account already has a Registration Lock PIN (ID-10).
     #[frb(sync)]
     pub fn has_registration_lock(&self) -> bool {

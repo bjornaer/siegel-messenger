@@ -32,6 +32,9 @@ abstract class Core implements RustOpaqueInterface {
   /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
 
+  /// DISC-08: our contact link, or None when it is off.
+  String? contactLink();
+
   /// GRP-01: a new group with these @usernames; returns its chat ID.
   Future<Uint8List> createGroup({
     required String name,
@@ -91,6 +94,9 @@ abstract class Core implements RustOpaqueInterface {
     serverUrl: serverUrl,
   );
 
+  /// Opens someone's contact link; returns the chat (already accepted on their side).
+  Future<Uint8List> openContactLink({required String link});
+
   /// MSG-08: empty removes our reaction.
   Future<void> react({
     required List<int> groupId,
@@ -111,6 +117,9 @@ abstract class Core implements RustOpaqueInterface {
     required String attestationToken,
     required DevicePlatform platform,
   });
+
+  /// A new secret: links shared before lead to ordinary message requests.
+  void resetContactLink();
 
   Future<void> retry({required List<int> messageId});
 
@@ -136,6 +145,8 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> account,
     required bool admin,
   });
+
+  void setContactLink({required bool enabled});
 
   void setDisplayName({required String name});
 

@@ -365,5 +365,15 @@
   "updateAvailable": "A new version of Siegel is available.",
   "update": "Update",
   "later": "Later",
-  "updateRequired": "This version of Siegel is no longer supported. Update to keep using it."
+  "updateRequired": "This version of Siegel is no longer supported. Update to keep using it.",
+  "myLink": "My link",
+  "myLinkSubtitle": "People who open it chat with you straight away, no request.",
+  "myLinkHelp": "Anyone with this link or code can start a chat with you, without a message request. Scanning it in person also verifies you.",
+  "showLink": "Show code",
+  "share": "Share",
+  "resetLink": "Reset link",
+  "resetLinkBody": "Your old link and code stop skipping the message request. Share the new one with people you want to hear from.",
+  "scanQr": "Scan a QR code",
+  "errLinkInvalid": "That isn't a Siegel link.",
+  "errLinkKeyMismatch": "This link doesn't match this person's key. Don't trust this chat; ask them for a new link."
 }

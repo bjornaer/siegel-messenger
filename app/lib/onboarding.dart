@@ -36,6 +36,8 @@ void showError(BuildContext context, CoreError e) {
     'group_left' => t.errGroupLeft,
     'peer_outdated' => t.errPeerOutdated,
     'resend_too_soon' => t.errResendTooSoon,
+    'link_invalid' => t.errLinkInvalid,
+    'link_key_mismatch' => t.errLinkKeyMismatch,
     'group_too_large' => t.errGroupTooLarge,
     'name_invalid' => t.errNameInvalid,
     'network' => t.errNetwork,

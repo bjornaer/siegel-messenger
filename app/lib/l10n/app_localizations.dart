@@ -1191,6 +1191,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This version of Siegel is no longer supported. Update to keep using it.'**
   String get updateRequired;
+
+  /// No description provided for @myLink.
+  ///
+  /// In en, this message translates to:
+  /// **'My link'**
+  String get myLink;
+
+  /// No description provided for @myLinkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'People who open it chat with you straight away, no request.'**
+  String get myLinkSubtitle;
+
+  /// No description provided for @myLinkHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone with this link or code can start a chat with you, without a message request. Scanning it in person also verifies you.'**
+  String get myLinkHelp;
+
+  /// No description provided for @showLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Show code'**
+  String get showLink;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @resetLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset link'**
+  String get resetLink;
+
+  /// No description provided for @resetLinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your old link and code stop skipping the message request. Share the new one with people you want to hear from.'**
+  String get resetLinkBody;
+
+  /// No description provided for @scanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a QR code'**
+  String get scanQr;
+
+  /// No description provided for @errLinkInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That isn\'t a Siegel link.'**
+  String get errLinkInvalid;
+
+  /// No description provided for @errLinkKeyMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'This link doesn\'t match this person\'s key. Don\'t trust this chat; ask them for a new link.'**
+  String get errLinkKeyMismatch;
 }
 
 class _AppLocalizationsDelegate

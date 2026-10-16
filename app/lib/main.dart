@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'app_lock.dart';
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
+import 'links.dart';
 import 'onboarding.dart';
 import 'push.dart';
 import 'themes.dart';
@@ -58,6 +59,36 @@ class _SiegelAppState extends State<SiegelApp> {
   void initState() {
     super.initState();
     themeChoice.value = themeById(core.setting(key: 'theme'));
+    // DISC-08: links opened while the app runs, and the one it was started with.
+    appChannel.setMethodCallHandler((call) async {
+      if (call.method == 'link') _openLink(call.arguments as String);
+    });
+    appChannel.invokeMethod<String>('takeLink').then((l) {
+      if (l != null) _openLink(l);
+    }, onError: (Object _) {});
+  }
+
+  String? _pendingLink; // opened before onboarding finished
+
+  Future<void> _openLink(String link) async {
+    if (!isContactLink(link)) return;
+    if (!(core.isRegistered() && core.username() != null)) {
+      _pendingLink = link;
+      return;
+    }
+    final service = _service();
+    try {
+      final chat = await core.openContactLink(link: link);
+      service.refresh();
+      _navigator.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatScreen(core: core, service: service, groupId: chat),
+        ),
+      );
+    } on CoreError catch (e) {
+      final ctx = _navigator.currentContext;
+      if (ctx != null && ctx.mounted) showError(ctx, e);
+    }
   }
 
   ChatService? _chats;
@@ -123,7 +154,15 @@ class _SiegelAppState extends State<SiegelApp> {
                 settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
               ),
             )
-          : Onboarding(core: core, onDone: () => setState(() {})),
+          : Onboarding(
+              core: core,
+              onDone: () {
+                setState(() {});
+                final link = _pendingLink;
+                _pendingLink = null;
+                if (link != null) WidgetsBinding.instance.addPostFrameCallback((_) => _openLink(link));
+              },
+            ),
     );
   }
 }
@@ -165,6 +204,7 @@ class SettingsScreen extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
         children: [
           _Profile(core: core),
+          MyLinkTile(core: core),
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
           ListTile(
