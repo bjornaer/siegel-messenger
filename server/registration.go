@@ -320,3 +320,11 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 		RegistrationLock: locked,
 	}), nil
 }
+
+func (s *server) AppVersion(_ context.Context, req *connect.Request[siegelv1.AppVersionRequest]) (*connect.Response[siegelv1.AppVersionResponse], error) {
+	res := &siegelv1.AppVersionResponse{}
+	if req.Msg.Platform == siegelv1.Platform_PLATFORM_ANDROID {
+		res.Latest, res.Minimum = uint32(s.cfg.androidLatest), uint32(s.cfg.androidMin)
+	}
+	return connect.NewResponse(res), nil
+}

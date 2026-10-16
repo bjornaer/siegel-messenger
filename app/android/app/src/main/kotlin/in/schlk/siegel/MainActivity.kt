@@ -27,6 +27,22 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+        // Update prompt: our build number, and the Play Store page to update from.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "siegel/app").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "build" -> result.success(packageManager.getPackageInfo(packageName, 0).longVersionCode)
+                "openStore" -> {
+                    val page = android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+                    val market = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse("market://details?id=$packageName"))
+                    try { startActivity(market) } catch (e: android.content.ActivityNotFoundException) {
+                        startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, page))
+                    }
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
         // ID-02: a Play Integrity token bound to the number being registered. The server checks
         // requestHash == hex(SHA-256(E.164)), so the token can't be used for another number.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "siegel/attest").setMethodCallHandler { call, result ->

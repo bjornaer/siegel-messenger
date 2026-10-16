@@ -13,6 +13,9 @@ service RegistrationService {
   // Verifies the OTP and, if set, the Registration Lock PIN (ID-03, ID-09, ID-10).
   // Re-registering an existing number revokes every old device.
   rpc Verify(VerifyRequest) returns (VerifyResponse);
+  // The newest published app build and the oldest still allowed, so the app can prompt an
+  // update. Public: no account needed.
+  rpc AppVersion(AppVersionRequest) returns (AppVersionResponse);
 }
 
 message RequestOtpRequest {
@@ -131,4 +134,13 @@ message ProfileServiceGetRequest {
 
 message ProfileServiceGetResponse {
   bytes encrypted_profile = 1;
+}
+
+message AppVersionRequest {
+  Platform platform = 1;
+}
+
+message AppVersionResponse {
+  uint32 latest = 1;  // build number in the store; 0 = unknown
+  uint32 minimum = 2; // older builds must update; 0 = none
 }

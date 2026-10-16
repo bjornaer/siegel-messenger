@@ -54,6 +54,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AppVersion dco_decode_app_version(dynamic raw);
+
+  @protected
   BlockedContact dco_decode_blocked_contact(dynamic raw);
 
   @protected
@@ -192,6 +195,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AppVersion sse_decode_app_version(SseDeserializer deserializer);
 
   @protected
   BlockedContact sse_decode_blocked_contact(SseDeserializer deserializer);
@@ -351,6 +357,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_app_version(AppVersion self, SseSerializer serializer);
 
   @protected
   void sse_encode_blocked_contact(

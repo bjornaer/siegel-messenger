@@ -39,7 +39,7 @@ class _SafetyNumberScreenState extends State<SafetyNumberScreen> {
       body: number == null
           ? Center(child: Text(t.safetyNumberUnavailable))
           : ListView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + MediaQuery.paddingOf(context).bottom),
               children: [
                 Center(
                   child: ColoredBox(

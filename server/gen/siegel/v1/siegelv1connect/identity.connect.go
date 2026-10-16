@@ -45,6 +45,9 @@ const (
 	// RegistrationServiceVerifyProcedure is the fully-qualified name of the RegistrationService's
 	// Verify RPC.
 	RegistrationServiceVerifyProcedure = "/siegel.v1.RegistrationService/Verify"
+	// RegistrationServiceAppVersionProcedure is the fully-qualified name of the RegistrationService's
+	// AppVersion RPC.
+	RegistrationServiceAppVersionProcedure = "/siegel.v1.RegistrationService/AppVersion"
 	// UsernameServiceSetProcedure is the fully-qualified name of the UsernameService's Set RPC.
 	UsernameServiceSetProcedure = "/siegel.v1.UsernameService/Set"
 	// UsernameServiceLookupProcedure is the fully-qualified name of the UsernameService's Lookup RPC.
@@ -70,6 +73,9 @@ type RegistrationServiceClient interface {
 	// Verifies the OTP and, if set, the Registration Lock PIN (ID-03, ID-09, ID-10).
 	// Re-registering an existing number revokes every old device.
 	Verify(context.Context, *connect.Request[v1.VerifyRequest]) (*connect.Response[v1.VerifyResponse], error)
+	// The newest published app build and the oldest still allowed, so the app can prompt an
+	// update. Public: no account needed.
+	AppVersion(context.Context, *connect.Request[v1.AppVersionRequest]) (*connect.Response[v1.AppVersionResponse], error)
 }
 
 // NewRegistrationServiceClient constructs a client for the siegel.v1.RegistrationService service.
@@ -95,6 +101,12 @@ func NewRegistrationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(registrationServiceMethods.ByName("Verify")),
 			connect.WithClientOptions(opts...),
 		),
+		appVersion: connect.NewClient[v1.AppVersionRequest, v1.AppVersionResponse](
+			httpClient,
+			baseURL+RegistrationServiceAppVersionProcedure,
+			connect.WithSchema(registrationServiceMethods.ByName("AppVersion")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -102,6 +114,7 @@ func NewRegistrationServiceClient(httpClient connect.HTTPClient, baseURL string,
 type registrationServiceClient struct {
 	requestOtp *connect.Client[v1.RequestOtpRequest, v1.RequestOtpResponse]
 	verify     *connect.Client[v1.VerifyRequest, v1.VerifyResponse]
+	appVersion *connect.Client[v1.AppVersionRequest, v1.AppVersionResponse]
 }
 
 // RequestOtp calls siegel.v1.RegistrationService.RequestOtp.
@@ -114,6 +127,11 @@ func (c *registrationServiceClient) Verify(ctx context.Context, req *connect.Req
 	return c.verify.CallUnary(ctx, req)
 }
 
+// AppVersion calls siegel.v1.RegistrationService.AppVersion.
+func (c *registrationServiceClient) AppVersion(ctx context.Context, req *connect.Request[v1.AppVersionRequest]) (*connect.Response[v1.AppVersionResponse], error) {
+	return c.appVersion.CallUnary(ctx, req)
+}
+
 // RegistrationServiceHandler is an implementation of the siegel.v1.RegistrationService service.
 type RegistrationServiceHandler interface {
 	// Sends an OTP by SMS (ID-01 to ID-04). Auth: attestation token.
@@ -121,6 +139,9 @@ type RegistrationServiceHandler interface {
 	// Verifies the OTP and, if set, the Registration Lock PIN (ID-03, ID-09, ID-10).
 	// Re-registering an existing number revokes every old device.
 	Verify(context.Context, *connect.Request[v1.VerifyRequest]) (*connect.Response[v1.VerifyResponse], error)
+	// The newest published app build and the oldest still allowed, so the app can prompt an
+	// update. Public: no account needed.
+	AppVersion(context.Context, *connect.Request[v1.AppVersionRequest]) (*connect.Response[v1.AppVersionResponse], error)
 }
 
 // NewRegistrationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -142,12 +163,20 @@ func NewRegistrationServiceHandler(svc RegistrationServiceHandler, opts ...conne
 		connect.WithSchema(registrationServiceMethods.ByName("Verify")),
 		connect.WithHandlerOptions(opts...),
 	)
+	registrationServiceAppVersionHandler := connect.NewUnaryHandler(
+		RegistrationServiceAppVersionProcedure,
+		svc.AppVersion,
+		connect.WithSchema(registrationServiceMethods.ByName("AppVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.RegistrationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RegistrationServiceRequestOtpProcedure:
 			registrationServiceRequestOtpHandler.ServeHTTP(w, r)
 		case RegistrationServiceVerifyProcedure:
 			registrationServiceVerifyHandler.ServeHTTP(w, r)
+		case RegistrationServiceAppVersionProcedure:
+			registrationServiceAppVersionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -163,6 +192,10 @@ func (UnimplementedRegistrationServiceHandler) RequestOtp(context.Context, *conn
 
 func (UnimplementedRegistrationServiceHandler) Verify(context.Context, *connect.Request[v1.VerifyRequest]) (*connect.Response[v1.VerifyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.RegistrationService.Verify is not implemented"))
+}
+
+func (UnimplementedRegistrationServiceHandler) AppVersion(context.Context, *connect.Request[v1.AppVersionRequest]) (*connect.Response[v1.AppVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.RegistrationService.AppVersion is not implemented"))
 }
 
 // UsernameServiceClient is a client for the siegel.v1.UsernameService service.

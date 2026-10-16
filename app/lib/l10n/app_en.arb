@@ -361,5 +361,9 @@
     }
   },
   "codeResent": "Code sent again.",
-  "errResendTooSoon": "Please wait a little before asking for another code."
+  "errResendTooSoon": "Please wait a little before asking for another code.",
+  "updateAvailable": "A new version of Siegel is available.",
+  "update": "Update",
+  "later": "Later",
+  "updateRequired": "This version of Siegel is no longer supported. Update to keep using it."
 }

@@ -68,6 +68,8 @@ type config struct {
 	fcmKey        []byte  // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
 	inactiveDays  int     // section 10: accounts with no device seen this long are deleted
 	contactEmail  string  // shown on the public privacy and deletion pages
+	androidLatest int     // newest Android build in the Play Store (update banner)
+	androidMin    int     // Android builds below this must update
 	operator      string  // legal name and postal address for the privacy policy
 	reviewPhone   string  // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
@@ -110,6 +112,8 @@ func loadConfig() config {
 		otpAlertMin:   env("SIEGEL_OTP_ALERT_MIN", 20, strconv.Atoi),
 		inactiveDays:  env("SIEGEL_INACTIVE_DAYS", 180, strconv.Atoi),
 		contactEmail:  os.Getenv("SIEGEL_CONTACT_EMAIL"),
+		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
+		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		operator:      os.Getenv("SIEGEL_OPERATOR"),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {

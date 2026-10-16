@@ -161,7 +161,8 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(t.settings)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        // Clear of the system navigation bar, or the last row (Delete account) can't be reached.
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
         children: [
           _Profile(core: core),
           const SizedBox(height: 24),

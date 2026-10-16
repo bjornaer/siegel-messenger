@@ -15,6 +15,11 @@ impl From<core_api::CoreError> for CoreError {
     }
 }
 
+pub struct AppVersion {
+    pub latest: u32,
+    pub minimum: u32,
+}
+
 pub enum DevicePlatform {
     Ios,
     Android,
@@ -101,6 +106,12 @@ impl Core {
     #[frb(sync)]
     pub fn set_setting(&self, key: String, value: String) -> Result<(), CoreError> {
         Ok(self.0.set_setting(&key, &value)?)
+    }
+
+    /// Newest published build and the oldest allowed, for the update prompt.
+    pub async fn app_version(&self, platform: DevicePlatform) -> Result<AppVersion, CoreError> {
+        let (latest, minimum) = self.0.app_version(platform.into()).await?;
+        Ok(AppVersion { latest, minimum })
     }
 
     /// The account already has a Registration Lock PIN (ID-10).

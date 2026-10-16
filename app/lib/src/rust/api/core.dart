@@ -20,6 +20,9 @@ abstract class Core implements RustOpaqueInterface {
     required List<String> usernames,
   });
 
+  /// Newest published build and the oldest allowed, for the update prompt.
+  Future<AppVersion> appVersion({required DevicePlatform platform});
+
   /// Blocks the account; they are not told (MSG-16).
   Future<void> block({required List<int> account});
 
@@ -176,6 +179,24 @@ abstract class Core implements RustOpaqueInterface {
 
   /// Earlier texts of an edited message, oldest first (MSG-09).
   List<String> versions({required List<int> messageId});
+}
+
+class AppVersion {
+  final int latest;
+  final int minimum;
+
+  const AppVersion({required this.latest, required this.minimum});
+
+  @override
+  int get hashCode => latest.hashCode ^ minimum.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppVersion &&
+          runtimeType == other.runtimeType &&
+          latest == other.latest &&
+          minimum == other.minimum;
 }
 
 class BlockedContact {

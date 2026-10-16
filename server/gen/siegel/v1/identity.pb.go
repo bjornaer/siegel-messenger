@@ -954,6 +954,102 @@ func (x *ProfileServiceGetResponse) GetEncryptedProfile() []byte {
 	return nil
 }
 
+type AppVersionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Platform      Platform               `protobuf:"varint,1,opt,name=platform,proto3,enum=siegel.v1.Platform" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AppVersionRequest) Reset() {
+	*x = AppVersionRequest{}
+	mi := &file_siegel_v1_identity_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppVersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppVersionRequest) ProtoMessage() {}
+
+func (x *AppVersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_identity_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppVersionRequest.ProtoReflect.Descriptor instead.
+func (*AppVersionRequest) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AppVersionRequest) GetPlatform() Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return Platform_PLATFORM_UNSPECIFIED
+}
+
+type AppVersionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Latest        uint32                 `protobuf:"varint,1,opt,name=latest,proto3" json:"latest,omitempty"`   // build number in the store; 0 = unknown
+	Minimum       uint32                 `protobuf:"varint,2,opt,name=minimum,proto3" json:"minimum,omitempty"` // older builds must update; 0 = none
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AppVersionResponse) Reset() {
+	*x = AppVersionResponse{}
+	mi := &file_siegel_v1_identity_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppVersionResponse) ProtoMessage() {}
+
+func (x *AppVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_identity_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppVersionResponse.ProtoReflect.Descriptor instead.
+func (*AppVersionResponse) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AppVersionResponse) GetLatest() uint32 {
+	if x != nil {
+		return x.Latest
+	}
+	return 0
+}
+
+func (x *AppVersionResponse) GetMinimum() uint32 {
+	if x != nil {
+		return x.Minimum
+	}
+	return 0
+}
+
 var File_siegel_v1_identity_proto protoreflect.FileDescriptor
 
 const file_siegel_v1_identity_proto_rawDesc = "" +
@@ -1010,15 +1106,22 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\fR\taccountId\"H\n" +
 	"\x19ProfileServiceGetResponse\x12+\n" +
-	"\x11encrypted_profile\x18\x01 \x01(\fR\x10encryptedProfile*L\n" +
+	"\x11encrypted_profile\x18\x01 \x01(\fR\x10encryptedProfile\"D\n" +
+	"\x11AppVersionRequest\x12/\n" +
+	"\bplatform\x18\x01 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"F\n" +
+	"\x12AppVersionResponse\x12\x16\n" +
+	"\x06latest\x18\x01 \x01(\rR\x06latest\x12\x18\n" +
+	"\aminimum\x18\x02 \x01(\rR\aminimum*L\n" +
 	"\bPlatform\x12\x18\n" +
 	"\x14PLATFORM_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fPLATFORM_IOS\x10\x01\x12\x14\n" +
-	"\x10PLATFORM_ANDROID\x10\x022\x9f\x01\n" +
+	"\x10PLATFORM_ANDROID\x10\x022\xea\x01\n" +
 	"\x13RegistrationService\x12I\n" +
 	"\n" +
 	"RequestOtp\x12\x1c.siegel.v1.RequestOtpRequest\x1a\x1d.siegel.v1.RequestOtpResponse\x12=\n" +
-	"\x06Verify\x12\x18.siegel.v1.VerifyRequest\x1a\x19.siegel.v1.VerifyResponse2\xc2\x01\n" +
+	"\x06Verify\x12\x18.siegel.v1.VerifyRequest\x1a\x19.siegel.v1.VerifyResponse\x12I\n" +
+	"\n" +
+	"AppVersion\x12\x1c.siegel.v1.AppVersionRequest\x1a\x1d.siegel.v1.AppVersionResponse2\xc2\x01\n" +
 	"\x0fUsernameService\x12R\n" +
 	"\x03Set\x12$.siegel.v1.UsernameServiceSetRequest\x1a%.siegel.v1.UsernameServiceSetResponse\x12[\n" +
 	"\x06Lookup\x12'.siegel.v1.UsernameServiceLookupRequest\x1a(.siegel.v1.UsernameServiceLookupResponse2\xa2\x02\n" +
@@ -1043,7 +1146,7 @@ func file_siegel_v1_identity_proto_rawDescGZIP() []byte {
 }
 
 var file_siegel_v1_identity_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_siegel_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_siegel_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_siegel_v1_identity_proto_goTypes = []any{
 	(Platform)(0),                         // 0: siegel.v1.Platform
 	(*RequestOtpRequest)(nil),             // 1: siegel.v1.RequestOtpRequest
@@ -1064,33 +1167,38 @@ var file_siegel_v1_identity_proto_goTypes = []any{
 	(*ProfileServiceSetResponse)(nil),     // 16: siegel.v1.ProfileServiceSetResponse
 	(*ProfileServiceGetRequest)(nil),      // 17: siegel.v1.ProfileServiceGetRequest
 	(*ProfileServiceGetResponse)(nil),     // 18: siegel.v1.ProfileServiceGetResponse
+	(*AppVersionRequest)(nil),             // 19: siegel.v1.AppVersionRequest
+	(*AppVersionResponse)(nil),            // 20: siegel.v1.AppVersionResponse
 }
 var file_siegel_v1_identity_proto_depIdxs = []int32{
 	0,  // 0: siegel.v1.RequestOtpRequest.platform:type_name -> siegel.v1.Platform
 	0,  // 1: siegel.v1.VerifyRequest.platform:type_name -> siegel.v1.Platform
-	1,  // 2: siegel.v1.RegistrationService.RequestOtp:input_type -> siegel.v1.RequestOtpRequest
-	3,  // 3: siegel.v1.RegistrationService.Verify:input_type -> siegel.v1.VerifyRequest
-	5,  // 4: siegel.v1.UsernameService.Set:input_type -> siegel.v1.UsernameServiceSetRequest
-	7,  // 5: siegel.v1.UsernameService.Lookup:input_type -> siegel.v1.UsernameServiceLookupRequest
-	11, // 6: siegel.v1.AccountService.SetRegistrationLock:input_type -> siegel.v1.SetRegistrationLockRequest
-	13, // 7: siegel.v1.AccountService.Delete:input_type -> siegel.v1.AccountServiceDeleteRequest
-	9,  // 8: siegel.v1.AccountService.SetPushToken:input_type -> siegel.v1.SetPushTokenRequest
-	15, // 9: siegel.v1.ProfileService.Set:input_type -> siegel.v1.ProfileServiceSetRequest
-	17, // 10: siegel.v1.ProfileService.Get:input_type -> siegel.v1.ProfileServiceGetRequest
-	2,  // 11: siegel.v1.RegistrationService.RequestOtp:output_type -> siegel.v1.RequestOtpResponse
-	4,  // 12: siegel.v1.RegistrationService.Verify:output_type -> siegel.v1.VerifyResponse
-	6,  // 13: siegel.v1.UsernameService.Set:output_type -> siegel.v1.UsernameServiceSetResponse
-	8,  // 14: siegel.v1.UsernameService.Lookup:output_type -> siegel.v1.UsernameServiceLookupResponse
-	12, // 15: siegel.v1.AccountService.SetRegistrationLock:output_type -> siegel.v1.SetRegistrationLockResponse
-	14, // 16: siegel.v1.AccountService.Delete:output_type -> siegel.v1.AccountServiceDeleteResponse
-	10, // 17: siegel.v1.AccountService.SetPushToken:output_type -> siegel.v1.SetPushTokenResponse
-	16, // 18: siegel.v1.ProfileService.Set:output_type -> siegel.v1.ProfileServiceSetResponse
-	18, // 19: siegel.v1.ProfileService.Get:output_type -> siegel.v1.ProfileServiceGetResponse
-	11, // [11:20] is the sub-list for method output_type
-	2,  // [2:11] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	0,  // 2: siegel.v1.AppVersionRequest.platform:type_name -> siegel.v1.Platform
+	1,  // 3: siegel.v1.RegistrationService.RequestOtp:input_type -> siegel.v1.RequestOtpRequest
+	3,  // 4: siegel.v1.RegistrationService.Verify:input_type -> siegel.v1.VerifyRequest
+	19, // 5: siegel.v1.RegistrationService.AppVersion:input_type -> siegel.v1.AppVersionRequest
+	5,  // 6: siegel.v1.UsernameService.Set:input_type -> siegel.v1.UsernameServiceSetRequest
+	7,  // 7: siegel.v1.UsernameService.Lookup:input_type -> siegel.v1.UsernameServiceLookupRequest
+	11, // 8: siegel.v1.AccountService.SetRegistrationLock:input_type -> siegel.v1.SetRegistrationLockRequest
+	13, // 9: siegel.v1.AccountService.Delete:input_type -> siegel.v1.AccountServiceDeleteRequest
+	9,  // 10: siegel.v1.AccountService.SetPushToken:input_type -> siegel.v1.SetPushTokenRequest
+	15, // 11: siegel.v1.ProfileService.Set:input_type -> siegel.v1.ProfileServiceSetRequest
+	17, // 12: siegel.v1.ProfileService.Get:input_type -> siegel.v1.ProfileServiceGetRequest
+	2,  // 13: siegel.v1.RegistrationService.RequestOtp:output_type -> siegel.v1.RequestOtpResponse
+	4,  // 14: siegel.v1.RegistrationService.Verify:output_type -> siegel.v1.VerifyResponse
+	20, // 15: siegel.v1.RegistrationService.AppVersion:output_type -> siegel.v1.AppVersionResponse
+	6,  // 16: siegel.v1.UsernameService.Set:output_type -> siegel.v1.UsernameServiceSetResponse
+	8,  // 17: siegel.v1.UsernameService.Lookup:output_type -> siegel.v1.UsernameServiceLookupResponse
+	12, // 18: siegel.v1.AccountService.SetRegistrationLock:output_type -> siegel.v1.SetRegistrationLockResponse
+	14, // 19: siegel.v1.AccountService.Delete:output_type -> siegel.v1.AccountServiceDeleteResponse
+	10, // 20: siegel.v1.AccountService.SetPushToken:output_type -> siegel.v1.SetPushTokenResponse
+	16, // 21: siegel.v1.ProfileService.Set:output_type -> siegel.v1.ProfileServiceSetResponse
+	18, // 22: siegel.v1.ProfileService.Get:output_type -> siegel.v1.ProfileServiceGetResponse
+	13, // [13:23] is the sub-list for method output_type
+	3,  // [3:13] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_identity_proto_init() }
@@ -1104,7 +1212,7 @@ func file_siegel_v1_identity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_identity_proto_rawDesc), len(file_siegel_v1_identity_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

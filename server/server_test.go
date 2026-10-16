@@ -404,3 +404,12 @@ func TestOtpResend(t *testing.T) { // ID-04: resend waits double each time; hour
 		t.Fatal("the resent code still works", err)
 	}
 }
+
+func TestAppVersion(t *testing.T) {
+	e := setup(t)
+	e.s.cfg.androidLatest, e.s.cfg.androidMin = 9, 5
+	res, err := e.reg.AppVersion(e.ctx, connect.NewRequest(&siegelv1.AppVersionRequest{Platform: siegelv1.Platform_PLATFORM_ANDROID}))
+	if err != nil || res.Msg.Latest != 9 || res.Msg.Minimum != 5 {
+		t.Fatal(res, err)
+	}
+}

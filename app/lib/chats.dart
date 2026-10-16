@@ -11,6 +11,7 @@ import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'format.dart';
 import 'groups.dart';
+import 'update.dart';
 import 'profile.dart';
 import 'safety.dart';
 import 'src/rust/api/core.dart';
@@ -168,25 +169,35 @@ class ChatListScreen extends StatelessWidget {
           final all = core.chats();
           final chats = all.where((c) => !c.request).toList();
           final requests = all.length - chats.length;
-          return ListView(
-            children: [
-              if (requests > 0)
-                ListTile(
-                  leading: const Icon(Icons.mark_email_unread_outlined),
-                  title: Text(t.messageRequestsCount(requests)),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => MessageRequestsScreen(core: core, service: service),
+          // Pull down to reconnect at once and fetch anything waiting.
+          return RefreshIndicator(
+            onRefresh: () async {
+              service.wake();
+              await Future<void>.delayed(const Duration(seconds: 1));
+              service.refresh();
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                UpdateBanner(core: core),
+                if (requests > 0)
+                  ListTile(
+                    leading: const Icon(Icons.mark_email_unread_outlined),
+                    title: Text(t.messageRequestsCount(requests)),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MessageRequestsScreen(core: core, service: service),
+                      ),
                     ),
                   ),
-                ),
-              if (chats.isEmpty && requests == 0)
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text(t.noChats, textAlign: TextAlign.center),
-                ),
-              for (final c in chats) _chatTile(context, core, service, c),
-            ],
+                if (chats.isEmpty && requests == 0)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(t.noChats, textAlign: TextAlign.center),
+                  ),
+                for (final c in chats) _chatTile(context, core, service, c),
+              ],
+            ),
           );
         },
       ),

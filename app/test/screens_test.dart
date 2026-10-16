@@ -58,6 +58,8 @@ class FakeCore implements Core {
     user = username;
   }
 
+  @override
+  Future<AppVersion> appVersion({required DevicePlatform platform}) async => const AppVersion(latest: 0, minimum: 0);
   bool lockSet = false;
   @override
   bool hasRegistrationLock() => lockSet;

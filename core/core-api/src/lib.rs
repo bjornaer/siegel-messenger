@@ -118,6 +118,11 @@ impl SiegelCore {
         matches!(self.get(TOKEN), Ok(Some(_)))
     }
 
+    /// (latest, minimum) app builds the server publishes, for the update prompt.
+    pub async fn app_version(&self, platform: Platform) -> Result<(u32, u32), CoreError> {
+        Ok(self.net.app_version(platform.into()).await?)
+    }
+
     /// Sends the SMS code; returns the seconds until a resend is allowed (ID-04).
     pub async fn request_otp(
         &self,

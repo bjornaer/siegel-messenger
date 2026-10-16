@@ -106,6 +106,17 @@ impl Client {
         })
     }
 
+    /// (latest, minimum) published app builds for the platform; 0 = not set.
+    pub async fn app_version(&self, platform: pb::Platform) -> Result<(u32, u32), Error> {
+        let req = pb::AppVersionRequest {
+            platform: platform as i32,
+        };
+        let r: pb::AppVersionResponse = self
+            .call("RegistrationService/AppVersion", &req, None)
+            .await?;
+        Ok((r.latest, r.minimum))
+    }
+
     pub async fn request_otp(
         &self,
         phone_e164: &str,

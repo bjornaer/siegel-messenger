@@ -1167,6 +1167,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please wait a little before asking for another code.'**
   String get errResendTooSoon;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version of Siegel is available.'**
+  String get updateAvailable;
+
+  /// No description provided for @update.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get update;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
+
+  /// No description provided for @updateRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This version of Siegel is no longer supported. Update to keep using it.'**
+  String get updateRequired;
 }
 
 class _AppLocalizationsDelegate

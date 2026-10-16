@@ -641,4 +641,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errResendTooSoon =>
       'Please wait a little before asking for another code.';
+
+  @override
+  String get updateAvailable => 'A new version of Siegel is available.';
+
+  @override
+  String get update => 'Update';
+
+  @override
+  String get later => 'Later';
+
+  @override
+  String get updateRequired =>
+      'This version of Siegel is no longer supported. Update to keep using it.';
 }
