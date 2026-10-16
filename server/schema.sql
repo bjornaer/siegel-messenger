@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS otps (
   expires_at timestamptz NOT NULL
 );
 
+-- Resends of a pending code: each one waits twice as long as the last (ID-04).
+ALTER TABLE otps ADD COLUMN IF NOT EXISTS sends int NOT NULL DEFAULT 1;
+ALTER TABLE otps ADD COLUMN IF NOT EXISTS last_sent_at timestamptz NOT NULL DEFAULT now();
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   key          text NOT NULL,
   window_start timestamptz NOT NULL,

@@ -22,7 +22,10 @@ message RequestOtpRequest {
   Platform platform = 3;
 }
 
-message RequestOtpResponse {}
+message RequestOtpResponse {
+  // When the app may offer "Resend code": each resend waits twice as long (ID-04).
+  uint32 resend_after_seconds = 1;
+}
 
 message VerifyRequest {
   string phone_e164 = 1;

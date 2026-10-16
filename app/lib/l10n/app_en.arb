@@ -350,5 +350,16 @@
   "errNameInvalid": "Group names have 1 to 64 characters.",
   "editProfile": "Edit profile",
   "orStartChat": "Or start a chat with someone's @username",
-  "errPeerOutdated": "Someone you added has an old version of Siegel. They need to update before joining a group."
+  "errPeerOutdated": "Someone you added has an old version of Siegel. They need to update before joining a group.",
+  "resendCode": "Resend code",
+  "resendIn": "Resend code in {time}",
+  "@resendIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "codeResent": "Code sent again.",
+  "errResendTooSoon": "Please wait a little before asking for another code."
 }

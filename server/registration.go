@@ -131,10 +131,27 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	if err != nil {
 		return nil, internal(err)
 	}
+	// A resend of a still-valid code waits 30 s, then 60 s, 120 s... (ID-04). The wait is
+	// checked before the hourly and daily caps, so tapping early costs nothing.
+	var sends, attempts int
+	var pending, lastSent = "", time.Time{}
+	err = s.db.QueryRow(ctx, `SELECT code, sends, last_sent_at, attempts FROM otps WHERE phone_hmac = $1 AND expires_at > now()`, h).
+		Scan(&pending, &sends, &lastSent, &attempts)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, internal(err)
+	}
+	if pending != "" && time.Since(lastSent) < s.resendWait(sends) {
+		return nil, cerr(connect.CodeResourceExhausted, "resend_too_soon")
+	}
 	if ok, err := s.hit(ctx, fmt.Sprintf("otp:%x", h), time.Hour, s.cfg.otpPerNumber); err != nil {
 		return nil, internal(err)
 	} else if !ok {
 		return nil, cerr(connect.CodeResourceExhausted, "rate_limited")
+	}
+	if ok, err := s.hit(ctx, fmt.Sprintf("otpday:%x", h), 24*time.Hour, s.cfg.otpPerDay); err != nil {
+		return nil, internal(err)
+	} else if !ok {
+		return nil, cerr(connect.CodeResourceExhausted, "rate_limited") // the hard cap on resends
 	}
 	review := s.cfg.reviewPhone != "" && phone == s.cfg.reviewPhone
 	// ponytail: caps SMS count, not spend; switch to per-country cost once the provider is chosen (Q2, Q9).
@@ -146,24 +163,39 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 		slog.Error("global daily SMS cap reached")
 		return nil, cerr(connect.CodeUnavailable, "sms_unavailable")
 	}
-	n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000))
-	code := fmt.Sprintf("%06d", n)
+	// A resend repeats the pending code, so whichever SMS arrives first works, and its guesses
+	// carry on (ID-03). A code with no guesses left is replaced.
+	code, sends := pending, sends+1
+	if attempts >= s.cfg.otpAttempts {
+		code = ""
+	}
+	if code == "" {
+		n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000))
+		code, sends = fmt.Sprintf("%06d", n), 1
+	}
 	if review {
 		code = s.cfg.reviewCode
 	}
-	if _, err := s.db.Exec(ctx, `INSERT INTO otps (phone_hmac, code, expires_at) VALUES ($1, $2, $3)
-		ON CONFLICT (phone_hmac) DO UPDATE SET code = $2, attempts = 0, expires_at = $3`,
-		h, code, time.Now().Add(s.cfg.otpTTL)); err != nil {
+	if _, err := s.db.Exec(ctx, `INSERT INTO otps (phone_hmac, code, expires_at, sends, last_sent_at) VALUES ($1, $2, $3, $4, now())
+		ON CONFLICT (phone_hmac) DO UPDATE SET code = $2, expires_at = $3, sends = $4, last_sent_at = now(),
+		attempts = CASE WHEN otps.code = $2 THEN otps.attempts ELSE 0 END`,
+		h, code, time.Now().Add(s.cfg.otpTTL), sends); err != nil {
 		return nil, internal(err)
 	}
+	res := connect.NewResponse(&siegelv1.RequestOtpResponse{ResendAfterSeconds: uint32(s.resendWait(sends).Seconds())})
 	if review {
-		return connect.NewResponse(&siegelv1.RequestOtpResponse{}), nil
+		return res, nil
 	}
 	if err := s.sendSMS(ctx, phone, code); err != nil {
 		return nil, internal(err)
 	}
 	s.count(ctx, "otp_sent")
-	return connect.NewResponse(&siegelv1.RequestOtpResponse{}), nil
+	return res, nil
+}
+
+// resendWait is how long after the n-th SMS for a code the next may go: 30 s, 60 s, 120 s...
+func (s *server) resendWait(sent int) time.Duration {
+	return s.cfg.otpResendWait << min(max(sent-1, 0), 10)
 }
 
 func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.VerifyRequest]) (*connect.Response[siegelv1.VerifyResponse], error) {

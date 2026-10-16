@@ -44,13 +44,15 @@ type config struct {
 	smsProviders  []string // order to try them in; only those with a key are used
 	otpTTL        time.Duration
 	otpAttempts   int
-	otpPerNumber  int // per hour
-	otpPerIP      int // per hour
-	verifyPerIP   int // per hour
-	lookupPerDay  int // per account
-	claimPerDay   int // KeyPackage claims per account
-	sealedPerIP   int // sealed-sender sends per IP per hour
-	newChatPerDay int // CMP-04: new conversations per account per day
+	otpPerNumber  int           // per hour
+	otpPerDay     int           // per number per day: the hard cap on resends
+	otpResendWait time.Duration // first resend wait; doubles each time
+	otpPerIP      int           // per hour
+	verifyPerIP   int           // per hour
+	lookupPerDay  int           // per account
+	claimPerDay   int           // KeyPackage claims per account
+	sealedPerIP   int           // sealed-sender sends per IP per hour
+	newChatPerDay int           // CMP-04: new conversations per account per day
 	smsDailyCap   int
 	denyPrefixes  []string
 	userMin       int
@@ -87,6 +89,8 @@ func loadConfig() config {
 		otpTTL:        env("SIEGEL_OTP_TTL", 10*time.Minute, time.ParseDuration),
 		otpAttempts:   env("SIEGEL_OTP_ATTEMPTS", 5, strconv.Atoi),
 		otpPerNumber:  env("SIEGEL_OTP_PER_NUMBER_HOUR", 3, strconv.Atoi),
+		otpPerDay:     env("SIEGEL_OTP_PER_NUMBER_DAY", 5, strconv.Atoi),
+		otpResendWait: env("SIEGEL_OTP_RESEND_WAIT", 30*time.Second, time.ParseDuration),
 		otpPerIP:      env("SIEGEL_OTP_PER_IP_HOUR", 10, strconv.Atoi),
 		verifyPerIP:   env("SIEGEL_VERIFY_PER_IP_HOUR", 30, strconv.Atoi),
 		lookupPerDay:  env("SIEGEL_LOOKUP_PER_DAY", 1000, strconv.Atoi), // creating a 256-member group looks up 255

@@ -47,12 +47,13 @@ impl Core {
         self.0.is_registered()
     }
 
+    /// Returns the seconds until "Resend code" may be used (ID-04).
     pub async fn request_otp(
         &self,
         phone_e164: String,
         attestation_token: String,
         platform: DevicePlatform,
-    ) -> Result<(), CoreError> {
+    ) -> Result<u32, CoreError> {
         Ok(self
             .0
             .request_otp(&phone_e164, &attestation_token, platform.into())

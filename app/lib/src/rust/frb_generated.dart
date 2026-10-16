@@ -196,7 +196,7 @@ abstract class RustLibApi extends BaseApi {
     required String name,
   });
 
-  Future<void> crateApiCoreCoreRequestOtp({
+  Future<int> crateApiCoreCoreRequestOtp({
     required Core that,
     required String phoneE164,
     required String attestationToken,
@@ -1175,7 +1175,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiCoreCoreRequestOtp({
+  Future<int> crateApiCoreCoreRequestOtp({
     required Core that,
     required String phoneE164,
     required String attestationToken,
@@ -1200,7 +1200,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
+          decodeSuccessData: sse_decode_u_32,
           decodeErrorData: sse_decode_core_error,
         ),
         constMeta: kCrateApiCoreCoreRequestOtpConstMeta,
@@ -3351,7 +3351,8 @@ class CoreImpl extends RustOpaque implements Core {
     name: name,
   );
 
-  Future<void> requestOtp({
+  /// Returns the seconds until "Resend code" may be used (ID-04).
+  Future<int> requestOtp({
     required String phoneE164,
     required String attestationToken,
     required DevicePlatform platform,

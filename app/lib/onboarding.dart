@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:ui' show PlatformDispatcher;
 
@@ -34,6 +35,7 @@ void showError(BuildContext context, CoreError e) {
     'attestation_failed' => t.errAttestation,
     'group_left' => t.errGroupLeft,
     'peer_outdated' => t.errPeerOutdated,
+    'resend_too_soon' => t.errResendTooSoon,
     'group_too_large' => t.errGroupTooLarge,
     'name_invalid' => t.errNameInvalid,
     'network' => t.errNetwork,
@@ -79,6 +81,30 @@ class _OnboardingState extends State<Onboarding> {
   PhoneNumber? _parsed;
   bool _ageOk = false;
   bool _busy = false;
+  // ID-04: the server sets when a resend is allowed; each wait doubles, with a daily cap.
+  int _resendLeft = 0; // seconds; the server enforces the real wait
+  Timer? _tick;
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _sendCode() async {
+    final phone = _parsed!.international;
+    final wait = await core.requestOtp(
+      phoneE164: phone,
+      attestationToken: await attestationToken(phone),
+      platform: _platform,
+    );
+    _tick?.cancel();
+    setState(() => _resendLeft = wait);
+    _tick = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || _resendLeft <= 1) t.cancel();
+      if (mounted) setState(() => _resendLeft--);
+    });
+  }
 
   Core get core => widget.core;
 
@@ -135,6 +161,22 @@ class _OnboardingState extends State<Onboarding> {
     if (ok == true) widget.onDone();
   }
 
+  Widget _resendButton(AppLocalizations t) {
+    final waiting = _resendLeft > 0;
+    final mmss = '${_resendLeft ~/ 60}:${(_resendLeft % 60).toString().padLeft(2, '0')}';
+    return TextButton(
+      onPressed: waiting || _busy
+          ? null
+          : () => _run(() async {
+              await _sendCode();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.codeResent)));
+              }
+            }),
+      child: Text(waiting ? t.resendIn(mmss) : t.resendCode),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -180,12 +222,7 @@ class _OnboardingState extends State<Onboarding> {
             _parsed == null || !_ageOk
                 ? null
                 : () => _run(() async {
-                    final phone = _parsed!.international;
-                    await core.requestOtp(
-                      phoneE164: phone,
-                      attestationToken: await attestationToken(phone),
-                      platform: _platform,
-                    );
+                    await _sendCode();
                     setState(() => step = _Step.code);
                   }),
           ),
@@ -202,6 +239,7 @@ class _OnboardingState extends State<Onboarding> {
             decoration: InputDecoration(labelText: t.codeLabel),
           ),
           primary(t.verify, _verify),
+          _resendButton(t),
         ],
       ),
       _Step.pin => (

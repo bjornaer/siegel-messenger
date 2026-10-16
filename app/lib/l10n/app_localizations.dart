@@ -1143,6 +1143,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Someone you added has an old version of Siegel. They need to update before joining a group.'**
   String get errPeerOutdated;
+
+  /// No description provided for @resendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code'**
+  String get resendCode;
+
+  /// No description provided for @resendIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend code in {time}'**
+  String resendIn(String time);
+
+  /// No description provided for @codeResent.
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent again.'**
+  String get codeResent;
+
+  /// No description provided for @errResendTooSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a little before asking for another code.'**
+  String get errResendTooSoon;
 }
 
 class _AppLocalizationsDelegate

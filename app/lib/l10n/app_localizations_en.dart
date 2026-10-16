@@ -626,4 +626,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errPeerOutdated =>
       'Someone you added has an old version of Siegel. They need to update before joining a group.';
+
+  @override
+  String get resendCode => 'Resend code';
+
+  @override
+  String resendIn(String time) {
+    return 'Resend code in $time';
+  }
+
+  @override
+  String get codeResent => 'Code sent again.';
+
+  @override
+  String get errResendTooSoon =>
+      'Please wait a little before asking for another code.';
 }

@@ -102,7 +102,8 @@ abstract class Core implements RustOpaqueInterface {
 
   Future<void> renameGroup({required List<int> groupId, required String name});
 
-  Future<void> requestOtp({
+  /// Returns the seconds until "Resend code" may be used (ID-04).
+  Future<int> requestOtp({
     required String phoneE164,
     required String attestationToken,
     required DevicePlatform platform,

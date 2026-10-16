@@ -31,11 +31,15 @@ class FakeCore implements Core {
   }
 
   @override
-  Future<void> requestOtp({
+  Future<int> requestOtp({
     required String phoneE164,
     required String attestationToken,
     required DevicePlatform platform,
-  }) => _maybeFail('requestOtp $phoneE164');
+  }) async {
+    await _maybeFail('requestOtp $phoneE164');
+    return 30;
+  }
+
   @override
   Future<bool> verify({
     required String phoneE164,
@@ -916,5 +920,19 @@ void main() {
     await tapText(t, 'Save');
     expect(core.calls, isNot(contains(startsWith('setUsername'))));
     expect(done, isTrue, reason: 'no PIN offer when the account has one');
+  });
+
+  testWidgets('resend code waits for the countdown the server sets (ID-04)', (t) async {
+    final core = FakeCore();
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () {})));
+    await toCodeScreen(t, core);
+    await t.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Resend code in 0:'), findsOneWidget);
+    expect(t.widget<TextButton>(find.widgetWithText(TextButton, 'Resend code in 0:29')).onPressed, isNull);
+    await t.pump(const Duration(seconds: 31));
+    await tapText(t, 'Resend code');
+    expect(core.calls.where((c) => c.startsWith('requestOtp')).length, 2);
+    expect(find.text('Code sent again.'), findsOneWidget);
+    await t.pump(const Duration(seconds: 31)); // let the countdown timer finish
   });
 }

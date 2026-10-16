@@ -111,7 +111,7 @@ impl Client {
         phone_e164: &str,
         attestation_token: &str,
         platform: pb::Platform,
-    ) -> Result<(), Error> {
+    ) -> Result<u32, Error> {
         let req = pb::RequestOtpRequest {
             phone_e164: phone_e164.into(),
             attestation_token: attestation_token.into(),
@@ -119,7 +119,7 @@ impl Client {
         };
         self.call::<pb::RequestOtpResponse>("RegistrationService/RequestOtp", &req, None)
             .await
-            .map(|_| ())
+            .map(|r| r.resend_after_seconds)
     }
 
     pub async fn verify(&self, req: pb::VerifyRequest) -> Result<pb::VerifyResponse, Error> {

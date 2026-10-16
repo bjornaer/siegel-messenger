@@ -13,12 +13,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -55,7 +57,7 @@ func setup(t *testing.T) *env_ {
 	rand.Read(seed)
 	asKey := ed25519.NewKeyFromSeed(seed)
 	cfg := config{
-		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, claimPerDay: 1000, sealedPerIP: 1000, newChatPerDay: 1000, smsDailyCap: 1000,
+		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerDay: 100, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, claimPerDay: 1000, sealedPerIP: 1000, newChatPerDay: 1000, smsDailyCap: 1000,
 		denyPrefixes: []string{"+882"},
 		userMin:      4, userMax: 32, userChangeDay: 30, userQuarDay: 30,
 		lockAttempts: 3, lockLockout: 3600e9, lockLapseDay: 7, inactiveDays: 180,
@@ -360,5 +362,45 @@ func TestPublicPages(t *testing.T) { // CMP-07
 	b, _ := io.ReadAll(res.Body)
 	if !strings.Contains(string(b), "mailto:privacy@example.org") {
 		t.Fatal("contact email not shown")
+	}
+}
+
+func TestOtpResend(t *testing.T) { // ID-04: resend waits double each time; hourly and daily caps
+	e := setup(t)
+	e.s.cfg.otpResendWait = 30 * time.Second
+	e.s.cfg.otpPerNumber, e.s.cfg.otpPerDay = 10, 3
+	phone := "+34600000061"
+	send := func() (uint32, string) {
+		res, err := e.reg.RequestOtp(e.ctx, connect.NewRequest(&siegelv1.RequestOtpRequest{PhoneE164: phone}))
+		if err != nil {
+			return 0, errMsg(err)
+		}
+		return res.Msg.ResendAfterSeconds, ""
+	}
+	backdate := func(d time.Duration) {
+		e.s.db.Exec(e.ctx, `UPDATE otps SET last_sent_at = now() - $1::interval`, fmt.Sprintf("%d seconds", int(d.Seconds())))
+	}
+	wait, err := send()
+	if err != "" || wait != 30 {
+		t.Fatal(wait, err)
+	}
+	first := e.sms[phone]
+	if _, err := send(); err != "resend_too_soon" {
+		t.Fatal("resend before the wait:", err)
+	}
+	backdate(31 * time.Second)
+	if wait, err := send(); err != "" || wait != 60 || e.sms[phone] != first {
+		t.Fatal("second send waits 60 s and repeats the code", wait, err)
+	}
+	backdate(61 * time.Second)
+	if wait, err := send(); err != "" || wait != 120 {
+		t.Fatal(wait, err)
+	}
+	backdate(121 * time.Second)
+	if _, err := send(); err != "rate_limited" {
+		t.Fatal("daily cap reached:", err)
+	}
+	if _, _, err := e.verify(phone, first, ""); err != nil {
+		t.Fatal("the resent code still works", err)
 	}
 }

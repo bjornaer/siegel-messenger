@@ -132,9 +132,11 @@ func (x *RequestOtpRequest) GetPlatform() Platform {
 }
 
 type RequestOtpResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the app may offer "Resend code": each resend waits twice as long (ID-04).
+	ResendAfterSeconds uint32 `protobuf:"varint,1,opt,name=resend_after_seconds,json=resendAfterSeconds,proto3" json:"resend_after_seconds,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RequestOtpResponse) Reset() {
@@ -165,6 +167,13 @@ func (x *RequestOtpResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RequestOtpResponse.ProtoReflect.Descriptor instead.
 func (*RequestOtpResponse) Descriptor() ([]byte, []int) {
 	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RequestOtpResponse) GetResendAfterSeconds() uint32 {
+	if x != nil {
+		return x.ResendAfterSeconds
+	}
+	return 0
 }
 
 type VerifyRequest struct {
@@ -954,8 +963,9 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\n" +
 	"phone_e164\x18\x01 \x01(\tR\tphoneE164\x12+\n" +
 	"\x11attestation_token\x18\x02 \x01(\tR\x10attestationToken\x12/\n" +
-	"\bplatform\x18\x03 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"\x14\n" +
-	"\x12RequestOtpResponse\"\xc8\x01\n" +
+	"\bplatform\x18\x03 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"F\n" +
+	"\x12RequestOtpResponse\x120\n" +
+	"\x14resend_after_seconds\x18\x01 \x01(\rR\x12resendAfterSeconds\"\xc8\x01\n" +
 	"\rVerifyRequest\x12\x1d\n" +
 	"\n" +
 	"phone_e164\x18\x01 \x01(\tR\tphoneE164\x12\x10\n" +

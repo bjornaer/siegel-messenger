@@ -118,12 +118,13 @@ impl SiegelCore {
         matches!(self.get(TOKEN), Ok(Some(_)))
     }
 
+    /// Sends the SMS code; returns the seconds until a resend is allowed (ID-04).
     pub async fn request_otp(
         &self,
         phone_e164: &str,
         attestation_token: &str,
         platform: Platform,
-    ) -> Result<(), CoreError> {
+    ) -> Result<u32, CoreError> {
         Ok(self
             .net
             .request_otp(phone_e164, attestation_token, platform.into())
