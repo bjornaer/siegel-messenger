@@ -24,6 +24,9 @@ service KeysService {
 message KeysServiceUploadRequest {
   repeated bytes key_packages = 1;
   bytes last_resort = 2;
+  // Drop this device's unused one-time KeyPackages first: an app update that changes their
+  // capabilities (e.g. group support) replaces the old ones.
+  bool replace = 3;
 }
 
 message KeysServiceUploadResponse {

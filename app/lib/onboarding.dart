@@ -33,6 +33,7 @@ void showError(BuildContext context, CoreError e) {
     'not_allowed' => t.errNotAllowed,
     'attestation_failed' => t.errAttestation,
     'group_left' => t.errGroupLeft,
+    'peer_outdated' => t.errPeerOutdated,
     'group_too_large' => t.errGroupTooLarge,
     'name_invalid' => t.errNameInvalid,
     'network' => t.errNetwork,
@@ -220,11 +221,16 @@ class _OnboardingState extends State<Onboarding> {
       _Step.profile => (
         t.profileTitle,
         [
-          TextField(
-            controller: _username,
-            autocorrect: false,
-            decoration: InputDecoration(labelText: t.usernameLabel, helperText: t.usernameHelp, helperMaxLines: 3),
-          ),
+          // ID-09: a re-registered account keeps its @username; only the name is asked again
+          // (the old profile key left with the old install).
+          if (core.username() case final kept?)
+            Text(t.homeRegistered(kept), style: Theme.of(context).textTheme.titleMedium)
+          else
+            TextField(
+              controller: _username,
+              autocorrect: false,
+              decoration: InputDecoration(labelText: t.usernameLabel, helperText: t.usernameHelp, helperMaxLines: 3),
+            ),
           TextField(
             controller: _name,
             maxLength: 64,
@@ -234,8 +240,13 @@ class _OnboardingState extends State<Onboarding> {
             t.save,
             () => _run(() async {
               core.setDisplayName(name: _name.text);
-              await core.setUsername(username: _username.text.trim());
-              setState(() => step = _Step.lock);
+              if (core.username() == null) await core.setUsername(username: _username.text.trim());
+              // An account that already has a PIN doesn't get offered one again.
+              if (core.hasRegistrationLock()) {
+                widget.onDone();
+              } else {
+                setState(() => step = _Step.lock);
+              }
             }),
           ),
         ],

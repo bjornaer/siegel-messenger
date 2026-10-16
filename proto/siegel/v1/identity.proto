@@ -53,6 +53,10 @@ message VerifyResponse {
   // Authentication Service Ed25519 public key. Clients pin it here and use it to check
   // every member's credential binding (CRY-08).
   bytes as_public_key = 6;
+  // Re-registration (ID-09): the account's current @username, so the app needn't ask again.
+  string username = 7;
+  // Re-registration: the account already has a Registration Lock PIN (ID-10).
+  bool registration_lock = 8;
 }
 
 service UsernameService {

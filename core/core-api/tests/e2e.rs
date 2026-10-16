@@ -574,6 +574,12 @@ async fn safety_numbers_and_reregistration_key_change() {
     let new_bob = open_bob("two.db");
     register(&new_bob, &bob_phone).await;
     until(&mut bob_events, |e| matches!(e, Event::Deregistered)).await;
+    assert_eq!(
+        new_bob.username().as_deref(),
+        Some(bob_name.as_str()),
+        "ID-09: the @username comes back with the account"
+    );
+    assert!(!new_bob.has_registration_lock());
     let mut new_bob_events = listen(&new_bob);
 
     // Alice's next message finds Bob's devices revoked, re-keys the same chat and delivers.

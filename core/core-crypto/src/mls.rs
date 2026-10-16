@@ -327,6 +327,9 @@ impl<P: OpenMlsProvider> Mls<P> {
                 .validate(self.provider.crypto(), ProtocolVersion::Mls10)
                 .map_err(err)?;
             let leaf = kp.leaf_node();
+            if state.is_some() && !supports_groups(leaf) {
+                return Err(Error("peer_outdated".into())); // an old app version: it must update
+            }
             welcome_to.push(member(
                 leaf.credential(),
                 leaf.signature_key().as_slice(),
@@ -427,6 +430,9 @@ impl<P: OpenMlsProvider> Mls<P> {
                 .validate(self.provider.crypto(), ProtocolVersion::Mls10)
                 .map_err(err)?;
             let leaf = kp.leaf_node();
+            if !supports_groups(leaf) {
+                return Err(Error("peer_outdated".into()));
+            }
             welcome_to.push(member(
                 leaf.credential(),
                 leaf.signature_key().as_slice(),
@@ -737,6 +743,13 @@ impl<P: OpenMlsProvider> Mls<P> {
             _ => Ok(Received::Ignored),
         }
     }
+}
+
+/// Leaves from app versions before group chats can't join a group (GRP-02).
+fn supports_groups(leaf: &LeafNode) -> bool {
+    leaf.capabilities()
+        .extensions()
+        .contains(&ExtensionType::Unknown(GROUP_STATE_EXT))
 }
 
 fn state_of(e: &Extensions<GroupContext>) -> Option<GroupState> {

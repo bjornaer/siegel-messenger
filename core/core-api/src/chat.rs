@@ -20,6 +20,9 @@ use crate::{AS_PUBLIC, CREDENTIAL, CoreError, SIGNER, SiegelCore, storage};
 /// CRY-09: keep about this many one-time KeyPackages on the server; refill below the threshold.
 const KEY_PACKAGES: u32 = 100;
 const REFILL_BELOW: u32 = 20;
+/// Bumped whenever KeyPackages' capabilities change; 2 = group state extension (GRP-02).
+const KP_VERSION: &[u8] = b"2";
+const KP_VERSION_KEY: &str = "key_packages_version";
 /// CRY-10 default: refresh our leaf keys in each chat at least this often.
 const SELF_UPDATE_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 
@@ -53,7 +56,7 @@ fn provider(s: &SqlCipher) -> Provider<'_> {
 
 pub(crate) fn mls_err(e: core_crypto::mls::Error) -> CoreError {
     CoreError::new(match e.0.as_str() {
-        "credential_invalid" | "unknown_group" | "name_invalid" => &e.0,
+        "credential_invalid" | "unknown_group" | "name_invalid" | "peer_outdated" => &e.0,
         r if r.ends_with("_not_allowed") => "not_allowed", // GRP-05, GRP-06
         _ => "mls",
     })
@@ -209,10 +212,19 @@ impl SiegelCore {
         }
     }
 
-    /// Tops the server up to ~100 one-time KeyPackages plus a last-resort one (CRY-09).
+    /// Tops the server up to ~100 one-time KeyPackages plus a last-resort one (CRY-09). After an
+    /// update that changed what KeyPackages declare (KP_VERSION), replaces them all once:
+    /// old ones can't join groups.
     pub async fn ensure_key_packages(&self) -> Result<(), CoreError> {
         let token = self.token()?;
-        let remaining = self.net.upload_key_packages(&token, vec![], vec![]).await?;
+        let current = self.get(KP_VERSION_KEY)?.as_deref() == Some(KP_VERSION);
+        let remaining = if current {
+            self.net
+                .upload_key_packages(&token, vec![], vec![], false)
+                .await?
+        } else {
+            0
+        };
         if remaining >= REFILL_BELOW {
             return Ok(());
         }
@@ -223,7 +235,10 @@ impl SiegelCore {
             let lr = m.key_packages(1, true).map_err(mls_err)?.remove(0);
             Ok((kps, lr))
         })?;
-        self.net.upload_key_packages(&token, kps, lr).await?;
+        self.net
+            .upload_key_packages(&token, kps, lr, !current)
+            .await?;
+        self.put(KP_VERSION_KEY, KP_VERSION)?;
         Ok(())
     }
 

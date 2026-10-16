@@ -186,10 +186,12 @@ impl Client {
         token: &str,
         key_packages: Vec<Vec<u8>>,
         last_resort: Vec<u8>,
+        replace: bool,
     ) -> Result<u32, Error> {
         let req = pb::KeysServiceUploadRequest {
             key_packages,
             last_resort,
+            replace,
         };
         let res: pb::KeysServiceUploadResponse =
             self.call("KeysService/Upload", &req, Some(token)).await?;

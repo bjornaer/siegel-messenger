@@ -22,6 +22,12 @@ func (s *server) Upload(ctx context.Context, req *connect.Request[siegelv1.KeysS
 	c := who(ctx)
 	var remaining uint32
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		if req.Msg.Replace {
+			if _, err := tx.Exec(ctx, `DELETE FROM key_packages WHERE account_id = $1 AND device_id = $2 AND NOT last_resort`,
+				c.account, c.device); err != nil {
+				return err
+			}
+		}
 		for _, kp := range req.Msg.KeyPackages {
 			if _, err := tx.Exec(ctx, `INSERT INTO key_packages (account_id, device_id, data) VALUES ($1, $2, $3)`,
 				c.account, c.device, kp); err != nil {

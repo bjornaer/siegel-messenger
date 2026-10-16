@@ -74,9 +74,12 @@ func (x *DeviceAddress) GetDeviceId() []byte {
 }
 
 type KeysServiceUploadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeyPackages   [][]byte               `protobuf:"bytes,1,rep,name=key_packages,json=keyPackages,proto3" json:"key_packages,omitempty"`
-	LastResort    []byte                 `protobuf:"bytes,2,opt,name=last_resort,json=lastResort,proto3" json:"last_resort,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	KeyPackages [][]byte               `protobuf:"bytes,1,rep,name=key_packages,json=keyPackages,proto3" json:"key_packages,omitempty"`
+	LastResort  []byte                 `protobuf:"bytes,2,opt,name=last_resort,json=lastResort,proto3" json:"last_resort,omitempty"`
+	// Drop this device's unused one-time KeyPackages first: an app update that changes their
+	// capabilities (e.g. group support) replaces the old ones.
+	Replace       bool `protobuf:"varint,3,opt,name=replace,proto3" json:"replace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -123,6 +126,13 @@ func (x *KeysServiceUploadRequest) GetLastResort() []byte {
 		return x.LastResort
 	}
 	return nil
+}
+
+func (x *KeysServiceUploadRequest) GetReplace() bool {
+	if x != nil {
+		return x.Replace
+	}
+	return false
 }
 
 type KeysServiceUploadResponse struct {
@@ -917,11 +927,12 @@ const file_siegel_v1_delivery_proto_rawDesc = "" +
 	"\rDeviceAddress\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\fR\taccountId\x12\x1b\n" +
-	"\tdevice_id\x18\x02 \x01(\fR\bdeviceId\"^\n" +
+	"\tdevice_id\x18\x02 \x01(\fR\bdeviceId\"x\n" +
 	"\x18KeysServiceUploadRequest\x12!\n" +
 	"\fkey_packages\x18\x01 \x03(\fR\vkeyPackages\x12\x1f\n" +
 	"\vlast_resort\x18\x02 \x01(\fR\n" +
-	"lastResort\"9\n" +
+	"lastResort\x12\x18\n" +
+	"\areplace\x18\x03 \x01(\bR\areplace\"9\n" +
 	"\x19KeysServiceUploadResponse\x12\x1c\n" +
 	"\tremaining\x18\x01 \x01(\rR\tremaining\"8\n" +
 	"\x17KeysServiceClaimRequest\x12\x1d\n" +

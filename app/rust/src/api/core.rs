@@ -102,6 +102,12 @@ impl Core {
         Ok(self.0.set_setting(&key, &value)?)
     }
 
+    /// The account already has a Registration Lock PIN (ID-10).
+    #[frb(sync)]
+    pub fn has_registration_lock(&self) -> bool {
+        self.0.has_registration_lock()
+    }
+
     pub async fn set_registration_lock(&self, pin: String) -> Result<(), CoreError> {
         Ok(self.0.set_registration_lock(&pin).await?)
     }

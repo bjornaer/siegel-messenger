@@ -163,8 +163,7 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(t.homeRegistered(core.username()!), style: Theme.of(context).textTheme.titleLarge),
-          if (core.displayName() case final name?) Text(name),
+          _Profile(core: core),
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
           ListTile(
@@ -301,6 +300,68 @@ class _GroupAddsState extends State<_GroupAdds> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Name and @username, editable (the server allows a new @username every 30 days, ID-07).
+class _Profile extends StatefulWidget {
+  const _Profile({required this.core});
+  final Core core;
+
+  @override
+  State<_Profile> createState() => _ProfileState();
+}
+
+class _ProfileState extends State<_Profile> {
+  Future<void> _edit() async {
+    final t = AppLocalizations.of(context)!;
+    final name = TextEditingController(text: widget.core.displayName() ?? '');
+    final user = TextEditingController(text: widget.core.username() ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.editProfile),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              maxLength: 64,
+              decoration: InputDecoration(labelText: t.displayNameLabel),
+            ),
+            TextField(
+              controller: user,
+              autocorrect: false,
+              decoration: InputDecoration(labelText: t.usernameLabel, helperText: t.usernameHelp, helperMaxLines: 3),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: Text(t.save)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      widget.core.setDisplayName(name: name.text);
+      final u = user.text.trim().replaceFirst(RegExp('^@'), '').toLowerCase();
+      if (u.isNotEmpty && u != widget.core.username()) await widget.core.setUsername(username: u);
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(t.homeRegistered(widget.core.username() ?? ''), style: Theme.of(context).textTheme.titleLarge),
+      subtitle: widget.core.displayName() == null ? null : Text(widget.core.displayName()!),
+      trailing: IconButton(tooltip: t.editProfile, icon: const Icon(Icons.edit_outlined), onPressed: _edit),
     );
   }
 }

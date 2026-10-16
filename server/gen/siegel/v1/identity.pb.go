@@ -258,9 +258,13 @@ type VerifyResponse struct {
 	ExistingAccount bool `protobuf:"varint,5,opt,name=existing_account,json=existingAccount,proto3" json:"existing_account,omitempty"`
 	// Authentication Service Ed25519 public key. Clients pin it here and use it to check
 	// every member's credential binding (CRY-08).
-	AsPublicKey   []byte `protobuf:"bytes,6,opt,name=as_public_key,json=asPublicKey,proto3" json:"as_public_key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AsPublicKey []byte `protobuf:"bytes,6,opt,name=as_public_key,json=asPublicKey,proto3" json:"as_public_key,omitempty"`
+	// Re-registration (ID-09): the account's current @username, so the app needn't ask again.
+	Username string `protobuf:"bytes,7,opt,name=username,proto3" json:"username,omitempty"`
+	// Re-registration: the account already has a Registration Lock PIN (ID-10).
+	RegistrationLock bool `protobuf:"varint,8,opt,name=registration_lock,json=registrationLock,proto3" json:"registration_lock,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *VerifyResponse) Reset() {
@@ -333,6 +337,20 @@ func (x *VerifyResponse) GetAsPublicKey() []byte {
 		return x.AsPublicKey
 	}
 	return nil
+}
+
+func (x *VerifyResponse) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *VerifyResponse) GetRegistrationLock() bool {
+	if x != nil {
+		return x.RegistrationLock
+	}
+	return false
 }
 
 type UsernameServiceSetRequest struct {
@@ -944,7 +962,7 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\x03otp\x18\x02 \x01(\tR\x03otp\x12!\n" +
 	"\fidentity_pub\x18\x03 \x01(\fR\videntityPub\x122\n" +
 	"\x15registration_lock_pin\x18\x04 \x01(\tR\x13registrationLockPin\x12/\n" +
-	"\bplatform\x18\x05 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"\xe1\x01\n" +
+	"\bplatform\x18\x05 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\"\xaa\x02\n" +
 	"\x0eVerifyResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\fR\taccountId\x12\x1b\n" +
@@ -952,7 +970,9 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\fdevice_token\x18\x03 \x01(\tR\vdeviceToken\x12!\n" +
 	"\fas_signature\x18\x04 \x01(\fR\vasSignature\x12)\n" +
 	"\x10existing_account\x18\x05 \x01(\bR\x0fexistingAccount\x12\"\n" +
-	"\ras_public_key\x18\x06 \x01(\fR\vasPublicKey\"7\n" +
+	"\ras_public_key\x18\x06 \x01(\fR\vasPublicKey\x12\x1a\n" +
+	"\busername\x18\a \x01(\tR\busername\x12+\n" +
+	"\x11registration_lock\x18\b \x01(\bR\x10registrationLock\"7\n" +
 	"\x19UsernameServiceSetRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\"\x1c\n" +
 	"\x1aUsernameServiceSetResponse\":\n" +

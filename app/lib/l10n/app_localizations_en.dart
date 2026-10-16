@@ -616,4 +616,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errNameInvalid => 'Group names have 1 to 64 characters.';
+
+  @override
+  String get editProfile => 'Edit profile';
+
+  @override
+  String get orStartChat => 'Or start a chat with someone\'s @username';
+
+  @override
+  String get errPeerOutdated =>
+      'Someone you added has an old version of Siegel. They need to update before joining a group.';
 }

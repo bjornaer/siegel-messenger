@@ -1125,6 +1125,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Group names have 1 to 64 characters.'**
   String get errNameInvalid;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get editProfile;
+
+  /// No description provided for @orStartChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Or start a chat with someone\'s @username'**
+  String get orStartChat;
+
+  /// No description provided for @errPeerOutdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone you added has an old version of Siegel. They need to update before joining a group.'**
+  String get errPeerOutdated;
 }
 
 class _AppLocalizationsDelegate

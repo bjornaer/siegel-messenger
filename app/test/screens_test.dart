@@ -54,6 +54,9 @@ class FakeCore implements Core {
     user = username;
   }
 
+  bool lockSet = false;
+  @override
+  bool hasRegistrationLock() => lockSet;
   @override
   Future<void> setRegistrationLock({required String pin}) => _maybeFail('setRegistrationLock $pin');
   @override
@@ -898,5 +901,20 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text("You're no longer in this group."), findsOneWidget, reason: 'read-only after leaving');
     expect(find.widgetWithText(TextField, 'Message'), findsNothing);
+  });
+
+  testWidgets('re-registering keeps the @username and an existing PIN (ID-09)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana.b'
+      ..lockSet = true;
+    var done = false;
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () => done = true)));
+    expect(find.text('You are @ana.b'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '@username'), findsNothing, reason: 'no new username');
+    await enter(t, 'Display name', 'Ana');
+    await tapText(t, 'Save');
+    expect(core.calls, isNot(contains(startsWith('setUsername'))));
+    expect(done, isTrue, reason: 'no PIN offer when the account has one');
   });
 }

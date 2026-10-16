@@ -266,15 +266,20 @@ class _NewChatScreenState extends State<NewChatScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ListTile(
-            leading: const Icon(Icons.group_add_outlined),
-            title: Text(t.newGroup),
-            onTap: () => Navigator.of(context).pushReplacement(
+          FilledButton.tonalIcon(
+            icon: const Icon(Icons.group_add_outlined),
+            label: Text(t.newGroup),
+            onPressed: () => Navigator.of(context).pushReplacement(
               MaterialPageRoute<void>(
                 builder: (_) => NewGroupScreen(core: widget.core, service: widget.service),
               ),
             ),
           ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text(t.orStartChat, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
           TextField(
             controller: _username,
             autofocus: true,

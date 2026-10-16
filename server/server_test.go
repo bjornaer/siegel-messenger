@@ -252,6 +252,9 @@ func TestRegistrationLockAndRevocation(t *testing.T) { // ID-09, ID-10, ID-16
 	if err != nil || !nw.ExistingAccount || string(nw.AccountId) != string(old.AccountId) {
 		t.Fatal("re-register with PIN", err)
 	}
+	if nw.Username != "owner" || !nw.RegistrationLock {
+		t.Fatal("re-registration must report the username and the lock", nw.Username, nw.RegistrationLock)
+	}
 	want(t, e.setUsername(old.DeviceToken, "x_old"), "unauthenticated") // old device revoked
 	u, _ := e.clients(nw.DeviceToken)
 	if _, err := u.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "owner"})); err != nil {

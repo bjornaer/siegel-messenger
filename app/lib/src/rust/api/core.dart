@@ -60,6 +60,9 @@ abstract class Core implements RustOpaqueInterface {
 
   GroupInfoView groupInfo({required List<int> groupId});
 
+  /// The account already has a Registration Lock PIN (ID-10).
+  bool hasRegistrationLock();
+
   bool isRegistered();
 
   /// GRP-10: leave; the chat stays, read-only.

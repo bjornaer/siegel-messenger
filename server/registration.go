@@ -270,12 +270,21 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 		return nil, internal(err)
 	}
 	s.count(ctx, "otp_verified")
+	// ID-09: a re-registered device learns what the account already has.
+	var username string
+	var locked bool
+	if existing {
+		_ = s.db.QueryRow(ctx, `SELECT coalesce((SELECT name FROM usernames WHERE account_id = $1 AND quarantined_until IS NULL), ''),
+			reg_lock_hash IS NOT NULL FROM accounts WHERE id = $1`, accountID).Scan(&username, &locked)
+	}
 	return connect.NewResponse(&siegelv1.VerifyResponse{
-		AccountId:       accountID[:],
-		DeviceId:        deviceID[:],
-		DeviceToken:     token,
-		AsSignature:     sig,
-		ExistingAccount: existing,
-		AsPublicKey:     asPub,
+		AccountId:        accountID[:],
+		DeviceId:         deviceID[:],
+		DeviceToken:      token,
+		AsSignature:      sig,
+		ExistingAccount:  existing,
+		AsPublicKey:      asPub,
+		Username:         username,
+		RegistrationLock: locked,
 	}), nil
 }

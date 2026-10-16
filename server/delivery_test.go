@@ -127,6 +127,26 @@ func next(t *testing.T, c *websocket.Conn) *siegelv1.StreamFrame {
 	return &f
 }
 
+func TestKeyPackageReplace(t *testing.T) { // app updates replace old KeyPackages
+	e := setup(t)
+	a := e.device("+34600000095")
+	up := func(n int, replace bool) uint32 {
+		var kps [][]byte
+		for i := range n {
+			kps = append(kps, []byte{byte(i)})
+		}
+		res, err := a.keys.Upload(e.ctx, connect.NewRequest(&siegelv1.KeysServiceUploadRequest{KeyPackages: kps, Replace: replace}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Msg.Remaining
+	}
+	up(5, false)
+	if r := up(3, true); r != 3 {
+		t.Fatal("replace must drop the old ones", r)
+	}
+}
+
 func TestStream(t *testing.T) { // SRV-03, MSG-06, ID-12, ID-13
 	e := setup(t)
 	e.s.cfg.otpPerNumber = 100

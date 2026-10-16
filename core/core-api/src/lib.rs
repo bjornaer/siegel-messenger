@@ -63,6 +63,7 @@ const DISPLAY_NAME: &str = "display_name";
 const AS_PUBLIC: &str = "as_public_key";
 const SIGNER: &str = "mls_signer_public";
 const CREDENTIAL: &str = "mls_credential";
+const REG_LOCK: &str = "registration_lock";
 
 pub struct SiegelCore {
     store: Mutex<Option<SqlCipher>>,
@@ -184,6 +185,10 @@ impl SiegelCore {
                 signer.public(),
                 as_sig,
             );
+            if !res.username.is_empty() {
+                storage(s.put(USERNAME, res.username.as_bytes()))?; // ID-09: kept by the account
+            }
+            storage(s.put(REG_LOCK, if res.registration_lock { b"1" } else { b"0" }))?;
             for (k, v) in [
                 (IDENTITY, &id.to_bytes()[..]),
                 (ACCOUNT, &account[..]),
@@ -248,7 +253,13 @@ impl SiegelCore {
 
     /// 4-digit PIN, or empty to remove the lock (ID-10).
     pub async fn set_registration_lock(&self, pin: &str) -> Result<(), CoreError> {
-        Ok(self.net.set_registration_lock(&self.token()?, pin).await?)
+        self.net.set_registration_lock(&self.token()?, pin).await?;
+        self.put(REG_LOCK, if pin.is_empty() { b"0" } else { b"1" })
+    }
+
+    /// Whether the account has a Registration Lock PIN, as far as this device knows (ID-10).
+    pub fn has_registration_lock(&self) -> bool {
+        self.get(REG_LOCK).ok().flatten().as_deref() == Some(b"1")
     }
 
     /// Registers this device's FCM or APNs token for content-free wake-ups (MSG-17).
