@@ -168,6 +168,48 @@ impl Client {
         .map(|_| ())
     }
 
+    /// GRP-16: stores an invite's encrypted snapshot (`write_key` guards later writes).
+    pub async fn put_invite(
+        &self,
+        token: &str,
+        id: &[u8],
+        write_key: &[u8],
+        snapshot: Vec<u8>,
+        expires_at: i64,
+    ) -> Result<(), Error> {
+        let req = pb::InvitesServicePutRequest {
+            id: id.to_vec(),
+            write_key: write_key.to_vec(),
+            snapshot,
+            expires_at,
+        };
+        self.call::<pb::InvitesServicePutResponse>("InvitesService/Put", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn get_invite(&self, token: &str, id: &[u8]) -> Result<Vec<u8>, Error> {
+        let req = pb::InvitesServiceGetRequest { id: id.to_vec() };
+        let r: pb::InvitesServiceGetResponse =
+            self.call("InvitesService/Get", &req, Some(token)).await?;
+        Ok(r.snapshot)
+    }
+
+    pub async fn delete_invite(
+        &self,
+        token: &str,
+        id: &[u8],
+        write_key: &[u8],
+    ) -> Result<(), Error> {
+        let req = pb::InvitesServiceDeleteRequest {
+            id: id.to_vec(),
+            write_key: write_key.to_vec(),
+        };
+        self.call::<pb::InvitesServiceDeleteResponse>("InvitesService/Delete", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
     /// FCM or APNs token for this device; empty clears it (MSG-17).
     pub async fn set_push_token(&self, token: &str, push_token: &str) -> Result<(), Error> {
         let req = pb::SetPushTokenRequest {

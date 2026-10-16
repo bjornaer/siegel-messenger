@@ -367,6 +367,9 @@ impl SiegelCore {
                 Ok(_) => {
                     self.with_mls(|m, _| m.confirm(&g).map_err(mls_err))?;
                     self.put(&key, &now.to_be_bytes())?;
+                    if conv.is_group {
+                        let _ = self.refresh_group_links(&conv.group_id).await; // GRP-16
+                    }
                 }
                 // CRY-14: another commit won; theirs is in our queue, retry on the next connect.
                 Err(_) => self.with_mls(|m, _| m.abort(&g).map_err(mls_err))?,

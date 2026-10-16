@@ -379,3 +379,36 @@ func TestInactiveAccounts(t *testing.T) { // section 10 retention, SRV-01
 	}
 	_ = fresh // seen today: untouched
 }
+
+func TestInvites(t *testing.T) { // GRP-16
+	e := setup(t)
+	a := e.device("+34600000097")
+	auth := connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+			r.Header().Set("Authorization", "Bearer "+a.DeviceToken)
+			return next(ctx, r)
+		}
+	}))
+	inv := siegelv1connect.NewInvitesServiceClient(http.DefaultClient, e.url, auth)
+	id, wk := bytes.Repeat([]byte{1}, 16), bytes.Repeat([]byte{2}, 16)
+	week := time.Now().Add(7 * 24 * time.Hour).Unix()
+	put := func(writeKey []byte, snap string, exp int64) string {
+		_, err := inv.Put(e.ctx, connect.NewRequest(&siegelv1.InvitesServicePutRequest{Id: id, WriteKey: writeKey, Snapshot: []byte(snap), ExpiresAt: exp}))
+		return errMsg(err)
+	}
+	want(t, put(wk, "v1", week), "")
+	want(t, put(wk, "v2", week), "")                                               // members refresh it
+	want(t, put(bytes.Repeat([]byte{3}, 16), "evil", week), "invite_write_denied") // a link holder can't
+	want(t, put(wk, "v3", time.Now().Add(30*24*time.Hour).Unix()), "invite_invalid")
+	res, err := inv.Get(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceGetRequest{Id: id}))
+	if err != nil || string(res.Msg.Snapshot) != "v2" {
+		t.Fatal(res, err)
+	}
+	inv.Delete(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceDeleteRequest{Id: id, WriteKey: bytes.Repeat([]byte{9}, 16)}))
+	if _, err := inv.Get(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceGetRequest{Id: id})); err != nil {
+		t.Fatal("a wrong write key must not delete")
+	}
+	inv.Delete(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceDeleteRequest{Id: id, WriteKey: wk}))
+	_, err = inv.Get(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceGetRequest{Id: id}))
+	want(t, errMsg(err), "invite_not_found")
+}

@@ -329,8 +329,15 @@ impl SiegelCore {
                 .map_err(mls_err)?
                 .ok_or(CoreError::new("not_a_group"))?;
             let admins = st.effective_admins();
+            // Everyone in the join order, then anyone who joined by link and isn't in it yet.
+            let mut accounts = st.joined.clone();
+            for m in m.roster(&c.mls_group).map_err(mls_err)? {
+                if !accounts.contains(&m.account_id) {
+                    accounts.push(m.account_id);
+                }
+            }
             let mut members = Vec::new();
-            for a in &st.joined {
+            for a in &accounts {
                 let contact = storage(s.contact(a))?;
                 members.push(GroupMember {
                     account: a.to_vec(),
@@ -398,7 +405,7 @@ impl SiegelCore {
                         .me_account()?
                         .try_into()
                         .map_err(|_| CoreError::new("not_registered"))?;
-                    return self.with_mls(|m, s| {
+                    let recorded = self.with_mls(|m, s| {
                         m.confirm(&g).map_err(mls_err)?;
                         for member in &out.welcome_to {
                             note_identity(s, &member.account_id, &member.identity_pub)?;
@@ -435,6 +442,9 @@ impl SiegelCore {
                         };
                         record_change(s, conv, &change)
                     });
+                    recorded?;
+                    let _ = self.refresh_group_links(conv).await; // GRP-16: links follow the epoch
+                    return Ok(());
                 }
                 Err(e) if e.code == "epoch_conflict" => {
                     self.with_mls(|m, _| m.abort(&g).map_err(mls_err))?;
@@ -665,5 +675,235 @@ impl SiegelCore {
             }))?;
         }
         Ok(())
+    }
+}
+
+/// GRP-16 default: links last a week.
+const INVITE_LIFE_SECS: u64 = 7 * 24 * 60 * 60;
+
+/// One live invite link of a group.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupLink {
+    pub link: String,
+    /// Unix seconds.
+    pub expires: u64,
+    pub id: Vec<u8>,
+}
+
+/// Name and member count shown before joining by link.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupPreview {
+    pub name: String,
+    pub members: u32,
+}
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+fn random<const N: usize>() -> [u8; N] {
+    use rand_core::RngCore as _;
+    let mut b = [0u8; N];
+    rand_core::OsRng.fill_bytes(&mut b);
+    b
+}
+
+/// `/g/<id>#<key>`: ID and link key.
+fn parse_group_link(link: &str) -> Option<([u8; 16], [u8; 32])> {
+    use base64::Engine as _;
+    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    let rest = link.split("/g/").nth(1)?;
+    let (id, key) = rest.split_once('#')?;
+    let id = b64.decode(id.trim_end_matches('/')).ok()?.try_into().ok()?;
+    let key = b64.decode(key).ok()?.try_into().ok()?;
+    Some((id, key))
+}
+
+impl SiegelCore {
+    fn group_link(&self, id: &[u8; 16], key: &[u8; 32]) -> String {
+        use base64::Engine as _;
+        let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        format!(
+            "{}/g/{}#{}",
+            self.server_url,
+            b64.encode(id),
+            b64.encode(key)
+        )
+    }
+
+    /// GRP-16: a new invite link (admins only), valid for a week.
+    pub async fn create_group_link(&self, conv: &[u8]) -> Result<String, CoreError> {
+        let me: Account = self
+            .me_account()?
+            .try_into()
+            .map_err(|_| CoreError::new("not_registered"))?;
+        let invite = core_crypto::groups::Invite {
+            id: random(),
+            key: random(),
+            write_key: random(),
+            expires: now_secs() + INVITE_LIFE_SECS,
+            by: me,
+        };
+        let added = invite.clone();
+        self.group_commit(conv, &[], &[], move |mut s| {
+            s.invites.retain(|i| i.expires > now_secs());
+            s.invites.push(added.clone());
+            s
+        })
+        .await?;
+        self.refresh_group_links(conv).await?;
+        Ok(self.group_link(&invite.id, &invite.key))
+    }
+
+    /// The group's live links (members can see them; only admins create or revoke).
+    pub fn group_links(&self, conv: &[u8]) -> Result<Vec<GroupLink>, CoreError> {
+        let g = self.group_conversation(conv)?.mls_group;
+        let st = self
+            .with_mls(|m, _| m.state(&g).map_err(mls_err))?
+            .ok_or(CoreError::new("not_a_group"))?;
+        let now = now_secs();
+        Ok(st
+            .invites
+            .iter()
+            .filter(|i| i.expires > now)
+            .map(|i| GroupLink {
+                link: self.group_link(&i.id, &i.key),
+                expires: i.expires,
+                id: i.id.to_vec(),
+            })
+            .collect())
+    }
+
+    /// Revokes a link: it stops working for anyone who hasn't joined yet.
+    pub async fn revoke_group_link(&self, conv: &[u8], id: &[u8]) -> Result<(), CoreError> {
+        let write_key = self
+            .group_links_raw(conv)?
+            .into_iter()
+            .find(|i| i.id[..] == *id)
+            .map(|i| i.write_key);
+        let gone = id.to_vec();
+        self.group_commit(conv, &[], &[], move |mut s| {
+            s.invites.retain(|i| i.id[..] != gone[..]);
+            s
+        })
+        .await?;
+        if let Some(wk) = write_key {
+            let _ = self.net.delete_invite(&self.token()?, id, &wk).await;
+        }
+        Ok(())
+    }
+
+    fn group_links_raw(&self, conv: &[u8]) -> Result<Vec<core_crypto::groups::Invite>, CoreError> {
+        let g = self.group_conversation(conv)?.mls_group;
+        Ok(self
+            .with_mls(|m, _| m.state(&g).map_err(mls_err))?
+            .map(|s| s.invites)
+            .unwrap_or_default())
+    }
+
+    /// After every commit: the server's snapshot for each live link must show the current epoch,
+    /// or joining fails. Sealed with the link key, with the epoch offset in front (GRP-07 skew).
+    pub(crate) async fn refresh_group_links(&self, conv: &[u8]) -> Result<(), CoreError> {
+        let c = self.group_conversation(conv)?;
+        let now = now_secs();
+        let live: Vec<_> = self
+            .group_links_raw(conv)?
+            .into_iter()
+            .filter(|i| i.expires > now)
+            .collect();
+        if live.is_empty() {
+            return Ok(());
+        }
+        let snapshot = self.with_mls(|m, _| m.snapshot(&c.mls_group).map_err(mls_err))?;
+        let plain = [&self.skew(&c.mls_group).to_be_bytes()[..], &snapshot].concat();
+        let token = self.token()?;
+        for i in live {
+            let sealed = core_crypto::groups::Invite::seal(&i.key, &plain);
+            self.net
+                .put_invite(&token, &i.id, &i.write_key, sealed, i.expires as i64)
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn fetch_snapshot(
+        &self,
+        link: &str,
+    ) -> Result<([u8; 16], [u8; 32], u64, Vec<u8>), CoreError> {
+        let (id, key) = parse_group_link(link).ok_or(CoreError::new("link_invalid"))?;
+        let sealed = self.net.get_invite(&self.token()?, &id).await?;
+        let plain = core_crypto::groups::Invite::open(&key, &sealed)
+            .ok_or(CoreError::new("link_invalid"))?;
+        let (skew, snapshot) = plain
+            .split_at_checked(8)
+            .ok_or(CoreError::new("link_invalid"))?;
+        let skew = u64::from_be_bytes(skew.try_into().expect("8 bytes"));
+        Ok((id, key, skew, snapshot.to_vec()))
+    }
+
+    /// GRP-16: what the link leads to, before joining.
+    pub async fn preview_group_link(&self, link: &str) -> Result<GroupPreview, CoreError> {
+        let (_, _, _, snapshot) = self.fetch_snapshot(link).await?;
+        let (st, n) = core_crypto::mls::Mls::<Provider<'_>>::peek(&snapshot).map_err(mls_err)?;
+        Ok(GroupPreview {
+            name: st.name,
+            members: n as u32,
+        })
+    }
+
+    /// GRP-16: joins by link straight away (admins can remove people afterwards). Returns the chat.
+    pub async fn join_group_link(&self, link: &str) -> Result<Vec<u8>, CoreError> {
+        let (id, key, skew, snapshot) = self.fetch_snapshot(link).await?;
+        let out = self.with_mls(|m, _| m.join_by_link(&snapshot, &id, &key).map_err(mls_err))?;
+        let gid = out.group_id.clone();
+        if self.conversations()?.iter().any(|c| c.mls_group == gid) {
+            return Err(CoreError::new("already_member"));
+        }
+        let req = pb::GroupsServiceCommitRequest {
+            group_id: gid.clone(),
+            epoch: out.epoch + skew,
+            commit: out.commit,
+            recipients: out.commit_to.iter().map(addr).collect(),
+            welcome: vec![],
+            welcome_recipients: vec![],
+        };
+        if let Err(e) = self.net.commit(&self.token()?, req).await {
+            let _ = self.with_mls(|m, _| m.forget(&gid).map_err(mls_err));
+            return Err(if e.code == "epoch_conflict" {
+                CoreError::new("link_stale") // the group moved on; try again in a moment
+            } else {
+                e.into()
+            });
+        }
+        let me = self.me_account()?;
+        self.with_mls(|m, s| {
+            for member in m.roster(&gid).map_err(mls_err)? {
+                if member.account_id[..] != me[..] {
+                    note_identity(s, &member.account_id, &member.identity_pub)?;
+                }
+            }
+            if skew > 0 {
+                storage(s.put(&skew_key(&gid), &skew.to_be_bytes()))?;
+            }
+            storage(s.save_conversation(&Conversation {
+                group_id: gid.clone(),
+                mls_group: gid.clone(),
+                is_group: true,
+                ..Default::default()
+            }))?;
+            system_line(
+                s,
+                &gid,
+                pb::group_event::Kind::Added,
+                &me,
+                &[me.as_slice().try_into().unwrap_or_default()],
+                "",
+            )
+        })?;
+        self.share_profile_key(&gid).await?;
+        let _ = self.refresh_group_links(&gid).await;
+        Ok(gid)
     }
 }

@@ -1077,3 +1077,62 @@ async fn contact_links_skip_the_request_and_verify() {
     bob.set_contact_link(false).unwrap();
     assert_eq!(bob.contact_link().unwrap(), None);
 }
+
+#[tokio::test]
+async fn group_invite_links() {
+    // GRP-16: join by link with no member online, admins only, revocable.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (dave, _) = new_user(&url, "dave").await;
+    let (erin, _) = new_user(&url, "erin").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    let gid = alice
+        .create_group("Climbers", std::slice::from_ref(&bob_name))
+        .await
+        .unwrap();
+    until(&mut be, |e| matches!(e, Event::ConversationStarted { .. })).await;
+
+    assert_eq!(
+        bob.create_group_link(&gid).await.unwrap_err().code,
+        "not_allowed"
+    );
+    let link = alice.create_group_link(&gid).await.unwrap();
+    assert!(link.starts_with(&format!("{url}/g/")));
+    assert_eq!(alice.group_links(&gid).unwrap().len(), 1);
+
+    // Dave isn't anyone's contact and nobody needs to be online for him to join.
+    let preview = dave.preview_group_link(&link).await.unwrap();
+    assert_eq!((preview.name.as_str(), preview.members), ("Climbers", 2));
+    let dave_gid = dave.join_group_link(&link).await.unwrap();
+    assert_eq!(dave_gid, gid);
+    for (c, rx) in [(&alice, &mut ae), (&bob, &mut be)] {
+        settle(rx, || c.group_info(&gid).unwrap().members.len() == 3).await;
+    }
+    let mut de = listen(&dave);
+    dave.send_text(&gid, "hi from the link", None)
+        .await
+        .unwrap();
+    until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "hi from the link"),
+    )
+    .await;
+    alice.send_text(&gid, "welcome", None).await.unwrap();
+    until(
+        &mut de,
+        |e| matches!(e, Event::Message(m) if m.text == "welcome"),
+    )
+    .await;
+
+    // Revoked: the link no longer works.
+    let id = alice.group_links(&gid).unwrap()[0].id.clone();
+    alice.revoke_group_link(&gid, &id).await.unwrap();
+    assert_eq!(
+        erin.preview_group_link(&link).await.unwrap_err().code,
+        "invite_not_found"
+    );
+}

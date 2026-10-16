@@ -123,3 +123,40 @@ message Deregistered {}
 message StreamAck {
   repeated int64 ids = 1;
 }
+
+// GRP-16: group invite links. The server keeps only the group's snapshot encrypted with the
+// link key, which it never sees; it can't tell which group an invite belongs to.
+service InvitesService {
+  // Creates or refreshes an invite's snapshot. The first write sets the write key; later
+  // writes must present it (members have it, people holding only the link don't). Auth: device.
+  rpc Put(InvitesServicePutRequest) returns (InvitesServicePutResponse);
+  // The encrypted snapshot, for someone opening the link. Auth: device.
+  rpc Get(InvitesServiceGetRequest) returns (InvitesServiceGetResponse);
+  // Revokes an invite. Auth: device.
+  rpc Delete(InvitesServiceDeleteRequest) returns (InvitesServiceDeleteResponse);
+}
+
+message InvitesServicePutRequest {
+  bytes id = 1;        // 16 random bytes
+  bytes write_key = 2; // 16 random bytes
+  bytes snapshot = 3;  // encrypted with the link key
+  int64 expires_at = 4; // unix seconds
+}
+
+message InvitesServicePutResponse {}
+
+message InvitesServiceGetRequest {
+  bytes id = 1;
+}
+
+message InvitesServiceGetResponse {
+  bytes snapshot = 1;
+  int64 expires_at = 2;
+}
+
+message InvitesServiceDeleteRequest {
+  bytes id = 1;
+  bytes write_key = 2;
+}
+
+message InvitesServiceDeleteResponse {}

@@ -93,3 +93,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   encrypted  bytea NOT NULL,
   verifier   bytea NOT NULL
 );
+
+-- GRP-16: invite link snapshots, encrypted by the client with a key the server never sees.
+CREATE TABLE IF NOT EXISTS group_invites (
+  id         bytea PRIMARY KEY,
+  write_hash bytea NOT NULL,
+  snapshot   bytea NOT NULL,
+  expires_at timestamptz NOT NULL
+);

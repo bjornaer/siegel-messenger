@@ -269,10 +269,12 @@ func (s *server) routes() http.Handler {
 	// A welcome carries the whole member tree: about 270 KB for 256 members (GRP-01).
 	// ponytail: every new member gets their own copy of it in the queue; fetch the tree once instead if adds get big.
 	mux.Handle(siegelv1connect.NewGroupsServiceHandler(s, s.authed(), connect.WithReadMaxBytes(2<<20)))
+	mux.Handle(siegelv1connect.NewInvitesServiceHandler(invites{s}, s.authed(), connect.WithReadMaxBytes(2<<20)))
 	mux.HandleFunc("GET /v1/stream", s.stream)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /delete-account", s.page("delete-account"))
 	mux.HandleFunc("GET /u/{username}", s.contactPage)
+	mux.HandleFunc("GET /g/{id}", s.page("g")) // GRP-16: the server can't tell which group
 	mux.HandleFunc("GET /.well-known/assetlinks.json", s.assetLinks)
 	return mux
 }
@@ -286,6 +288,7 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			`DELETE FROM usernames WHERE quarantined_until < now() AND account_id IS NULL`,
 			`DELETE FROM metrics WHERE hour < now() - interval '30 days'`,
 			`DELETE FROM queue WHERE enqueued_at < now() - interval '30 days'`, // MSG-06
+			`DELETE FROM group_invites WHERE expires_at < now()`,               // GRP-16
 		} {
 			if _, err := s.db.Exec(ctx, q); err != nil {
 				slog.Error("janitor", "err", err)

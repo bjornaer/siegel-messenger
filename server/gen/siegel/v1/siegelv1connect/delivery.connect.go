@@ -27,6 +27,8 @@ const (
 	MessagesServiceName = "siegel.v1.MessagesService"
 	// GroupsServiceName is the fully-qualified name of the GroupsService service.
 	GroupsServiceName = "siegel.v1.GroupsService"
+	// InvitesServiceName is the fully-qualified name of the InvitesService service.
+	InvitesServiceName = "siegel.v1.InvitesService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -49,6 +51,12 @@ const (
 	MessagesServiceSendIdentifiedProcedure = "/siegel.v1.MessagesService/SendIdentified"
 	// GroupsServiceCommitProcedure is the fully-qualified name of the GroupsService's Commit RPC.
 	GroupsServiceCommitProcedure = "/siegel.v1.GroupsService/Commit"
+	// InvitesServicePutProcedure is the fully-qualified name of the InvitesService's Put RPC.
+	InvitesServicePutProcedure = "/siegel.v1.InvitesService/Put"
+	// InvitesServiceGetProcedure is the fully-qualified name of the InvitesService's Get RPC.
+	InvitesServiceGetProcedure = "/siegel.v1.InvitesService/Get"
+	// InvitesServiceDeleteProcedure is the fully-qualified name of the InvitesService's Delete RPC.
+	InvitesServiceDeleteProcedure = "/siegel.v1.InvitesService/Delete"
 )
 
 // KeysServiceClient is a client for the siegel.v1.KeysService service.
@@ -335,4 +343,134 @@ type UnimplementedGroupsServiceHandler struct{}
 
 func (UnimplementedGroupsServiceHandler) Commit(context.Context, *connect.Request[v1.GroupsServiceCommitRequest]) (*connect.Response[v1.GroupsServiceCommitResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.GroupsService.Commit is not implemented"))
+}
+
+// InvitesServiceClient is a client for the siegel.v1.InvitesService service.
+type InvitesServiceClient interface {
+	// Creates or refreshes an invite's snapshot. The first write sets the write key; later
+	// writes must present it (members have it, people holding only the link don't). Auth: device.
+	Put(context.Context, *connect.Request[v1.InvitesServicePutRequest]) (*connect.Response[v1.InvitesServicePutResponse], error)
+	// The encrypted snapshot, for someone opening the link. Auth: device.
+	Get(context.Context, *connect.Request[v1.InvitesServiceGetRequest]) (*connect.Response[v1.InvitesServiceGetResponse], error)
+	// Revokes an invite. Auth: device.
+	Delete(context.Context, *connect.Request[v1.InvitesServiceDeleteRequest]) (*connect.Response[v1.InvitesServiceDeleteResponse], error)
+}
+
+// NewInvitesServiceClient constructs a client for the siegel.v1.InvitesService service. By default,
+// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
+// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
+// or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewInvitesServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) InvitesServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	invitesServiceMethods := v1.File_siegel_v1_delivery_proto.Services().ByName("InvitesService").Methods()
+	return &invitesServiceClient{
+		put: connect.NewClient[v1.InvitesServicePutRequest, v1.InvitesServicePutResponse](
+			httpClient,
+			baseURL+InvitesServicePutProcedure,
+			connect.WithSchema(invitesServiceMethods.ByName("Put")),
+			connect.WithClientOptions(opts...),
+		),
+		get: connect.NewClient[v1.InvitesServiceGetRequest, v1.InvitesServiceGetResponse](
+			httpClient,
+			baseURL+InvitesServiceGetProcedure,
+			connect.WithSchema(invitesServiceMethods.ByName("Get")),
+			connect.WithClientOptions(opts...),
+		),
+		delete: connect.NewClient[v1.InvitesServiceDeleteRequest, v1.InvitesServiceDeleteResponse](
+			httpClient,
+			baseURL+InvitesServiceDeleteProcedure,
+			connect.WithSchema(invitesServiceMethods.ByName("Delete")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// invitesServiceClient implements InvitesServiceClient.
+type invitesServiceClient struct {
+	put    *connect.Client[v1.InvitesServicePutRequest, v1.InvitesServicePutResponse]
+	get    *connect.Client[v1.InvitesServiceGetRequest, v1.InvitesServiceGetResponse]
+	delete *connect.Client[v1.InvitesServiceDeleteRequest, v1.InvitesServiceDeleteResponse]
+}
+
+// Put calls siegel.v1.InvitesService.Put.
+func (c *invitesServiceClient) Put(ctx context.Context, req *connect.Request[v1.InvitesServicePutRequest]) (*connect.Response[v1.InvitesServicePutResponse], error) {
+	return c.put.CallUnary(ctx, req)
+}
+
+// Get calls siegel.v1.InvitesService.Get.
+func (c *invitesServiceClient) Get(ctx context.Context, req *connect.Request[v1.InvitesServiceGetRequest]) (*connect.Response[v1.InvitesServiceGetResponse], error) {
+	return c.get.CallUnary(ctx, req)
+}
+
+// Delete calls siegel.v1.InvitesService.Delete.
+func (c *invitesServiceClient) Delete(ctx context.Context, req *connect.Request[v1.InvitesServiceDeleteRequest]) (*connect.Response[v1.InvitesServiceDeleteResponse], error) {
+	return c.delete.CallUnary(ctx, req)
+}
+
+// InvitesServiceHandler is an implementation of the siegel.v1.InvitesService service.
+type InvitesServiceHandler interface {
+	// Creates or refreshes an invite's snapshot. The first write sets the write key; later
+	// writes must present it (members have it, people holding only the link don't). Auth: device.
+	Put(context.Context, *connect.Request[v1.InvitesServicePutRequest]) (*connect.Response[v1.InvitesServicePutResponse], error)
+	// The encrypted snapshot, for someone opening the link. Auth: device.
+	Get(context.Context, *connect.Request[v1.InvitesServiceGetRequest]) (*connect.Response[v1.InvitesServiceGetResponse], error)
+	// Revokes an invite. Auth: device.
+	Delete(context.Context, *connect.Request[v1.InvitesServiceDeleteRequest]) (*connect.Response[v1.InvitesServiceDeleteResponse], error)
+}
+
+// NewInvitesServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewInvitesServiceHandler(svc InvitesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	invitesServiceMethods := v1.File_siegel_v1_delivery_proto.Services().ByName("InvitesService").Methods()
+	invitesServicePutHandler := connect.NewUnaryHandler(
+		InvitesServicePutProcedure,
+		svc.Put,
+		connect.WithSchema(invitesServiceMethods.ByName("Put")),
+		connect.WithHandlerOptions(opts...),
+	)
+	invitesServiceGetHandler := connect.NewUnaryHandler(
+		InvitesServiceGetProcedure,
+		svc.Get,
+		connect.WithSchema(invitesServiceMethods.ByName("Get")),
+		connect.WithHandlerOptions(opts...),
+	)
+	invitesServiceDeleteHandler := connect.NewUnaryHandler(
+		InvitesServiceDeleteProcedure,
+		svc.Delete,
+		connect.WithSchema(invitesServiceMethods.ByName("Delete")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/siegel.v1.InvitesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case InvitesServicePutProcedure:
+			invitesServicePutHandler.ServeHTTP(w, r)
+		case InvitesServiceGetProcedure:
+			invitesServiceGetHandler.ServeHTTP(w, r)
+		case InvitesServiceDeleteProcedure:
+			invitesServiceDeleteHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedInvitesServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedInvitesServiceHandler struct{}
+
+func (UnimplementedInvitesServiceHandler) Put(context.Context, *connect.Request[v1.InvitesServicePutRequest]) (*connect.Response[v1.InvitesServicePutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.InvitesService.Put is not implemented"))
+}
+
+func (UnimplementedInvitesServiceHandler) Get(context.Context, *connect.Request[v1.InvitesServiceGetRequest]) (*connect.Response[v1.InvitesServiceGetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.InvitesService.Get is not implemented"))
+}
+
+func (UnimplementedInvitesServiceHandler) Delete(context.Context, *connect.Request[v1.InvitesServiceDeleteRequest]) (*connect.Response[v1.InvitesServiceDeleteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.InvitesService.Delete is not implemented"))
 }

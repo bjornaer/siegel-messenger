@@ -40,6 +40,33 @@ pub struct Invite {
 impl Invite {
     const LEN: usize = 16 + 32 + 16 + 8 + 16;
 
+    fn snapshot_cipher(key: &[u8; 32]) -> aes_gcm::Aes256Gcm {
+        use aes_gcm::KeyInit;
+        let mut k = [0u8; 32];
+        hkdf::Hkdf::<sha2::Sha256>::new(None, key)
+            .expand(b"siegel-invite-snapshot-v1", &mut k)
+            .expect("32 bytes");
+        aes_gcm::Aes256Gcm::new(&k.into())
+    }
+
+    /// The group snapshot as the server stores it: readable only with the link key.
+    pub fn seal(key: &[u8; 32], snapshot: &[u8]) -> Vec<u8> {
+        use aes_gcm::aead::{Aead, AeadCore};
+        let nonce = aes_gcm::Aes256Gcm::generate_nonce(&mut rand_core::OsRng);
+        let ct = Self::snapshot_cipher(key)
+            .encrypt(&nonce, snapshot)
+            .expect("encrypt");
+        [nonce.as_slice(), &ct].concat()
+    }
+
+    pub fn open(key: &[u8; 32], sealed: &[u8]) -> Option<Vec<u8>> {
+        use aes_gcm::aead::Aead;
+        let (nonce, ct) = sealed.split_at_checked(12)?;
+        Self::snapshot_cipher(key)
+            .decrypt(aes_gcm::Nonce::from_slice(nonce), ct)
+            .ok()
+    }
+
     /// What a joiner puts in their external commit's authenticated data: the invite ID and a
     /// MAC binding the link key to the joiner and the epoch.
     pub fn proof(id: &[u8; 16], key: &[u8; 32], joiner: &Account, epoch: u64) -> Vec<u8> {
@@ -354,6 +381,12 @@ mod tests {
         assert_eq!(g.check(&A, &[], &[], &[], &with), Ok(()));
         g = with;
 
+        let sealed = Invite::seal(&inv.key, b"snapshot");
+        assert_eq!(
+            Invite::open(&inv.key, &sealed).as_deref(),
+            Some(&b"snapshot"[..])
+        );
+        assert_eq!(Invite::open(&[0; 32], &sealed), None);
         let proof = Invite::proof(&inv.id, &inv.key, &C, 5);
         assert_eq!(g.check_join(&C, &proof, 5, 999), Ok(()));
         assert_eq!(
