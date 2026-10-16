@@ -105,7 +105,11 @@ func fcm(g *googleAccount) func(context.Context, siegelv1.Platform, string) erro
 		if err != nil {
 			return err
 		}
-		msg := map[string]any{"message": map[string]any{"token": token, "android": map[string]any{"priority": "HIGH"}}}
+		// A constant marker, no content or sender (MSG-17): some devices drop a data message
+		// with an empty payload instead of handing it to the app.
+		msg := map[string]any{"message": map[string]any{
+			"token": token, "android": map[string]any{"priority": "HIGH"}, "data": map[string]string{"wake": "1"},
+		}}
 		err = postJSON(ctx, send, http.Header{"Authorization": {"Bearer " + b}}, msg, nil)
 		if se := new(statusError); errors.As(err, &se) && se.code == http.StatusNotFound {
 			return errPushTokenGone // UNREGISTERED

@@ -62,7 +62,12 @@ Future<void> notifyMessage(Core core, MessageView m) async {
 Future<void> _onBackgroundPush(RemoteMessage _) async {
   final running = IsolateNameServer.lookupPortByName(_mainPort);
   if (running != null) {
-    running.send(null); // the app holds the database and stream; let it fetch
+    // The app holds the database and stream: let it fetch, and stay in this handler until it
+    // is done. Returning at once lets Android freeze the app again before anything arrives.
+    final done = ReceivePort();
+    running.send(done.sendPort);
+    await done.first.timeout(const Duration(seconds: 18), onTimeout: () => null);
+    done.close();
     return;
   }
   // ponytail: if the user opens the app during these seconds, both isolates use the database
@@ -76,22 +81,35 @@ Future<void> _onBackgroundPush(RemoteMessage _) async {
   }
 }
 
-/// Sets up push for the running app. `wake` reconnects the stream right away.
-/// Without Google Play services this fails quietly: messages still arrive while the app is open.
-Future<void> startPush(Core core, VoidCallback wake) async {
-  final port = ReceivePort()..listen((_) => wake());
+/// Sets up push for the running app. `fetch` reconnects at once and completes once what was
+/// waiting has arrived. Without Google Play services this fails quietly: messages still arrive
+/// while the app is open.
+Future<void> startPush(Core core, Future<void> Function() fetch) async {
+  final port = ReceivePort()
+    ..listen((reply) async {
+      await fetch();
+      if (reply is SendPort) reply.send(null);
+    });
   IsolateNameServer.removePortNameMapping(_mainPort);
   IsolateNameServer.registerPortWithName(port.sendPort, _mainPort);
   try {
     await _initNotifications();
     await Firebase.initializeApp(options: _firebase);
     FirebaseMessaging.onBackgroundMessage(_onBackgroundPush);
-    FirebaseMessaging.onMessage.listen((_) => wake());
+    FirebaseMessaging.onMessage.listen((_) => fetch());
     final fcm = FirebaseMessaging.instance;
     await fcm.requestPermission(); // Android 13+ asks the user
     fcm.onTokenRefresh.listen((t) => core.setPushToken(pushToken: t));
-    final token = await fcm.getToken();
-    if (token != null) await core.setPushToken(pushToken: token);
+    // Without a registered token the server can never wake us: retry if the network was down.
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        final token = await fcm.getToken();
+        if (token != null) await core.setPushToken(pushToken: token);
+        break;
+      } on Object {
+        await Future<void>.delayed(Duration(seconds: 10 << attempt));
+      }
+    }
   } on Object catch (e) {
     debugPrint('push unavailable: $e');
   }

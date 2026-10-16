@@ -103,7 +103,7 @@ func TestFCM(t *testing.T) { // SRV-05
 				}
 			}
 			json.NewDecoder(r.Body).Decode(&m)
-			if r.Header.Get("Authorization") != "Bearer at" || m.Message.Android.Priority != "HIGH" || m.Message.Data != nil {
+			if r.Header.Get("Authorization") != "Bearer at" || m.Message.Android.Priority != "HIGH" || len(m.Message.Data) != 1 || m.Message.Data["wake"] != "1" {
 				t.Errorf("bad send: %+v", m)
 			}
 			if m.Message.Token == "gone" {

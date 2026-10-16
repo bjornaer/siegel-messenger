@@ -54,6 +54,24 @@ class ChatService extends ChangeNotifier {
   /// Our own actions change chats too (last message, ticks); screens rebuild on this.
   void refresh() => notifyListeners();
 
+  DateTime _lastEvent = DateTime(0);
+
+  /// After a push (MSG-17): reconnect, then wait until messages stop arriving (2 s quiet, at least
+  /// 4 s, at most 15 s), so notifications are shown before Android freezes the app again.
+  Future<void> fetchNow() async {
+    final start = DateTime.now();
+    wake();
+    while (true) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final now = DateTime.now();
+      final quiet = now.difference(_lastEvent) > const Duration(seconds: 2);
+      if ((quiet && now.difference(start) > const Duration(seconds: 4)) ||
+          now.difference(start) > const Duration(seconds: 15)) {
+        return;
+      }
+    }
+  }
+
   /// A push arrived (MSG-17): the server thinks we're offline, so reconnect now, even if this
   /// connection still looks open (a sleeping phone can leave it half-dead).
   void wake() {
@@ -71,6 +89,7 @@ class ChatService extends ChangeNotifier {
       _sub = core.runStream().listen(
         (e) {
           backoff = const Duration(seconds: 1);
+          _lastEvent = DateTime.now();
           if (e.kind == CoreEventKind.deregistered) {
             _stopped = true;
             finish();

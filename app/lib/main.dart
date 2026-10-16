@@ -74,7 +74,7 @@ class _SiegelAppState extends State<SiegelApp> {
         if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) notifyMessage(c, m);
       },
     )..start();
-    unawaited(startPush(c, service.wake));
+    unawaited(startPush(c, service.fetchNow));
     return service;
   }
 
