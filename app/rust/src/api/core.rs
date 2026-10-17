@@ -765,4 +765,11 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
 #[frb(init)]
 pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
+    // The default logger sends every crate's trace output (MLS internals included) to the
+    // system log, which other apps with log access can read. Release builds keep warnings only.
+    log::set_max_level(if cfg!(debug_assertions) {
+        log::LevelFilter::Info
+    } else {
+        log::LevelFilter::Warn
+    });
 }
