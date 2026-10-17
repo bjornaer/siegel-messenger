@@ -518,4 +518,21 @@ func TestAttachments(t *testing.T) { // MED-03, MED-06, MED-13
 	if expires(pics[0]) || !expires(pics[1]) {
 		t.Fatal("the replaced picture expires, the new one doesn't")
 	}
+	// MED-15: a group picture lives while members renew it; other blobs can't be renewed.
+	res, err := att.CreateUpload(e.ctx, connect.NewRequest(&siegelv1.AttachmentsServiceCreateUploadRequest{Size: 5, Renewable: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	httpDo("PUT", res.Msg.UploadPath, "", "hello")
+	expiry := func(id []byte) (at time.Time) {
+		e.s.db.QueryRow(e.ctx, `SELECT expires_at FROM attachments WHERE blob_id = $1`, id).Scan(&at)
+		return at
+	}
+	e.s.db.Exec(e.ctx, `UPDATE attachments SET expires_at = now() + interval '1 minute'`)
+	for _, id := range [][]byte{res.Msg.BlobId, up.BlobId} {
+		att.Keep(e.ctx, connect.NewRequest(&siegelv1.AttachmentsServiceKeepRequest{BlobId: id}))
+	}
+	if time.Until(expiry(res.Msg.BlobId)) < 30*time.Minute || time.Until(expiry(up.BlobId)) > 2*time.Minute {
+		t.Fatal("only renewable blobs are kept", expiry(res.Msg.BlobId), expiry(up.BlobId))
+	}
 }

@@ -235,7 +235,7 @@
   "leaveGroup": "Leave group",
   "leaveGroupBody": "You won't get new messages from this group. The chat stays on this phone.",
   "leftGroup": "You're no longer in this group.",
-  "onlyAdminsEditInfo": "Only admins can edit the group name",
+  "onlyAdminsEditInfo": "Only admins can edit the group name and photo",
   "onlyAdminsAdd": "Only admins can add members",
   "rename": "Rename",
   "isTyping": "{name} is typing…",
@@ -414,5 +414,13 @@
   "profilePhoto": "Profile photo",
   "choosePhoto": "Choose a photo",
   "removePhoto": "Remove photo",
-  "errAvatarInvalid": "That picture can't be used. Try another one."
+  "errAvatarInvalid": "That picture can't be used. Try another one.",
+  "evAvatar": "{actor} changed the group photo",
+  "@evAvatar": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  }
 }

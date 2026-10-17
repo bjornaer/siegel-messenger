@@ -1227,3 +1227,45 @@ async fn profile_pictures_reach_contacts() {
     alice.set_avatar(None).await.unwrap();
     eventually(|| bob.avatar(&alice_id).is_none()).await;
 }
+
+#[tokio::test]
+async fn group_pictures() {
+    // MED-15, GRP-06: the admin sets the picture, members get it; a member may not change it.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let gid = alice
+        .create_group("Pics", std::slice::from_ref(&bob_name))
+        .await
+        .unwrap();
+    until(&mut be, |e| {
+        matches!(e, core_api::Event::ConversationStarted { .. })
+    })
+    .await;
+
+    alice
+        .set_group_avatar(&gid, Some(vec![5; 4000]))
+        .await
+        .unwrap();
+    assert_eq!(alice.group_avatar(&gid), Some(vec![5; 4000]));
+    eventually(|| bob.group_avatar(&gid) == Some(vec![5; 4000])).await;
+    let photo_line = |c: &SiegelCore| {
+        c.messages(&gid, 50).unwrap().iter().any(|m| {
+            m.event
+                .as_ref()
+                .is_some_and(|e| e.kind == core_api::GroupEventKind::Avatar)
+        })
+    };
+    assert!(photo_line(&alice) && photo_line(&bob));
+
+    assert!(
+        bob.set_group_avatar(&gid, Some(vec![6; 10])).await.is_err(),
+        "admins only by default"
+    );
+    alice.set_group_avatar(&gid, None).await.unwrap();
+    eventually(|| bob.group_avatar(&gid).is_none()).await;
+}

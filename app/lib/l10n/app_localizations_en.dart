@@ -512,7 +512,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get leftGroup => 'You\'re no longer in this group.';
 
   @override
-  String get onlyAdminsEditInfo => 'Only admins can edit the group name';
+  String get onlyAdminsEditInfo =>
+      'Only admins can edit the group name and photo';
 
   @override
   String get onlyAdminsAdd => 'Only admins can add members';
@@ -773,4 +774,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errAvatarInvalid =>
       'That picture can\'t be used. Try another one.';
+
+  @override
+  String evAvatar(String actor) {
+    return '$actor changed the group photo';
+  }
 }

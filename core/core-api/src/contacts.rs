@@ -17,7 +17,7 @@ const PROFILE_BUCKET: usize = 256;
 const MY_AVATAR: &str = "my_avatar";
 const MY_AVATAR_REF: &str = "my_avatar_ref";
 /// Pictures are small: the app sends a 512 px square.
-const MAX_AVATAR: usize = 1 << 20;
+pub(crate) const MAX_AVATAR: usize = 1 << 20;
 
 /// A contact's picture: their blob ID (16 bytes) followed by the plaintext; empty when none.
 fn avatar_key(account: &[u8]) -> String {
@@ -76,7 +76,7 @@ impl SiegelCore {
                 if img.is_empty() || img.len() > MAX_AVATAR {
                     return Err(CoreError::new("avatar_invalid"));
                 }
-                let (mut a, _) = self.upload(&img).await?;
+                let (mut a, _) = self.upload(&img, false).await?;
                 a.mime_type = "image/png".into();
                 self.put(MY_AVATAR_REF, &a.encode_to_vec())?;
                 self.put(MY_AVATAR, &img)?;

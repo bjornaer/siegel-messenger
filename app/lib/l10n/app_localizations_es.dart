@@ -518,7 +518,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get onlyAdminsEditInfo =>
-      'Solo los admins pueden cambiar el nombre del grupo';
+      'Solo los admins pueden cambiar el nombre y la foto del grupo';
 
   @override
   String get onlyAdminsAdd => 'Solo los admins pueden añadir miembros';
@@ -781,4 +781,9 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errAvatarInvalid =>
       'Esa imagen no se puede usar. Prueba con otra.';
+
+  @override
+  String evAvatar(String actor) {
+    return '$actor cambió la foto del grupo';
+  }
 }

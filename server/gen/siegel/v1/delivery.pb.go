@@ -1207,16 +1207,97 @@ func (*InvitesServiceDeleteResponse) Descriptor() ([]byte, []int) {
 	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{22}
 }
 
+type AttachmentsServiceKeepRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BlobId        []byte                 `protobuf:"bytes,1,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachmentsServiceKeepRequest) Reset() {
+	*x = AttachmentsServiceKeepRequest{}
+	mi := &file_siegel_v1_delivery_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachmentsServiceKeepRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachmentsServiceKeepRequest) ProtoMessage() {}
+
+func (x *AttachmentsServiceKeepRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_delivery_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachmentsServiceKeepRequest.ProtoReflect.Descriptor instead.
+func (*AttachmentsServiceKeepRequest) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AttachmentsServiceKeepRequest) GetBlobId() []byte {
+	if x != nil {
+		return x.BlobId
+	}
+	return nil
+}
+
+type AttachmentsServiceKeepResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachmentsServiceKeepResponse) Reset() {
+	*x = AttachmentsServiceKeepResponse{}
+	mi := &file_siegel_v1_delivery_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachmentsServiceKeepResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachmentsServiceKeepResponse) ProtoMessage() {}
+
+func (x *AttachmentsServiceKeepResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_delivery_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachmentsServiceKeepResponse.ProtoReflect.Descriptor instead.
+func (*AttachmentsServiceKeepResponse) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{24}
+}
+
 type AttachmentsServiceCreateUploadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Size          int64                  `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"` // padded ciphertext size (MED-02)
+	Size          int64                  `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"`           // padded ciphertext size (MED-02)
+	Renewable     bool                   `protobuf:"varint,2,opt,name=renewable,proto3" json:"renewable,omitempty"` // MED-15: a group picture, kept alive with Keep
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AttachmentsServiceCreateUploadRequest) Reset() {
 	*x = AttachmentsServiceCreateUploadRequest{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[23]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1228,7 +1309,7 @@ func (x *AttachmentsServiceCreateUploadRequest) String() string {
 func (*AttachmentsServiceCreateUploadRequest) ProtoMessage() {}
 
 func (x *AttachmentsServiceCreateUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[23]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1241,7 +1322,7 @@ func (x *AttachmentsServiceCreateUploadRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use AttachmentsServiceCreateUploadRequest.ProtoReflect.Descriptor instead.
 func (*AttachmentsServiceCreateUploadRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{23}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AttachmentsServiceCreateUploadRequest) GetSize() int64 {
@@ -1249,6 +1330,13 @@ func (x *AttachmentsServiceCreateUploadRequest) GetSize() int64 {
 		return x.Size
 	}
 	return 0
+}
+
+func (x *AttachmentsServiceCreateUploadRequest) GetRenewable() bool {
+	if x != nil {
+		return x.Renewable
+	}
+	return false
 }
 
 type AttachmentsServiceCreateUploadResponse struct {
@@ -1262,7 +1350,7 @@ type AttachmentsServiceCreateUploadResponse struct {
 
 func (x *AttachmentsServiceCreateUploadResponse) Reset() {
 	*x = AttachmentsServiceCreateUploadResponse{}
-	mi := &file_siegel_v1_delivery_proto_msgTypes[24]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1274,7 +1362,7 @@ func (x *AttachmentsServiceCreateUploadResponse) String() string {
 func (*AttachmentsServiceCreateUploadResponse) ProtoMessage() {}
 
 func (x *AttachmentsServiceCreateUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_delivery_proto_msgTypes[24]
+	mi := &file_siegel_v1_delivery_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1287,7 +1375,7 @@ func (x *AttachmentsServiceCreateUploadResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use AttachmentsServiceCreateUploadResponse.ProtoReflect.Descriptor instead.
 func (*AttachmentsServiceCreateUploadResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{24}
+	return file_siegel_v1_delivery_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *AttachmentsServiceCreateUploadResponse) GetBlobId() []byte {
@@ -1391,9 +1479,13 @@ const file_siegel_v1_delivery_proto_rawDesc = "" +
 	"\x1bInvitesServiceDeleteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12\x1b\n" +
 	"\twrite_key\x18\x02 \x01(\fR\bwriteKey\"\x1e\n" +
-	"\x1cInvitesServiceDeleteResponse\";\n" +
+	"\x1cInvitesServiceDeleteResponse\"8\n" +
+	"\x1dAttachmentsServiceKeepRequest\x12\x17\n" +
+	"\ablob_id\x18\x01 \x01(\fR\x06blobId\" \n" +
+	"\x1eAttachmentsServiceKeepResponse\"Y\n" +
 	"%AttachmentsServiceCreateUploadRequest\x12\x12\n" +
-	"\x04size\x18\x01 \x01(\x03R\x04size\"\x81\x01\n" +
+	"\x04size\x18\x01 \x01(\x03R\x04size\x12\x1c\n" +
+	"\trenewable\x18\x02 \x01(\bR\trenewable\"\x81\x01\n" +
 	"&AttachmentsServiceCreateUploadResponse\x12\x17\n" +
 	"\ablob_id\x18\x01 \x01(\fR\x06blobId\x12\x1f\n" +
 	"\vupload_path\x18\x02 \x01(\tR\n" +
@@ -1412,9 +1504,10 @@ const file_siegel_v1_delivery_proto_rawDesc = "" +
 	"\x0eInvitesService\x12P\n" +
 	"\x03Put\x12#.siegel.v1.InvitesServicePutRequest\x1a$.siegel.v1.InvitesServicePutResponse\x12P\n" +
 	"\x03Get\x12#.siegel.v1.InvitesServiceGetRequest\x1a$.siegel.v1.InvitesServiceGetResponse\x12Y\n" +
-	"\x06Delete\x12&.siegel.v1.InvitesServiceDeleteRequest\x1a'.siegel.v1.InvitesServiceDeleteResponse2\x89\x01\n" +
+	"\x06Delete\x12&.siegel.v1.InvitesServiceDeleteRequest\x1a'.siegel.v1.InvitesServiceDeleteResponse2\xe6\x01\n" +
 	"\x12AttachmentsService\x12s\n" +
-	"\fCreateUpload\x120.siegel.v1.AttachmentsServiceCreateUploadRequest\x1a1.siegel.v1.AttachmentsServiceCreateUploadResponseBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
+	"\fCreateUpload\x120.siegel.v1.AttachmentsServiceCreateUploadRequest\x1a1.siegel.v1.AttachmentsServiceCreateUploadResponse\x12[\n" +
+	"\x04Keep\x12(.siegel.v1.AttachmentsServiceKeepRequest\x1a).siegel.v1.AttachmentsServiceKeepResponseBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
 
 var (
 	file_siegel_v1_delivery_proto_rawDescOnce sync.Once
@@ -1428,7 +1521,7 @@ func file_siegel_v1_delivery_proto_rawDescGZIP() []byte {
 	return file_siegel_v1_delivery_proto_rawDescData
 }
 
-var file_siegel_v1_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_siegel_v1_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_siegel_v1_delivery_proto_goTypes = []any{
 	(*DeviceAddress)(nil),                          // 0: siegel.v1.DeviceAddress
 	(*KeysServiceUploadRequest)(nil),               // 1: siegel.v1.KeysServiceUploadRequest
@@ -1453,8 +1546,10 @@ var file_siegel_v1_delivery_proto_goTypes = []any{
 	(*InvitesServiceGetResponse)(nil),              // 20: siegel.v1.InvitesServiceGetResponse
 	(*InvitesServiceDeleteRequest)(nil),            // 21: siegel.v1.InvitesServiceDeleteRequest
 	(*InvitesServiceDeleteResponse)(nil),           // 22: siegel.v1.InvitesServiceDeleteResponse
-	(*AttachmentsServiceCreateUploadRequest)(nil),  // 23: siegel.v1.AttachmentsServiceCreateUploadRequest
-	(*AttachmentsServiceCreateUploadResponse)(nil), // 24: siegel.v1.AttachmentsServiceCreateUploadResponse
+	(*AttachmentsServiceKeepRequest)(nil),          // 23: siegel.v1.AttachmentsServiceKeepRequest
+	(*AttachmentsServiceKeepResponse)(nil),         // 24: siegel.v1.AttachmentsServiceKeepResponse
+	(*AttachmentsServiceCreateUploadRequest)(nil),  // 25: siegel.v1.AttachmentsServiceCreateUploadRequest
+	(*AttachmentsServiceCreateUploadResponse)(nil), // 26: siegel.v1.AttachmentsServiceCreateUploadResponse
 }
 var file_siegel_v1_delivery_proto_depIdxs = []int32{
 	4,  // 0: siegel.v1.KeysServiceClaimResponse.key_packages:type_name -> siegel.v1.ClaimedKeyPackage
@@ -1477,18 +1572,20 @@ var file_siegel_v1_delivery_proto_depIdxs = []int32{
 	17, // 17: siegel.v1.InvitesService.Put:input_type -> siegel.v1.InvitesServicePutRequest
 	19, // 18: siegel.v1.InvitesService.Get:input_type -> siegel.v1.InvitesServiceGetRequest
 	21, // 19: siegel.v1.InvitesService.Delete:input_type -> siegel.v1.InvitesServiceDeleteRequest
-	23, // 20: siegel.v1.AttachmentsService.CreateUpload:input_type -> siegel.v1.AttachmentsServiceCreateUploadRequest
-	2,  // 21: siegel.v1.KeysService.Upload:output_type -> siegel.v1.KeysServiceUploadResponse
-	5,  // 22: siegel.v1.KeysService.Claim:output_type -> siegel.v1.KeysServiceClaimResponse
-	8,  // 23: siegel.v1.MessagesService.SendSealed:output_type -> siegel.v1.MessagesServiceSendSealedResponse
-	10, // 24: siegel.v1.MessagesService.SendIdentified:output_type -> siegel.v1.MessagesServiceSendIdentifiedResponse
-	12, // 25: siegel.v1.GroupsService.Commit:output_type -> siegel.v1.GroupsServiceCommitResponse
-	18, // 26: siegel.v1.InvitesService.Put:output_type -> siegel.v1.InvitesServicePutResponse
-	20, // 27: siegel.v1.InvitesService.Get:output_type -> siegel.v1.InvitesServiceGetResponse
-	22, // 28: siegel.v1.InvitesService.Delete:output_type -> siegel.v1.InvitesServiceDeleteResponse
-	24, // 29: siegel.v1.AttachmentsService.CreateUpload:output_type -> siegel.v1.AttachmentsServiceCreateUploadResponse
-	21, // [21:30] is the sub-list for method output_type
-	12, // [12:21] is the sub-list for method input_type
+	25, // 20: siegel.v1.AttachmentsService.CreateUpload:input_type -> siegel.v1.AttachmentsServiceCreateUploadRequest
+	23, // 21: siegel.v1.AttachmentsService.Keep:input_type -> siegel.v1.AttachmentsServiceKeepRequest
+	2,  // 22: siegel.v1.KeysService.Upload:output_type -> siegel.v1.KeysServiceUploadResponse
+	5,  // 23: siegel.v1.KeysService.Claim:output_type -> siegel.v1.KeysServiceClaimResponse
+	8,  // 24: siegel.v1.MessagesService.SendSealed:output_type -> siegel.v1.MessagesServiceSendSealedResponse
+	10, // 25: siegel.v1.MessagesService.SendIdentified:output_type -> siegel.v1.MessagesServiceSendIdentifiedResponse
+	12, // 26: siegel.v1.GroupsService.Commit:output_type -> siegel.v1.GroupsServiceCommitResponse
+	18, // 27: siegel.v1.InvitesService.Put:output_type -> siegel.v1.InvitesServicePutResponse
+	20, // 28: siegel.v1.InvitesService.Get:output_type -> siegel.v1.InvitesServiceGetResponse
+	22, // 29: siegel.v1.InvitesService.Delete:output_type -> siegel.v1.InvitesServiceDeleteResponse
+	26, // 30: siegel.v1.AttachmentsService.CreateUpload:output_type -> siegel.v1.AttachmentsServiceCreateUploadResponse
+	24, // 31: siegel.v1.AttachmentsService.Keep:output_type -> siegel.v1.AttachmentsServiceKeepResponse
+	22, // [22:32] is the sub-list for method output_type
+	12, // [12:22] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
 	12, // [12:12] is the sub-list for extension extendee
 	0,  // [0:12] is the sub-list for field type_name
@@ -1509,7 +1606,7 @@ func file_siegel_v1_delivery_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_delivery_proto_rawDesc), len(file_siegel_v1_delivery_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   5,
 		},

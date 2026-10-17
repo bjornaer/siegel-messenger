@@ -22,6 +22,21 @@ pub struct GroupState {
     pub joined: Vec<Account>,
     /// GRP-16: live invite links. Members hold the keys, so every member can check a joiner.
     pub invites: Vec<Invite>,
+    /// MED-15: the group picture, an encrypted blob only members can open.
+    pub avatar: Option<GroupAvatar>,
+}
+
+/// Where the group picture is and how to open it (MED-15).
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupAvatar {
+    pub blob_id: [u8; 16],
+    pub key: [u8; 32],
+    pub sha256: [u8; 32],
+    pub size: u32,
+}
+
+impl GroupAvatar {
+    const LEN: usize = 16 + 32 + 32 + 4;
 }
 
 /// One group invite link (GRP-16): `/g/<id>#<key>`.
@@ -84,11 +99,12 @@ impl Invite {
 pub struct Refused(pub &'static str);
 
 impl GroupState {
-    /// 2 adds invites; version 1 states (before invite links) still decode.
-    const VERSION: u8 = 2;
+    /// 2 adds invites, 3 the picture; older versions still decode. Version 3 is written only
+    /// when there is a picture, so groups without one stay readable by older apps.
+    const VERSION: u8 = 3;
 
     pub fn encode(&self) -> Vec<u8> {
-        let mut b = vec![Self::VERSION];
+        let mut b = vec![if self.avatar.is_some() { 3 } else { 2 }];
         let name = self.name.as_bytes();
         b.extend((name.len() as u16).to_be_bytes());
         b.extend(name);
@@ -104,6 +120,12 @@ impl GroupState {
             b.extend(i.write_key);
             b.extend(i.expires.to_be_bytes());
             b.extend(i.by);
+        }
+        if let Some(a) = &self.avatar {
+            b.extend(a.blob_id);
+            b.extend(a.key);
+            b.extend(a.sha256);
+            b.extend(a.size.to_be_bytes());
         }
         b
     }
@@ -135,6 +157,17 @@ impl GroupState {
                 });
             }
         }
+        let avatar = if version >= 3 {
+            let b = r.take(GroupAvatar::LEN)?;
+            Some(GroupAvatar {
+                blob_id: b[..16].try_into().ok()?,
+                key: b[16..48].try_into().ok()?,
+                sha256: b[48..80].try_into().ok()?,
+                size: u32::from_be_bytes(b[80..84].try_into().ok()?),
+            })
+        } else {
+            None
+        };
         r.0.is_empty().then_some(Self {
             name,
             admins,
@@ -142,6 +175,7 @@ impl GroupState {
             admins_only_add: flags & 2 != 0,
             joined,
             invites,
+            avatar,
         })
     }
 
@@ -241,6 +275,9 @@ impl GroupState {
                 return Err(Refused("name_invalid"));
             }
         }
+        if new.avatar != self.avatar && self.admins_only_info && !admin(committer) {
+            return Err(Refused("avatar_not_allowed"));
+        }
         let roles_changed = new.admins != expected.admins
             || new.admins_only_info != self.admins_only_info
             || new.admins_only_add != self.admins_only_add
@@ -284,6 +321,7 @@ mod tests {
             admins_only_add: true,
             joined: vec![A, B],
             invites: vec![],
+            avatar: None,
         }
     }
 
@@ -292,6 +330,30 @@ mod tests {
         let g = group();
         assert_eq!(GroupState::decode(&g.encode()), Some(g.clone()));
         assert_eq!(GroupState::decode(&[2]), None);
+        assert_eq!(
+            g.encode()[0],
+            2,
+            "no picture: readable by apps that predate pictures"
+        );
+        let pictured = GroupState {
+            avatar: Some(GroupAvatar {
+                blob_id: [7; 16],
+                key: [8; 32],
+                sha256: [9; 32],
+                size: 1234,
+            }),
+            ..g.clone()
+        };
+        assert_eq!(
+            GroupState::decode(&pictured.encode()),
+            Some(pictured.clone())
+        );
+        // MED-15, GRP-06: the picture follows the name rule.
+        assert_eq!(
+            g.check(&B, &[], &[], &[], &pictured),
+            Err(Refused("avatar_not_allowed"))
+        );
+        assert_eq!(g.check(&A, &[], &[], &[], &pictured), Ok(()));
 
         // Admin adds C; member B may not (GRP-05, GRP-06).
         let with_c = g.with_members(&[C], &[]);

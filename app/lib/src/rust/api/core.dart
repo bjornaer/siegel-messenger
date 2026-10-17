@@ -77,6 +77,8 @@ abstract class Core implements RustOpaqueInterface {
     required String text,
   });
 
+  Uint8List? groupAvatar({required List<int> groupId});
+
   GroupInfoView groupInfo({required List<int> groupId});
 
   /// The group's live invite links.
@@ -194,6 +196,9 @@ abstract class Core implements RustOpaqueInterface {
   void setContactLink({required bool enabled});
 
   void setDisplayName({required String name});
+
+  /// MED-15: sets (PNG bytes) or removes (None) the group picture, if the settings allow us.
+  Future<void> setGroupAvatar({required List<int> groupId, Uint8List? image});
 
   Future<void> setGroupSettings({
     required List<int> groupId,
@@ -467,6 +472,7 @@ enum GroupEventKind {
   adminAdded,
   adminRemoved,
   settings,
+  avatar,
 }
 
 class GroupEventView {

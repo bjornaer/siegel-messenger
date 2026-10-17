@@ -112,3 +112,5 @@ CREATE TABLE IF NOT EXISTS attachments (
 
 -- MED-15: the profile's current picture blob; it doesn't expire while it is referenced here.
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_blob bytea;
+-- MED-15: group pictures; members renew them while the group lives.
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS renewable boolean NOT NULL DEFAULT false;

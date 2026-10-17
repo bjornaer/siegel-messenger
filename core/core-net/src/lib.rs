@@ -212,12 +212,34 @@ impl Client {
 
     /// FCM or APNs token for this device; empty clears it (MSG-17).
     /// MED-03: reserves a blob of `size` bytes; returns its ID and one-time upload path.
-    pub async fn create_upload(&self, token: &str, size: u64) -> Result<(Vec<u8>, String), Error> {
-        let req = pb::AttachmentsServiceCreateUploadRequest { size: size as i64 };
+    pub async fn create_upload(
+        &self,
+        token: &str,
+        size: u64,
+        renewable: bool,
+    ) -> Result<(Vec<u8>, String), Error> {
+        let req = pb::AttachmentsServiceCreateUploadRequest {
+            size: size as i64,
+            renewable,
+        };
         let r: pb::AttachmentsServiceCreateUploadResponse = self
             .call("AttachmentsService/CreateUpload", &req, Some(token))
             .await?;
         Ok((r.blob_id, r.upload_path))
+    }
+
+    /// MED-15: keeps a renewable blob (a group picture) for another retention period.
+    pub async fn keep_blob(&self, token: &str, blob_id: &[u8]) -> Result<(), Error> {
+        let req = pb::AttachmentsServiceKeepRequest {
+            blob_id: blob_id.to_vec(),
+        };
+        self.call::<pb::AttachmentsServiceKeepResponse>(
+            "AttachmentsService/Keep",
+            &req,
+            Some(token),
+        )
+        .await
+        .map(|_| ())
     }
 
     pub async fn put_blob(&self, upload_path: &str, blob: Vec<u8>) -> Result<(), Error> {

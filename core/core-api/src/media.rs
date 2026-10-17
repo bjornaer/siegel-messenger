@@ -76,11 +76,15 @@ impl SiegelCore {
 
     /// MED-01..03: encrypts and uploads; returns the reference to put in a message or profile
     /// (blob ID, key, hash, size) and the ciphertext.
-    pub(crate) async fn upload(&self, data: &[u8]) -> Result<(pb::Attachment, Vec<u8>), CoreError> {
+    pub(crate) async fn upload(
+        &self,
+        data: &[u8],
+        renewable: bool,
+    ) -> Result<(pb::Attachment, Vec<u8>), CoreError> {
         let (key, blob) = core_media::encrypt(data);
         let (blob_id, upload) = self
             .net
-            .create_upload(&self.token()?, blob.len() as u64)
+            .create_upload(&self.token()?, blob.len() as u64, renewable)
             .await?;
         let a = pb::Attachment {
             blob_id,
@@ -114,7 +118,7 @@ impl SiegelCore {
             return Err(CoreError::new("attachment_too_large"));
         }
         self.check_can_send(group_id)?;
-        let (uploaded, blob) = self.upload(&a.data).await?;
+        let (uploaded, blob) = self.upload(&a.data, false).await?;
         let content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
             mime_type: a.mime_type,
             file_name: a.file_name,

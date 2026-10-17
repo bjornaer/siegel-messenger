@@ -167,10 +167,20 @@ service AttachmentsService {
   // Reserves a blob and returns a one-time upload URL for it: PUT the ciphertext there, exactly
   // `size` bytes. Downloads are GET /v1/blobs/{hex blob_id} with the device token. Auth: device.
   rpc CreateUpload(AttachmentsServiceCreateUploadRequest) returns (AttachmentsServiceCreateUploadResponse);
+  // MED-15: pushes a renewable blob's expiry forward by the retention period. Members call it
+  // for their group's picture; the server can't tell which group it belongs to. Auth: device.
+  rpc Keep(AttachmentsServiceKeepRequest) returns (AttachmentsServiceKeepResponse);
 }
+
+message AttachmentsServiceKeepRequest {
+  bytes blob_id = 1;
+}
+
+message AttachmentsServiceKeepResponse {}
 
 message AttachmentsServiceCreateUploadRequest {
   int64 size = 1; // padded ciphertext size (MED-02)
+  bool renewable = 2; // MED-15: a group picture, kept alive with Keep
 }
 
 message AttachmentsServiceCreateUploadResponse {

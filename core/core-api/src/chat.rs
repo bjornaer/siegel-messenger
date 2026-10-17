@@ -771,6 +771,10 @@ impl SiegelCore {
             if c.is_group && c.left {
                 let _ = self.repropose_leave(&c.group_id).await;
             }
+            if c.is_group && !c.left {
+                let _ = self.keep_group_avatar(&c.group_id).await;
+                let _ = self.refresh_group_avatar(&c.group_id).await;
+            }
         }
         let mut stream = self.net.stream(&token).await?;
         // Every 5 s while live, busy or not: commit members' pending leave proposals (GRP-10).
@@ -795,7 +799,12 @@ impl SiegelCore {
                     let handled = self.handle(&payload);
                     stream.ack(vec![id]).await?;
                     match handled {
-                        Ok(Some(Handled::Event(e))) => on_event(e),
+                        Ok(Some(Handled::Event(e))) => {
+                            if let Event::Updated { group_id } = &e {
+                                let _ = self.refresh_group_avatar(group_id).await; // MED-15
+                            }
+                            on_event(e)
+                        }
                         Ok(Some(Handled::Deleted {
                             group_id,
                             message_id,
@@ -822,6 +831,7 @@ impl SiegelCore {
                             on_event(Event::Message(m));
                         }
                         Ok(Some(Handled::GroupJoined { group_id, invite })) => {
+                            let _ = self.refresh_group_avatar(&group_id).await;
                             if !invite {
                                 let _ = self.share_profile_key(&group_id).await;
                             }

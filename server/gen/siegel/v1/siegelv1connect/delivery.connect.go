@@ -62,6 +62,8 @@ const (
 	// AttachmentsServiceCreateUploadProcedure is the fully-qualified name of the AttachmentsService's
 	// CreateUpload RPC.
 	AttachmentsServiceCreateUploadProcedure = "/siegel.v1.AttachmentsService/CreateUpload"
+	// AttachmentsServiceKeepProcedure is the fully-qualified name of the AttachmentsService's Keep RPC.
+	AttachmentsServiceKeepProcedure = "/siegel.v1.AttachmentsService/Keep"
 )
 
 // KeysServiceClient is a client for the siegel.v1.KeysService service.
@@ -485,6 +487,9 @@ type AttachmentsServiceClient interface {
 	// Reserves a blob and returns a one-time upload URL for it: PUT the ciphertext there, exactly
 	// `size` bytes. Downloads are GET /v1/blobs/{hex blob_id} with the device token. Auth: device.
 	CreateUpload(context.Context, *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error)
+	// MED-15: pushes a renewable blob's expiry forward by the retention period. Members call it
+	// for their group's picture; the server can't tell which group it belongs to. Auth: device.
+	Keep(context.Context, *connect.Request[v1.AttachmentsServiceKeepRequest]) (*connect.Response[v1.AttachmentsServiceKeepResponse], error)
 }
 
 // NewAttachmentsServiceClient constructs a client for the siegel.v1.AttachmentsService service. By
@@ -504,12 +509,19 @@ func NewAttachmentsServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(attachmentsServiceMethods.ByName("CreateUpload")),
 			connect.WithClientOptions(opts...),
 		),
+		keep: connect.NewClient[v1.AttachmentsServiceKeepRequest, v1.AttachmentsServiceKeepResponse](
+			httpClient,
+			baseURL+AttachmentsServiceKeepProcedure,
+			connect.WithSchema(attachmentsServiceMethods.ByName("Keep")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // attachmentsServiceClient implements AttachmentsServiceClient.
 type attachmentsServiceClient struct {
 	createUpload *connect.Client[v1.AttachmentsServiceCreateUploadRequest, v1.AttachmentsServiceCreateUploadResponse]
+	keep         *connect.Client[v1.AttachmentsServiceKeepRequest, v1.AttachmentsServiceKeepResponse]
 }
 
 // CreateUpload calls siegel.v1.AttachmentsService.CreateUpload.
@@ -517,11 +529,19 @@ func (c *attachmentsServiceClient) CreateUpload(ctx context.Context, req *connec
 	return c.createUpload.CallUnary(ctx, req)
 }
 
+// Keep calls siegel.v1.AttachmentsService.Keep.
+func (c *attachmentsServiceClient) Keep(ctx context.Context, req *connect.Request[v1.AttachmentsServiceKeepRequest]) (*connect.Response[v1.AttachmentsServiceKeepResponse], error) {
+	return c.keep.CallUnary(ctx, req)
+}
+
 // AttachmentsServiceHandler is an implementation of the siegel.v1.AttachmentsService service.
 type AttachmentsServiceHandler interface {
 	// Reserves a blob and returns a one-time upload URL for it: PUT the ciphertext there, exactly
 	// `size` bytes. Downloads are GET /v1/blobs/{hex blob_id} with the device token. Auth: device.
 	CreateUpload(context.Context, *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error)
+	// MED-15: pushes a renewable blob's expiry forward by the retention period. Members call it
+	// for their group's picture; the server can't tell which group it belongs to. Auth: device.
+	Keep(context.Context, *connect.Request[v1.AttachmentsServiceKeepRequest]) (*connect.Response[v1.AttachmentsServiceKeepResponse], error)
 }
 
 // NewAttachmentsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -537,10 +557,18 @@ func NewAttachmentsServiceHandler(svc AttachmentsServiceHandler, opts ...connect
 		connect.WithSchema(attachmentsServiceMethods.ByName("CreateUpload")),
 		connect.WithHandlerOptions(opts...),
 	)
+	attachmentsServiceKeepHandler := connect.NewUnaryHandler(
+		AttachmentsServiceKeepProcedure,
+		svc.Keep,
+		connect.WithSchema(attachmentsServiceMethods.ByName("Keep")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.AttachmentsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AttachmentsServiceCreateUploadProcedure:
 			attachmentsServiceCreateUploadHandler.ServeHTTP(w, r)
+		case AttachmentsServiceKeepProcedure:
+			attachmentsServiceKeepHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -552,4 +580,8 @@ type UnimplementedAttachmentsServiceHandler struct{}
 
 func (UnimplementedAttachmentsServiceHandler) CreateUpload(context.Context, *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AttachmentsService.CreateUpload is not implemented"))
+}
+
+func (UnimplementedAttachmentsServiceHandler) Keep(context.Context, *connect.Request[v1.AttachmentsServiceKeepRequest]) (*connect.Response[v1.AttachmentsServiceKeepResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AttachmentsService.Keep is not implemented"))
 }

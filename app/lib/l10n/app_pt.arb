@@ -144,7 +144,7 @@
   "leaveGroup": "Sair do grupo",
   "leaveGroupBody": "Você não vai receber novas mensagens deste grupo. A conversa fica neste celular.",
   "leftGroup": "Você não está mais neste grupo.",
-  "onlyAdminsEditInfo": "Só admins podem mudar o nome do grupo",
+  "onlyAdminsEditInfo": "Só admins podem mudar o nome e a foto do grupo",
   "onlyAdminsAdd": "Só admins podem adicionar membros",
   "rename": "Renomear",
   "isTyping": "{name} está digitando…",
@@ -217,5 +217,6 @@
   "profilePhoto": "Foto do perfil",
   "choosePhoto": "Escolher uma foto",
   "removePhoto": "Remover foto",
-  "errAvatarInvalid": "Essa imagem não pode ser usada. Tente outra."
+  "errAvatarInvalid": "Essa imagem não pode ser usada. Tente outra.",
+  "evAvatar": "{actor} mudou a foto do grupo"
 }

@@ -45,6 +45,7 @@ message GroupEvent {
     KIND_ADMIN_ADDED = 6;
     KIND_ADMIN_REMOVED = 7;
     KIND_SETTINGS = 8;
+    KIND_AVATAR = 9; // MED-15: the group picture changed or was removed
   }
   Kind kind = 1;
   bytes actor = 2;              // account that made the change; empty when unknown

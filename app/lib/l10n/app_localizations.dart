@@ -969,7 +969,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlyAdminsEditInfo.
   ///
   /// In en, this message translates to:
-  /// **'Only admins can edit the group name'**
+  /// **'Only admins can edit the group name and photo'**
   String get onlyAdminsEditInfo;
 
   /// No description provided for @onlyAdminsAdd.
@@ -1409,6 +1409,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That picture can\'t be used. Try another one.'**
   String get errAvatarInvalid;
+
+  /// No description provided for @evAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} changed the group photo'**
+  String evAvatar(String actor);
 }
 
 class _AppLocalizationsDelegate

@@ -49,8 +49,8 @@ func (s attachments) CreateUpload(ctx context.Context, req *connect.Request[sieg
 	rand.Read(token)
 	h := sha256.Sum256(token)
 	exp := time.Now().Add(s.cfg.blobLife)
-	if _, err := s.db.Exec(ctx, `INSERT INTO attachments (blob_id, size, upload_hash, expires_at) VALUES ($1, $2, $3, $4)`,
-		id, size, h[:], exp); err != nil {
+	if _, err := s.db.Exec(ctx, `INSERT INTO attachments (blob_id, size, upload_hash, expires_at, renewable) VALUES ($1, $2, $3, $4, $5)`,
+		id, size, h[:], exp, req.Msg.Renewable); err != nil {
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&siegelv1.AttachmentsServiceCreateUploadResponse{
@@ -58,6 +58,15 @@ func (s attachments) CreateUpload(ctx context.Context, req *connect.Request[sieg
 		UploadPath: "/v1/blobs/" + hex.EncodeToString(id) + "?t=" + base64.RawURLEncoding.EncodeToString(token),
 		ExpiresAt:  exp.Unix(),
 	}), nil
+}
+
+func (s attachments) Keep(ctx context.Context, req *connect.Request[siegelv1.AttachmentsServiceKeepRequest]) (*connect.Response[siegelv1.AttachmentsServiceKeepResponse], error) {
+	if _, err := s.db.Exec(ctx, `UPDATE attachments SET expires_at = $2
+		WHERE blob_id = $1 AND renewable AND upload_hash IS NULL AND expires_at > now() AND expires_at < $2`,
+		req.Msg.BlobId, time.Now().Add(s.cfg.blobLife)); err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&siegelv1.AttachmentsServiceKeepResponse{}), nil
 }
 
 // putBlob takes the ciphertext for a reserved blob, once (MED-03). The token in the URL is the

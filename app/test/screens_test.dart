@@ -291,6 +291,17 @@ class FakeCore implements Core {
   @override
   Future<void> announceProfile() async => calls.add('announceProfile');
 
+  final groupAvatars = <String, Uint8List>{};
+
+  @override
+  Future<void> setGroupAvatar({required List<int> groupId, Uint8List? image}) async {
+    calls.add(image == null ? 'removeGroupAvatar' : 'setGroupAvatar');
+    image == null ? groupAvatars.remove(base64Encode(groupId)) : groupAvatars[base64Encode(groupId)] = image;
+  }
+
+  @override
+  Uint8List? groupAvatar({required List<int> groupId}) => groupAvatars[base64Encode(groupId)];
+
   /// Rewrites one stored message, like the core does for receipts and changes.
   void _update(List<int> id, MessageView Function(MessageView) f) {
     for (final list in history.values) {
@@ -941,6 +952,13 @@ void main() {
       findsOneWidget,
       reason: "bob's photo in the chat list",
     );
+
+    // A group's photo shows in the list too (MED-15).
+    final group = await core.createGroup(name: 'Climbers', usernames: ['bob']);
+    core.groupAvatars[base64Encode(group)] = png;
+    service.refresh();
+    await t.pumpAndSettle();
+    expect(find.byWidgetPredicate((w) => w is CircleAvatar && w.backgroundImage != null), findsNWidgets(2));
 
     await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
     await t.pumpAndSettle();

@@ -40,6 +40,7 @@ String groupEventText(AppLocalizations t, Core core, GroupEventView e, List<int>
     GroupEventKind.adminAdded => t.evAdminAdded(actor, targets),
     GroupEventKind.adminRemoved => t.evAdminRemoved(actor, targets),
     GroupEventKind.settings => t.evSettings(actor),
+    GroupEventKind.avatar => t.evAvatar(actor),
   };
 }
 
@@ -302,7 +303,11 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
           body: ListView(
             children: [
               const SizedBox(height: 16),
-              const Center(child: CircleAvatar(radius: 40, child: Icon(Icons.group_outlined, size: 40))),
+              Center(
+                child: canEdit
+                    ? AvatarEditor(core: core, groupId: widget.groupId, onChanged: widget.service.refresh)
+                    : Avatar(core: core, groupId: widget.groupId, radius: 40),
+              ),
               const SizedBox(height: 12),
               Text(
                 g?.name ?? chat?.groupName ?? t.group,

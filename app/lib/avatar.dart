@@ -26,21 +26,26 @@ ImageProvider? _image(String key, Uint8List? bytes) {
   return img;
 }
 
-/// MED-15: someone's picture, or ours when [account] is null; an icon when there is none.
+/// MED-15: a group's picture ([groupId]), someone's ([account]) or ours (neither); an icon
+/// when there is none.
 class Avatar extends StatelessWidget {
-  const Avatar({super.key, required this.core, this.account, this.radius = 20, this.icon = Icons.person_outline});
+  const Avatar({super.key, required this.core, this.account, this.groupId, this.radius = 20, this.icon});
 
   final Core core;
   final List<int>? account;
+  final List<int>? groupId;
   final double radius;
-  final IconData icon;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    final a = account;
-    final img = a == null
+    final (a, g) = (account, groupId);
+    final img = g != null
+        ? _image('g${g.join(',')}', core.groupAvatar(groupId: Uint8List.fromList(g)))
+        : a == null
         ? _image('', core.myAvatar())
         : _image(a.join(','), core.avatar(account: Uint8List.fromList(a)));
+    final icon = this.icon ?? (g != null ? Icons.group_outlined : Icons.person_outline);
     return CircleAvatar(
       radius: radius,
       backgroundImage: img,
@@ -66,11 +71,14 @@ Future<Uint8List> squarePng(Uint8List bytes, {int size = 384}) async {
   return (await out.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
 }
 
-/// Our picture with a camera badge: tap to choose a photo, or to remove the current one.
+/// Our picture, or a group's ([groupId]), with a camera badge: tap to choose a photo, or to
+/// remove the current one.
 class AvatarEditor extends StatefulWidget {
-  const AvatarEditor({super.key, required this.core, this.radius = 40});
+  const AvatarEditor({super.key, required this.core, this.groupId, this.radius = 40, this.onChanged});
 
   final Core core;
+  final VoidCallback? onChanged;
+  final Uint8List? groupId;
   final double radius;
 
   @override
@@ -83,7 +91,9 @@ class _AvatarEditorState extends State<AvatarEditor> {
   Future<void> _set(Uint8List? png) async {
     setState(() => _busy = true);
     try {
-      await widget.core.setAvatar(image: png);
+      final g = widget.groupId;
+      g == null ? await widget.core.setAvatar(image: png) : await widget.core.setGroupAvatar(groupId: g, image: png);
+      widget.onChanged?.call();
     } on CoreError catch (e) {
       if (mounted) showError(context, e);
     } finally {
@@ -93,7 +103,8 @@ class _AvatarEditorState extends State<AvatarEditor> {
 
   Future<void> _choose() async {
     final t = AppLocalizations.of(context)!;
-    final has = widget.core.myAvatar() != null;
+    final g = widget.groupId;
+    final has = (g == null ? widget.core.myAvatar() : widget.core.groupAvatar(groupId: g)) != null;
     final remove = has
         ? await showModalBottomSheet<bool>(
             context: context,
@@ -134,7 +145,7 @@ class _AvatarEditorState extends State<AvatarEditor> {
         onTap: _busy ? null : _choose,
         child: Stack(
           children: [
-            Avatar(core: widget.core, radius: widget.radius),
+            Avatar(core: widget.core, groupId: widget.groupId, radius: widget.radius),
             if (_busy) Positioned.fill(child: CircularProgressIndicator(strokeWidth: 2)),
             Positioned(
               right: 0,

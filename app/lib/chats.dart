@@ -154,9 +154,7 @@ String _preview(AppLocalizations t, Core core, ChatSummary c) {
 Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSummary c) {
   final t = AppLocalizations.of(context)!;
   return ListTile(
-    leading: c.isGroup
-        ? const CircleAvatar(child: Icon(Icons.group_outlined))
-        : Avatar(core: core, account: c.peerAccount),
+    leading: c.isGroup ? Avatar(core: core, groupId: c.groupId) : Avatar(core: core, account: c.peerAccount),
     title: Text(chatTitle(t, c)),
     subtitle: c.last == null ? null : Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis),
     trailing: c.last == null ? null : Text(_time(context, c.last!.sentAt)),
@@ -787,8 +785,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   Avatar(
                     core: core,
                     account: c.isGroup ? null : c.peerAccount,
+                    groupId: c.isGroup ? c.groupId : null,
                     radius: 18,
-                    icon: c.isGroup ? Icons.group_outlined : Icons.person_outline,
                   ),
                   const SizedBox(width: 12),
                   Flexible(

@@ -33,6 +33,7 @@ const (
 	GroupEvent_KIND_ADMIN_ADDED   GroupEvent_Kind = 6
 	GroupEvent_KIND_ADMIN_REMOVED GroupEvent_Kind = 7
 	GroupEvent_KIND_SETTINGS      GroupEvent_Kind = 8
+	GroupEvent_KIND_AVATAR        GroupEvent_Kind = 9 // MED-15: the group picture changed or was removed
 )
 
 // Enum value maps for GroupEvent_Kind.
@@ -47,6 +48,7 @@ var (
 		6: "KIND_ADMIN_ADDED",
 		7: "KIND_ADMIN_REMOVED",
 		8: "KIND_SETTINGS",
+		9: "KIND_AVATAR",
 	}
 	GroupEvent_Kind_value = map[string]int32{
 		"KIND_UNSPECIFIED":   0,
@@ -58,6 +60,7 @@ var (
 		"KIND_ADMIN_ADDED":   6,
 		"KIND_ADMIN_REMOVED": 7,
 		"KIND_SETTINGS":      8,
+		"KIND_AVATAR":        9,
 	}
 )
 
@@ -1121,13 +1124,13 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"attachmentB\x06\n" +
 	"\x04body\"*\n" +
 	"\x10ContactLinkProof\x12\x16\n" +
-	"\x06secret\x18\x01 \x01(\fR\x06secret\"\xb5\x02\n" +
+	"\x06secret\x18\x01 \x01(\fR\x06secret\"\xc6\x02\n" +
 	"\n" +
 	"GroupEvent\x12.\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1a.siegel.v1.GroupEvent.KindR\x04kind\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\fR\x05actor\x12\x18\n" +
 	"\atargets\x18\x03 \x03(\fR\atargets\x12\x12\n" +
-	"\x04name\x18\x04 \x01(\tR\x04name\"\xb2\x01\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"\xc3\x01\n" +
 	"\x04Kind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fKIND_CREATED\x10\x01\x12\x0e\n" +
@@ -1138,7 +1141,8 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\fKIND_RENAMED\x10\x05\x12\x14\n" +
 	"\x10KIND_ADMIN_ADDED\x10\x06\x12\x16\n" +
 	"\x12KIND_ADMIN_REMOVED\x10\a\x12\x11\n" +
-	"\rKIND_SETTINGS\x10\b\"\v\n" +
+	"\rKIND_SETTINGS\x10\b\x12\x0f\n" +
+	"\vKIND_AVATAR\x10\t\"\v\n" +
 	"\tKeyChange\"3\n" +
 	"\x10ProfileKeyUpdate\x12\x1f\n" +
 	"\vprofile_key\x18\x01 \x01(\fR\n" +

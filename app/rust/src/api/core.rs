@@ -247,6 +247,7 @@ pub enum GroupEventKind {
     AdminAdded,
     AdminRemoved,
     Settings,
+    Avatar,
 }
 
 pub struct GroupEventView {
@@ -364,6 +365,7 @@ impl From<core_api::ChatMessage> for MessageView {
                         K::AdminAdded => GroupEventKind::AdminAdded,
                         K::AdminRemoved => GroupEventKind::AdminRemoved,
                         K::Settings => GroupEventKind::Settings,
+                        K::Avatar => GroupEventKind::Avatar,
                     },
                     actor: e.actor,
                     targets: e.targets,
@@ -657,6 +659,20 @@ impl Core {
     #[frb(sync)]
     pub fn avatar(&self, account: Vec<u8>) -> Option<Vec<u8>> {
         self.0.avatar(&account)
+    }
+
+    /// MED-15: sets (PNG bytes) or removes (None) the group picture, if the settings allow us.
+    pub async fn set_group_avatar(
+        &self,
+        group_id: Vec<u8>,
+        image: Option<Vec<u8>>,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.set_group_avatar(&group_id, image).await?)
+    }
+
+    #[frb(sync)]
+    pub fn group_avatar(&self, group_id: Vec<u8>) -> Option<Vec<u8>> {
+        self.0.group_avatar(&group_id)
     }
 
     /// Sends our current name and picture to every chat (after editing the profile).

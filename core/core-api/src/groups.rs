@@ -47,6 +47,8 @@ pub enum GroupEventKind {
     AdminAdded,
     AdminRemoved,
     Settings,
+    /// MED-15: the group picture changed or was removed.
+    Avatar,
 }
 
 /// A system line in a group chat.
@@ -71,6 +73,7 @@ pub(crate) fn group_event(e: pb::GroupEvent) -> Option<GroupEvent> {
         K::AdminAdded => GroupEventKind::AdminAdded,
         K::AdminRemoved => GroupEventKind::AdminRemoved,
         K::Settings => GroupEventKind::Settings,
+        K::Avatar => GroupEventKind::Avatar,
         K::Unspecified => return None,
     };
     Some(GroupEvent {
@@ -79,6 +82,11 @@ pub(crate) fn group_event(e: pb::GroupEvent) -> Option<GroupEvent> {
         targets: e.targets,
         name: e.name,
     })
+}
+
+fn group_avatar_key(conv: &[u8]) -> String {
+    let hex: String = conv.iter().map(|b| format!("{b:02x}")).collect();
+    format!("group_avatar:{hex}")
 }
 
 /// Stores one system line in the chat (GRP-12).
@@ -130,6 +138,9 @@ pub(crate) fn record_change(s: &SqlCipher, conv: &[u8], ch: &Change) -> Result<(
     }
     if ch.new.name != ch.old.name {
         system_line(s, conv, K::Renamed, by, &[], &ch.new.name)?;
+    }
+    if ch.new.avatar != ch.old.avatar {
+        system_line(s, conv, K::Avatar, by, &[], "")?;
     }
     let (was, is) = (ch.old.effective_admins(), ch.new.effective_admins());
     let promoted: Vec<Account> = is.iter().filter(|a| !was.contains(a)).copied().collect();
@@ -517,6 +528,99 @@ impl SiegelCore {
             ..s
         })
         .await
+    }
+
+    /// MED-15, GRP-06: sets (PNG bytes) or removes (None) the group picture, if the settings
+    /// allow us. The picture is uploaded renewable: members keep it alive (`keep_group_avatar`).
+    pub async fn set_group_avatar(
+        &self,
+        conv: &[u8],
+        image: Option<Vec<u8>>,
+    ) -> Result<(), CoreError> {
+        let avatar = match &image {
+            Some(img) => {
+                if img.is_empty() || img.len() > crate::contacts::MAX_AVATAR {
+                    return Err(CoreError::new("avatar_invalid"));
+                }
+                let (a, _) = self.upload(img, true).await?;
+                let bad = |_| CoreError::new("bad_response");
+                Some(core_crypto::groups::GroupAvatar {
+                    blob_id: a.blob_id.try_into().map_err(bad)?,
+                    key: a.key.try_into().map_err(bad)?,
+                    sha256: a.sha256.try_into().map_err(bad)?,
+                    size: img.len() as u32,
+                })
+            }
+            None => None,
+        };
+        self.group_commit(conv, &[], &[], |s| GroupState {
+            avatar: avatar.clone(),
+            ..s
+        })
+        .await?;
+        let cached = match (&avatar, image) {
+            (Some(a), Some(img)) => [a.blob_id.as_slice(), &img].concat(),
+            _ => vec![],
+        };
+        self.put(&group_avatar_key(conv), &cached)
+    }
+
+    /// The group picture, once fetched.
+    pub fn group_avatar(&self, conv: &[u8]) -> Option<Vec<u8>> {
+        let v = self.get(&group_avatar_key(conv)).ok().flatten()?;
+        (v.len() > 16).then(|| v[16..].to_vec())
+    }
+
+    fn group_state(&self, conv: &[u8]) -> Result<GroupState, CoreError> {
+        let c = self.group_conversation(conv)?;
+        self.with_mls(|m, _| {
+            m.state(&c.mls_group)
+                .map_err(mls_err)?
+                .ok_or(CoreError::new("not_a_group"))
+        })
+    }
+
+    /// Downloads the group picture when the group state points at a new one.
+    pub(crate) async fn refresh_group_avatar(&self, conv: &[u8]) -> Result<(), CoreError> {
+        let st = self.group_state(conv)?;
+        let key = group_avatar_key(conv);
+        let cached = self.get(&key)?.unwrap_or_default();
+        let Some(a) = st.avatar else {
+            if !cached.is_empty() {
+                self.put(&key, b"")?;
+            }
+            return Ok(());
+        };
+        if cached.get(..16) == Some(&a.blob_id[..]) {
+            return Ok(());
+        }
+        let r = pb::Attachment {
+            blob_id: a.blob_id.to_vec(),
+            sha256: a.sha256.to_vec(),
+            ..Default::default()
+        };
+        let blob = self.download(&r).await?;
+        let img = core_media::decrypt(&a.key, &blob, a.size as usize)
+            .ok_or(CoreError::new("attachment_corrupt"))?;
+        self.put(&key, &[&a.blob_id[..], &img].concat())
+    }
+
+    /// MED-15: renews the group picture on the server, at most once a day per group.
+    pub(crate) async fn keep_group_avatar(&self, conv: &[u8]) -> Result<(), CoreError> {
+        let Some(a) = self.group_state(conv)?.avatar else {
+            return Ok(());
+        };
+        let kept_key = format!("{}_kept", group_avatar_key(conv));
+        let now = now_ms() / 1000;
+        let last = self
+            .get(&kept_key)?
+            .and_then(|b| <[u8; 8]>::try_from(b.as_slice()).ok())
+            .map_or(0, i64::from_be_bytes);
+        if now - last < 24 * 3600 {
+            return Ok(());
+        }
+        self.net.keep_blob(&self.token()?, &a.blob_id).await?;
+        self.put(&kept_key, &now.to_be_bytes())
     }
 
     /// GRP-06: who may edit name and avatar, and who may add members.
