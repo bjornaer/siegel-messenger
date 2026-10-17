@@ -49,7 +49,8 @@ flutter_launcher_icons:
   image_path: assets/icon/icon.png
   android: true
   min_sdk_android: 28
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/icon/icon.png
+  adaptive_icon_background: "#294D37" # the logo's forest green
+  adaptive_icon_foreground: assets/icon/foreground.png
+  adaptive_icon_monochrome: assets/icon/monochrome.png # Android 13+ themed icons
   ios: true
   remove_alpha_ios: true
