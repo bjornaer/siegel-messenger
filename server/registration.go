@@ -34,6 +34,7 @@ type server struct {
 	sendPush  func(ctx context.Context, platform siegelv1.Platform, token string) error
 	pushes    pushes
 	blobs     blobStore
+	disc      discKeys
 
 	fetchASPublic func(ctx context.Context) ([]byte, error)
 	asMu          sync.Mutex

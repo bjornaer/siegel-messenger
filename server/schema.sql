@@ -114,3 +114,10 @@ CREATE TABLE IF NOT EXISTS attachments (
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_blob bytea;
 -- MED-15: group pictures; members renew them while the group lives.
 ALTER TABLE attachments ADD COLUMN IF NOT EXISTS renewable boolean NOT NULL DEFAULT false;
+
+-- DISC-03: accounts that opted in to phone-number discovery. y = m·H(number), keyed like the
+-- HMAC (ID-05); never the number.
+CREATE TABLE IF NOT EXISTS discovery (
+  account_id uuid PRIMARY KEY REFERENCES accounts ON DELETE CASCADE,
+  y          bytea NOT NULL
+);

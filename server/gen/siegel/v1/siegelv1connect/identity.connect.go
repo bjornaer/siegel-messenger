@@ -29,6 +29,8 @@ const (
 	AccountServiceName = "siegel.v1.AccountService"
 	// ProfileServiceName is the fully-qualified name of the ProfileService service.
 	ProfileServiceName = "siegel.v1.ProfileService"
+	// DiscoveryServiceName is the fully-qualified name of the DiscoveryService service.
+	DiscoveryServiceName = "siegel.v1.DiscoveryService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -64,6 +66,18 @@ const (
 	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
 	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
 	ProfileServiceGetProcedure = "/siegel.v1.ProfileService/Get"
+	// DiscoveryServiceSetDiscoverableProcedure is the fully-qualified name of the DiscoveryService's
+	// SetDiscoverable RPC.
+	DiscoveryServiceSetDiscoverableProcedure = "/siegel.v1.DiscoveryService/SetDiscoverable"
+	// DiscoveryServiceGetDiscoverableProcedure is the fully-qualified name of the DiscoveryService's
+	// GetDiscoverable RPC.
+	DiscoveryServiceGetDiscoverableProcedure = "/siegel.v1.DiscoveryService/GetDiscoverable"
+	// DiscoveryServiceEvaluateProcedure is the fully-qualified name of the DiscoveryService's Evaluate
+	// RPC.
+	DiscoveryServiceEvaluateProcedure = "/siegel.v1.DiscoveryService/Evaluate"
+	// DiscoveryServiceBucketsProcedure is the fully-qualified name of the DiscoveryService's Buckets
+	// RPC.
+	DiscoveryServiceBucketsProcedure = "/siegel.v1.DiscoveryService/Buckets"
 )
 
 // RegistrationServiceClient is a client for the siegel.v1.RegistrationService service.
@@ -526,4 +540,160 @@ func (UnimplementedProfileServiceHandler) Set(context.Context, *connect.Request[
 
 func (UnimplementedProfileServiceHandler) Get(context.Context, *connect.Request[v1.ProfileServiceGetRequest]) (*connect.Response[v1.ProfileServiceGetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.ProfileService.Get is not implemented"))
+}
+
+// DiscoveryServiceClient is a client for the siegel.v1.DiscoveryService service.
+type DiscoveryServiceClient interface {
+	// DISC-03: turns "find me by my number" on (with our own number, checked against the
+	// account) or off (empty). Auth: device.
+	SetDiscoverable(context.Context, *connect.Request[v1.DiscoveryServiceSetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceSetDiscoverableResponse], error)
+	GetDiscoverable(context.Context, *connect.Request[v1.DiscoveryServiceGetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceGetDiscoverableResponse], error)
+	// DISC-05.3: the OPRF on blinded points. Rate-limited (DISC-06). Auth: device.
+	Evaluate(context.Context, *connect.Request[v1.DiscoveryServiceEvaluateRequest]) (*connect.Response[v1.DiscoveryServiceEvaluateResponse], error)
+	// DISC-05.5: whole buckets of encrypted directory entries. Auth: device.
+	Buckets(context.Context, *connect.Request[v1.DiscoveryServiceBucketsRequest]) (*connect.Response[v1.DiscoveryServiceBucketsResponse], error)
+}
+
+// NewDiscoveryServiceClient constructs a client for the siegel.v1.DiscoveryService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) DiscoveryServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	discoveryServiceMethods := v1.File_siegel_v1_identity_proto.Services().ByName("DiscoveryService").Methods()
+	return &discoveryServiceClient{
+		setDiscoverable: connect.NewClient[v1.DiscoveryServiceSetDiscoverableRequest, v1.DiscoveryServiceSetDiscoverableResponse](
+			httpClient,
+			baseURL+DiscoveryServiceSetDiscoverableProcedure,
+			connect.WithSchema(discoveryServiceMethods.ByName("SetDiscoverable")),
+			connect.WithClientOptions(opts...),
+		),
+		getDiscoverable: connect.NewClient[v1.DiscoveryServiceGetDiscoverableRequest, v1.DiscoveryServiceGetDiscoverableResponse](
+			httpClient,
+			baseURL+DiscoveryServiceGetDiscoverableProcedure,
+			connect.WithSchema(discoveryServiceMethods.ByName("GetDiscoverable")),
+			connect.WithClientOptions(opts...),
+		),
+		evaluate: connect.NewClient[v1.DiscoveryServiceEvaluateRequest, v1.DiscoveryServiceEvaluateResponse](
+			httpClient,
+			baseURL+DiscoveryServiceEvaluateProcedure,
+			connect.WithSchema(discoveryServiceMethods.ByName("Evaluate")),
+			connect.WithClientOptions(opts...),
+		),
+		buckets: connect.NewClient[v1.DiscoveryServiceBucketsRequest, v1.DiscoveryServiceBucketsResponse](
+			httpClient,
+			baseURL+DiscoveryServiceBucketsProcedure,
+			connect.WithSchema(discoveryServiceMethods.ByName("Buckets")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// discoveryServiceClient implements DiscoveryServiceClient.
+type discoveryServiceClient struct {
+	setDiscoverable *connect.Client[v1.DiscoveryServiceSetDiscoverableRequest, v1.DiscoveryServiceSetDiscoverableResponse]
+	getDiscoverable *connect.Client[v1.DiscoveryServiceGetDiscoverableRequest, v1.DiscoveryServiceGetDiscoverableResponse]
+	evaluate        *connect.Client[v1.DiscoveryServiceEvaluateRequest, v1.DiscoveryServiceEvaluateResponse]
+	buckets         *connect.Client[v1.DiscoveryServiceBucketsRequest, v1.DiscoveryServiceBucketsResponse]
+}
+
+// SetDiscoverable calls siegel.v1.DiscoveryService.SetDiscoverable.
+func (c *discoveryServiceClient) SetDiscoverable(ctx context.Context, req *connect.Request[v1.DiscoveryServiceSetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceSetDiscoverableResponse], error) {
+	return c.setDiscoverable.CallUnary(ctx, req)
+}
+
+// GetDiscoverable calls siegel.v1.DiscoveryService.GetDiscoverable.
+func (c *discoveryServiceClient) GetDiscoverable(ctx context.Context, req *connect.Request[v1.DiscoveryServiceGetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceGetDiscoverableResponse], error) {
+	return c.getDiscoverable.CallUnary(ctx, req)
+}
+
+// Evaluate calls siegel.v1.DiscoveryService.Evaluate.
+func (c *discoveryServiceClient) Evaluate(ctx context.Context, req *connect.Request[v1.DiscoveryServiceEvaluateRequest]) (*connect.Response[v1.DiscoveryServiceEvaluateResponse], error) {
+	return c.evaluate.CallUnary(ctx, req)
+}
+
+// Buckets calls siegel.v1.DiscoveryService.Buckets.
+func (c *discoveryServiceClient) Buckets(ctx context.Context, req *connect.Request[v1.DiscoveryServiceBucketsRequest]) (*connect.Response[v1.DiscoveryServiceBucketsResponse], error) {
+	return c.buckets.CallUnary(ctx, req)
+}
+
+// DiscoveryServiceHandler is an implementation of the siegel.v1.DiscoveryService service.
+type DiscoveryServiceHandler interface {
+	// DISC-03: turns "find me by my number" on (with our own number, checked against the
+	// account) or off (empty). Auth: device.
+	SetDiscoverable(context.Context, *connect.Request[v1.DiscoveryServiceSetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceSetDiscoverableResponse], error)
+	GetDiscoverable(context.Context, *connect.Request[v1.DiscoveryServiceGetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceGetDiscoverableResponse], error)
+	// DISC-05.3: the OPRF on blinded points. Rate-limited (DISC-06). Auth: device.
+	Evaluate(context.Context, *connect.Request[v1.DiscoveryServiceEvaluateRequest]) (*connect.Response[v1.DiscoveryServiceEvaluateResponse], error)
+	// DISC-05.5: whole buckets of encrypted directory entries. Auth: device.
+	Buckets(context.Context, *connect.Request[v1.DiscoveryServiceBucketsRequest]) (*connect.Response[v1.DiscoveryServiceBucketsResponse], error)
+}
+
+// NewDiscoveryServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewDiscoveryServiceHandler(svc DiscoveryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	discoveryServiceMethods := v1.File_siegel_v1_identity_proto.Services().ByName("DiscoveryService").Methods()
+	discoveryServiceSetDiscoverableHandler := connect.NewUnaryHandler(
+		DiscoveryServiceSetDiscoverableProcedure,
+		svc.SetDiscoverable,
+		connect.WithSchema(discoveryServiceMethods.ByName("SetDiscoverable")),
+		connect.WithHandlerOptions(opts...),
+	)
+	discoveryServiceGetDiscoverableHandler := connect.NewUnaryHandler(
+		DiscoveryServiceGetDiscoverableProcedure,
+		svc.GetDiscoverable,
+		connect.WithSchema(discoveryServiceMethods.ByName("GetDiscoverable")),
+		connect.WithHandlerOptions(opts...),
+	)
+	discoveryServiceEvaluateHandler := connect.NewUnaryHandler(
+		DiscoveryServiceEvaluateProcedure,
+		svc.Evaluate,
+		connect.WithSchema(discoveryServiceMethods.ByName("Evaluate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	discoveryServiceBucketsHandler := connect.NewUnaryHandler(
+		DiscoveryServiceBucketsProcedure,
+		svc.Buckets,
+		connect.WithSchema(discoveryServiceMethods.ByName("Buckets")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/siegel.v1.DiscoveryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case DiscoveryServiceSetDiscoverableProcedure:
+			discoveryServiceSetDiscoverableHandler.ServeHTTP(w, r)
+		case DiscoveryServiceGetDiscoverableProcedure:
+			discoveryServiceGetDiscoverableHandler.ServeHTTP(w, r)
+		case DiscoveryServiceEvaluateProcedure:
+			discoveryServiceEvaluateHandler.ServeHTTP(w, r)
+		case DiscoveryServiceBucketsProcedure:
+			discoveryServiceBucketsHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedDiscoveryServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedDiscoveryServiceHandler struct{}
+
+func (UnimplementedDiscoveryServiceHandler) SetDiscoverable(context.Context, *connect.Request[v1.DiscoveryServiceSetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceSetDiscoverableResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.DiscoveryService.SetDiscoverable is not implemented"))
+}
+
+func (UnimplementedDiscoveryServiceHandler) GetDiscoverable(context.Context, *connect.Request[v1.DiscoveryServiceGetDiscoverableRequest]) (*connect.Response[v1.DiscoveryServiceGetDiscoverableResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.DiscoveryService.GetDiscoverable is not implemented"))
+}
+
+func (UnimplementedDiscoveryServiceHandler) Evaluate(context.Context, *connect.Request[v1.DiscoveryServiceEvaluateRequest]) (*connect.Response[v1.DiscoveryServiceEvaluateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.DiscoveryService.Evaluate is not implemented"))
+}
+
+func (UnimplementedDiscoveryServiceHandler) Buckets(context.Context, *connect.Request[v1.DiscoveryServiceBucketsRequest]) (*connect.Response[v1.DiscoveryServiceBucketsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.DiscoveryService.Buckets is not implemented"))
 }

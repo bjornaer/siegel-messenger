@@ -77,6 +77,10 @@ type config struct {
 	s3            s3            // ARCH-06 attachment store
 	blobLife      time.Duration // MED-13
 	uploadsPerDay int           // per account
+	discInitial   int           // DISC-06: OPRF evaluations per account per key period (first sync)
+	discDaily     int           // DISC-06: then per day
+	discPeriod    time.Duration // DISC-05: OPRF key rotation
+	discBucketMin int           // DISC-05: smallest directory bucket
 }
 
 func loadConfig() config {
@@ -130,6 +134,10 @@ func loadConfig() config {
 		},
 		blobLife:      time.Duration(env("SIEGEL_BLOB_DAYS", 30, strconv.Atoi)) * 24 * time.Hour,
 		uploadsPerDay: env("SIEGEL_UPLOADS_PER_DAY", 1000, strconv.Atoi),
+		discInitial:   env("SIEGEL_DISCOVERY_INITIAL", 5000, strconv.Atoi),
+		discDaily:     env("SIEGEL_DISCOVERY_PER_DAY", 100, strconv.Atoi),
+		discPeriod:    time.Duration(env("SIEGEL_DISCOVERY_KEY_DAYS", 90, strconv.Atoi)) * 24 * time.Hour,
+		discBucketMin: env("SIEGEL_DISCOVERY_BUCKET_MIN", 256, strconv.Atoi),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
@@ -182,6 +190,7 @@ func main() {
 	b := bao{addr: cfg.baoAddr, token: cfg.baoToken}
 	s.hmacPhone, s.signAS = b.hmacPhone, b.signAS
 	s.fetchASPublic = b.asPublicKey
+	s.disc.derive = b.hmac512
 	go s.listen(ctx)
 	var sms []smsProvider
 	for _, name := range cfg.smsProviders {
@@ -294,6 +303,7 @@ func (s *server) routes() http.Handler {
 	mux.Handle(siegelv1connect.NewGroupsServiceHandler(s, s.authed(), connect.WithReadMaxBytes(2<<20)))
 	mux.Handle(siegelv1connect.NewInvitesServiceHandler(invites{s}, s.authed(), connect.WithReadMaxBytes(2<<20)))
 	mux.Handle(siegelv1connect.NewAttachmentsServiceHandler(attachments{s}, s.authed(), small))
+	mux.Handle(siegelv1connect.NewDiscoveryServiceHandler(discovery{s}, s.authed(), connect.WithReadMaxBytes(1<<20)))
 	mux.HandleFunc("PUT /v1/blobs/{id}", s.putBlob)
 	mux.HandleFunc("GET /v1/blobs/{id}", s.getBlob)
 	mux.HandleFunc("GET /v1/stream", s.stream)
@@ -310,7 +320,9 @@ func (s *server) janitor(ctx context.Context, b bao) {
 	for {
 		for _, q := range []string{
 			`DELETE FROM otps WHERE expires_at < now()`,
-			`DELETE FROM rate_limits WHERE window_start < now() - interval '24 hours'`,
+			// DISC-06 keeps a per-key-period count; everything else is hourly or daily.
+			`DELETE FROM rate_limits WHERE window_start < now() - interval '24 hours' AND key NOT LIKE 'disc_period:%'`,
+			`DELETE FROM rate_limits WHERE window_start < now() - interval '200 days'`,
 			`DELETE FROM usernames WHERE quarantined_until < now() AND account_id IS NULL`,
 			`DELETE FROM metrics WHERE hour < now() - interval '30 days'`,
 			`DELETE FROM queue WHERE enqueued_at < now() - interval '30 days'`, // MSG-06

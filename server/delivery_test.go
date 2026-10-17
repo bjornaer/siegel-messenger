@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -13,6 +16,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/coder/websocket"
+	"github.com/gtank/ristretto255"
 	"google.golang.org/protobuf/proto"
 
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
@@ -534,5 +538,100 @@ func TestAttachments(t *testing.T) { // MED-03, MED-06, MED-13
 	}
 	if time.Until(expiry(res.Msg.BlobId)) < 30*time.Minute || time.Until(expiry(up.BlobId)) > 2*time.Minute {
 		t.Fatal("only renewable blobs are kept", expiry(res.Msg.BlobId), expiry(up.BlobId))
+	}
+}
+
+func TestDiscovery(t *testing.T) { // DISC-03, DISC-05, DISC-06, DISC-07
+	e := setup(t)
+	bob := e.device("+34600000094")
+	ana := e.device("+34600000093")
+	client := func(d device) siegelv1connect.DiscoveryServiceClient {
+		return siegelv1connect.NewDiscoveryServiceClient(http.DefaultClient, e.url, connect.WithInterceptors(
+			connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+				return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+					r.Header().Set("Authorization", "Bearer "+d.DeviceToken)
+					return next(ctx, r)
+				}
+			})))
+	}
+	bd, ad := client(bob), client(ana)
+	// Bob needs a username to be listed.
+	un := siegelv1connect.NewUsernameServiceClient(http.DefaultClient, e.url, connect.WithInterceptors(
+		connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+				r.Header().Set("Authorization", "Bearer "+bob.DeviceToken)
+				return next(ctx, r)
+			}
+		})))
+	if _, err := un.Set(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceSetRequest{Username: "bobby"})); err != nil {
+		t.Fatal(err)
+	}
+	set := func(c siegelv1connect.DiscoveryServiceClient, phone string) string {
+		_, err := c.SetDiscoverable(e.ctx, connect.NewRequest(&siegelv1.DiscoveryServiceSetDiscoverableRequest{PhoneE164: phone}))
+		return errMsg(err)
+	}
+	want(t, set(bd, "+34600000093"), "phone_mismatch") // only your own number
+	want(t, set(bd, "+34600000094"), "")
+
+	// Ana looks up Bob's number and a stranger's, blinded.
+	lookup := func(numbers ...string) (map[string]string, string) {
+		rs := make([]*ristretto255.Scalar, len(numbers))
+		req := &siegelv1.DiscoveryServiceEvaluateRequest{}
+		for i, n := range numbers {
+			b := make([]byte, 64)
+			rand.Read(b)
+			rs[i], _ = ristretto255.NewScalar().SetUniformBytes(b)
+			req.Blinded = append(req.Blinded, ristretto255.NewElement().ScalarMult(rs[i], discPoint(n)).Bytes())
+		}
+		res, err := ad.Evaluate(e.ctx, connect.NewRequest(req))
+		if err != nil {
+			return nil, errMsg(err)
+		}
+		outs := map[string][]byte{}
+		var buckets []uint32
+		for i, ev := range res.Msg.Evaluated {
+			p, _ := ristretto255.NewElement().SetCanonicalBytes(ev)
+			o := discOutput(ristretto255.NewElement().ScalarMult(ristretto255.NewScalar().Invert(rs[i]), p))
+			outs[numbers[i]] = o
+			id := sha256.Sum256(append([]byte("id"), o...))
+			buckets = append(buckets, bucketOf(id[:16], res.Msg.BucketBits))
+		}
+		got, err := ad.Buckets(e.ctx, connect.NewRequest(&siegelv1.DiscoveryServiceBucketsRequest{Period: res.Msg.Period, Buckets: buckets}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := map[string]string{}
+		for n, o := range outs {
+			id := sha256.Sum256(append([]byte("id"), o...))
+			key := sha256.Sum256(append([]byte("key"), o...))
+			for _, en := range got.Msg.Entries {
+				if bytes.Equal(en.Id, id[:16]) {
+					block, _ := aes.NewCipher(key[:])
+					gcm, _ := cipher.NewGCM(block)
+					name, err := gcm.Open(nil, en.Box[:12], en.Box[12:], nil)
+					if err == nil {
+						found[n] = string(name)
+					}
+				}
+			}
+		}
+		return found, ""
+	}
+	found, msg := lookup("+34600000094", "+34611111111")
+	want(t, msg, "")
+	if len(found) != 1 || found["+34600000094"] != "bobby" {
+		t.Fatal("Ana finds Bob and only Bob", found)
+	}
+	// DISC-06: 5 for the first sync (test config), then 2 a day.
+	_, msg = lookup("+34622222222", "+34633333333", "+34644444444")
+	want(t, msg, "")
+	_, msg = lookup("+34655555555", "+34666666666", "+34677777777") // more than the 2 a day
+	want(t, msg, "rate_limited")
+
+	want(t, set(bd, ""), "") // opting out empties the directory
+	var n int
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM discovery`).Scan(&n)
+	if n != 0 {
+		t.Fatal("opt-out keeps nothing")
 	}
 }

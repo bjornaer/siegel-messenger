@@ -71,6 +71,12 @@ func (b bao) hmacPhone(ctx context.Context, phone string) ([]byte, error) {
 		map[string]any{"input": base64.StdEncoding.EncodeToString([]byte(phone)), "key_version": 1})
 }
 
+// hmac512 is a 64-byte HMAC under the phone pepper, for deriving discovery keys (DISC-05).
+func (b bao) hmac512(ctx context.Context, input string) ([]byte, error) {
+	return b.transit(ctx, "transit/hmac/siegel-phone/sha2-512", "hmac",
+		map[string]any{"input": base64.StdEncoding.EncodeToString([]byte(input)), "key_version": 1})
+}
+
 // signAS is the Authentication Service Ed25519 signature (CRY-08).
 func (b bao) signAS(ctx context.Context, msg []byte) ([]byte, error) {
 	return b.transit(ctx, "transit/sign/siegel-as", "signature",

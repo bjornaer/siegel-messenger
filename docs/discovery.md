@@ -23,9 +23,11 @@ and only one number at a time, without seeing the number.
 Curve: ristretto255. `H(n)` maps a number to a curve point (SHA-512 of the E.164 string, then the standard
 ristretto255 one-way map).
 
-**Keys.** The server holds a master secret `m` (in OpenBao, like the pepper). The OPRF key for the current
-period is derived from it: `k = HKDF(m, "siegel-oprf" ‖ period)`, with periods of 90 days **[default]**
-(DISC-05.1), so keys rotate without anyone re-registering.
+**Keys.** No new secret: the keys come from the phone pepper, which never leaves OpenBao (ID-05). The
+server asks OpenBao for HMAC-SHA-512 of a fixed label (`siegel-disc-v1:master` for `m`,
+`siegel-disc-v1:period:N` for the key `k` of period N) and reduces it to a scalar. Labels never look like
+the E.164 numbers the pepper otherwise hashes. Periods last 90 days **[default]** (DISC-05.1), so keys
+rotate without anyone re-registering.
 
 **Opting in (DISC-03).** The app sends its own number once, over TLS. The server checks it against the
 account's stored HMAC (ID-05), so nobody can register a number that isn't theirs, then stores
@@ -47,8 +49,9 @@ whose `O` it computed decrypts. Every other entry in the bucket stays unreadable
 doesn't reveal other users' @usernames (ID-08 stays true).
 
 **Limits (DISC-06).** 5,000 evaluations for an account's first sync, then 100 a day **[default]**. That is
-what stops someone from trying every number. Contacts are re-checked once a day at most, and only new
-numbers count.
+what stops someone from trying every number. The app keeps each contact's result for the key period, so
+only new numbers count. A new key period makes every result stale, so the 5,000 first-sync allowance
+renews with each period (every 90 days).
 
 **Result (DISC-07).** A match shows the contact's name from the phone's address book and their @username,
 with a button to start a chat (a normal @username chat, which is a message request on their side unless

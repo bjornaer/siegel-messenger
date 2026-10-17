@@ -147,3 +147,54 @@ message AppVersionResponse {
   uint32 latest = 1;  // build number in the store; 0 = unknown
   uint32 minimum = 2; // older builds must update; 0 = none
 }
+
+// M5 phone-number discovery (DISC-03..07, docs/discovery.md). The server never sees an address
+// book: clients send blinded points, and the directory entries are encrypted to the OPRF output.
+service DiscoveryService {
+  // DISC-03: turns "find me by my number" on (with our own number, checked against the
+  // account) or off (empty). Auth: device.
+  rpc SetDiscoverable(DiscoveryServiceSetDiscoverableRequest) returns (DiscoveryServiceSetDiscoverableResponse);
+  rpc GetDiscoverable(DiscoveryServiceGetDiscoverableRequest) returns (DiscoveryServiceGetDiscoverableResponse);
+  // DISC-05.3: the OPRF on blinded points. Rate-limited (DISC-06). Auth: device.
+  rpc Evaluate(DiscoveryServiceEvaluateRequest) returns (DiscoveryServiceEvaluateResponse);
+  // DISC-05.5: whole buckets of encrypted directory entries. Auth: device.
+  rpc Buckets(DiscoveryServiceBucketsRequest) returns (DiscoveryServiceBucketsResponse);
+}
+
+message DiscoveryServiceSetDiscoverableRequest {
+  string phone_e164 = 1; // empty: off
+}
+
+message DiscoveryServiceSetDiscoverableResponse {}
+
+message DiscoveryServiceGetDiscoverableRequest {}
+
+message DiscoveryServiceGetDiscoverableResponse {
+  bool on = 1;
+}
+
+message DiscoveryServiceEvaluateRequest {
+  repeated bytes blinded = 1; // ristretto255 points, 32 bytes each
+}
+
+message DiscoveryServiceEvaluateResponse {
+  repeated bytes evaluated = 1; // in the same order
+  int64 period = 2;             // key period these belong to
+  uint32 bucket_bits = 3;       // how many leading bits of an entry ID pick its bucket
+}
+
+message DiscoveryServiceBucketsRequest {
+  int64 period = 1;
+  repeated uint32 buckets = 2;
+}
+
+message DiscoveryServiceBucketsResponse {
+  repeated DirectoryEntry entries = 1;
+}
+
+// One discoverable account: `id` and the key that opens `box` both come from the OPRF output for
+// their number, so only someone who has the number can find or read it.
+message DirectoryEntry {
+  bytes id = 1;  // 16 bytes
+  bytes box = 2; // nonce, then AES-256-GCM of the @username
+}

@@ -12,6 +12,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
 	"errors"
 	"fmt"
 	"io"
@@ -57,6 +58,7 @@ func setup(t *testing.T) *env_ {
 	rand.Read(seed)
 	asKey := ed25519.NewKeyFromSeed(seed)
 	cfg := config{
+		discInitial: 5, discDaily: 2, discPeriod: 90 * 24 * time.Hour, discBucketMin: 256,
 		otpTTL: 600e9, otpAttempts: 5, otpPerNumber: 3, otpPerDay: 100, otpPerIP: 1000, verifyPerIP: 1000, lookupPerDay: 1000, claimPerDay: 1000, sealedPerIP: 1000, newChatPerDay: 1000, smsDailyCap: 1000,
 		denyPrefixes: []string{"+882"},
 		userMin:      4, userMax: 32, userChangeDay: 30, userQuarDay: 30,
@@ -72,6 +74,10 @@ func setup(t *testing.T) *env_ {
 	}
 	e.s.signAS = func(_ context.Context, msg []byte) ([]byte, error) { return ed25519.Sign(asKey, msg), nil }
 	e.s.fetchASPublic = func(context.Context) ([]byte, error) { return e.asPub, nil }
+	e.s.disc.derive = func(_ context.Context, label string) ([]byte, error) {
+		h := sha512.Sum512(append(seed, label...))
+		return h[:], nil
+	}
 	lctx, stop := context.WithCancel(ctx)
 	t.Cleanup(stop)
 	go e.s.listen(lctx)
