@@ -19,6 +19,7 @@ dependencies:
   flutter_rust_bridge: 2.13.0
   flutter_secure_storage: ^11.2.0
   flutter_zxing: 3.1.0
+  flutter_image_compress: 2.5.0
   image_picker: 1.2.3
   intl: ^0.20.3
   local_auth: ^3.0.2
@@ -26,6 +27,8 @@ dependencies:
   phone_numbers_parser: ^9.0.28
   qr_flutter: 4.1.0
   record: 7.1.1
+  video_compress: 3.1.4
+  video_player: 2.14.0
   rust_lib_siegel:
     path: rust_builder
 

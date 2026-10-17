@@ -1161,6 +1161,7 @@ async fn voice_notes_upload_download_and_delete() {
                 duration_ms: 4200,
                 voice_note: true,
                 waveform: vec![10, 200, 90],
+                ..Default::default()
             },
             None,
         )
@@ -1182,6 +1183,19 @@ async fn voice_notes_upload_download_and_delete() {
         audio,
         "sender keeps it"
     );
+
+    // MED-14: forwarding encrypts and uploads it again; the receiver gets the same audio.
+    let fwd = alice.forward(&sent.message_id, &chat).await.unwrap();
+    assert!(fwd.attachment.is_some() && fwd.message_id != sent.message_id);
+    let got = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await;
+    let core_api::Event::Message(m2) = got else {
+        unreachable!()
+    };
+    assert_eq!(bob.attachment_data(&m2.message_id).await.unwrap(), audio);
+    bob.delete_for_me(&m2.message_id).unwrap();
 
     // Delete for everyone removes the blob from the receiver's device too.
     let media = std::env::temp_dir()

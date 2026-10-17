@@ -783,4 +783,76 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get themeEdelweiss =>
       'Edelweiss, the Alpine star flower. Snow white into silver.';
+
+  @override
+  String get photo => 'Photo';
+
+  @override
+  String get video => 'Video';
+
+  @override
+  String get file => 'File';
+
+  @override
+  String get attach => 'Attach';
+
+  @override
+  String get download => 'Download';
+
+  @override
+  String get saveToDevice => 'Save to device';
+
+  @override
+  String get forward => 'Forward';
+
+  @override
+  String get forwardTo => 'Forward to…';
+
+  @override
+  String get forwarded => 'Forwarded';
+
+  @override
+  String get compressVideo => 'Compress the video?';
+
+  @override
+  String get compressVideoBody =>
+      'A compressed video is smaller and quicker to send, at a lower quality.';
+
+  @override
+  String get compressVideoMust =>
+      'This video is over 100 MB, the most Siegel can send. Compress it to send it.';
+
+  @override
+  String get sendOriginal => 'Send original';
+
+  @override
+  String get compress => 'Compress';
+
+  @override
+  String get autoDownload => 'Auto-download';
+
+  @override
+  String get autoDownloadHelp =>
+      'What downloads by itself when it arrives. Voice messages download when you play them.';
+
+  @override
+  String get onWifi => 'On Wi-Fi';
+
+  @override
+  String get onMobile => 'On mobile data';
+
+  @override
+  String get photos => 'Photos';
+
+  @override
+  String get videos => 'Videos';
+
+  @override
+  String get files => 'Files';
+
+  @override
+  String get none => 'Nothing';
+
+  @override
+  String get errAttachmentInvalid => 'That file can\'t be sent.';
 }

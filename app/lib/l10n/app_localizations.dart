@@ -1421,6 +1421,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edelweiss, the Alpine star flower. Snow white into silver.'**
   String get themeEdelweiss;
+
+  /// No description provided for @photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get photo;
+
+  /// No description provided for @video.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get video;
+
+  /// No description provided for @file.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get file;
+
+  /// No description provided for @attach.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach'**
+  String get attach;
+
+  /// No description provided for @download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download;
+
+  /// No description provided for @saveToDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to device'**
+  String get saveToDevice;
+
+  /// No description provided for @forward.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward'**
+  String get forward;
+
+  /// No description provided for @forwardTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward to…'**
+  String get forwardTo;
+
+  /// No description provided for @forwarded.
+  ///
+  /// In en, this message translates to:
+  /// **'Forwarded'**
+  String get forwarded;
+
+  /// No description provided for @compressVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress the video?'**
+  String get compressVideo;
+
+  /// No description provided for @compressVideoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A compressed video is smaller and quicker to send, at a lower quality.'**
+  String get compressVideoBody;
+
+  /// No description provided for @compressVideoMust.
+  ///
+  /// In en, this message translates to:
+  /// **'This video is over 100 MB, the most Siegel can send. Compress it to send it.'**
+  String get compressVideoMust;
+
+  /// No description provided for @sendOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Send original'**
+  String get sendOriginal;
+
+  /// No description provided for @compress.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress'**
+  String get compress;
+
+  /// No description provided for @autoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download'**
+  String get autoDownload;
+
+  /// No description provided for @autoDownloadHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'What downloads by itself when it arrives. Voice messages download when you play them.'**
+  String get autoDownloadHelp;
+
+  /// No description provided for @onWifi.
+  ///
+  /// In en, this message translates to:
+  /// **'On Wi-Fi'**
+  String get onWifi;
+
+  /// No description provided for @onMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'On mobile data'**
+  String get onMobile;
+
+  /// No description provided for @photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get photos;
+
+  /// No description provided for @videos.
+  ///
+  /// In en, this message translates to:
+  /// **'Videos'**
+  String get videos;
+
+  /// No description provided for @files.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get files;
+
+  /// No description provided for @none.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing'**
+  String get none;
+
+  /// No description provided for @errAttachmentInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That file can\'t be sent.'**
+  String get errAttachmentInvalid;
 }
 
 class _AppLocalizationsDelegate

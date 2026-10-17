@@ -12,6 +12,7 @@ import 'avatar.dart';
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart';
+import 'media.dart';
 import 'onboarding.dart';
 import 'push.dart';
 import 'themes.dart';
@@ -230,6 +231,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           AppLockSettings(core: core),
+          AutoDownloadTile(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
           _GroupAdds(core: core),

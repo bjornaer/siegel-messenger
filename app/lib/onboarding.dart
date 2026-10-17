@@ -50,6 +50,7 @@ void showError(BuildContext context, CoreError e) {
     'attachment_too_large' => t.errAttachmentTooLarge,
     'upload_failed' => t.errUploadFailed,
     'avatar_invalid' => t.errAvatarInvalid,
+    'attachment_invalid' => t.errAttachmentInvalid,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };

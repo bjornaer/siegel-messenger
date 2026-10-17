@@ -794,4 +794,76 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get themeEdelweiss => 'Der Alpenstern. Schneeweiß bis Silber.';
+
+  @override
+  String get photo => 'Foto';
+
+  @override
+  String get video => 'Video';
+
+  @override
+  String get file => 'Datei';
+
+  @override
+  String get attach => 'Anhängen';
+
+  @override
+  String get download => 'Herunterladen';
+
+  @override
+  String get saveToDevice => 'Auf dem Gerät speichern';
+
+  @override
+  String get forward => 'Weiterleiten';
+
+  @override
+  String get forwardTo => 'Weiterleiten an…';
+
+  @override
+  String get forwarded => 'Weitergeleitet';
+
+  @override
+  String get compressVideo => 'Video komprimieren?';
+
+  @override
+  String get compressVideoBody =>
+      'Ein komprimiertes Video ist kleiner und schneller gesendet, aber in geringerer Qualität.';
+
+  @override
+  String get compressVideoMust =>
+      'Dieses Video ist größer als 100 MB, das Maximum für Siegel. Komprimiere es, um es zu senden.';
+
+  @override
+  String get sendOriginal => 'Original senden';
+
+  @override
+  String get compress => 'Komprimieren';
+
+  @override
+  String get autoDownload => 'Automatischer Download';
+
+  @override
+  String get autoDownloadHelp =>
+      'Was beim Empfang von selbst heruntergeladen wird. Sprachnachrichten laden beim Abspielen.';
+
+  @override
+  String get onWifi => 'Im WLAN';
+
+  @override
+  String get onMobile => 'Mit mobilen Daten';
+
+  @override
+  String get photos => 'Fotos';
+
+  @override
+  String get videos => 'Videos';
+
+  @override
+  String get files => 'Dateien';
+
+  @override
+  String get none => 'Nichts';
+
+  @override
+  String get errAttachmentInvalid => 'Diese Datei lässt sich nicht senden.';
 }

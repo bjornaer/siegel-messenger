@@ -30,6 +30,9 @@ abstract class Core implements RustOpaqueInterface {
   /// attachment_corrupt (MED-05), network.
   Future<Uint8List> attachmentData({required List<int> messageId});
 
+  /// Whether the attachment is on this device (no download needed).
+  bool attachmentDownloaded({required List<int> messageId});
+
   /// A contact's picture, once fetched with their profile.
   Uint8List? avatar({required List<int> account});
 
@@ -75,6 +78,12 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> groupId,
     required List<int> messageId,
     required String text,
+  });
+
+  /// MED-14: sends a message on to another chat; attachments are encrypted and uploaded again.
+  Future<MessageView> forward({
+    required List<int> messageId,
+    required List<int> to,
   });
 
   Uint8List? groupAvatar({required List<int> groupId});
@@ -170,6 +179,9 @@ abstract class Core implements RustOpaqueInterface {
     required int durationMs,
     required bool voiceNote,
     required List<int> waveform,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
     Uint8List? replyTo,
   });
 
@@ -275,6 +287,13 @@ class AttachmentView {
   /// MED-09: loudness per bar, 0-255.
   final Uint8List waveform;
 
+  /// Images and video.
+  final int width;
+  final int height;
+
+  /// A small JPEG preview to show before the download.
+  final Uint8List thumbnail;
+
   const AttachmentView({
     required this.mimeType,
     required this.fileName,
@@ -282,6 +301,9 @@ class AttachmentView {
     required this.durationMs,
     required this.voiceNote,
     required this.waveform,
+    required this.width,
+    required this.height,
+    required this.thumbnail,
   });
 
   @override
@@ -291,7 +313,10 @@ class AttachmentView {
       size.hashCode ^
       durationMs.hashCode ^
       voiceNote.hashCode ^
-      waveform.hashCode;
+      waveform.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      thumbnail.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -303,7 +328,10 @@ class AttachmentView {
           size == other.size &&
           durationMs == other.durationMs &&
           voiceNote == other.voiceNote &&
-          waveform == other.waveform;
+          waveform == other.waveform &&
+          width == other.width &&
+          height == other.height &&
+          thumbnail == other.thumbnail;
 }
 
 class BlockedContact {

@@ -28,9 +28,15 @@ pub struct AttachmentInfo {
     pub duration_ms: u32,
     pub voice_note: bool,
     pub waveform: Vec<u8>,
+    /// Images and video (MED-04).
+    pub width: u32,
+    pub height: u32,
+    /// A small JPEG preview (images and video), at most 20 KB.
+    pub thumbnail: Vec<u8>,
 }
 
 /// A file to send.
+#[derive(Default)]
 pub struct OutgoingAttachment {
     pub data: Vec<u8>,
     pub mime_type: String,
@@ -38,6 +44,9 @@ pub struct OutgoingAttachment {
     pub duration_ms: u32,
     pub voice_note: bool,
     pub waveform: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub thumbnail: Vec<u8>,
 }
 
 /// Rejects attachment messages no honest client sends.
@@ -60,6 +69,9 @@ pub(crate) fn info(a: &pb::Attachment) -> AttachmentInfo {
         duration_ms: a.duration_ms,
         voice_note: a.voice_note,
         waveform: a.waveform.clone(),
+        width: a.width,
+        height: a.height,
+        thumbnail: a.thumbnail.clone(),
     }
 }
 
@@ -117,6 +129,9 @@ impl SiegelCore {
         if a.data.len() > MAX_ATTACHMENT {
             return Err(CoreError::new("attachment_too_large"));
         }
+        if a.thumbnail.len() > MAX_THUMBNAIL {
+            return Err(CoreError::new("attachment_invalid"));
+        }
         self.check_can_send(group_id)?;
         let (uploaded, blob) = self.upload(&a.data, false).await?;
         let content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
@@ -125,6 +140,9 @@ impl SiegelCore {
             duration_ms: a.duration_ms,
             voice_note: a.voice_note,
             waveform: a.waveform.into_iter().take(MAX_WAVEFORM).collect(),
+            width: a.width,
+            height: a.height,
+            thumbnail: a.thumbnail,
             reply_to: reply_to.unwrap_or_default().to_vec(),
             ..uploaded
         }));
@@ -145,6 +163,42 @@ impl SiegelCore {
         self.with_store(|s| storage(s.save_message(&msg)))?;
         self.deliver_stored(&mut msg).await?;
         chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
+    }
+
+    /// Whether the attachment is on this device already (sent, or downloaded before).
+    pub fn attachment_downloaded(&self, message_id: &[u8]) -> bool {
+        self.media_path(message_id).exists()
+    }
+
+    /// MED-14: sends a message on to another chat. An attachment is encrypted again with a
+    /// new key and uploaded again, so the two chats share nothing.
+    pub async fn forward(&self, message_id: &[u8], to: &[u8]) -> Result<ChatMessage, CoreError> {
+        let m = self
+            .with_store(|s| storage(s.message(message_id)))?
+            .filter(|m| !m.deleted)
+            .ok_or(CoreError::new("not_found"))?;
+        match pb::Content::decode(m.body.as_slice())
+            .ok()
+            .and_then(|c| c.body)
+        {
+            Some(pb::content::Body::Text(t)) => self.send_text(to, &t.body, None).await,
+            Some(pb::content::Body::Attachment(a)) => {
+                let data = self.attachment_data(message_id).await?;
+                let out = OutgoingAttachment {
+                    data,
+                    mime_type: a.mime_type,
+                    file_name: a.file_name,
+                    duration_ms: a.duration_ms,
+                    voice_note: a.voice_note,
+                    waveform: a.waveform,
+                    width: a.width,
+                    height: a.height,
+                    thumbnail: a.thumbnail,
+                };
+                self.send_attachment(to, out, None).await
+            }
+            _ => Err(CoreError::new("not_allowed")),
+        }
     }
 
     /// The attachment's plaintext, downloading it first if needed. "attachment_expired" once

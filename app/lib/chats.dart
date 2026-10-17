@@ -5,7 +5,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
@@ -104,7 +103,10 @@ class ChatService extends ChangeNotifier {
           if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
             _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
           }
-          if (e.kind == CoreEventKind.message && e.message != null) onMessage?.call(e.message!);
+          if (e.kind == CoreEventKind.message && e.message != null) {
+            onMessage?.call(e.message!);
+            unawaited(autoDownload(core, e.message!)); // MED-12
+          }
           notifyListeners();
         },
         onError: finish, // network error or server restart: reconnect below
@@ -545,36 +547,62 @@ class _ChatScreenState extends State<ChatScreen> {
     final rec = await r.stop(keep: send);
     r.dispose();
     if (rec == null || rec.ms < 500) return; // a slip of the finger, not a message
-    await _sendAttachment(rec.data, 'audio/mp4', '', rec.ms, true, rec.waveform);
+    await _sendAttachment(outgoing(rec.data, 'audio/mp4', ms: rec.ms, voice: true, waveform: rec.waveform));
   }
 
-  Future<void> _pickAudioFile() async {
-    final f = await FilePicker.pickFile(type: FileType.audio);
-    if (f == null) return;
-    if ((f.lengthSync() ?? 0) > 100 << 20 && mounted) {
-      return showError(context, const CoreError(code: 'attachment_too_large')); // MED-06, before reading it all
-    }
-    final Uint8List bytes;
+  /// MED-07..10: what to attach.
+  Future<void> _attach() async {
+    final t = AppLocalizations.of(context)!;
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (i, icon, label) in [
+              (0, Icons.photo_outlined, t.photo),
+              (1, Icons.videocam_outlined, t.video),
+              (2, Icons.insert_drive_file_outlined, t.file),
+              (3, Icons.audio_file_outlined, t.attachAudio),
+            ])
+              ListTile(leading: Icon(icon), title: Text(label), onTap: () => Navigator.pop(c, i)),
+          ],
+        ),
+      ),
+    );
+    if (choice == null) return;
     try {
-      bytes = await f.readAsBytes();
-    } finally {
-      unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
+      final o = await switch (choice) {
+        0 => pickPhoto(),
+        1 => pickVideo(_askCompress),
+        2 => pickFile(),
+        _ => pickFile(audio: true),
+      };
+      if (o != null) await _sendAttachment(o);
+    } on TooLarge {
+      if (mounted) showError(context, const CoreError(code: 'attachment_too_large')); // MED-06
     }
-    final ext = (f.extension ?? '').toLowerCase();
-    final mime = const {
-      'mp3': 'audio/mpeg',
-      'm4a': 'audio/mp4',
-      'aac': 'audio/aac',
-      'ogg': 'audio/ogg',
-      'opus': 'audio/ogg',
-      'wav': 'audio/wav',
-      'flac': 'audio/flac',
-    }[ext];
-    await _sendAttachment(bytes, mime ?? 'audio/$ext', f.name, 0, false, Uint8List(0));
   }
 
-  Future<void> _sendAttachment(Uint8List data, String mime, String name, int ms, bool voice, Uint8List waveform) async {
-    if (data.length > 100 << 20) {
+  /// MED-08: compression is offered; over 100 MB it is the only way.
+  Future<bool?> _askCompress(bool must) {
+    final t = AppLocalizations.of(context)!;
+    return showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.compressVideo),
+        content: Text(must ? t.compressVideoMust : t.compressVideoBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: Text(t.cancel)),
+          if (!must) TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.sendOriginal)),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(t.compress)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendAttachment(Outgoing o) async {
+    if (o.data.length > maxAttachment) {
       return showError(context, const CoreError(code: 'attachment_too_large')); // MED-06
     }
     final reply = _replyTo;
@@ -582,15 +610,50 @@ class _ChatScreenState extends State<ChatScreen> {
     await _run(
       () => core.sendAttachment(
         groupId: _group,
-        data: data,
-        mimeType: mime,
-        fileName: name,
-        durationMs: ms,
-        voiceNote: voice,
-        waveform: waveform,
+        data: o.data,
+        mimeType: o.mime,
+        fileName: o.name,
+        durationMs: o.ms,
+        voiceNote: o.voice,
+        waveform: o.waveform,
+        width: o.width,
+        height: o.height,
+        thumbnail: o.thumbnail,
         replyTo: reply?.messageId,
       ),
     );
+  }
+
+  /// MED-14: sends the message on to a chat the user picks.
+  Future<void> _forward(MessageView m) async {
+    final t = AppLocalizations.of(context)!;
+    final chats = core.chats().where((c) => !c.request && !c.left).toList();
+    final to = await showModalBottomSheet<Uint8List>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * 0.7),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(title: Text(t.forwardTo, style: Theme.of(c).textTheme.titleMedium)),
+              for (final chat in chats)
+                ListTile(
+                  leading: chat.isGroup
+                      ? Avatar(core: core, groupId: chat.groupId)
+                      : Avatar(core: core, account: chat.peerAccount),
+                  title: Text(chatTitle(t, chat)),
+                  onTap: () => Navigator.pop(c, chat.groupId),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (to == null) return;
+    await _run(() => core.forward(messageId: m.messageId, to: to));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.forwarded)));
   }
 
   Future<void> _send() async {
@@ -719,6 +782,18 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               if (!m.deleted && !c.request)
                 ListTile(leading: const Icon(Icons.reply), title: Text(t.reply), onTap: () => act(() => _reply(m))),
+              if (!m.deleted && m.event == null && !m.keyChange)
+                ListTile(
+                  leading: const Icon(Icons.shortcut),
+                  title: Text(t.forward),
+                  onTap: () => act(() => _forward(m)),
+                ),
+              if (!m.deleted && m.attachment != null && !m.attachment!.voiceNote)
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: Text(t.saveToDevice),
+                  onTap: () => act(() => saveToDevice(context, core, m)),
+                ),
               if (!m.deleted && m.attachment == null)
                 ListTile(
                   leading: const Icon(Icons.copy),
@@ -1000,7 +1075,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     if (m.deleted)
                       Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
                     else if (m.attachment != null)
-                      AudioMessage(core: core, message: m)
+                      attachmentView(core, m)
                     else
                       Text.rich(formatText(m.text)),
                     Row(
@@ -1188,11 +1263,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Row(
               children: [
                 if (_editing == null)
-                  IconButton(
-                    tooltip: t.attachAudio,
-                    icon: const Icon(Icons.attach_file),
-                    onPressed: _busy ? null : _pickAudioFile,
-                  ),
+                  IconButton(tooltip: t.attach, icon: const Icon(Icons.attach_file), onPressed: _busy ? null : _attach),
                 Expanded(
                   child: TextField(
                     controller: _text,

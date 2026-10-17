@@ -311,6 +311,11 @@ pub struct AttachmentView {
     pub voice_note: bool,
     /// MED-09: loudness per bar, 0-255.
     pub waveform: Vec<u8>,
+    /// Images and video.
+    pub width: u32,
+    pub height: u32,
+    /// A small JPEG preview to show before the download.
+    pub thumbnail: Vec<u8>,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -354,6 +359,9 @@ impl From<core_api::ChatMessage> for MessageView {
                 duration_ms: a.duration_ms,
                 voice_note: a.voice_note,
                 waveform: a.waveform,
+                width: a.width,
+                height: a.height,
+                thumbnail: a.thumbnail,
             }),
             event: m.event.map(|e| {
                 use core_api::GroupEventKind as K;
@@ -632,6 +640,9 @@ impl Core {
         duration_ms: u32,
         voice_note: bool,
         waveform: Vec<u8>,
+        width: u32,
+        height: u32,
+        thumbnail: Vec<u8>,
         reply_to: Option<Vec<u8>>,
     ) -> Result<MessageView, CoreError> {
         let a = core_api::OutgoingAttachment {
@@ -641,6 +652,9 @@ impl Core {
             duration_ms,
             voice_note,
             waveform,
+            width,
+            height,
+            thumbnail,
         };
         Ok(self
             .0
@@ -682,6 +696,17 @@ impl Core {
     /// Sends our current name and picture to every chat (after editing the profile).
     pub async fn announce_profile(&self) -> Result<(), CoreError> {
         Ok(self.0.announce_profile().await?)
+    }
+
+    /// Whether the attachment is on this device (no download needed).
+    #[frb(sync)]
+    pub fn attachment_downloaded(&self, message_id: Vec<u8>) -> bool {
+        self.0.attachment_downloaded(&message_id)
+    }
+
+    /// MED-14: sends a message on to another chat; attachments are encrypted and uploaded again.
+    pub async fn forward(&self, message_id: Vec<u8>, to: Vec<u8>) -> Result<MessageView, CoreError> {
+        Ok(self.0.forward(&message_id, &to).await?.into())
     }
 
     /// The attachment's bytes, downloaded on first use. Errors: attachment_expired (MED-13),

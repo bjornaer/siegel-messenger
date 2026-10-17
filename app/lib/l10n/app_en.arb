@@ -423,5 +423,28 @@
       }
     }
   },
-  "themeEdelweiss": "Edelweiss, the Alpine star flower. Snow white into silver."
+  "themeEdelweiss": "Edelweiss, the Alpine star flower. Snow white into silver.",
+  "photo": "Photo",
+  "video": "Video",
+  "file": "File",
+  "attach": "Attach",
+  "download": "Download",
+  "saveToDevice": "Save to device",
+  "forward": "Forward",
+  "forwardTo": "Forward to…",
+  "forwarded": "Forwarded",
+  "compressVideo": "Compress the video?",
+  "compressVideoBody": "A compressed video is smaller and quicker to send, at a lower quality.",
+  "compressVideoMust": "This video is over 100 MB, the most Siegel can send. Compress it to send it.",
+  "sendOriginal": "Send original",
+  "compress": "Compress",
+  "autoDownload": "Auto-download",
+  "autoDownloadHelp": "What downloads by itself when it arrives. Voice messages download when you play them.",
+  "onWifi": "On Wi-Fi",
+  "onMobile": "On mobile data",
+  "photos": "Photos",
+  "videos": "Videos",
+  "files": "Files",
+  "none": "Nothing",
+  "errAttachmentInvalid": "That file can't be sent."
 }

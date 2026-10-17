@@ -252,6 +252,9 @@ class FakeCore implements Core {
     required int durationMs,
     required bool voiceNote,
     required List<int> waveform,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
     Uint8List? replyTo,
   }) async {
     calls.add('sendAttachment');
@@ -267,9 +270,25 @@ class FakeCore implements Core {
         durationMs: durationMs,
         voiceNote: voiceNote,
         waveform: Uint8List.fromList(waveform),
+        width: width,
+        height: height,
+        thumbnail: Uint8List.fromList(thumbnail),
       ),
     );
     (history[base64Encode(groupId)] ??= []).add(m);
+    return m;
+  }
+
+  @override
+  bool attachmentDownloaded({required List<int> messageId}) => false;
+
+  final forwards = <String>[];
+  @override
+  Future<MessageView> forward({required List<int> messageId, required List<int> to}) async {
+    forwards.add(base64Encode(to));
+    final src = history.values.expand((l) => l).firstWhere((m) => listEquals(m.messageId, messageId));
+    final m = msg(to, src.text, outgoing: true, attachment: src.attachment);
+    (history[base64Encode(to)] ??= []).add(m);
     return m;
   }
 
@@ -918,6 +937,9 @@ void main() {
         durationMs: 4200,
         voiceNote: true,
         waveform: Uint8List.fromList([10, 200, 90]),
+        width: 0,
+        height: 0,
+        thumbnail: Uint8List(0),
       ),
     );
     (core.history[base64Encode(id)] ??= []).add(voice);
@@ -1017,15 +1039,66 @@ void main() {
     expect(themeById('siegel').data(Brightness.light).extension<SiegelGradient>(), isNull);
   });
 
+  testWidgets('photos and files show in bubbles; any message can be forwarded (MED-07, MED-10, MED-14)', (t) async {
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    );
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final other = await core.startChat(username: 'carol');
+    AttachmentView att(String mime, String name) => AttachmentView(
+      mimeType: mime,
+      fileName: name,
+      size: BigInt.from(2 << 20),
+      durationMs: 0,
+      voiceNote: false,
+      waveform: Uint8List(0),
+      width: 4,
+      height: 3,
+      thumbnail: png,
+    );
+    (core.history[base64Encode(id)] ??= []).addAll([
+      FakeCore.msg(id, '', outgoing: false, attachment: att('image/jpeg', '')),
+      FakeCore.msg(id, '', outgoing: false, attachment: att('application/pdf', 'plan.pdf')),
+    ]);
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.byType(ImageMessage), findsOneWidget);
+    expect(find.text('plan.pdf'), findsOneWidget);
+    expect(find.text('2.0 MB'), findsOneWidget);
+
+    await t.longPress(find.text('plan.pdf'));
+    await t.pumpAndSettle();
+    expect(find.text('Save to device'), findsOneWidget);
+    await tapText(t, 'Forward');
+    await tapText(t, '@carol');
+    expect(core.forwards, [base64Encode(other)]);
+    expect(core.history[base64Encode(other)]!.last.attachment?.fileName, 'plan.pdf');
+  });
+
+  test('auto-download defaults: photos on Wi-Fi and mobile data, video and files manual (MED-12)', () {
+    final core = FakeCore();
+    expect(autoDownloadKinds(core, metered: false), {'image'});
+    expect(autoDownloadKinds(core, metered: true), {'image'});
+    setAutoDownloadKinds(core, metered: true, kinds: {});
+    expect(autoDownloadKinds(core, metered: true), isEmpty);
+  });
+
   testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {
     final core = FakeCore()
       ..registered = true
       ..user = 'ana';
     await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
     await t.scrollUntilVisible(find.text('Read receipts'), 100);
+    await t.ensureVisible(find.text('Read receipts'));
+    await t.pumpAndSettle();
     await tapText(t, 'Read receipts');
     expect(core.settings['read_receipts'], 'off');
     await t.scrollUntilVisible(find.text('Typing indicators'), 100);
+    await t.ensureVisible(find.text('Typing indicators'));
+    await t.pumpAndSettle();
     await tapText(t, 'Typing indicators');
     expect(core.settings['typing_indicators'], 'off');
   });

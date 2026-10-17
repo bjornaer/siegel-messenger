@@ -32,6 +32,9 @@ class MainActivity : FlutterFragmentActivity() {
         appChannel!!.setMethodCallHandler { call, result ->
             when (call.method) {
                 "build" -> result.success(packageManager.getPackageInfo(packageName, 0).longVersionCode)
+                // MED-12: auto-download settings differ on metered (mobile) networks.
+                "metered" -> result.success(
+                    (getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).isActiveNetworkMetered)
                 // DISC-08: the link the app was opened with, once.
                 "takeLink" -> {
                     result.success(pendingLink)

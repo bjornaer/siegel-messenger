@@ -785,4 +785,76 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get themeEdelweiss =>
       'Edelvais, a flor-estrela dos Alpes. Branco neve até prata.';
+
+  @override
+  String get photo => 'Foto';
+
+  @override
+  String get video => 'Vídeo';
+
+  @override
+  String get file => 'Arquivo';
+
+  @override
+  String get attach => 'Anexar';
+
+  @override
+  String get download => 'Baixar';
+
+  @override
+  String get saveToDevice => 'Salvar no aparelho';
+
+  @override
+  String get forward => 'Encaminhar';
+
+  @override
+  String get forwardTo => 'Encaminhar para…';
+
+  @override
+  String get forwarded => 'Encaminhada';
+
+  @override
+  String get compressVideo => 'Comprimir o vídeo?';
+
+  @override
+  String get compressVideoBody =>
+      'Um vídeo comprimido é menor e enviado mais rápido, com qualidade menor.';
+
+  @override
+  String get compressVideoMust =>
+      'Este vídeo passa de 100 MB, o máximo que o Siegel envia. Comprima para enviar.';
+
+  @override
+  String get sendOriginal => 'Enviar original';
+
+  @override
+  String get compress => 'Comprimir';
+
+  @override
+  String get autoDownload => 'Download automático';
+
+  @override
+  String get autoDownloadHelp =>
+      'O que é baixado sozinho ao chegar. Mensagens de voz são baixadas ao tocar.';
+
+  @override
+  String get onWifi => 'No Wi-Fi';
+
+  @override
+  String get onMobile => 'Nos dados móveis';
+
+  @override
+  String get photos => 'Fotos';
+
+  @override
+  String get videos => 'Vídeos';
+
+  @override
+  String get files => 'Arquivos';
+
+  @override
+  String get none => 'Nada';
+
+  @override
+  String get errAttachmentInvalid => 'Esse arquivo não pode ser enviado.';
 }
