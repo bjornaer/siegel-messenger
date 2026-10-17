@@ -1283,3 +1283,36 @@ async fn group_pictures() {
     alice.set_group_avatar(&gid, None).await.unwrap();
     eventually(|| bob.group_avatar(&gid).is_none()).await;
 }
+
+#[tokio::test]
+async fn find_contacts_by_number() {
+    // DISC-03, DISC-05, DISC-07: only opted-in numbers match, and only with their @username.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let bob_phone = format!("+346{:08}", bob_name[3..].parse::<u128>().unwrap());
+    assert_eq!(bob.my_phone().as_deref(), Some(bob_phone.as_str()));
+    let stranger = "+34699999999".to_string();
+    let book = vec![bob_phone.clone(), stranger];
+
+    assert!(
+        alice.find_contacts(&book).await.unwrap().is_empty(),
+        "off by default"
+    );
+    bob.set_discoverable(true).await.unwrap();
+    assert!(bob.discoverable().await.unwrap());
+    assert_eq!(
+        alice.find_contacts(&book).await.unwrap(),
+        vec![core_api::Found {
+            phone: bob_phone.clone(),
+            username: bob_name.clone()
+        }]
+    );
+    bob.set_discoverable(false).await.unwrap();
+    assert!(
+        alice.find_contacts(&book).await.unwrap().is_empty(),
+        "opted out"
+    );
+}

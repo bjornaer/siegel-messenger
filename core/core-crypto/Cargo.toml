@@ -11,6 +11,7 @@ hkdf = "0.12"
 hmac = "0.12"
 sha2 = "0.10"
 openmls = "0.9.1"
+curve25519-dalek = "4"
 openmls_basic_credential = "0.6"
 openmls_traits = "0.6"
 ed25519-dalek = { version = "2", features = ["rand_core"] }

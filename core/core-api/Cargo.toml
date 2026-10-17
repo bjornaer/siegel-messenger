@@ -13,6 +13,8 @@ core-store = { path = "../core-store" }
 openmls_rust_crypto = "0.6"
 openmls_traits = "0.6"
 prost = "0.14"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 uuid = { version = "1", features = ["v7"] }
 tokio = { version = "1", features = ["time"] }
 sha2 = "0.10"

@@ -277,6 +277,55 @@ impl Client {
         }
     }
 
+    /// DISC-03: our own number turns discovery on; None turns it off.
+    pub async fn set_discoverable(&self, token: &str, phone: Option<&str>) -> Result<(), Error> {
+        let req = pb::DiscoveryServiceSetDiscoverableRequest {
+            phone_e164: phone.unwrap_or_default().into(),
+        };
+        self.call::<pb::DiscoveryServiceSetDiscoverableResponse>(
+            "DiscoveryService/SetDiscoverable",
+            &req,
+            Some(token),
+        )
+        .await
+        .map(|_| ())
+    }
+
+    pub async fn discoverable(&self, token: &str) -> Result<bool, Error> {
+        let r: pb::DiscoveryServiceGetDiscoverableResponse = self
+            .call(
+                "DiscoveryService/GetDiscoverable",
+                &pb::DiscoveryServiceGetDiscoverableRequest {},
+                Some(token),
+            )
+            .await?;
+        Ok(r.on)
+    }
+
+    /// DISC-05.3: evaluated points, the key period and the bucket size in bits.
+    pub async fn evaluate(
+        &self,
+        token: &str,
+        blinded: Vec<Vec<u8>>,
+    ) -> Result<pb::DiscoveryServiceEvaluateResponse, Error> {
+        let req = pb::DiscoveryServiceEvaluateRequest { blinded };
+        self.call("DiscoveryService/Evaluate", &req, Some(token))
+            .await
+    }
+
+    pub async fn buckets(
+        &self,
+        token: &str,
+        period: i64,
+        buckets: Vec<u32>,
+    ) -> Result<Vec<pb::DirectoryEntry>, Error> {
+        let req = pb::DiscoveryServiceBucketsRequest { period, buckets };
+        let r: pb::DiscoveryServiceBucketsResponse = self
+            .call("DiscoveryService/Buckets", &req, Some(token))
+            .await?;
+        Ok(r.entries)
+    }
+
     pub async fn set_push_token(&self, token: &str, push_token: &str) -> Result<(), Error> {
         let req = pb::SetPushTokenRequest {
             push_token: push_token.into(),

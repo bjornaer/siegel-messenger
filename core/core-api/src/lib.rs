@@ -10,12 +10,14 @@ use core_store::{SqlCipher, Store};
 
 mod chat;
 mod contacts;
+mod discovery;
 mod groups;
 mod links;
 mod media;
 mod messages;
 pub use chat::{ChatMessage, Event};
 pub use core_store::{Contact, ContactState, Conversation, Status};
+pub use discovery::Found;
 pub use groups::{
     GROUP_ADDS, GroupEvent, GroupEventKind, GroupInfo, GroupLink, GroupMember, GroupPreview,
 };
@@ -69,6 +71,8 @@ const AS_PUBLIC: &str = "as_public_key";
 const SIGNER: &str = "mls_signer_public";
 const CREDENTIAL: &str = "mls_credential";
 const REG_LOCK: &str = "registration_lock";
+/// Our own E.164 number, kept for discovery (DISC-03) and to read local contact numbers.
+const PHONE: &str = "phone_e164";
 
 pub struct SiegelCore {
     store: Mutex<Option<SqlCipher>>,
@@ -207,6 +211,7 @@ impl SiegelCore {
             }
             storage(s.put(REG_LOCK, if res.registration_lock { b"1" } else { b"0" }))?;
             for (k, v) in [
+                (PHONE, phone_e164.as_bytes()),
                 (IDENTITY, &id.to_bytes()[..]),
                 (ACCOUNT, &account[..]),
                 (DEVICE, &device[..]),

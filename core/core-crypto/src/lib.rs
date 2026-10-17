@@ -1,5 +1,6 @@
 //! Cryptography. No platform-specific code here (CLI-04).
 
+pub mod discovery;
 pub mod groups;
 pub mod mls;
 pub mod profile;
