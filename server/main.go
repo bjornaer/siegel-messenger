@@ -234,8 +234,15 @@ func main() {
 	default:
 		fatal("SIEGEL_FCM_CREDENTIALS required outside dev mode (push and attestation)")
 	}
-	if err := cfg.s3.makeBucket(ctx); err != nil {
-		fatal("s3 bucket", "err", err)
+	// The store may still be starting (compose starts both together): give it a minute.
+	for try := 0; ; try++ {
+		err := cfg.s3.makeBucket(ctx)
+		if err == nil {
+			break
+		} else if try == 30 {
+			fatal("s3 bucket", "err", err)
+		}
+		time.Sleep(2 * time.Second)
 	}
 	s.blobs = cfg.s3
 	go s.janitor(ctx, b)
