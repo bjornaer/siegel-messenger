@@ -1,0 +1,10 @@
+[package]
+name = "core-media"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+aes-gcm = { version = "0.10", features = ["stream"] }
+rand_core = { version = "0.6", features = ["getrandom"] }

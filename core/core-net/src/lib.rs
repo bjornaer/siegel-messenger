@@ -211,6 +211,50 @@ impl Client {
     }
 
     /// FCM or APNs token for this device; empty clears it (MSG-17).
+    /// MED-03: reserves a blob of `size` bytes; returns its ID and one-time upload path.
+    pub async fn create_upload(&self, token: &str, size: u64) -> Result<(Vec<u8>, String), Error> {
+        let req = pb::AttachmentsServiceCreateUploadRequest { size: size as i64 };
+        let r: pb::AttachmentsServiceCreateUploadResponse = self
+            .call("AttachmentsService/CreateUpload", &req, Some(token))
+            .await?;
+        Ok((r.blob_id, r.upload_path))
+    }
+
+    pub async fn put_blob(&self, upload_path: &str, blob: Vec<u8>) -> Result<(), Error> {
+        let res = self
+            .http
+            .put(format!("{}{upload_path}", self.base))
+            .body(blob)
+            .send()
+            .await
+            .map_err(|_| Error::new("network"))?;
+        if !res.status().is_success() {
+            return Err(Error::new("upload_failed"));
+        }
+        Ok(())
+    }
+
+    /// The ciphertext, or "attachment_expired" once the server has deleted it (MED-13).
+    pub async fn get_blob(&self, token: &str, blob_id: &[u8]) -> Result<Vec<u8>, Error> {
+        let hex: String = blob_id.iter().map(|b| format!("{b:02x}")).collect();
+        let res = self
+            .http
+            .get(format!("{}/v1/blobs/{hex}", self.base))
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|_| Error::new("network"))?;
+        match res.status().as_u16() {
+            200 => Ok(res
+                .bytes()
+                .await
+                .map_err(|_| Error::new("network"))?
+                .to_vec()),
+            404 => Err(Error::new("attachment_expired")),
+            _ => Err(Error::new("network")),
+        }
+    }
+
     pub async fn set_push_token(&self, token: &str, push_token: &str) -> Result<(), Error> {
         let req = pb::SetPushTokenRequest {
             push_token: push_token.into(),

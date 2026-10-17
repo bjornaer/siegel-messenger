@@ -133,6 +133,9 @@ impl SiegelCore {
             }
             Ok(())
         });
+        for m in self.with_store(|s| storage(s.messages(group_id, u32::MAX)))? {
+            self.forget_media(&m.message_id);
+        }
         self.with_store(|s| storage(s.delete_conversation(group_id)))?;
         if let Some(c) = peer.filter(|c| c.state == ContactState::Request) {
             // A declined requester can write again later; forget what we cached about them.

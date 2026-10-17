@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["core-crypto", "core-net", "core-store", "core-api"]
+members = ["core-crypto", "core-media", "core-net", "core-store", "core-api"]
 
 [workspace.package]
 edition = "2024"

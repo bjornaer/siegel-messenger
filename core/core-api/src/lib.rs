@@ -12,12 +12,14 @@ mod chat;
 mod contacts;
 mod groups;
 mod links;
+mod media;
 mod messages;
 pub use chat::{ChatMessage, Event};
 pub use core_store::{Contact, ContactState, Conversation, Status};
 pub use groups::{
     GROUP_ADDS, GroupEvent, GroupEventKind, GroupInfo, GroupLink, GroupMember, GroupPreview,
 };
+pub use media::{AttachmentInfo, OutgoingAttachment};
 pub use messages::{READ_RECEIPTS, TYPING};
 
 /// Machine-readable failure, e.g. "otp_invalid", "registration_lock_required", "network".
@@ -73,6 +75,8 @@ pub struct SiegelCore {
     net: Client,
     /// Base of share links (DISC-02, DISC-08): the server's own address.
     server_url: String,
+    /// Attachment blobs, as ciphertext, one file per message.
+    media_dir: std::path::PathBuf,
 }
 
 impl SiegelCore {
@@ -86,6 +90,7 @@ impl SiegelCore {
             store: Mutex::new(Some(store)),
             net: Client::new(server_url),
             server_url: server_url.trim_end_matches('/').to_string(),
+            media_dir: format!("{db_path}.media").into(),
         })
     }
 
@@ -288,6 +293,7 @@ impl SiegelCore {
 
     /// Erases keys and the local database (ID-12). This instance is unusable afterwards.
     pub fn wipe(&self) -> Result<(), CoreError> {
+        let _ = std::fs::remove_dir_all(&self.media_dir);
         match self.store.lock().unwrap().take() {
             Some(s) => storage(Box::new(s).wipe()),
             None => Ok(()),

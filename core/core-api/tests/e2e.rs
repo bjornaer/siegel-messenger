@@ -1136,3 +1136,65 @@ async fn group_invite_links() {
         "invite_not_found"
     );
 }
+
+#[tokio::test]
+async fn voice_notes_upload_download_and_delete() {
+    // MED-01..06, MED-09, MSG-11: through the real server and its S3 store.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let mut alice_events = listen(&alice);
+    let mut bob_events = listen(&bob);
+    befriend(&alice, &mut alice_events, &bob, &bob_name, &mut bob_events).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+
+    let audio: Vec<u8> = (0..300_000u32).map(|i| (i * 7 % 251) as u8).collect();
+    let sent = alice
+        .send_attachment(
+            &chat,
+            core_api::OutgoingAttachment {
+                data: audio.clone(),
+                mime_type: "audio/mp4".into(),
+                file_name: String::new(),
+                duration_ms: 4200,
+                voice_note: true,
+                waveform: vec![10, 200, 90],
+            },
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(sent.status, core_api::Status::Sent);
+    let got = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await;
+    let core_api::Event::Message(m) = got else {
+        unreachable!()
+    };
+    let info = m.attachment.clone().expect("an attachment");
+    assert!(info.voice_note && info.duration_ms == 4200 && info.waveform == vec![10, 200, 90]);
+    assert_eq!(bob.attachment_data(&m.message_id).await.unwrap(), audio);
+    assert_eq!(
+        alice.attachment_data(&sent.message_id).await.unwrap(),
+        audio,
+        "sender keeps it"
+    );
+
+    // Delete for everyone removes the blob from the receiver's device too.
+    let media = std::env::temp_dir()
+        .join(format!("siegel-e2e-bob-{}", &bob_name[3..]))
+        .join("core.db.media");
+    assert_eq!(std::fs::read_dir(&media).unwrap().count(), 1);
+    alice
+        .delete_for_everyone(&chat, &sent.message_id)
+        .await
+        .unwrap();
+    until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Updated { .. })
+    })
+    .await;
+    assert_eq!(std::fs::read_dir(&media).unwrap().count(), 0);
+}

@@ -125,6 +125,11 @@ enum Handled {
     StillInGroup(Vec<u8>),
     /// DISC-08: they opened our contact link, so their chat skipped the message request.
     AcceptedByLink(Vec<u8>),
+    /// MSG-11: someone deleted a message for everyone; its attachment goes too.
+    Deleted {
+        group_id: Vec<u8>,
+        message_id: Vec<u8>,
+    },
     /// Members joined a group: they get our profile key.
     MembersAdded {
         group_id: Vec<u8>,
@@ -155,13 +160,20 @@ pub struct ChatMessage {
     pub event: Option<crate::groups::GroupEvent>,
     /// GRP-15: accounts @mentioned in the text.
     pub mentions: Vec<Vec<u8>>,
+    /// MED-04: a file instead of text; fetch it with `attachment_data`.
+    pub attachment: Option<crate::AttachmentInfo>,
 }
 
 pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Option<ChatMessage> {
     let (mut t, mut key_change, mut event) = (pb::Text::default(), false, None);
+    let mut attachment = None;
     if !m.deleted {
         match pb::Content::decode(m.body.as_slice()).ok()?.body? {
             pb::content::Body::Text(x) => t = x,
+            pb::content::Body::Attachment(a) => {
+                attachment = Some(crate::media::info(&a));
+                t.reply_to = a.reply_to;
+            }
             pb::content::Body::KeyChange(_) => key_change = true,
             pb::content::Body::GroupEvent(e) => event = Some(crate::groups::group_event(e)?),
             _ => return None, // unknown types skipped (MSG-01)
@@ -182,6 +194,7 @@ pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Opt
         key_change,
         event,
         mentions: t.mentions,
+        attachment,
     })
 }
 
@@ -611,6 +624,11 @@ impl SiegelCore {
                 let Ok(c) = pb::Content::decode(plaintext.as_slice()) else {
                     return Ok(None);
                 };
+                if let Some(pb::content::Body::Attachment(a)) = &c.body
+                    && !crate::media::valid(a)
+                {
+                    return Ok(None);
+                }
                 match c.body {
                     Some(pb::content::Body::ProfileKeyUpdate(u)) if u.profile_key.len() == 32 => {
                         let mut contact = storage(s.contact(&from))?.unwrap_or(Contact {
@@ -621,7 +639,7 @@ impl SiegelCore {
                         storage(s.save_contact(&contact))?;
                         Ok(Some(Handled::ProfileKey(from)))
                     }
-                    Some(pb::content::Body::Text(_)) => {
+                    Some(pb::content::Body::Text(_) | pb::content::Body::Attachment(_)) => {
                         let msg = Message {
                             message_id: c.message_id.clone(),
                             group_id,
@@ -639,12 +657,19 @@ impl SiegelCore {
                         }
                         Ok(chat_message(msg, vec![]).map(|m| Handled::Text(Box::new(m))))
                     }
-                    Some(
-                        pb::content::Body::Reaction(_)
-                        | pb::content::Body::Edit(_)
-                        | pb::content::Body::Delete(_),
-                    ) => Ok(apply_change(s, &group_id, &from, &c, true)?
-                        .then_some(Handled::Event(Event::Updated { group_id }))),
+                    Some(pb::content::Body::Delete(ref d)) => {
+                        let id = d.message_id.clone();
+                        Ok(apply_change(s, &group_id, &from, &c, true)?.then_some(
+                            Handled::Deleted {
+                                group_id,
+                                message_id: id,
+                            },
+                        ))
+                    }
+                    Some(pb::content::Body::Reaction(_) | pb::content::Body::Edit(_)) => {
+                        Ok(apply_change(s, &group_id, &from, &c, true)?
+                            .then_some(Handled::Event(Event::Updated { group_id })))
+                    }
                     Some(pb::content::Body::Receipt(r)) => {
                         let status = match r.kind() {
                             pb::receipt::Kind::Delivered => Status::Delivered,
@@ -771,6 +796,13 @@ impl SiegelCore {
                     stream.ack(vec![id]).await?;
                     match handled {
                         Ok(Some(Handled::Event(e))) => on_event(e),
+                        Ok(Some(Handled::Deleted {
+                            group_id,
+                            message_id,
+                        })) => {
+                            self.forget_media(&message_id);
+                            on_event(Event::Updated { group_id });
+                        }
                         Ok(Some(Handled::Rejoined(group_id))) => {
                             if !self.is_request(&group_id).unwrap_or(true) {
                                 let _ = self.share_profile_key(&group_id).await;

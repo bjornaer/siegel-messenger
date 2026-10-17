@@ -94,7 +94,7 @@ impl SiegelCore {
         self.setting(setting).as_deref() != Some("off")
     }
 
-    fn me(&self) -> Result<Vec<u8>, CoreError> {
+    pub(crate) fn me(&self) -> Result<Vec<u8>, CoreError> {
         self.get(ACCOUNT)?.ok_or(CoreError::new("not_registered"))
     }
 
@@ -121,12 +121,7 @@ impl SiegelCore {
         if text.is_empty() || text.len() > MAX_TEXT {
             return Err(CoreError::new("text_invalid"));
         }
-        if self.is_request(group_id)? {
-            return Err(CoreError::new("request_pending")); // accept first (MSG-15)
-        }
-        if self.conversation(group_id)?.left {
-            return Err(CoreError::new("group_left"));
-        }
+        self.check_can_send(group_id)?;
         let content = self.new_content(pb::content::Body::Text(pb::Text {
             body: text.into(),
             reply_to: reply_to.unwrap_or_default().to_vec(),
@@ -148,6 +143,16 @@ impl SiegelCore {
         chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
     }
 
+    pub(crate) fn check_can_send(&self, group_id: &[u8]) -> Result<(), CoreError> {
+        if self.is_request(group_id)? {
+            return Err(CoreError::new("request_pending")); // accept first (MSG-15)
+        }
+        if self.conversation(group_id)?.left {
+            return Err(CoreError::new("group_left"));
+        }
+        Ok(())
+    }
+
     /// Sends a Failed message again with the same ID; receivers deduplicate (MSG-03).
     pub async fn retry(&self, message_id: &[u8]) -> Result<(), CoreError> {
         let mut msg = self
@@ -157,7 +162,7 @@ impl SiegelCore {
         self.deliver_stored(&mut msg).await
     }
 
-    async fn deliver_stored(&self, msg: &mut Message) -> Result<(), CoreError> {
+    pub(crate) async fn deliver_stored(&self, msg: &mut Message) -> Result<(), CoreError> {
         let content =
             pb::Content::decode(msg.body.as_slice()).map_err(|_| CoreError::new("storage"))?;
         let sent = self.deliver(&msg.group_id, &content).await;
@@ -236,12 +241,16 @@ impl SiegelCore {
         let d = pb::Delete {
             message_id: message_id.to_vec(),
         };
-        self.change(group_id, pb::content::Body::Delete(d)).await
+        self.change(group_id, pb::content::Body::Delete(d)).await?;
+        self.forget_media(message_id);
+        Ok(())
     }
 
     /// MSG-12: local only, any time.
     pub fn delete_for_me(&self, message_id: &[u8]) -> Result<(), CoreError> {
-        self.with_store(|s| storage(s.delete_message(message_id)))
+        self.with_store(|s| storage(s.delete_message(message_id)))?;
+        self.forget_media(message_id);
+        Ok(())
     }
 
     /// MSG-09: earlier texts of an edited message, oldest first.

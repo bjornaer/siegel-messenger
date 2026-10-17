@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 core-crypto = { path = "../core-crypto" }
+core-media = { path = "../core-media" }
 core-net = { path = "../core-net" }
 core-store = { path = "../core-store" }
 openmls_rust_crypto = "0.6"
