@@ -29,9 +29,19 @@ Settings → Change number:
 
 ## Rules, for review
 
-1. **The new number must not belong to another account.** If it does, the change is refused and the app
-   says so ("This number already has a Siegel account. Delete that account first."). The alternative,
-   silently deleting the other account, is easy to abuse.
+1. **Whoever controls the number gets it.** Numbers get recycled: an old user may still have the number
+   on an account long after the phone company gave it to someone else. So when the new number is on
+   another account, proving it by SMS takes it: it moves to the new account, and the old account
+   **keeps everything else** (identity, @username, chats, groups, devices) but has no number any more.
+   Nothing is deleted, and the current phone owner is never stuck.
+   - The old account's devices get a notice: "Your number was verified on another Siegel account. Your
+     account still works; add a number in Settings so you can recover it later."
+   - A numberless account can't be recovered by re-registering (there is no number to verify), so the
+     notice asks them to add one. Changing to a new number works the same way from a numberless account.
+   - If the old account had "find me by my number" on, its directory entry is removed.
+   - This also covers a SIM-swap attacker: they gain the number, but not the victim's account, chats or
+     @username (and a Registration Lock still blocks re-registering it). The victim keeps using Siegel and
+     is told what happened.
 2. **At most one change per 7 days [proposed default]**, so a stolen session can't hop numbers to dodge
    limits.
 3. **Registration Lock stays** with the account (it protects the account, not the number).
