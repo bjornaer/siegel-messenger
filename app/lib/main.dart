@@ -146,7 +146,8 @@ class _SiegelAppState extends State<SiegelApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: AppLocalizations.supportedLocales,
+      // Flutter falls back to the first entry for languages we don't have: make that English.
+      supportedLocales: [const Locale('en'), ...AppLocalizations.supportedLocales.where((l) => l.languageCode != 'en')],
       theme: theme.data(Brightness.light),
       darkTheme: theme.data(Brightness.dark),
       home: ready

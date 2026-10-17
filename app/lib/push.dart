@@ -41,7 +41,7 @@ Future<void> _initNotifications() => _notifications.initialize(
 AppLocalizations notificationStrings(Locale locale) => lookupAppLocalizations(
   AppLocalizations.supportedLocales.firstWhere(
     (l) => l.languageCode == locale.languageCode,
-    orElse: () => AppLocalizations.supportedLocales.first,
+    orElse: () => const Locale('en'),
   ),
 );
 

@@ -894,9 +894,11 @@ void main() {
     expect(find.text('🎤 Voice message (0:04)'), findsOneWidget, reason: 'quoted above the composer');
   });
 
-  test('notifications fall back to English on phones in other languages (MSG-17)', () {
-    expect(notificationStrings(const Locale('de', 'AT')).voiceMessage, 'Voice message');
-    expect(notificationStrings(const Locale('es')).voiceMessage, 'Voice message');
+  test('notifications use the phone language, English when the app lacks it (MSG-17, Q3)', () {
+    expect(notificationStrings(const Locale('de', 'AT')).voiceMessage, 'Sprachnachricht');
+    expect(notificationStrings(const Locale('es', 'ES')).voiceMessage, 'Mensaje de voz');
+    expect(notificationStrings(const Locale('pt', 'BR')).voiceMessage, 'Mensagem de voz');
+    expect(notificationStrings(const Locale('fr')).voiceMessage, 'Voice message');
     expect(notificationStrings(const Locale('en', 'GB')).voiceMessage, 'Voice message');
   });
 
