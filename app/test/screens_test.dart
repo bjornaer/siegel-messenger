@@ -15,6 +15,7 @@ import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/media.dart';
 import 'package:siegel/onboarding.dart';
+import 'package:siegel/push.dart' show notificationStrings;
 import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
 
@@ -891,6 +892,12 @@ void main() {
     expect(find.text('Copy'), findsNothing, reason: 'nothing to copy');
     await tapText(t, 'Reply');
     expect(find.text('🎤 Voice message (0:04)'), findsOneWidget, reason: 'quoted above the composer');
+  });
+
+  test('notifications fall back to English on phones in other languages (MSG-17)', () {
+    expect(notificationStrings(const Locale('de', 'AT')).voiceMessage, 'Voice message');
+    expect(notificationStrings(const Locale('es')).voiceMessage, 'Voice message');
+    expect(notificationStrings(const Locale('en', 'GB')).voiceMessage, 'Voice message');
   });
 
   testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {

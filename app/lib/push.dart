@@ -35,6 +35,16 @@ Future<void> _initNotifications() => _notifications.initialize(
   settings: const InitializationSettings(android: AndroidInitializationSettings('ic_notification')),
 );
 
+/// The app's strings for [locale], or English when the app isn't translated into it.
+/// lookupAppLocalizations throws on an unsupported locale; outside the widget tree nothing
+/// falls back for us (this silently broke every notification on non-English phones).
+AppLocalizations notificationStrings(Locale locale) => lookupAppLocalizations(
+  AppLocalizations.supportedLocales.firstWhere(
+    (l) => l.languageCode == locale.languageCode,
+    orElse: () => AppLocalizations.supportedLocales.first,
+  ),
+);
+
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
 /// unless the user allows private content there (Android's "private" visibility).
 Future<void> notifyMessage(Core core, MessageView m) async {
@@ -42,7 +52,7 @@ Future<void> notifyMessage(Core core, MessageView m) async {
   // GRP-15: an @mention gets through a timed mute.
   final me = myAccount(core, m.groupId);
   if (isMuted(core, m.groupId) && !m.mentions.any((a) => listEquals(a, me))) return;
-  final t = lookupAppLocalizations(PlatformDispatcher.instance.locale);
+  final t = notificationStrings(PlatformDispatcher.instance.locale);
   final chat = core.chats().where((c) => listEquals(c.groupId, m.groupId)).firstOrNull;
   await _notifications.show(
     id: Object.hashAll(m.groupId) & 0x7fffffff,
@@ -63,6 +73,8 @@ Future<void> notifyMessage(Core core, MessageView m) async {
   );
 }
 
+Core? _backgroundCore;
+
 /// Runs in a background isolate when a push arrives and the app isn't in the foreground.
 @pragma('vm:entry-point')
 Future<void> _onBackgroundPush(RemoteMessage _) async {
@@ -78,8 +90,11 @@ Future<void> _onBackgroundPush(RemoteMessage _) async {
   }
   // ponytail: if the user opens the app during these seconds, both isolates use the database
   // at once. SQLite locking serializes writes; move this into the core with a file lock if it bites.
-  await RustLib.init();
-  final core = await openCore();
+  // A process woken for one push stays around for the next: open everything once.
+  final core = _backgroundCore ??= await () async {
+    await RustLib.init();
+    return openCore();
+  }();
   if (!core.isRegistered()) return;
   await _initNotifications();
   await for (final e in core.drain()) {
