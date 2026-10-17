@@ -213,5 +213,9 @@
   "errAttachmentExpired": "Este anexo não está mais no servidor. Peça para quem enviou mandar de novo.",
   "errAttachmentCorrupt": "Este anexo foi danificado no caminho e não pode ser aberto.",
   "errAttachmentTooLarge": "Os arquivos podem ter até 100 MB.",
-  "errUploadFailed": "O envio não terminou. Tente de novo."
+  "errUploadFailed": "O envio não terminou. Tente de novo.",
+  "profilePhoto": "Foto do perfil",
+  "choosePhoto": "Escolher uma foto",
+  "removePhoto": "Remover foto",
+  "errAvatarInvalid": "Essa imagem não pode ser usada. Tente outra."
 }

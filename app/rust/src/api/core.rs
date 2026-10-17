@@ -643,6 +643,27 @@ impl Core {
             .into())
     }
 
+    /// MED-15: sets (PNG bytes) or removes (None) our picture and tells our contacts.
+    pub async fn set_avatar(&self, image: Option<Vec<u8>>) -> Result<(), CoreError> {
+        Ok(self.0.set_avatar(image).await?)
+    }
+
+    #[frb(sync)]
+    pub fn my_avatar(&self) -> Option<Vec<u8>> {
+        self.0.my_avatar()
+    }
+
+    /// A contact's picture, once fetched with their profile.
+    #[frb(sync)]
+    pub fn avatar(&self, account: Vec<u8>) -> Option<Vec<u8>> {
+        self.0.avatar(&account)
+    }
+
+    /// Sends our current name and picture to every chat (after editing the profile).
+    pub async fn announce_profile(&self) -> Result<(), CoreError> {
+        Ok(self.0.announce_profile().await?)
+    }
+
     /// The attachment's bytes, downloaded on first use. Errors: attachment_expired (MED-13),
     /// attachment_corrupt (MED-05), network.
     pub async fn attachment_data(&self, message_id: Vec<u8>) -> Result<Vec<u8>, CoreError> {

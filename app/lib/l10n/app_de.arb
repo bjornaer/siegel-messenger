@@ -213,5 +213,9 @@
   "errAttachmentExpired": "Dieser Anhang ist nicht mehr auf dem Server. Bitte die Person, ihn noch einmal zu senden.",
   "errAttachmentCorrupt": "Dieser Anhang wurde unterwegs beschädigt und lässt sich nicht öffnen.",
   "errAttachmentTooLarge": "Dateien können bis zu 100 MB groß sein.",
-  "errUploadFailed": "Der Upload wurde nicht abgeschlossen. Versuche es erneut."
+  "errUploadFailed": "Der Upload wurde nicht abgeschlossen. Versuche es erneut.",
+  "profilePhoto": "Profilbild",
+  "choosePhoto": "Foto auswählen",
+  "removePhoto": "Foto entfernen",
+  "errAvatarInvalid": "Dieses Bild lässt sich nicht verwenden. Versuche ein anderes."
 }

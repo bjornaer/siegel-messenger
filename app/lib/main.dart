@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app_lock.dart';
+import 'avatar.dart';
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart';
@@ -394,6 +395,7 @@ class _ProfileState extends State<_Profile> {
       widget.core.setDisplayName(name: name.text);
       final u = user.text.trim().replaceFirst(RegExp('^@'), '').toLowerCase();
       if (u.isNotEmpty && u != widget.core.username()) await widget.core.setUsername(username: u);
+      await widget.core.announceProfile(); // contacts see the new name
     } on CoreError catch (e) {
       if (mounted) showError(context, e);
     }
@@ -405,6 +407,7 @@ class _ProfileState extends State<_Profile> {
     final t = AppLocalizations.of(context)!;
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      leading: AvatarEditor(core: widget.core, radius: 28),
       title: Text(t.homeRegistered(widget.core.username() ?? ''), style: Theme.of(context).textTheme.titleLarge),
       subtitle: widget.core.displayName() == null ? null : Text(widget.core.displayName()!),
       trailing: IconButton(tooltip: t.editProfile, icon: const Icon(Icons.edit_outlined), onPressed: _edit),

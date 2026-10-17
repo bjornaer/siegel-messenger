@@ -782,8 +782,11 @@ type ProfileServiceSetRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	EncryptedProfile      []byte                 `protobuf:"bytes,1,opt,name=encrypted_profile,json=encryptedProfile,proto3" json:"encrypted_profile,omitempty"`                  // at most 4 KiB
 	DeliveryTokenVerifier []byte                 `protobuf:"bytes,2,opt,name=delivery_token_verifier,json=deliveryTokenVerifier,proto3" json:"delivery_token_verifier,omitempty"` // SHA-256 of the delivery token, 32 bytes
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// MED-15: the uploaded blob holding the encrypted profile picture, kept while it is current;
+	// the previous one expires. Empty when there is no picture.
+	AvatarBlobId  []byte `protobuf:"bytes,3,opt,name=avatar_blob_id,json=avatarBlobId,proto3" json:"avatar_blob_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProfileServiceSetRequest) Reset() {
@@ -826,6 +829,13 @@ func (x *ProfileServiceSetRequest) GetEncryptedProfile() []byte {
 func (x *ProfileServiceSetRequest) GetDeliveryTokenVerifier() []byte {
 	if x != nil {
 		return x.DeliveryTokenVerifier
+	}
+	return nil
+}
+
+func (x *ProfileServiceSetRequest) GetAvatarBlobId() []byte {
+	if x != nil {
+		return x.AvatarBlobId
 	}
 	return nil
 }
@@ -1097,10 +1107,11 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\x03pin\x18\x01 \x01(\tR\x03pin\"\x1d\n" +
 	"\x1bSetRegistrationLockResponse\"\x1d\n" +
 	"\x1bAccountServiceDeleteRequest\"\x1e\n" +
-	"\x1cAccountServiceDeleteResponse\"\x7f\n" +
+	"\x1cAccountServiceDeleteResponse\"\xa5\x01\n" +
 	"\x18ProfileServiceSetRequest\x12+\n" +
 	"\x11encrypted_profile\x18\x01 \x01(\fR\x10encryptedProfile\x126\n" +
-	"\x17delivery_token_verifier\x18\x02 \x01(\fR\x15deliveryTokenVerifier\"\x1b\n" +
+	"\x17delivery_token_verifier\x18\x02 \x01(\fR\x15deliveryTokenVerifier\x12$\n" +
+	"\x0eavatar_blob_id\x18\x03 \x01(\fR\favatarBlobId\"\x1b\n" +
 	"\x19ProfileServiceSetResponse\"9\n" +
 	"\x18ProfileServiceGetRequest\x12\x1d\n" +
 	"\n" +

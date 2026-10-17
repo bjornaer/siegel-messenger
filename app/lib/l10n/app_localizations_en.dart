@@ -760,4 +760,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errUploadFailed => 'The upload didn\'t finish. Try again.';
+
+  @override
+  String get profilePhoto => 'Profile photo';
+
+  @override
+  String get choosePhoto => 'Choose a photo';
+
+  @override
+  String get removePhoto => 'Remove photo';
+
+  @override
+  String get errAvatarInvalid =>
+      'That picture can\'t be used. Try another one.';
 }

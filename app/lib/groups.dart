@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show Uint8List;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'avatar.dart';
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart';
@@ -341,7 +342,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               if (g != null)
                 for (final m in g.members)
                   ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                    leading: Avatar(core: widget.core, account: m.me ? null : m.account),
                     title: Text(m.me ? t.you : m.displayName ?? (m.username == null ? t.newContact : '@${m.username}')),
                     subtitle: m.displayName != null && m.username != null ? Text('@${m.username}') : null,
                     trailing: m.admin ? Text(t.admin) : null,

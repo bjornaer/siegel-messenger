@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
+import 'avatar.dart';
 import 'l10n/app_localizations.dart';
 import 'src/rust/api/core.dart';
 
@@ -47,6 +48,7 @@ void showError(BuildContext context, CoreError e) {
     'attachment_corrupt' => t.errAttachmentCorrupt,
     'attachment_too_large' => t.errAttachmentTooLarge,
     'upload_failed' => t.errUploadFailed,
+    'avatar_invalid' => t.errAvatarInvalid,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };
@@ -268,6 +270,7 @@ class _OnboardingState extends State<Onboarding> {
       _Step.profile => (
         t.profileTitle,
         [
+          Center(child: AvatarEditor(core: core)), // MED-15, optional
           // ID-09: a re-registered account keeps its @username; only the name is asked again
           // (the old profile key left with the old install).
           if (core.username() case final kept?)

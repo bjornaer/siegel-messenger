@@ -491,4 +491,31 @@ func TestAttachments(t *testing.T) { // MED-03, MED-06, MED-13
 	if code, _ := httpDo("GET", blob, a.DeviceToken, ""); code != 404 || len(store) != 0 {
 		t.Fatal("expired blobs are deleted", code, len(store))
 	}
+	// MED-15: a profile picture never expires while current; replacing it lets the old one go.
+	e.s.cfg.uploadsPerDay = 100
+	prof := siegelv1connect.NewProfileServiceClient(http.DefaultClient, e.url, auth)
+	expires := func(id []byte) (inf bool) {
+		e.s.db.QueryRow(e.ctx, `SELECT expires_at = 'infinity' FROM attachments WHERE blob_id = $1`, id).Scan(&inf)
+		return inf
+	}
+	setAvatar := func(id []byte) string {
+		_, err := prof.Set(e.ctx, connect.NewRequest(&siegelv1.ProfileServiceSetRequest{
+			EncryptedProfile: []byte("x"), DeliveryTokenVerifier: make([]byte, 32), AvatarBlobId: id}))
+		return errMsg(err)
+	}
+	var pics [][]byte
+	for range 2 {
+		up, _ := create(5)
+		httpDo("PUT", up.UploadPath, "", "hello")
+		pics = append(pics, up.BlobId)
+	}
+	want(t, setAvatar([]byte("not uploaded....")), "avatar_invalid")
+	want(t, setAvatar(pics[0]), "")
+	if !expires(pics[0]) {
+		t.Fatal("the current picture must not expire")
+	}
+	want(t, setAvatar(pics[1]), "")
+	if expires(pics[0]) || !expires(pics[1]) {
+		t.Fatal("the replaced picture expires, the new one doesn't")
+	}
 }

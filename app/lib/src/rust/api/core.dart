@@ -20,12 +20,18 @@ abstract class Core implements RustOpaqueInterface {
     required List<String> usernames,
   });
 
+  /// Sends our current name and picture to every chat (after editing the profile).
+  Future<void> announceProfile();
+
   /// Newest published build and the oldest allowed, for the update prompt.
   Future<AppVersion> appVersion({required DevicePlatform platform});
 
   /// The attachment's bytes, downloaded on first use. Errors: attachment_expired (MED-13),
   /// attachment_corrupt (MED-05), network.
   Future<Uint8List> attachmentData({required List<int> messageId});
+
+  /// A contact's picture, once fetched with their profile.
+  Uint8List? avatar({required List<int> account});
 
   /// Blocks the account; they are not told (MSG-16).
   Future<void> block({required List<int> account});
@@ -96,6 +102,8 @@ abstract class Core implements RustOpaqueInterface {
   List<ReceiptView> messageReceipts({required List<int> messageId});
 
   List<MessageView> messages({required List<int> groupId, required int limit});
+
+  Uint8List? myAvatar();
 
   static Core open({
     required String dbPath,
@@ -179,6 +187,9 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> account,
     required bool admin,
   });
+
+  /// MED-15: sets (PNG bytes) or removes (None) our picture and tells our contacts.
+  Future<void> setAvatar({Uint8List? image});
 
   void setContactLink({required bool enabled});
 

@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
+import 'avatar.dart';
 import 'format.dart';
 import 'groups.dart';
 import 'links.dart';
@@ -153,7 +154,9 @@ String _preview(AppLocalizations t, Core core, ChatSummary c) {
 Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSummary c) {
   final t = AppLocalizations.of(context)!;
   return ListTile(
-    leading: CircleAvatar(child: Icon(c.isGroup ? Icons.group_outlined : Icons.person_outline)),
+    leading: c.isGroup
+        ? const CircleAvatar(child: Icon(Icons.group_outlined))
+        : Avatar(core: core, account: c.peerAccount),
     title: Text(chatTitle(t, c)),
     subtitle: c.last == null ? null : Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis),
     trailing: c.last == null ? null : Text(_time(context, c.last!.sentAt)),
@@ -473,7 +476,7 @@ class _ChatScreenState extends State<ChatScreen> {
         for (final m in matches)
           ListTile(
             dense: true,
-            leading: const CircleAvatar(radius: 14, child: Icon(Icons.person_outline, size: 16)),
+            leading: Avatar(core: core, account: m.account, radius: 14),
             title: Text(m.displayName ?? '@${m.username}'),
             subtitle: m.displayName != null && m.username != null ? Text('@${m.username}') : null,
             onTap: () => _mention(m.displayName ?? m.username ?? t.someone, m.account),
@@ -779,26 +782,39 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
-                      if (c.peerVerified) ...[
-                        const SizedBox(width: 6),
-                        Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
-                      ],
-                    ],
+                  Avatar(
+                    core: core,
+                    account: c.isGroup ? null : c.peerAccount,
+                    radius: 18,
+                    icon: c.isGroup ? Icons.group_outlined : Icons.person_outline,
                   ),
-                  if (widget.service.isTyping(_group))
-                    Text(
-                      c.isGroup
-                          ? t.isTyping(memberName(t, core, widget.service.typingAccount(_group) ?? const []))
-                          : t.typing,
-                      style: Theme.of(context).textTheme.labelMedium,
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
+                            if (c.peerVerified) ...[
+                              const SizedBox(width: 6),
+                              Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
+                            ],
+                          ],
+                        ),
+                        if (widget.service.isTyping(_group))
+                          Text(
+                            c.isGroup
+                                ? t.isTyping(memberName(t, core, widget.service.typingAccount(_group) ?? const []))
+                                : t.typing,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),

@@ -66,6 +66,7 @@ message ProfileKeyUpdate {
 message Profile {
   string display_name = 1;
   string username = 2;
+  Attachment avatar = 3; // MED-15: blob_id, key, sha256, size and type of the picture; unset when none
   bytes padding = 15; // fills the plaintext to a 256-byte bucket so name length stays hidden
 }
 

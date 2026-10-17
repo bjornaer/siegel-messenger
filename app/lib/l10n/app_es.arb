@@ -213,5 +213,9 @@
   "errAttachmentExpired": "Este archivo ya no está en el servidor. Pide a quien lo envió que lo vuelva a enviar.",
   "errAttachmentCorrupt": "Este archivo se dañó por el camino y no se puede abrir.",
   "errAttachmentTooLarge": "Los archivos pueden ocupar hasta 100 MB.",
-  "errUploadFailed": "La subida no ha terminado. Inténtalo de nuevo."
+  "errUploadFailed": "La subida no ha terminado. Inténtalo de nuevo.",
+  "profilePhoto": "Foto de perfil",
+  "choosePhoto": "Elegir una foto",
+  "removePhoto": "Quitar foto",
+  "errAvatarInvalid": "Esa imagen no se puede usar. Prueba con otra."
 }

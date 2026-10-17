@@ -410,5 +410,9 @@
   "errAttachmentExpired": "This attachment is no longer on the server. Ask the sender to send it again.",
   "errAttachmentCorrupt": "This attachment was damaged on the way and can't be opened.",
   "errAttachmentTooLarge": "Files can be up to 100 MB.",
-  "errUploadFailed": "The upload didn't finish. Try again."
+  "errUploadFailed": "The upload didn't finish. Try again.",
+  "profilePhoto": "Profile photo",
+  "choosePhoto": "Choose a photo",
+  "removePhoto": "Remove photo",
+  "errAvatarInvalid": "That picture can't be used. Try another one."
 }

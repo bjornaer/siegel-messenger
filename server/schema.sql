@@ -109,3 +109,6 @@ CREATE TABLE IF NOT EXISTS attachments (
   upload_hash bytea,
   expires_at  timestamptz NOT NULL
 );
+
+-- MED-15: the profile's current picture blob; it doesn't expire while it is referenced here.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_blob bytea;

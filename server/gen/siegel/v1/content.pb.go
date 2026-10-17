@@ -588,6 +588,7 @@ type Profile struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DisplayName   string                 `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Avatar        *Attachment            `protobuf:"bytes,3,opt,name=avatar,proto3" json:"avatar,omitempty"`    // MED-15: blob_id, key, sha256, size and type of the picture; unset when none
 	Padding       []byte                 `protobuf:"bytes,15,opt,name=padding,proto3" json:"padding,omitempty"` // fills the plaintext to a 256-byte bucket so name length stays hidden
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -635,6 +636,13 @@ func (x *Profile) GetUsername() string {
 		return x.Username
 	}
 	return ""
+}
+
+func (x *Profile) GetAvatar() *Attachment {
+	if x != nil {
+		return x.Avatar
+	}
+	return nil
 }
 
 func (x *Profile) GetPadding() []byte {
@@ -1134,10 +1142,11 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\tKeyChange\"3\n" +
 	"\x10ProfileKeyUpdate\x12\x1f\n" +
 	"\vprofile_key\x18\x01 \x01(\fR\n" +
-	"profileKey\"b\n" +
+	"profileKey\"\x91\x01\n" +
 	"\aProfile\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername\x12\x18\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12-\n" +
+	"\x06avatar\x18\x03 \x01(\v2\x15.siegel.v1.AttachmentR\x06avatar\x12\x18\n" +
 	"\apadding\x18\x0f \x01(\fR\apadding\"\xe0\x02\n" +
 	"\n" +
 	"Attachment\x12\x17\n" +
@@ -1226,12 +1235,13 @@ var file_siegel_v1_content_proto_depIdxs = []int32{
 	3,  // 9: siegel.v1.Content.contact_link:type_name -> siegel.v1.ContactLinkProof
 	8,  // 10: siegel.v1.Content.attachment:type_name -> siegel.v1.Attachment
 	0,  // 11: siegel.v1.GroupEvent.kind:type_name -> siegel.v1.GroupEvent.Kind
-	1,  // 12: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	8,  // 12: siegel.v1.Profile.avatar:type_name -> siegel.v1.Attachment
+	1,  // 13: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_content_proto_init() }

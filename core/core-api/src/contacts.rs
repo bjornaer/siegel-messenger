@@ -13,6 +13,17 @@ use crate::{ACCOUNT, CoreError, IDENTITY, SiegelCore, storage};
 const PROFILE_KEY: &str = "profile_key";
 /// Profiles are padded to this bucket so name length stays hidden.
 const PROFILE_BUCKET: usize = 256;
+/// MED-15: our picture (plaintext) and its uploaded reference (an encoded pb::Attachment).
+const MY_AVATAR: &str = "my_avatar";
+const MY_AVATAR_REF: &str = "my_avatar_ref";
+/// Pictures are small: the app sends a 512 px square.
+const MAX_AVATAR: usize = 1 << 20;
+
+/// A contact's picture: their blob ID (16 bytes) followed by the plaintext; empty when none.
+fn avatar_key(account: &[u8]) -> String {
+    let hex: String = account.iter().map(|b| format!("{b:02x}")).collect();
+    format!("avatar:{hex}")
+}
 
 impl SiegelCore {
     /// Our profile key, created on first use (CRY-16).
@@ -32,9 +43,17 @@ impl SiegelCore {
     pub async fn publish_profile(&self) -> Result<(), CoreError> {
         let token = self.token()?;
         let key = self.profile_key()?;
+        let avatar = self
+            .get(MY_AVATAR_REF)?
+            .and_then(|b| pb::Attachment::decode(b.as_slice()).ok());
+        let avatar_blob_id = avatar
+            .as_ref()
+            .map(|a| a.blob_id.clone())
+            .unwrap_or_default();
         let mut p = pb::Profile {
             display_name: self.display_name().unwrap_or_default(),
             username: self.username().unwrap_or_default(),
+            avatar,
             padding: vec![],
         };
         let len = p.encoded_len();
@@ -44,8 +63,72 @@ impl SiegelCore {
                 &token,
                 key.encrypt(&p.encode_to_vec()),
                 key.verifier().to_vec(),
+                avatar_blob_id,
             )
             .await?;
+        Ok(())
+    }
+
+    /// MED-15: sets (Some) or removes (None) our picture, then tells our contacts.
+    pub async fn set_avatar(&self, image: Option<Vec<u8>>) -> Result<(), CoreError> {
+        match image {
+            Some(img) => {
+                if img.is_empty() || img.len() > MAX_AVATAR {
+                    return Err(CoreError::new("avatar_invalid"));
+                }
+                let (mut a, _) = self.upload(&img).await?;
+                a.mime_type = "image/png".into();
+                self.put(MY_AVATAR_REF, &a.encode_to_vec())?;
+                self.put(MY_AVATAR, &img)?;
+            }
+            None => {
+                self.put(MY_AVATAR_REF, b"")?;
+                self.put(MY_AVATAR, b"")?;
+            }
+        }
+        self.announce_profile().await
+    }
+
+    pub fn my_avatar(&self) -> Option<Vec<u8>> {
+        self.get(MY_AVATAR).ok().flatten().filter(|a| !a.is_empty())
+    }
+
+    /// A contact's picture, once their profile has been fetched.
+    pub fn avatar(&self, account: &[u8]) -> Option<Vec<u8>> {
+        let v = self.get(&avatar_key(account)).ok().flatten()?;
+        (v.len() > 16).then(|| v[16..].to_vec())
+    }
+
+    /// Publishes our profile and re-shares the profile key with every chat, which makes
+    /// contacts fetch it again: how a new name or picture reaches them.
+    pub async fn announce_profile(&self) -> Result<(), CoreError> {
+        self.publish_profile().await?;
+        self.share_profile_key_everywhere(None).await
+    }
+
+    /// Our profile key to every accepted chat and joined group, leaving out `except`.
+    async fn share_profile_key_everywhere(&self, except: Option<&[u8]>) -> Result<(), CoreError> {
+        for conv in self.conversations()? {
+            if conv.is_group {
+                if conv.invite || conv.left {
+                    continue;
+                }
+                let others: Vec<[u8; 16]> = self
+                    .group_info(&conv.group_id)?
+                    .members
+                    .into_iter()
+                    .filter(|m| !m.me && Some(m.account.as_slice()) != except)
+                    .filter_map(|m| m.account.try_into().ok())
+                    .collect();
+                self.share_profile_key_with(&conv.group_id, &others).await?;
+            } else if Some(conv.peer_account.as_slice()) != except
+                && self
+                    .contact(&conv.peer_account)
+                    .is_some_and(|c| c.state == ContactState::Accepted)
+            {
+                self.share_profile_key(&conv.group_id).await?;
+            }
+        }
         Ok(())
     }
 
@@ -78,6 +161,19 @@ impl SiegelCore {
             .decrypt(&encrypted)
             .and_then(|b| pb::Profile::decode(b.as_slice()).ok())
             .ok_or(CoreError::new("profile_invalid"))?;
+        // MED-15: fetch the picture when it changed. Best effort: the name still updates.
+        let cached = self.get(&avatar_key(account))?.unwrap_or_default();
+        match &p.avatar {
+            Some(a) if crate::media::valid(a) && a.size as usize <= MAX_AVATAR => {
+                if cached.get(..16) != Some(a.blob_id.as_slice())
+                    && let Ok(blob) = self.download(a).await
+                    && let Some(img) = core_media::decrypt(&a.key, &blob, a.size as usize)
+                {
+                    self.put(&avatar_key(account), &[a.blob_id.as_slice(), &img].concat())?;
+                }
+            }
+            _ => self.put(&avatar_key(account), b"")?,
+        }
         self.with_store(|s| {
             // Re-read: the state may have changed while we were on the network.
             let mut c = storage(s.contact(account))?.unwrap_or(c);
@@ -160,28 +256,7 @@ impl SiegelCore {
         self.with_store(|s| storage(s.save_contact(&c)))?;
         self.put(PROFILE_KEY, &ProfileKey::generate().0)?;
         self.publish_profile().await?;
-        for conv in self.conversations()? {
-            if conv.is_group {
-                // Everyone in the group but them gets the new key.
-                if conv.invite || conv.left {
-                    continue;
-                }
-                let others: Vec<[u8; 16]> = self
-                    .group_info(&conv.group_id)?
-                    .members
-                    .into_iter()
-                    .filter(|m| !m.me && m.account != account)
-                    .filter_map(|m| m.account.try_into().ok())
-                    .collect();
-                self.share_profile_key_with(&conv.group_id, &others).await?;
-            } else if self
-                .contact(&conv.peer_account)
-                .is_some_and(|c| c.state == ContactState::Accepted)
-            {
-                self.share_profile_key(&conv.group_id).await?;
-            }
-        }
-        Ok(())
+        self.share_profile_key_everywhere(Some(account)).await
     }
 
     /// Blocked accounts, for the list in Settings (MSG-16).

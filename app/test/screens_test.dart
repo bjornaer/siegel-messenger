@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:siegel/app_lock.dart';
+import 'package:siegel/avatar.dart';
 import 'package:siegel/chats.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
@@ -271,6 +272,24 @@ class FakeCore implements Core {
     calls.add('attachmentData');
     throw const CoreError(code: 'attachment_expired');
   }
+
+  Uint8List? mine;
+  final avatars = <String, Uint8List>{};
+
+  @override
+  Future<void> setAvatar({Uint8List? image}) async {
+    calls.add(image == null ? 'removeAvatar' : 'setAvatar');
+    mine = image;
+  }
+
+  @override
+  Uint8List? myAvatar() => mine;
+
+  @override
+  Uint8List? avatar({required List<int> account}) => avatars[base64Encode(account)];
+
+  @override
+  Future<void> announceProfile() async => calls.add('announceProfile');
 
   /// Rewrites one stored message, like the core does for receipts and changes.
   void _update(List<int> id, MessageView Function(MessageView) f) {
@@ -900,6 +919,36 @@ void main() {
     expect(notificationStrings(const Locale('pt', 'BR')).voiceMessage, 'Mensagem de voz');
     expect(notificationStrings(const Locale('fr')).voiceMessage, 'Voice message');
     expect(notificationStrings(const Locale('en', 'GB')).voiceMessage, 'Voice message');
+  });
+
+  testWidgets('profile photos: contacts show theirs; ours can be removed in Settings (MED-15)', (t) async {
+    // A 1x1 PNG.
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    );
+    final core = FakeCore()
+      ..registered = true
+      ..mine = png;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final peer = core.chats().firstWhere((c) => listEquals(c.groupId, id)).peerAccount;
+    core.avatars[base64Encode(peer)] = png;
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    await t.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate((w) => w is CircleAvatar && w.backgroundImage != null),
+      findsOneWidget,
+      reason: "bob's photo in the chat list",
+    );
+
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await t.tap(find.byType(AvatarEditor));
+    await t.pumpAndSettle();
+    await tapText(t, 'Remove photo');
+    expect(core.calls, contains('removeAvatar'));
+    expect(core.myAvatar(), isNull);
   });
 
   testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {

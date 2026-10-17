@@ -74,6 +74,34 @@ impl SiegelCore {
         let _ = std::fs::remove_file(self.media_path(message_id));
     }
 
+    /// MED-01..03: encrypts and uploads; returns the reference to put in a message or profile
+    /// (blob ID, key, hash, size) and the ciphertext.
+    pub(crate) async fn upload(&self, data: &[u8]) -> Result<(pb::Attachment, Vec<u8>), CoreError> {
+        let (key, blob) = core_media::encrypt(data);
+        let (blob_id, upload) = self
+            .net
+            .create_upload(&self.token()?, blob.len() as u64)
+            .await?;
+        let a = pb::Attachment {
+            blob_id,
+            key: key.to_vec(),
+            sha256: Sha256::digest(&blob).to_vec(),
+            size: data.len() as i64,
+            ..Default::default()
+        };
+        self.net.put_blob(&upload, blob.clone()).await?;
+        Ok((a, blob))
+    }
+
+    /// Downloads a blob and checks it against its reference (MED-05).
+    pub(crate) async fn download(&self, a: &pb::Attachment) -> Result<Vec<u8>, CoreError> {
+        let b = self.net.get_blob(&self.token()?, &a.blob_id).await?;
+        if Sha256::digest(&b).as_slice() != a.sha256 {
+            return Err(CoreError::new("attachment_corrupt"));
+        }
+        Ok(b)
+    }
+
     /// Encrypts and uploads the file, then sends it like a text (MSG-04: Failed on a network
     /// error, `retry` resends the message; the blob is already up).
     pub async fn send_attachment(
@@ -86,32 +114,19 @@ impl SiegelCore {
             return Err(CoreError::new("attachment_too_large"));
         }
         self.check_can_send(group_id)?;
-        let (key, blob) = core_media::encrypt(&a.data);
-        let (blob_id, upload) = self
-            .net
-            .create_upload(&self.token()?, blob.len() as u64)
-            .await?;
-        let sha256 = Sha256::digest(&blob).to_vec();
+        let (uploaded, blob) = self.upload(&a.data).await?;
         let content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
-            blob_id,
-            key: key.to_vec(),
-            sha256,
-            size: a.data.len() as i64,
             mime_type: a.mime_type,
             file_name: a.file_name,
             duration_ms: a.duration_ms,
             voice_note: a.voice_note,
             waveform: a.waveform.into_iter().take(MAX_WAVEFORM).collect(),
             reply_to: reply_to.unwrap_or_default().to_vec(),
-            ..Default::default()
+            ..uploaded
         }));
         std::fs::create_dir_all(&self.media_dir).map_err(|_| CoreError::new("storage"))?;
         std::fs::write(self.media_path(&content.message_id), &blob)
             .map_err(|_| CoreError::new("storage"))?;
-        if let Err(e) = self.net.put_blob(&upload, blob).await {
-            self.forget_media(&content.message_id);
-            return Err(e.into());
-        }
         let mut msg = Message {
             message_id: content.message_id.clone(),
             group_id: group_id.to_vec(),
@@ -145,10 +160,7 @@ impl SiegelCore {
         let blob = match std::fs::read(&path) {
             Ok(b) => b,
             Err(_) => {
-                let b = self.net.get_blob(&self.token()?, &a.blob_id).await?;
-                if Sha256::digest(&b).as_slice() != a.sha256 {
-                    return Err(CoreError::new("attachment_corrupt"));
-                }
+                let b = self.download(&a).await?;
                 std::fs::create_dir_all(&self.media_dir).map_err(|_| CoreError::new("storage"))?;
                 std::fs::write(&path, &b).map_err(|_| CoreError::new("storage"))?;
                 b

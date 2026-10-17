@@ -763,4 +763,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errUploadFailed => 'O envio não terminou. Tente de novo.';
+
+  @override
+  String get profilePhoto => 'Foto do perfil';
+
+  @override
+  String get choosePhoto => 'Escolher uma foto';
+
+  @override
+  String get removePhoto => 'Remover foto';
+
+  @override
+  String get errAvatarInvalid => 'Essa imagem não pode ser usada. Tente outra.';
 }

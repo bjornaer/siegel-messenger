@@ -768,4 +768,17 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errUploadFailed =>
       'La subida no ha terminado. Inténtalo de nuevo.';
+
+  @override
+  String get profilePhoto => 'Foto de perfil';
+
+  @override
+  String get choosePhoto => 'Elegir una foto';
+
+  @override
+  String get removePhoto => 'Quitar foto';
+
+  @override
+  String get errAvatarInvalid =>
+      'Esa imagen no se puede usar. Prueba con otra.';
 }

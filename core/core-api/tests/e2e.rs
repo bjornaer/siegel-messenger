@@ -1198,3 +1198,32 @@ async fn voice_notes_upload_download_and_delete() {
     .await;
     assert_eq!(std::fs::read_dir(&media).unwrap().count(), 0);
 }
+
+#[tokio::test]
+async fn profile_pictures_reach_contacts() {
+    // MED-15: set, change and remove a picture; contacts get each change, and a new name too.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let mut alice_events = listen(&alice);
+    let mut bob_events = listen(&bob);
+    befriend(&alice, &mut alice_events, &bob, &bob_name, &mut bob_events).await;
+    let alice_id = bob.conversations().unwrap()[0].peer_account.clone();
+
+    alice.set_avatar(Some(vec![1; 5000])).await.unwrap();
+    eventually(|| bob.avatar(&alice_id) == Some(vec![1; 5000])).await;
+    assert_eq!(alice.my_avatar(), Some(vec![1; 5000]));
+
+    alice.set_display_name("Alice Renamed").unwrap();
+    alice.set_avatar(Some(vec![2; 6000])).await.unwrap();
+    eventually(|| {
+        bob.avatar(&alice_id) == Some(vec![2; 6000])
+            && bob.contact(&alice_id).unwrap().display_name.as_deref() == Some("Alice Renamed")
+    })
+    .await;
+
+    alice.set_avatar(None).await.unwrap();
+    eventually(|| bob.avatar(&alice_id).is_none()).await;
+}

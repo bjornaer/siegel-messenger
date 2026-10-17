@@ -1385,6 +1385,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The upload didn\'t finish. Try again.'**
   String get errUploadFailed;
+
+  /// No description provided for @profilePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile photo'**
+  String get profilePhoto;
+
+  /// No description provided for @choosePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a photo'**
+  String get choosePhoto;
+
+  /// No description provided for @removePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove photo'**
+  String get removePhoto;
+
+  /// No description provided for @errAvatarInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That picture can\'t be used. Try another one.'**
+  String get errAvatarInvalid;
 }
 
 class _AppLocalizationsDelegate

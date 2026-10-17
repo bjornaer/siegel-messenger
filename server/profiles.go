@@ -20,9 +20,36 @@ func (p profiles) Set(ctx context.Context, req *connect.Request[siegelv1.Profile
 	if len(m.EncryptedProfile) == 0 || len(m.EncryptedProfile) > 4096 || len(m.DeliveryTokenVerifier) != sha256.Size {
 		return nil, cerr(connect.CodeInvalidArgument, "profile_invalid")
 	}
-	if _, err := p.db.Exec(ctx, `INSERT INTO profiles (account_id, encrypted, verifier) VALUES ($1, $2, $3)
-		ON CONFLICT (account_id) DO UPDATE SET encrypted = $2, verifier = $3`,
-		account(ctx), m.EncryptedProfile, m.DeliveryTokenVerifier); err != nil {
+	var avatar []byte
+	if len(m.AvatarBlobId) > 0 {
+		avatar = m.AvatarBlobId
+		var ok bool
+		if err := p.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM attachments WHERE blob_id = $1 AND upload_hash IS NULL AND expires_at > now())`,
+			avatar).Scan(&ok); err != nil {
+			return nil, internal(err)
+		} else if !ok {
+			return nil, cerr(connect.CodeInvalidArgument, "avatar_invalid")
+		}
+	}
+	// MED-15: the current picture never expires; the one it replaces goes with the next sweep.
+	tx, err := p.db.Begin(ctx)
+	if err != nil {
+		return nil, internal(err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `UPDATE attachments SET expires_at = now() WHERE blob_id =
+		(SELECT avatar_blob FROM profiles WHERE account_id = $1) AND blob_id IS DISTINCT FROM $2`, account(ctx), avatar); err != nil {
+		return nil, internal(err)
+	}
+	if _, err := tx.Exec(ctx, `UPDATE attachments SET expires_at = 'infinity' WHERE blob_id = $1`, avatar); err != nil {
+		return nil, internal(err)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO profiles (account_id, encrypted, verifier, avatar_blob) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (account_id) DO UPDATE SET encrypted = $2, verifier = $3, avatar_blob = $4`,
+		account(ctx), m.EncryptedProfile, m.DeliveryTokenVerifier, avatar); err != nil {
+		return nil, internal(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&siegelv1.ProfileServiceSetResponse{}), nil

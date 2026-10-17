@@ -124,6 +124,9 @@ service ProfileService {
 message ProfileServiceSetRequest {
   bytes encrypted_profile = 1; // at most 4 KiB
   bytes delivery_token_verifier = 2; // SHA-256 of the delivery token, 32 bytes
+  // MED-15: the uploaded blob holding the encrypted profile picture, kept while it is current;
+  // the previous one expires. Empty when there is no picture.
+  bytes avatar_blob_id = 3;
 }
 
 message ProfileServiceSetResponse {}

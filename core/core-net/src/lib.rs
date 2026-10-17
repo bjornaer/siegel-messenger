@@ -314,10 +314,12 @@ impl Client {
         token: &str,
         encrypted_profile: Vec<u8>,
         verifier: Vec<u8>,
+        avatar_blob_id: Vec<u8>,
     ) -> Result<(), Error> {
         let req = pb::ProfileServiceSetRequest {
             encrypted_profile,
             delivery_token_verifier: verifier,
+            avatar_blob_id,
         };
         self.call::<pb::ProfileServiceSetResponse>("ProfileService/Set", &req, Some(token))
             .await

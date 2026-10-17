@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'avatar.dart';
 import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'safety.dart';
@@ -104,7 +105,9 @@ class _ContactProfileScreenState extends State<ContactProfileScreen> {
       body: ListView(
         children: [
           const SizedBox(height: 16),
-          const Center(child: CircleAvatar(radius: 40, child: Icon(Icons.person_outline, size: 40))),
+          Center(
+            child: Avatar(core: widget.core, account: c.peerAccount, radius: 40),
+          ),
           const SizedBox(height: 12),
           Text(name, textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
           if (c.peerUsername != null && c.peerDisplayName != null)
