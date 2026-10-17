@@ -43,6 +43,10 @@ void showError(BuildContext context, CoreError e) {
     'link_key_mismatch' => t.errLinkKeyMismatch,
     'group_too_large' => t.errGroupTooLarge,
     'name_invalid' => t.errNameInvalid,
+    'attachment_expired' => t.errAttachmentExpired,
+    'attachment_corrupt' => t.errAttachmentCorrupt,
+    'attachment_too_large' => t.errAttachmentTooLarge,
+    'upload_failed' => t.errUploadFailed,
     'network' => t.errNetwork,
     _ => t.errGeneric,
   };

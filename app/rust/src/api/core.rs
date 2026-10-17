@@ -294,6 +294,20 @@ pub struct MessageView {
     pub event: Option<GroupEventView>,
     /// GRP-15: accounts @mentioned in the text.
     pub mentions: Vec<Vec<u8>>,
+    /// MED-04: a file instead of text; its bytes come from `attachment_data`.
+    pub attachment: Option<AttachmentView>,
+}
+
+pub struct AttachmentView {
+    pub mime_type: String,
+    /// Empty for voice notes.
+    pub file_name: String,
+    pub size: u64,
+    pub duration_ms: u32,
+    /// MED-09: recorded in the app.
+    pub voice_note: bool,
+    /// MED-09: loudness per bar, 0-255.
+    pub waveform: Vec<u8>,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -330,6 +344,14 @@ impl From<core_api::ChatMessage> for MessageView {
                 .collect(),
             key_change: m.key_change,
             mentions: m.mentions,
+            attachment: m.attachment.map(|a| AttachmentView {
+                mime_type: a.mime_type,
+                file_name: a.file_name,
+                size: a.size,
+                duration_ms: a.duration_ms,
+                voice_note: a.voice_note,
+                waveform: a.waveform,
+            }),
             event: m.event.map(|e| {
                 use core_api::GroupEventKind as K;
                 GroupEventView {
@@ -590,6 +612,41 @@ impl Core {
             .send_text_mentioning(&group_id, &text, reply_to.as_deref(), &mentions)
             .await?
             .into())
+    }
+
+    /// MED-09: a voice note or audio file (and, later, any file). Fails without storing a
+    /// message if the upload fails.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn send_attachment(
+        &self,
+        group_id: Vec<u8>,
+        data: Vec<u8>,
+        mime_type: String,
+        file_name: String,
+        duration_ms: u32,
+        voice_note: bool,
+        waveform: Vec<u8>,
+        reply_to: Option<Vec<u8>>,
+    ) -> Result<MessageView, CoreError> {
+        let a = core_api::OutgoingAttachment {
+            data,
+            mime_type,
+            file_name,
+            duration_ms,
+            voice_note,
+            waveform,
+        };
+        Ok(self
+            .0
+            .send_attachment(&group_id, a, reply_to.as_deref())
+            .await?
+            .into())
+    }
+
+    /// The attachment's bytes, downloaded on first use. Errors: attachment_expired (MED-13),
+    /// attachment_corrupt (MED-05), network.
+    pub async fn attachment_data(&self, message_id: Vec<u8>) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.attachment_data(&message_id).await?)
     }
 
     pub async fn retry(&self, message_id: Vec<u8>) -> Result<(), CoreError> {

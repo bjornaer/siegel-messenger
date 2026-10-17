@@ -365,6 +365,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "core-crypto",
+ "core-media",
  "core-net",
  "core-store",
  "openmls_rust_crypto",
@@ -389,6 +390,14 @@ dependencies = [
  "openmls_traits",
  "rand_core 0.6.4",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "core-media"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "rand_core 0.6.4",
 ]
 
 [[package]]

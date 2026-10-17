@@ -11,6 +11,7 @@ import 'chats.dart' show chatTitle;
 import 'groups.dart' show memberName, myAccount;
 import 'l10n/app_localizations.dart';
 import 'main.dart' show openCore;
+import 'media.dart' show messageText;
 import 'profile.dart' show isMuted, isMutedAlways;
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
@@ -46,7 +47,9 @@ Future<void> notifyMessage(Core core, MessageView m) async {
   await _notifications.show(
     id: Object.hashAll(m.groupId) & 0x7fffffff,
     title: chat == null ? null : chatTitle(t, chat),
-    body: chat != null && chat.isGroup ? '${memberName(t, core, m.senderAccount)}: ${m.text}' : m.text,
+    body: chat != null && chat.isGroup
+        ? '${memberName(t, core, m.senderAccount)}: ${messageText(t, m)}'
+        : messageText(t, m),
     notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'messages',

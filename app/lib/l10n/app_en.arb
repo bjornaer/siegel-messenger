@@ -399,5 +399,16 @@
   "revoke": "Revoke",
   "errLinkStale": "The group just changed. Try the link again in a moment.",
   "errInviteNotFound": "This link has expired or was revoked.",
-  "errAlreadyMember": "You're already in this group."
+  "errAlreadyMember": "You're already in this group.",
+  "voiceMessage": "Voice message",
+  "recordVoice": "Record a voice message",
+  "recording": "Recording",
+  "attachAudio": "Send an audio file",
+  "micDenied": "Siegel needs the microphone to record voice messages. You can allow it in the system settings.",
+  "play": "Play",
+  "pause": "Pause",
+  "errAttachmentExpired": "This attachment is no longer on the server. Ask the sender to send it again.",
+  "errAttachmentCorrupt": "This attachment was damaged on the way and can't be opened.",
+  "errAttachmentTooLarge": "Files can be up to 100 MB.",
+  "errUploadFailed": "The upload didn't finish. Try again."
 }

@@ -13,6 +13,7 @@ import 'package:siegel/chats.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
+import 'package:siegel/media.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
@@ -232,6 +233,42 @@ class FakeCore implements Core {
       rethrow;
     }
     return m;
+  }
+
+  @override
+  Future<MessageView> sendAttachment({
+    required List<int> groupId,
+    required List<int> data,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required bool voiceNote,
+    required List<int> waveform,
+    Uint8List? replyTo,
+  }) async {
+    calls.add('sendAttachment');
+    final m = msg(
+      groupId,
+      '',
+      outgoing: true,
+      replyTo: replyTo,
+      attachment: AttachmentView(
+        mimeType: mimeType,
+        fileName: fileName,
+        size: BigInt.from(data.length),
+        durationMs: durationMs,
+        voiceNote: voiceNote,
+        waveform: Uint8List.fromList(waveform),
+      ),
+    );
+    (history[base64Encode(groupId)] ??= []).add(m);
+    return m;
+  }
+
+  @override
+  Future<Uint8List> attachmentData({required List<int> messageId}) async {
+    calls.add('attachmentData');
+    throw const CoreError(code: 'attachment_expired');
   }
 
   /// Rewrites one stored message, like the core does for receipts and changes.
@@ -456,6 +493,7 @@ class FakeCore implements Core {
     bool keyChange = false,
     GroupEventView? event,
     Uint8List? sender,
+    AttachmentView? attachment,
   }) => MessageView(
     groupId: Uint8List.fromList(groupId),
     messageId: Uint8List.fromList([_n++]),
@@ -471,6 +509,7 @@ class FakeCore implements Core {
     keyChange: keyChange,
     event: event,
     mentions: const [],
+    attachment: attachment,
   );
 
   static MessageView copy(
@@ -495,6 +534,7 @@ class FakeCore implements Core {
     keyChange: m.keyChange,
     event: m.event,
     mentions: m.mentions,
+    attachment: m.attachment,
   );
 
   @override
@@ -656,6 +696,8 @@ void main() {
     expect(find.text('@bob'), findsOneWidget, reason: 'chat screen titled with the peer');
 
     await t.enterText(find.widgetWithText(TextField, 'Message'), 'hello bob');
+
+    await t.pump();
     await t.tap(find.byTooltip('Send'));
     await t.pumpAndSettle();
     expect(find.text('hello bob'), findsOneWidget);
@@ -753,6 +795,7 @@ void main() {
     await t.pumpAndSettle();
     await tapText(t, 'Edit');
     await t.enterText(find.widgetWithText(TextField, 'Message'), 'yes!');
+    await t.pump();
     await t.tap(find.byTooltip('Send'));
     await t.pumpAndSettle();
     expect(find.text('yes!'), findsOneWidget);
@@ -769,6 +812,7 @@ void main() {
 
     core.failNext['sendText again'] = 'network';
     await t.enterText(find.widgetWithText(TextField, 'Message'), 'again');
+    await t.pump();
     await t.tap(find.byTooltip('Send'));
     await t.pumpAndSettle();
     expect(find.text('Not sent. Tap to retry.'), findsOneWidget, reason: 'MSG-04');
@@ -801,11 +845,52 @@ void main() {
     expect(find.text('lunch?'), findsNWidgets(2), reason: 'quoted above the composer');
 
     await t.enterText(find.widgetWithText(TextField, 'Message'), 'yes');
+
+    await t.pump();
     await t.tap(find.byTooltip('Send'));
     await t.pumpAndSettle();
     await t.drag(find.text('yes'), const Offset(120, 0));
     await t.pumpAndSettle();
     expect(find.text('yes'), findsNWidgets(2), reason: 'own messages swipe too');
+  });
+
+  testWidgets('voice notes: shown with a waveform, previewed, quoted; the mic replaces Send (MED-09)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final voice = FakeCore.msg(
+      id,
+      '',
+      outgoing: false,
+      attachment: AttachmentView(
+        mimeType: 'audio/mp4',
+        fileName: '',
+        size: BigInt.from(1000),
+        durationMs: 4200,
+        voiceNote: true,
+        waveform: Uint8List.fromList([10, 200, 90]),
+      ),
+    );
+    (core.history[base64Encode(id)] ??= []).add(voice);
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    await t.pumpAndSettle();
+    expect(find.text('🎤 Voice message (0:04)'), findsOneWidget, reason: 'chat list preview');
+
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.byTooltip('Play'), findsOneWidget);
+    expect(find.text('0:04'), findsOneWidget);
+    expect(find.byTooltip('Record a voice message'), findsOneWidget, reason: 'empty box: the mic');
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'hi');
+    await t.pump();
+    expect(find.byTooltip('Record a voice message'), findsNothing, reason: 'typing: Send');
+
+    await t.longPress(find.byType(AudioMessage));
+    await t.pumpAndSettle();
+    expect(find.text('Copy'), findsNothing, reason: 'nothing to copy');
+    await tapText(t, 'Reply');
+    expect(find.text('🎤 Voice message (0:04)'), findsOneWidget, reason: 'quoted above the composer');
   });
 
   testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {

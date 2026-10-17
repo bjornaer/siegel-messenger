@@ -23,6 +23,10 @@ abstract class Core implements RustOpaqueInterface {
   /// Newest published build and the oldest allowed, for the update prompt.
   Future<AppVersion> appVersion({required DevicePlatform platform});
 
+  /// The attachment's bytes, downloaded on first use. Errors: attachment_expired (MED-13),
+  /// attachment_corrupt (MED-05), network.
+  Future<Uint8List> attachmentData({required List<int> messageId});
+
   /// Blocks the account; they are not told (MSG-16).
   Future<void> block({required List<int> account});
 
@@ -146,6 +150,19 @@ abstract class Core implements RustOpaqueInterface {
   /// The chat's 60-digit safety number, also encoded in its QR code (CRY-12).
   String? safetyNumber({required List<int> groupId});
 
+  /// MED-09: a voice note or audio file (and, later, any file). Fails without storing a
+  /// message if the upload fails.
+  Future<MessageView> sendAttachment({
+    required List<int> groupId,
+    required List<int> data,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required bool voiceNote,
+    required List<int> waveform,
+    Uint8List? replyTo,
+  });
+
   /// Sends a text, optionally as a reply (MSG-07). On failure the message stays Failed.
   Future<MessageView> sendText({
     required List<int> groupId,
@@ -226,6 +243,51 @@ class AppVersion {
           runtimeType == other.runtimeType &&
           latest == other.latest &&
           minimum == other.minimum;
+}
+
+class AttachmentView {
+  final String mimeType;
+
+  /// Empty for voice notes.
+  final String fileName;
+  final BigInt size;
+  final int durationMs;
+
+  /// MED-09: recorded in the app.
+  final bool voiceNote;
+
+  /// MED-09: loudness per bar, 0-255.
+  final Uint8List waveform;
+
+  const AttachmentView({
+    required this.mimeType,
+    required this.fileName,
+    required this.size,
+    required this.durationMs,
+    required this.voiceNote,
+    required this.waveform,
+  });
+
+  @override
+  int get hashCode =>
+      mimeType.hashCode ^
+      fileName.hashCode ^
+      size.hashCode ^
+      durationMs.hashCode ^
+      voiceNote.hashCode ^
+      waveform.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttachmentView &&
+          runtimeType == other.runtimeType &&
+          mimeType == other.mimeType &&
+          fileName == other.fileName &&
+          size == other.size &&
+          durationMs == other.durationMs &&
+          voiceNote == other.voiceNote &&
+          waveform == other.waveform;
 }
 
 class BlockedContact {
@@ -570,6 +632,9 @@ class MessageView {
   /// GRP-15: accounts @mentioned in the text.
   final List<Uint8List> mentions;
 
+  /// MED-04: a file instead of text; its bytes come from `attachment_data`.
+  final AttachmentView? attachment;
+
   const MessageView({
     required this.groupId,
     required this.messageId,
@@ -585,6 +650,7 @@ class MessageView {
     required this.keyChange,
     this.event,
     required this.mentions,
+    this.attachment,
   });
 
   @override
@@ -602,7 +668,8 @@ class MessageView {
       reactions.hashCode ^
       keyChange.hashCode ^
       event.hashCode ^
-      mentions.hashCode;
+      mentions.hashCode ^
+      attachment.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -622,7 +689,8 @@ class MessageView {
           reactions == other.reactions &&
           keyChange == other.keyChange &&
           event == other.event &&
-          mentions == other.mentions;
+          mentions == other.mentions &&
+          attachment == other.attachment;
 }
 
 class Reaction {

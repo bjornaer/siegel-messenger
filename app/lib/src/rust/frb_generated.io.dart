@@ -55,10 +55,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppVersion dco_decode_app_version(dynamic raw);
 
   @protected
+  AttachmentView dco_decode_attachment_view(dynamic raw);
+
+  @protected
   BlockedContact dco_decode_blocked_contact(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AttachmentView dco_decode_box_autoadd_attachment_view(dynamic raw);
 
   @protected
   GroupEventView dco_decode_box_autoadd_group_event_view(dynamic raw);
@@ -148,6 +154,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  AttachmentView? dco_decode_opt_box_autoadd_attachment_view(dynamic raw);
+
+  @protected
   GroupEventView? dco_decode_opt_box_autoadd_group_event_view(dynamic raw);
 
   @protected
@@ -164,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -207,10 +219,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppVersion sse_decode_app_version(SseDeserializer deserializer);
 
   @protected
+  AttachmentView sse_decode_attachment_view(SseDeserializer deserializer);
+
+  @protected
   BlockedContact sse_decode_blocked_contact(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AttachmentView sse_decode_box_autoadd_attachment_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GroupEventView sse_decode_box_autoadd_group_event_view(
@@ -310,6 +330,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  AttachmentView? sse_decode_opt_box_autoadd_attachment_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GroupEventView? sse_decode_opt_box_autoadd_group_event_view(
     SseDeserializer deserializer,
   );
@@ -330,6 +355,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -380,6 +408,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_app_version(AppVersion self, SseSerializer serializer);
 
   @protected
+  void sse_encode_attachment_view(
+    AttachmentView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_blocked_contact(
     BlockedContact self,
     SseSerializer serializer,
@@ -387,6 +421,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_attachment_view(
+    AttachmentView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_group_event_view(
@@ -521,6 +561,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_attachment_view(
+    AttachmentView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_group_event_view(
     GroupEventView? self,
     SseSerializer serializer,
@@ -546,6 +592,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);

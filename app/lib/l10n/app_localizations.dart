@@ -1311,6 +1311,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You\'re already in this group.'**
   String get errAlreadyMember;
+
+  /// No description provided for @voiceMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice message'**
+  String get voiceMessage;
+
+  /// No description provided for @recordVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a voice message'**
+  String get recordVoice;
+
+  /// No description provided for @recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording'**
+  String get recording;
+
+  /// No description provided for @attachAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Send an audio file'**
+  String get attachAudio;
+
+  /// No description provided for @micDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel needs the microphone to record voice messages. You can allow it in the system settings.'**
+  String get micDenied;
+
+  /// No description provided for @play.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get play;
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @errAttachmentExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This attachment is no longer on the server. Ask the sender to send it again.'**
+  String get errAttachmentExpired;
+
+  /// No description provided for @errAttachmentCorrupt.
+  ///
+  /// In en, this message translates to:
+  /// **'This attachment was damaged on the way and can\'t be opened.'**
+  String get errAttachmentCorrupt;
+
+  /// No description provided for @errAttachmentTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Files can be up to 100 MB.'**
+  String get errAttachmentTooLarge;
+
+  /// No description provided for @errUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The upload didn\'t finish. Try again.'**
+  String get errUploadFailed;
 }
 
 class _AppLocalizationsDelegate

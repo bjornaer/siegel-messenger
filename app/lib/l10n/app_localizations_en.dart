@@ -724,4 +724,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errAlreadyMember => 'You\'re already in this group.';
+
+  @override
+  String get voiceMessage => 'Voice message';
+
+  @override
+  String get recordVoice => 'Record a voice message';
+
+  @override
+  String get recording => 'Recording';
+
+  @override
+  String get attachAudio => 'Send an audio file';
+
+  @override
+  String get micDenied =>
+      'Siegel needs the microphone to record voice messages. You can allow it in the system settings.';
+
+  @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get errAttachmentExpired =>
+      'This attachment is no longer on the server. Ask the sender to send it again.';
+
+  @override
+  String get errAttachmentCorrupt =>
+      'This attachment was damaged on the way and can\'t be opened.';
+
+  @override
+  String get errAttachmentTooLarge => 'Files can be up to 100 MB.';
+
+  @override
+  String get errUploadFailed => 'The upload didn\'t finish. Try again.';
 }

@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
@@ -12,6 +13,7 @@ import 'onboarding.dart' show showError;
 import 'format.dart';
 import 'groups.dart';
 import 'links.dart';
+import 'media.dart';
 import 'update.dart';
 import 'profile.dart';
 import 'safety.dart';
@@ -143,7 +145,7 @@ String chatTitle(AppLocalizations t, ChatSummary c) => c.isGroup
 String _preview(AppLocalizations t, Core core, ChatSummary c) {
   final m = c.last!;
   if (m.event != null) return groupEventText(t, core, m.event!, myAccount(core, c.groupId));
-  final text = m.deleted ? t.messageDeleted : m.text;
+  final text = m.deleted ? t.messageDeleted : messageText(t, m);
   if (!c.isGroup || m.outgoing) return text;
   return '${memberName(t, core, m.senderAccount)}: $text';
 }
@@ -397,6 +399,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     widget.service.removeListener(_markRead);
+    _recTimer?.cancel();
+    _recorder?.dispose();
     _text.dispose();
     _focus.dispose();
     super.dispose();
@@ -486,6 +490,79 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     _lastTyping = now;
     unawaited(core.sendTyping(groupId: _group).catchError((Object _) {}));
+  }
+
+  // MED-09: a voice note being recorded; the timer redraws the elapsed time.
+  VoiceRecorder? _recorder;
+  Timer? _recTimer;
+
+  Future<void> _startRecording() async {
+    final r = VoiceRecorder();
+    if (!await r.start()) {
+      r.dispose();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.micDenied)));
+      }
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    setState(() => _recorder = r);
+    _recTimer = Timer.periodic(const Duration(milliseconds: 250), (_) => setState(() {}));
+  }
+
+  Future<void> _stopRecording({required bool send}) async {
+    final r = _recorder!;
+    _recTimer?.cancel();
+    setState(() => _recorder = null);
+    final rec = await r.stop(keep: send);
+    r.dispose();
+    if (rec == null || rec.ms < 500) return; // a slip of the finger, not a message
+    await _sendAttachment(rec.data, 'audio/mp4', '', rec.ms, true, rec.waveform);
+  }
+
+  Future<void> _pickAudioFile() async {
+    final f = await FilePicker.pickFile(type: FileType.audio);
+    if (f == null) return;
+    if ((f.lengthSync() ?? 0) > 100 << 20 && mounted) {
+      return showError(context, const CoreError(code: 'attachment_too_large')); // MED-06, before reading it all
+    }
+    final Uint8List bytes;
+    try {
+      bytes = await f.readAsBytes();
+    } finally {
+      unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
+    }
+    final ext = (f.extension ?? '').toLowerCase();
+    final mime = const {
+      'mp3': 'audio/mpeg',
+      'm4a': 'audio/mp4',
+      'aac': 'audio/aac',
+      'ogg': 'audio/ogg',
+      'opus': 'audio/ogg',
+      'wav': 'audio/wav',
+      'flac': 'audio/flac',
+    }[ext];
+    await _sendAttachment(bytes, mime ?? 'audio/$ext', f.name, 0, false, Uint8List(0));
+  }
+
+  Future<void> _sendAttachment(Uint8List data, String mime, String name, int ms, bool voice, Uint8List waveform) async {
+    if (data.length > 100 << 20) {
+      return showError(context, const CoreError(code: 'attachment_too_large')); // MED-06
+    }
+    final reply = _replyTo;
+    setState(() => _replyTo = null);
+    await _run(
+      () => core.sendAttachment(
+        groupId: _group,
+        data: data,
+        mimeType: mime,
+        fileName: name,
+        durationMs: ms,
+        voiceNote: voice,
+        waveform: waveform,
+        replyTo: reply?.messageId,
+      ),
+    );
   }
 
   Future<void> _send() async {
@@ -614,7 +691,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               if (!m.deleted && !c.request)
                 ListTile(leading: const Icon(Icons.reply), title: Text(t.reply), onTap: () => act(() => _reply(m))),
-              if (!m.deleted)
+              if (!m.deleted && m.attachment == null)
                 ListTile(
                   leading: const Icon(Icons.copy),
                   title: Text(t.copy),
@@ -623,7 +700,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.copied)));
                   }),
                 ),
-              if (m.outgoing && !m.deleted && age < _editWindow && m.status != MessageStatus.failed)
+              if (m.outgoing &&
+                  !m.deleted &&
+                  m.attachment == null &&
+                  age < _editWindow &&
+                  m.status != MessageStatus.failed)
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
                   title: Text(t.edit),
@@ -861,7 +942,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ? t.originalMissing
                                   : quoted.deleted
                                   ? t.messageDeleted
-                                  : quoted.text,
+                                  : messageText(t, quoted),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -871,6 +952,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   if (m.deleted)
                     Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+                  else if (m.attachment != null)
+                    AudioMessage(core: core, message: m)
                   else
                     Text.rich(formatText(m.text)),
                   Row(
@@ -1022,7 +1105,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 Icon(_editing != null ? Icons.edit_outlined : Icons.reply, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(_editing != null ? t.editing : target.text, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    _editing != null ? t.editing : messageText(t, target),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 IconButton(
                   tooltip: t.cancel,
@@ -1035,26 +1122,56 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _text,
-                  focusNode: _focus,
-                  minLines: 1,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: _onChanged,
-                  decoration: InputDecoration(hintText: t.messageHint, border: const OutlineInputBorder()),
+          if (_recorder != null)
+            Row(
+              children: [
+                IconButton(
+                  tooltip: t.cancel,
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _stopRecording(send: false),
                 ),
-              ),
-              IconButton(
-                tooltip: t.send,
-                icon: Icon(_editing != null ? Icons.check : Icons.send),
-                onPressed: _busy ? null : _send,
-              ),
-            ],
-          ),
+                Icon(Icons.fiber_manual_record, color: Theme.of(context).colorScheme.error, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text('${t.recording} ${formatDuration(_recorder!.elapsed.inMilliseconds)}')),
+                IconButton(tooltip: t.send, icon: const Icon(Icons.send), onPressed: () => _stopRecording(send: true)),
+              ],
+            )
+          else
+            Row(
+              children: [
+                if (_editing == null)
+                  IconButton(
+                    tooltip: t.attachAudio,
+                    icon: const Icon(Icons.attach_file),
+                    onPressed: _busy ? null : _pickAudioFile,
+                  ),
+                Expanded(
+                  child: TextField(
+                    controller: _text,
+                    focusNode: _focus,
+                    minLines: 1,
+                    maxLines: 5,
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: _onChanged,
+                    decoration: InputDecoration(hintText: t.messageHint, border: const OutlineInputBorder()),
+                  ),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: _text,
+                  builder: (context, v, _) => v.text.trim().isEmpty && _editing == null
+                      ? IconButton(
+                          tooltip: t.recordVoice,
+                          icon: const Icon(Icons.mic_none),
+                          onPressed: _busy ? null : _startRecording,
+                        )
+                      : IconButton(
+                          tooltip: t.send,
+                          icon: Icon(_editing != null ? Icons.check : Icons.send),
+                          onPressed: _busy ? null : _send,
+                        ),
+                ),
+              ],
+            ),
         ],
       ),
     );

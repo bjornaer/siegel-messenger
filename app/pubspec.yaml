@@ -7,6 +7,8 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
+  audioplayers: 6.8.1
+  file_picker: 13.1.0
   firebase_core: 4.15.0
   firebase_messaging: 16.7.0
   flutter:
@@ -22,6 +24,7 @@ dependencies:
   path_provider: ^2.1.6
   phone_numbers_parser: ^9.0.28
   qr_flutter: 4.1.0
+  record: 7.1.1
   rust_lib_siegel:
     path: rust_builder
 
