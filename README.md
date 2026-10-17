@@ -121,6 +121,6 @@ launch.
 
 ## License
 
-The project is intended to be licensed under the **GNU AGPL-3.0** (the Rust crates already declare
-`AGPL-3.0-only`). Contributions require agreeing to a contributor licence agreement, so the app can be
-published in app stores.
+[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). If you run a modified version as a
+service, your users must be able to get its source code (section 13). Contributions require agreeing to a
+contributor licence agreement, so the app can also be published in app stores.
