@@ -29,6 +29,8 @@ const (
 	GroupsServiceName = "siegel.v1.GroupsService"
 	// InvitesServiceName is the fully-qualified name of the InvitesService service.
 	InvitesServiceName = "siegel.v1.InvitesService"
+	// AttachmentsServiceName is the fully-qualified name of the AttachmentsService service.
+	AttachmentsServiceName = "siegel.v1.AttachmentsService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -57,6 +59,9 @@ const (
 	InvitesServiceGetProcedure = "/siegel.v1.InvitesService/Get"
 	// InvitesServiceDeleteProcedure is the fully-qualified name of the InvitesService's Delete RPC.
 	InvitesServiceDeleteProcedure = "/siegel.v1.InvitesService/Delete"
+	// AttachmentsServiceCreateUploadProcedure is the fully-qualified name of the AttachmentsService's
+	// CreateUpload RPC.
+	AttachmentsServiceCreateUploadProcedure = "/siegel.v1.AttachmentsService/CreateUpload"
 )
 
 // KeysServiceClient is a client for the siegel.v1.KeysService service.
@@ -473,4 +478,78 @@ func (UnimplementedInvitesServiceHandler) Get(context.Context, *connect.Request[
 
 func (UnimplementedInvitesServiceHandler) Delete(context.Context, *connect.Request[v1.InvitesServiceDeleteRequest]) (*connect.Response[v1.InvitesServiceDeleteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.InvitesService.Delete is not implemented"))
+}
+
+// AttachmentsServiceClient is a client for the siegel.v1.AttachmentsService service.
+type AttachmentsServiceClient interface {
+	// Reserves a blob and returns a one-time upload URL for it: PUT the ciphertext there, exactly
+	// `size` bytes. Downloads are GET /v1/blobs/{hex blob_id} with the device token. Auth: device.
+	CreateUpload(context.Context, *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error)
+}
+
+// NewAttachmentsServiceClient constructs a client for the siegel.v1.AttachmentsService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAttachmentsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AttachmentsServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	attachmentsServiceMethods := v1.File_siegel_v1_delivery_proto.Services().ByName("AttachmentsService").Methods()
+	return &attachmentsServiceClient{
+		createUpload: connect.NewClient[v1.AttachmentsServiceCreateUploadRequest, v1.AttachmentsServiceCreateUploadResponse](
+			httpClient,
+			baseURL+AttachmentsServiceCreateUploadProcedure,
+			connect.WithSchema(attachmentsServiceMethods.ByName("CreateUpload")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// attachmentsServiceClient implements AttachmentsServiceClient.
+type attachmentsServiceClient struct {
+	createUpload *connect.Client[v1.AttachmentsServiceCreateUploadRequest, v1.AttachmentsServiceCreateUploadResponse]
+}
+
+// CreateUpload calls siegel.v1.AttachmentsService.CreateUpload.
+func (c *attachmentsServiceClient) CreateUpload(ctx context.Context, req *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error) {
+	return c.createUpload.CallUnary(ctx, req)
+}
+
+// AttachmentsServiceHandler is an implementation of the siegel.v1.AttachmentsService service.
+type AttachmentsServiceHandler interface {
+	// Reserves a blob and returns a one-time upload URL for it: PUT the ciphertext there, exactly
+	// `size` bytes. Downloads are GET /v1/blobs/{hex blob_id} with the device token. Auth: device.
+	CreateUpload(context.Context, *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error)
+}
+
+// NewAttachmentsServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAttachmentsServiceHandler(svc AttachmentsServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	attachmentsServiceMethods := v1.File_siegel_v1_delivery_proto.Services().ByName("AttachmentsService").Methods()
+	attachmentsServiceCreateUploadHandler := connect.NewUnaryHandler(
+		AttachmentsServiceCreateUploadProcedure,
+		svc.CreateUpload,
+		connect.WithSchema(attachmentsServiceMethods.ByName("CreateUpload")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/siegel.v1.AttachmentsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AttachmentsServiceCreateUploadProcedure:
+			attachmentsServiceCreateUploadHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAttachmentsServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAttachmentsServiceHandler struct{}
+
+func (UnimplementedAttachmentsServiceHandler) CreateUpload(context.Context, *connect.Request[v1.AttachmentsServiceCreateUploadRequest]) (*connect.Response[v1.AttachmentsServiceCreateUploadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AttachmentsService.CreateUpload is not implemented"))
 }

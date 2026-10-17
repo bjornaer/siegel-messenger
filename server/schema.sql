@@ -101,3 +101,11 @@ CREATE TABLE IF NOT EXISTS group_invites (
   snapshot   bytea NOT NULL,
   expires_at timestamptz NOT NULL
 );
+
+-- MED-03, MED-13: an opaque blob and when it goes. upload_hash is set until the one upload.
+CREATE TABLE IF NOT EXISTS attachments (
+  blob_id     bytea PRIMARY KEY,
+  size        bigint NOT NULL,
+  upload_hash bytea,
+  expires_at  timestamptz NOT NULL
+);

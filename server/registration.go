@@ -33,6 +33,7 @@ type server struct {
 	hub       *hub
 	sendPush  func(ctx context.Context, platform siegelv1.Platform, token string) error
 	pushes    pushes
+	blobs     blobStore
 
 	fetchASPublic func(ctx context.Context) ([]byte, error)
 	asMu          sync.Mutex

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -411,4 +412,83 @@ func TestInvites(t *testing.T) { // GRP-16
 	inv.Delete(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceDeleteRequest{Id: id, WriteKey: wk}))
 	_, err = inv.Get(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceGetRequest{Id: id}))
 	want(t, errMsg(err), "invite_not_found")
+}
+
+type memBlobs map[string][]byte
+
+func (m memBlobs) put(_ context.Context, k string, r io.Reader, _ int64) error {
+	b, err := io.ReadAll(r)
+	m[k] = b
+	return err
+}
+func (m memBlobs) get(_ context.Context, k string) (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(m[k])), nil
+}
+func (m memBlobs) del(_ context.Context, k string) error { delete(m, k); return nil }
+
+func TestAttachments(t *testing.T) { // MED-03, MED-06, MED-13
+	e := setup(t)
+	store := memBlobs{}
+	e.s.blobs, e.s.cfg.blobLife, e.s.cfg.uploadsPerDay = store, time.Hour, 2
+	a := e.device("+34600000096")
+	auth := connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+			r.Header().Set("Authorization", "Bearer "+a.DeviceToken)
+			return next(ctx, r)
+		}
+	}))
+	att := siegelv1connect.NewAttachmentsServiceClient(http.DefaultClient, e.url, auth)
+	create := func(size int64) (*siegelv1.AttachmentsServiceCreateUploadResponse, string) {
+		res, err := att.CreateUpload(e.ctx, connect.NewRequest(&siegelv1.AttachmentsServiceCreateUploadRequest{Size: size}))
+		if err != nil {
+			return nil, errMsg(err)
+		}
+		return res.Msg, ""
+	}
+	httpDo := func(method, path, token, body string) (int, string) {
+		req, _ := http.NewRequest(method, e.url+path, strings.NewReader(body))
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(b)
+	}
+	_, msg := create(maxBlob + 1)
+	want(t, msg, "attachment_too_large")
+	up, msg := create(5)
+	want(t, msg, "")
+	blob := "/v1/blobs/" + fmt.Sprintf("%x", up.BlobId)
+	if code, _ := httpDo("GET", blob, a.DeviceToken, ""); code != 404 {
+		t.Fatal("not uploaded yet", code)
+	}
+	if code, _ := httpDo("PUT", up.UploadPath, "", "toolong"); code != 400 {
+		t.Fatal("size must match", code)
+	}
+	if code, _ := httpDo("PUT", up.UploadPath, "", "hello"); code != 204 {
+		t.Fatal("upload", code)
+	}
+	if code, _ := httpDo("PUT", up.UploadPath, "", "evil!"); code != 404 {
+		t.Fatal("the upload URL works once", code)
+	}
+	if code, _ := httpDo("GET", blob, "", ""); code != 401 {
+		t.Fatal("downloads need a device", code)
+	}
+	if code, body := httpDo("GET", blob, a.DeviceToken, ""); code != 200 || body != "hello" {
+		t.Fatal(code, body)
+	}
+	_, msg = create(5)
+	want(t, msg, "")
+	_, msg = create(5)
+	want(t, msg, "rate_limited")
+
+	e.s.db.Exec(e.ctx, `UPDATE attachments SET expires_at = now() - interval '1 second'`)
+	e.s.expireBlobs(e.ctx)
+	if code, _ := httpDo("GET", blob, a.DeviceToken, ""); code != 404 || len(store) != 0 {
+		t.Fatal("expired blobs are deleted", code, len(store))
+	}
 }

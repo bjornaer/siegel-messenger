@@ -160,3 +160,21 @@ message InvitesServiceDeleteRequest {
 }
 
 message InvitesServiceDeleteResponse {}
+
+// MED-03: encrypted attachment blobs. The server stores opaque ciphertext under a random ID and
+// never sees the key, the sender's file name or type, or who the blob is for.
+service AttachmentsService {
+  // Reserves a blob and returns a one-time upload URL for it: PUT the ciphertext there, exactly
+  // `size` bytes. Downloads are GET /v1/blobs/{hex blob_id} with the device token. Auth: device.
+  rpc CreateUpload(AttachmentsServiceCreateUploadRequest) returns (AttachmentsServiceCreateUploadResponse);
+}
+
+message AttachmentsServiceCreateUploadRequest {
+  int64 size = 1; // padded ciphertext size (MED-02)
+}
+
+message AttachmentsServiceCreateUploadResponse {
+  bytes blob_id = 1;    // 16 random bytes
+  string upload_path = 2; // relative to the API base URL, e.g. /v1/blobs/{id}?t={token}
+  int64 expires_at = 3; // unix seconds: the blob is deleted then (MED-13)
+}

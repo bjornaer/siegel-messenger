@@ -21,6 +21,7 @@ message Content {
     KeyChange key_change = 15;
     GroupEvent group_event = 16;
     ContactLinkProof contact_link = 17;
+    Attachment attachment = 18;
   }
 }
 
@@ -66,6 +67,24 @@ message Profile {
   string display_name = 1;
   string username = 2;
   bytes padding = 15; // fills the plaintext to a 256-byte bucket so name length stays hidden
+}
+
+// MED-04: a file sent in the chat. The blob on the server is the file encrypted with `key`
+// (MED-01) and padded (MED-02); only this message, inside MLS, links the two.
+message Attachment {
+  bytes blob_id = 1;
+  bytes key = 2;          // AES-256-GCM STREAM key, fresh per file
+  bytes sha256 = 3;       // of the uploaded ciphertext, padding included (MED-05)
+  int64 size = 4;         // plaintext bytes
+  string mime_type = 5;
+  string file_name = 6;   // empty for voice notes
+  uint32 width = 7;       // images and video
+  uint32 height = 8;
+  uint32 duration_ms = 9; // audio and video
+  bytes thumbnail = 10;   // images and video, at most 20 KB
+  bool voice_note = 11;   // MED-09: recorded in the app
+  bytes waveform = 12;    // MED-09: voice note loudness, one byte (0-255) per bar
+  bytes reply_to = 13;    // MSG-07, as in Text
 }
 
 message Text {

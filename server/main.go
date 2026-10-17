@@ -74,6 +74,9 @@ type config struct {
 	operator      string   // legal name and postal address for the privacy policy
 	reviewPhone   string   // app store review account: this number gets reviewCode, no SMS
 	reviewCode    string
+	s3            s3            // ARCH-06 attachment store
+	blobLife      time.Duration // MED-13
+	uploadsPerDay int           // per account
 }
 
 func loadConfig() config {
@@ -118,6 +121,15 @@ func loadConfig() config {
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
 			"93:43:99:00:88:1C:CE:F0:BF:39:66:96:C5:E1:5C:BC:B0:90:DF:A1:7C:BA:6A:E9:AF:F2:24:C1:E8:34:3C:08", ok), ","),
 		operator: os.Getenv("SIEGEL_OPERATOR"),
+		s3: s3{
+			endpoint: env("SIEGEL_S3_ENDPOINT", "http://s3:8333", ok),
+			bucket:   env("SIEGEL_S3_BUCKET", "siegel-attachments", ok),
+			region:   env("SIEGEL_S3_REGION", "us-east-1", ok),
+			access:   os.Getenv("SIEGEL_S3_ACCESS_KEY"),
+			secret:   os.Getenv("SIEGEL_S3_SECRET_KEY"),
+		},
+		blobLife:      time.Duration(env("SIEGEL_BLOB_DAYS", 30, strconv.Atoi)) * 24 * time.Hour,
+		uploadsPerDay: env("SIEGEL_UPLOADS_PER_DAY", 1000, strconv.Atoi),
 	}
 	if p := os.Getenv("SIEGEL_DENY_PREFIXES"); p != "" {
 		c.denyPrefixes = strings.Split(p, ",")
@@ -222,6 +234,10 @@ func main() {
 	default:
 		fatal("SIEGEL_FCM_CREDENTIALS required outside dev mode (push and attestation)")
 	}
+	if err := cfg.s3.makeBucket(ctx); err != nil {
+		fatal("s3 bucket", "err", err)
+	}
+	s.blobs = cfg.s3
 	go s.janitor(ctx, b)
 
 	// ponytail: whole-request timeouts suit unary RPCs; the M2 WebSocket must manage its own deadlines.
@@ -270,6 +286,9 @@ func (s *server) routes() http.Handler {
 	// ponytail: every new member gets their own copy of it in the queue; fetch the tree once instead if adds get big.
 	mux.Handle(siegelv1connect.NewGroupsServiceHandler(s, s.authed(), connect.WithReadMaxBytes(2<<20)))
 	mux.Handle(siegelv1connect.NewInvitesServiceHandler(invites{s}, s.authed(), connect.WithReadMaxBytes(2<<20)))
+	mux.Handle(siegelv1connect.NewAttachmentsServiceHandler(attachments{s}, s.authed(), small))
+	mux.HandleFunc("PUT /v1/blobs/{id}", s.putBlob)
+	mux.HandleFunc("GET /v1/blobs/{id}", s.getBlob)
 	mux.HandleFunc("GET /v1/stream", s.stream)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /delete-account", s.page("delete-account"))
@@ -294,6 +313,7 @@ func (s *server) janitor(ctx context.Context, b bao) {
 				slog.Error("janitor", "err", err)
 			}
 		}
+		s.expireBlobs(ctx)
 		s.checkOtpRate(ctx)
 		s.expireInactive(ctx)
 		if err := b.renew(ctx); err != nil {
