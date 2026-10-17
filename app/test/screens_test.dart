@@ -134,6 +134,9 @@ class FakeCore implements Core {
         groupName: c.groupName,
         left: c.left,
         last: (history[base64Encode(c.groupId)] ?? []).lastOrNull,
+        unread: (history[base64Encode(c.groupId)] ?? [])
+            .where((m) => !m.outgoing && m.status == MessageStatus.delivered)
+            .length,
       ),
   ];
 
@@ -146,6 +149,7 @@ class FakeCore implements Core {
     peerVerified: false,
     isGroup: false,
     left: false,
+    unread: 0,
   );
 
   /// Someone who isn't a contact started a chat with us (MSG-15).
@@ -160,6 +164,7 @@ class FakeCore implements Core {
         peerVerified: false,
         isGroup: false,
         left: false,
+        unread: 0,
       ),
     );
     receive(id, 'hi, it is $name');
@@ -212,6 +217,7 @@ class FakeCore implements Core {
         peerVerified: false,
         isGroup: false,
         left: false,
+        unread: 0,
       ),
     );
     return id;
@@ -366,7 +372,16 @@ class FakeCore implements Core {
   }
 
   @override
-  Future<void> markRead({required List<int> groupId}) async => calls.add('markRead');
+  Future<void> markRead({required List<int> groupId}) async {
+    calls.add('markRead');
+    final list = history[base64Encode(groupId)] ?? [];
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i].outgoing && list[i].status == MessageStatus.delivered) {
+        list[i] = copy(list[i], status: MessageStatus.read);
+      }
+    }
+  }
+
   @override
   Future<void> sendTyping({required List<int> groupId}) async => calls.add('sendTyping');
 
@@ -404,6 +419,7 @@ class FakeCore implements Core {
       isGroup: true,
       groupName: g.name,
       left: false,
+      unread: 0,
     );
     if (i < 0) {
       chatList.add(c);
@@ -496,6 +512,7 @@ class FakeCore implements Core {
       isGroup: true,
       groupName: c.groupName,
       left: true,
+      unread: 0,
     );
     events.add(const CoreEvent(kind: CoreEventKind.updated));
   }
@@ -967,6 +984,37 @@ void main() {
     await tapText(t, 'Remove photo');
     expect(core.calls, contains('removeAvatar'));
     expect(core.myAvatar(), isNull);
+  });
+
+  testWidgets('unread chats show a count and bold text until opened', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    core.receive(id, 'one');
+    core.receive(id, 'two');
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    await t.pumpAndSettle();
+    expect(find.widgetWithText(Badge, '2'), findsOneWidget);
+    expect(t.widget<Text>(find.text('two')).style?.fontWeight, FontWeight.bold);
+
+    await t.tap(find.text('two'));
+    await t.pumpAndSettle();
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(Badge), findsNothing, reason: 'read once opened');
+  });
+
+  test('gradient themes: Drache, Krampus, Lindwurm and Edelweiß; Edelweiß stays light', () {
+    final gradient = [
+      for (final th in siegelThemes)
+        if (th.gradient != null) th.id,
+    ];
+    expect(gradient, unorderedEquals(['drache', 'krampus', 'lindwurm', 'edelweiss']));
+    final edelweiss = themeById('edelweiss');
+    expect(edelweiss.data(Brightness.dark).brightness, Brightness.light);
+    expect(edelweiss.data(Brightness.dark).extension<SiegelGradient>(), isNotNull);
+    expect(themeById('siegel').data(Brightness.light).extension<SiegelGradient>(), isNull);
   });
 
   testWidgets('read receipts and typing toggles are reciprocal settings (MSG-13, MSG-14)', (t) async {

@@ -265,6 +265,11 @@ impl SiegelCore {
             .collect())
     }
 
+    /// Unread incoming messages in the chat, for the chat list.
+    pub fn unread(&self, group_id: &[u8]) -> Result<u32, CoreError> {
+        self.with_store(|s| storage(s.unread(group_id)))
+    }
+
     /// Marks the chat read; tells the sender unless read receipts are off or the chat is
     /// still a request (MSG-13, MSG-15).
     pub async fn mark_read(&self, group_id: &[u8]) -> Result<(), CoreError> {

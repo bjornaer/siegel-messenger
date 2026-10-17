@@ -786,4 +786,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String evAvatar(String actor) {
     return '$actor cambió la foto del grupo';
   }
+
+  @override
+  String get themeEdelweiss =>
+      'Edelweiss, la flor estrella de los Alpes. Blanco nieve hacia plata.';
 }

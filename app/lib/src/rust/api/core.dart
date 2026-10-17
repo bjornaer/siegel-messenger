@@ -354,6 +354,9 @@ class ChatSummary {
   /// We left or were removed: read-only.
   final bool left;
 
+  /// Incoming messages not read yet.
+  final int unread;
+
   const ChatSummary({
     required this.groupId,
     required this.peerAccount,
@@ -365,6 +368,7 @@ class ChatSummary {
     required this.isGroup,
     this.groupName,
     required this.left,
+    required this.unread,
   });
 
   @override
@@ -378,7 +382,8 @@ class ChatSummary {
       last.hashCode ^
       isGroup.hashCode ^
       groupName.hashCode ^
-      left.hashCode;
+      left.hashCode ^
+      unread.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -394,7 +399,8 @@ class ChatSummary {
           last == other.last &&
           isGroup == other.isGroup &&
           groupName == other.groupName &&
-          left == other.left;
+          left == other.left &&
+          unread == other.unread;
 }
 
 /// Thrown in Dart with a stable machine code ("otp_invalid", "network", ...).

@@ -218,5 +218,6 @@
   "choosePhoto": "Elegir una foto",
   "removePhoto": "Quitar foto",
   "errAvatarInvalid": "Esa imagen no se puede usar. Prueba con otra.",
-  "evAvatar": "{actor} cambió la foto del grupo"
+  "evAvatar": "{actor} cambió la foto del grupo",
+  "themeEdelweiss": "Edelweiss, la flor estrella de los Alpes. Blanco nieve hacia plata."
 }

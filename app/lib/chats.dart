@@ -19,6 +19,7 @@ import 'update.dart';
 import 'profile.dart';
 import 'safety.dart';
 import 'src/rust/api/core.dart';
+import 'themes.dart';
 
 /// Keeps the message stream connected (SRV-03) and tells screens when something arrived.
 class ChatService extends ChangeNotifier {
@@ -56,7 +57,7 @@ class ChatService extends ChangeNotifier {
   void start() => unawaited(_loop());
 
   /// Our own actions change chats too (last message, ticks); screens rebuild on this.
-  void refresh() => notifyListeners();
+  void refresh() => _stopped ? null : notifyListeners();
 
   DateTime _lastEvent = DateTime(0);
 
@@ -153,11 +154,34 @@ String _preview(AppLocalizations t, Core core, ChatSummary c) {
 
 Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSummary c) {
   final t = AppLocalizations.of(context)!;
+  final colors = Theme.of(context).colorScheme;
+  // Unread chats stand out: bold text, a count, and the time in the theme colour.
+  final unread = c.unread > 0;
+  final bold = unread ? const TextStyle(fontWeight: FontWeight.bold) : null;
   return ListTile(
     leading: c.isGroup ? Avatar(core: core, groupId: c.groupId) : Avatar(core: core, account: c.peerAccount),
-    title: Text(chatTitle(t, c)),
-    subtitle: c.last == null ? null : Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis),
-    trailing: c.last == null ? null : Text(_time(context, c.last!.sentAt)),
+    title: Text(chatTitle(t, c), style: bold),
+    subtitle: c.last == null
+        ? null
+        : Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis, style: bold),
+    trailing: c.last == null
+        ? null
+        : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(_time(context, c.last!.sentAt), style: unread ? TextStyle(color: colors.primary) : null),
+              if (unread) ...[
+                const SizedBox(height: 4),
+                // Muted chats count quietly, in grey.
+                Badge(
+                  label: Text(c.unread > 99 ? '99+' : '${c.unread}'),
+                  backgroundColor: isMuted(core, c.groupId) ? colors.outline : colors.primary,
+                  textColor: isMuted(core, c.groupId) ? colors.surface : colors.onPrimary,
+                ),
+              ],
+            ],
+          ),
     onTap: () => Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChatScreen(core: core, service: service, groupId: c.groupId),
@@ -176,7 +200,7 @@ class ChatListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(
+      appBar: SiegelBar(
         title: Text(t.chatsTitle),
         actions: [
           IconButton(
@@ -247,7 +271,7 @@ class MessageRequestsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(t.messageRequests)),
+      appBar: SiegelBar(title: Text(t.messageRequests)),
       body: ListenableBuilder(
         listenable: service,
         builder: (context, _) {
@@ -323,7 +347,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(t.newChat)),
+      appBar: SiegelBar(title: Text(t.newChat)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -400,6 +424,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     widget.service.removeListener(_markRead);
+    // The chat list redraws without this chat's unread count (after the tree is unlocked).
+    final service = widget.service;
+    Future.microtask(service.refresh);
     _recTimer?.cancel();
     _recorder?.dispose();
     _text.dispose();
@@ -762,9 +789,9 @@ class _ChatScreenState extends State<ChatScreen> {
       listenable: widget.service,
       builder: (context, _) {
         final c = _summary();
-        if (c == null) return Scaffold(appBar: AppBar());
+        if (c == null) return Scaffold(appBar: SiegelBar());
         return Scaffold(
-          appBar: AppBar(
+          appBar: SiegelBar(
             title: InkWell(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -891,10 +918,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _bubble(BuildContext context, MessageView m, Map<String, MessageView> byId, ChatSummary c) {
     final t = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
-    final small = Theme.of(context).textTheme.labelSmall;
+    final grad = m.outgoing ? Theme.of(context).extension<SiegelGradient>() : null; // gradient themes
+    final small = Theme.of(context).textTheme.labelSmall?.copyWith(color: grad?.on);
     final id = base64Encode(m.messageId);
     final quoted = m.replyTo == null ? null : byId[base64Encode(m.replyTo!)];
     final failed = m.status == MessageStatus.failed;
+
     final counts = <String, int>{};
     for (final r in m.reactions) {
       counts[r.emoji] = (counts[r.emoji] ?? 0) + 1;
@@ -912,7 +941,8 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
             decoration: BoxDecoration(
-              color: m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest,
+              color: grad != null ? null : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
+              gradient: grad?.linear,
               borderRadius: BorderRadius.circular(16),
               // GRP-15: messages that @mention us stand out.
               border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
@@ -920,80 +950,84 @@ class _ChatScreenState extends State<ChatScreen> {
                   : null,
             ),
             // As wide as its widest line; text starts left, time and ticks end right.
-            child: IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (c.isGroup && !m.outgoing)
-                    Text(
-                      memberName(t, core, m.senderAccount),
-                      style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
-                    ),
-                  if (m.replyTo != null && !m.deleted)
-                    GestureDetector(
-                      onTap: () => _jumpTo(m.replyTo!),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 4),
-                        padding: const EdgeInsets.only(left: 8),
-                        decoration: BoxDecoration(
-                          border: Border(left: BorderSide(color: colors.primary, width: 3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (quoted != null)
+            child: onGradient(
+              context,
+              grad,
+              IntrinsicWidth(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (c.isGroup && !m.outgoing)
+                      Text(
+                        memberName(t, core, m.senderAccount),
+                        style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
+                      ),
+                    if (m.replyTo != null && !m.deleted)
+                      GestureDetector(
+                        onTap: () => _jumpTo(m.replyTo!),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.only(left: 8),
+                          decoration: BoxDecoration(
+                            border: Border(left: BorderSide(color: colors.primary, width: 3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (quoted != null)
+                                Text(
+                                  quoted.outgoing
+                                      ? t.you
+                                      : c.isGroup
+                                      ? memberName(t, core, quoted.senderAccount)
+                                      : chatTitle(t, c),
+                                  style: small,
+                                ),
                               Text(
-                                quoted.outgoing
-                                    ? t.you
-                                    : c.isGroup
-                                    ? memberName(t, core, quoted.senderAccount)
-                                    : chatTitle(t, c),
-                                style: small,
+                                quoted == null
+                                    ? t.originalMissing
+                                    : quoted.deleted
+                                    ? t.messageDeleted
+                                    : messageText(t, quoted),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            Text(
-                              quoted == null
-                                  ? t.originalMissing
-                                  : quoted.deleted
-                                  ? t.messageDeleted
-                                  : messageText(t, quoted),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
+                    if (m.deleted)
+                      Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+                    else if (m.attachment != null)
+                      AudioMessage(core: core, message: m)
+                    else
+                      Text.rich(formatText(m.text)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (m.edited && !m.deleted)
+                          GestureDetector(
+                            onTap: () => _history(m),
+                            child: Text('${t.edited} ', style: small),
+                          ),
+                        Text(_time(context, m.sentAt), style: small),
+                        if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
+                      ],
                     ),
-                  if (m.deleted)
-                    Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
-                  else if (m.attachment != null)
-                    AudioMessage(core: core, message: m)
-                  else
-                    Text.rich(formatText(m.text)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (m.edited && !m.deleted)
-                        GestureDetector(
-                          onTap: () => _history(m),
-                          child: Text('${t.edited} ', style: small),
-                        ),
-                      Text(_time(context, m.sentAt), style: small),
-                      if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
-                    ],
-                  ),
-                  if (failed)
-                    Text(
-                      t.notSentRetry,
-                      textAlign: TextAlign.end,
-                      style: small?.copyWith(color: colors.error),
-                    ),
-                  if (counts.isNotEmpty)
-                    Text(
-                      [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
-                      textAlign: TextAlign.end,
-                    ),
-                ],
+                    if (failed)
+                      Text(
+                        t.notSentRetry,
+                        textAlign: TextAlign.end,
+                        style: small?.copyWith(color: colors.error),
+                      ),
+                    if (counts.isNotEmpty)
+                      Text(
+                        [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
+                        textAlign: TextAlign.end,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

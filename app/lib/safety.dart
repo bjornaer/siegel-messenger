@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'l10n/app_localizations.dart';
 import 'src/rust/api/core.dart';
+import 'themes.dart';
 
 /// CRY-12: the chat's safety number as digits and as a QR code; scanning theirs verifies.
 class SafetyNumberScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _SafetyNumberScreenState extends State<SafetyNumberScreen> {
     final number = widget.core.safetyNumber(groupId: widget.groupId);
     final verified = widget.core.chats().any((c) => c.peerVerified && listEquals(c.groupId, widget.groupId));
     return Scaffold(
-      appBar: AppBar(title: Text(t.safetyNumber)),
+      appBar: SiegelBar(title: Text(t.safetyNumber)),
       body: number == null
           ? Center(child: Text(t.safetyNumberUnavailable))
           : ListView(
@@ -80,7 +81,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(AppLocalizations.of(context)!.scanCode)),
+    appBar: SiegelBar(title: Text(AppLocalizations.of(context)!.scanCode)),
     body: ReaderWidget(
       codeFormat: Format.qrCode,
       showGallery: false,

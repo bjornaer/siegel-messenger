@@ -791,4 +791,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String evAvatar(String actor) {
     return '$actor hat das Gruppenbild geändert';
   }
+
+  @override
+  String get themeEdelweiss => 'Der Alpenstern. Schneeweiß bis Silber.';
 }

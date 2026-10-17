@@ -218,5 +218,6 @@
   "choosePhoto": "Foto auswählen",
   "removePhoto": "Foto entfernen",
   "errAvatarInvalid": "Dieses Bild lässt sich nicht verwenden. Versuche ein anderes.",
-  "evAvatar": "{actor} hat das Gruppenbild geändert"
+  "evAvatar": "{actor} hat das Gruppenbild geändert",
+  "themeEdelweiss": "Der Alpenstern. Schneeweiß bis Silber."
 }

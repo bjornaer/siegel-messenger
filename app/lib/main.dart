@@ -151,6 +151,7 @@ class _SiegelAppState extends State<SiegelApp> {
       supportedLocales: [const Locale('en'), ...AppLocalizations.supportedLocales.where((l) => l.languageCode != 'en')],
       theme: theme.data(Brightness.light),
       darkTheme: theme.data(Brightness.dark),
+      themeMode: theme.lightOnly ? ThemeMode.light : ThemeMode.system,
       home: ready
           ? AppLock(
               core: core,
@@ -204,7 +205,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(t.settings)),
+      appBar: SiegelBar(title: Text(t.settings)),
       body: ListView(
         // Clear of the system navigation bar, or the last row (Delete account) can't be reached.
         padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom),
@@ -295,7 +296,7 @@ class _BlockedScreenState extends State<BlockedScreen> {
     final t = AppLocalizations.of(context)!;
     final blocked = widget.core.blocked();
     return Scaffold(
-      appBar: AppBar(title: Text(t.blockedPeople)),
+      appBar: SiegelBar(title: Text(t.blockedPeople)),
       body: blocked.isEmpty
           ? Center(child: Text(t.noBlocked))
           : ListView(

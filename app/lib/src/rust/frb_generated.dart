@@ -2802,8 +2802,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChatSummary dco_decode_chat_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return ChatSummary(
       groupId: dco_decode_list_prim_u_8_strict(arr[0]),
       peerAccount: dco_decode_list_prim_u_8_strict(arr[1]),
@@ -2815,6 +2815,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isGroup: dco_decode_bool(arr[7]),
       groupName: dco_decode_opt_String(arr[8]),
       left: dco_decode_bool(arr[9]),
+      unread: dco_decode_u_32(arr[10]),
     );
   }
 
@@ -3262,6 +3263,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isGroup = sse_decode_bool(deserializer);
     var var_groupName = sse_decode_opt_String(deserializer);
     var var_left = sse_decode_bool(deserializer);
+    var var_unread = sse_decode_u_32(deserializer);
     return ChatSummary(
       groupId: var_groupId,
       peerAccount: var_peerAccount,
@@ -3273,6 +3275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isGroup: var_isGroup,
       groupName: var_groupName,
       left: var_left,
+      unread: var_unread,
     );
   }
 
@@ -3828,6 +3831,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.isGroup, serializer);
     sse_encode_opt_String(self.groupName, serializer);
     sse_encode_bool(self.left, serializer);
+    sse_encode_u_32(self.unread, serializer);
   }
 
   @protected

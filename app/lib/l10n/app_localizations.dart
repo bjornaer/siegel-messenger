@@ -1415,6 +1415,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{actor} changed the group photo'**
   String evAvatar(String actor);
+
+  /// No description provided for @themeEdelweiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Edelweiss, the Alpine star flower. Snow white into silver.'**
+  String get themeEdelweiss;
 }
 
 class _AppLocalizationsDelegate

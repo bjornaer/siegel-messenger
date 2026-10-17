@@ -10,6 +10,7 @@ import 'links.dart';
 import 'onboarding.dart' show showError;
 import 'profile.dart';
 import 'src/rust/api/core.dart';
+import 'themes.dart';
 
 /// A member's name for bubbles and system lines.
 String memberName(AppLocalizations t, Core core, List<int> account, {List<int>? me}) {
@@ -102,7 +103,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(t.newGroup)),
+      appBar: SiegelBar(title: Text(t.newGroup)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -299,7 +300,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         final canEdit = g != null && (g.meAdmin || !g.adminsOnlyInfo);
         final canAdd = g != null && (g.meAdmin || !g.adminsOnlyAdd);
         return Scaffold(
-          appBar: AppBar(title: Text(t.groupInfo)),
+          appBar: SiegelBar(title: Text(t.groupInfo)),
           body: ListView(
             children: [
               const SizedBox(height: 16),

@@ -3669,6 +3669,7 @@ impl SseDecode for crate::api::core::ChatSummary {
         let mut var_isGroup = <bool>::sse_decode(deserializer);
         let mut var_groupName = <Option<String>>::sse_decode(deserializer);
         let mut var_left = <bool>::sse_decode(deserializer);
+        let mut var_unread = <u32>::sse_decode(deserializer);
         return crate::api::core::ChatSummary {
             group_id: var_groupId,
             peer_account: var_peerAccount,
@@ -3680,6 +3681,7 @@ impl SseDecode for crate::api::core::ChatSummary {
             is_group: var_isGroup,
             group_name: var_groupName,
             left: var_left,
+            unread: var_unread,
         };
     }
 }
@@ -4337,6 +4339,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::ChatSummary {
             self.is_group.into_into_dart().into_dart(),
             self.group_name.into_into_dart().into_dart(),
             self.left.into_into_dart().into_dart(),
+            self.unread.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4752,6 +4755,7 @@ impl SseEncode for crate::api::core::ChatSummary {
         <bool>::sse_encode(self.is_group, serializer);
         <Option<String>>::sse_encode(self.group_name, serializer);
         <bool>::sse_encode(self.left, serializer);
+        <u32>::sse_encode(self.unread, serializer);
     }
 }
 

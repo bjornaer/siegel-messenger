@@ -218,5 +218,6 @@
   "choosePhoto": "Escolher uma foto",
   "removePhoto": "Remover foto",
   "errAvatarInvalid": "Essa imagem não pode ser usada. Tente outra.",
-  "evAvatar": "{actor} mudou a foto do grupo"
+  "evAvatar": "{actor} mudou a foto do grupo",
+  "themeEdelweiss": "Edelvais, a flor-estrela dos Alpes. Branco neve até prata."
 }

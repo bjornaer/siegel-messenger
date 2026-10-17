@@ -9,6 +9,7 @@ import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 import 'avatar.dart';
 import 'l10n/app_localizations.dart';
 import 'src/rust/api/core.dart';
+import 'themes.dart';
 
 /// CMP-02: minimum age per country calling code. GDPR default is 16; Spain allows 14 (LOPDGDD art. 7).
 /// ponytail: fill in per launch country once Q2 is settled.
@@ -325,7 +326,7 @@ class _OnboardingState extends State<Onboarding> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: SiegelBar(title: Text(title)),
       body: SafeArea(
         child: ListView(
           // Fresh fields per step: a reused field keeps the previous step's keyboard type (numeric after the code).

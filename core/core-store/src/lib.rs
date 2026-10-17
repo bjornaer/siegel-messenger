@@ -136,6 +136,8 @@ pub trait Store: Send {
     ) -> Result<()>;
     /// Marks incoming messages read and returns their IDs.
     fn mark_read(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>>;
+    /// Incoming messages not yet read (what `mark_read` would mark).
+    fn unread(&self, group_id: &[u8]) -> Result<u32>;
     /// MSG-09: keeps a superseded body.
     fn save_version(&self, message_id: &[u8], body: &[u8]) -> Result<()>;
     /// Superseded bodies, oldest first.
@@ -465,6 +467,14 @@ impl Store for SqlCipher {
         q.query_map([group_id], |r| r.get(0))?.collect()
     }
 
+    fn unread(&self, group_id: &[u8]) -> Result<u32> {
+        self.conn.query_row(
+            "SELECT COUNT(*) FROM messages WHERE group_id = ?1 AND outgoing = 0 AND status < 4 AND deleted = 0",
+            [group_id],
+            |r| r.get(0),
+        )
+    }
+
     fn save_version(&self, message_id: &[u8], body: &[u8]) -> Result<()> {
         self.conn.execute(
             "INSERT INTO versions (message_id, body) VALUES (?1, ?2)",
@@ -637,7 +647,9 @@ mod tests {
             .unwrap();
         assert_eq!(s.message(&[3]).unwrap().unwrap().status, Status::Read);
         assert_eq!(s.message(&[1]).unwrap().unwrap().status, Status::Delivered);
+        assert_eq!(s.unread(&[9]).unwrap(), 2);
         assert_eq!(s.mark_read(&[9]).unwrap(), vec![vec![1], vec![2]]);
+        assert_eq!(s.unread(&[9]).unwrap(), 0);
         assert!(s.mark_read(&[9]).unwrap().is_empty());
         s.set_reaction(&[1], &[2], "👍").unwrap();
         s.set_reaction(&[1], &[2], "❤️").unwrap();

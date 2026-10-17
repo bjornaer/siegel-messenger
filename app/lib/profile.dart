@@ -10,6 +10,7 @@ import 'chats.dart';
 import 'l10n/app_localizations.dart';
 import 'safety.dart';
 import 'src/rust/api/core.dart';
+import 'themes.dart';
 
 /// Setting key for a muted chat: no notifications from it.
 String muteKey(List<int> groupId) => 'mute.${base64Encode(groupId)}';
@@ -98,10 +99,10 @@ class _ContactProfileScreenState extends State<ContactProfileScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final c = widget.core.chats().where((c) => listEquals(c.groupId, widget.groupId)).firstOrNull;
-    if (c == null) return Scaffold(appBar: AppBar());
+    if (c == null) return Scaffold(appBar: SiegelBar());
     final name = chatTitle(t, c);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: SiegelBar(),
       body: ListView(
         children: [
           const SizedBox(height: 16),

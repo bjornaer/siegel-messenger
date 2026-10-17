@@ -218,6 +218,8 @@ pub struct ChatSummary {
     pub group_name: Option<String>,
     /// We left or were removed: read-only.
     pub left: bool,
+    /// Incoming messages not read yet.
+    pub unread: u32,
 }
 
 /// A group's members, roles and settings (section 8).
@@ -428,6 +430,7 @@ impl Core {
                     peer_verified: false,
                     is_group: true,
                     left: c.left,
+                    unread: self.0.unread(&c.group_id)?,
                     group_id: c.group_id,
                     peer_account: c.peer_account,
                     last,
@@ -439,6 +442,7 @@ impl Core {
                 continue;
             }
             out.push(ChatSummary {
+                unread: self.0.unread(&c.group_id)?,
                 peer_display_name: contact.as_ref().and_then(|k| k.display_name.clone()),
                 peer_username: contact.as_ref().and_then(|k| k.username.clone()),
                 request: contact
