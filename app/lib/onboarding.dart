@@ -20,6 +20,7 @@ void showError(BuildContext context, CoreError e) {
   final t = AppLocalizations.of(context)!;
   final msg = switch (e.code) {
     'phone_invalid' => t.errPhoneInvalid,
+    'phone_mismatch' => t.errPhoneMismatch,
     'rate_limited' => t.errRateLimited,
     'otp_invalid' => t.errOtpInvalid,
     'registration_lock_invalid' => t.errLockInvalid,

@@ -27,6 +27,11 @@ pub struct GroupPreviewView {
     pub members: u32,
 }
 
+pub struct FoundContact {
+    pub phone: String,
+    pub username: String,
+}
+
 pub struct AppVersion {
     pub latest: u32,
     pub minimum: u32,
@@ -184,6 +189,43 @@ impl Core {
     /// Opens someone's contact link; returns the chat (already accepted on their side).
     pub async fn open_contact_link(&self, link: String) -> Result<Vec<u8>, CoreError> {
         Ok(self.0.open_contact_link(&link).await?)
+    }
+
+    /// Our own number, if this device kept it (accounts from before build 13 may not have).
+    #[frb(sync)]
+    pub fn my_phone(&self) -> Option<String> {
+        self.0.my_phone()
+    }
+
+    #[frb(sync)]
+    pub fn set_my_phone(&self, phone: String) -> Result<(), CoreError> {
+        Ok(self.0.set_my_phone(&phone)?)
+    }
+
+    /// DISC-03: "Let people who have my number find me". "phone_mismatch": not our number.
+    pub async fn set_discoverable(&self, enabled: bool) -> Result<(), CoreError> {
+        Ok(self.0.set_discoverable(enabled).await?)
+    }
+
+    pub async fn discoverable(&self) -> Result<bool, CoreError> {
+        Ok(self.0.discoverable().await?)
+    }
+
+    /// DISC-05: which of these E.164 numbers can be found, with their @usernames.
+    pub async fn find_contacts(
+        &self,
+        numbers: Vec<String>,
+    ) -> Result<Vec<FoundContact>, CoreError> {
+        Ok(self
+            .0
+            .find_contacts(&numbers)
+            .await?
+            .into_iter()
+            .map(|f| FoundContact {
+                phone: f.phone,
+                username: f.username,
+            })
+            .collect())
     }
 
     /// The account already has a Registration Lock PIN (ID-10).
@@ -705,7 +747,11 @@ impl Core {
     }
 
     /// MED-14: sends a message on to another chat; attachments are encrypted and uploaded again.
-    pub async fn forward(&self, message_id: Vec<u8>, to: Vec<u8>) -> Result<MessageView, CoreError> {
+    pub async fn forward(
+        &self,
+        message_id: Vec<u8>,
+        to: Vec<u8>,
+    ) -> Result<MessageView, CoreError> {
         Ok(self.0.forward(&message_id, &to).await?.into())
     }
 

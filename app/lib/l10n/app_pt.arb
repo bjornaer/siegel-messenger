@@ -242,5 +242,17 @@
   "videos": "Vídeos",
   "files": "Arquivos",
   "none": "Nada",
-  "errAttachmentInvalid": "Esse arquivo não pode ser enviado."
+  "errAttachmentInvalid": "Esse arquivo não pode ser enviado.",
+  "findContacts": "Encontrar contatos",
+  "findContactsIntro": "Veja quais pessoas dos contatos do seu celular usam o Siegel e ativaram \"Permitir que me encontrem pelo meu número\". Os números são verificados de um jeito que o servidor não os vê, e nada dos seus contatos fica guardado lá.",
+  "checkContacts": "Verificar meus contatos",
+  "contactsDenied": "O Siegel não consegue ler seus contatos. Você pode permitir nas configurações do celular.",
+  "noContactsFound": "Nenhum dos seus contatos pode ser encontrado ainda. Eles aparecem aqui quando ativarem \"Permitir que me encontrem pelo meu número\".",
+  "discoverable": "Permitir que me encontrem pelo meu número",
+  "discoverableHelp": "Quem tem seu número nos contatos pode ver seu @usuário. Seu número não é mostrado a ninguém.",
+  "myNumberTitle": "Seu número de celular",
+  "myNumberHelp": "O número com que você se cadastrou",
+  "errPhoneMismatch": "Este não é o número com que esta conta foi cadastrada.",
+  "sourceCode": "Código-fonte",
+  "sourceCodeHelp": "O Siegel é software livre (AGPL-3.0)"
 }

@@ -446,5 +446,17 @@
   "videos": "Videos",
   "files": "Files",
   "none": "Nothing",
-  "errAttachmentInvalid": "That file can't be sent."
+  "errAttachmentInvalid": "That file can't be sent.",
+  "findContacts": "Find contacts",
+  "findContactsIntro": "See which people in your phone's contacts use Siegel and turned on \"Let people who have my number find me\". Their numbers are checked in a way that hides them from the server, and nothing from your contacts is stored there.",
+  "checkContacts": "Check my contacts",
+  "contactsDenied": "Siegel can't read your contacts. You can allow it in your phone's settings.",
+  "noContactsFound": "None of your contacts can be found yet. People show up here once they turn on \"Let people who have my number find me\".",
+  "discoverable": "Let people who have my number find me",
+  "discoverableHelp": "People with your number in their contacts can see your @username. Your number isn't shown to anyone.",
+  "myNumberTitle": "Your phone number",
+  "myNumberHelp": "The number you registered with",
+  "errPhoneMismatch": "That isn't the number this account was registered with.",
+  "sourceCode": "Source code",
+  "sourceCodeHelp": "Siegel is free software (AGPL-3.0)"
 }

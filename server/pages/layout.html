@@ -17,5 +17,6 @@ th, td { border-bottom: 1px solid color-mix(in srgb, var(--fg) 15%, transparent)
 </style>
 </head>
 <body><main>{{end}}
-{{define "foot"}}</main></body></html>{{end}}
+{{/* AGPL-3.0 section 13: a modified server links to its own source here. */}}
+{{define "foot"}}<p class="note"><a href="https://github.com/bjornaer/siegel-messenger">Source code</a> (AGPL-3.0)</p></main></body></html>{{end}}
 {{define "contact"}}{{if .Contact}}<a href="mailto:{{.Contact}}">{{.Contact}}</a>{{else}}the contact address that will be published on this page before public launch{{end}}{{end}}

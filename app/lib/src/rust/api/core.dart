@@ -69,6 +69,8 @@ abstract class Core implements RustOpaqueInterface {
 
   void deleteForMe({required List<int> messageId});
 
+  Future<bool> discoverable();
+
   String? displayName();
 
   /// After a push wake-up: streams what was queued, then ends (MSG-17).
@@ -79,6 +81,9 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> messageId,
     required String text,
   });
+
+  /// DISC-05: which of these E.164 numbers can be found, with their @usernames.
+  Future<List<FoundContact>> findContacts({required List<String> numbers});
 
   /// MED-14: sends a message on to another chat; attachments are encrypted and uploaded again.
   Future<MessageView> forward({
@@ -115,6 +120,9 @@ abstract class Core implements RustOpaqueInterface {
   List<MessageView> messages({required List<int> groupId, required int limit});
 
   Uint8List? myAvatar();
+
+  /// Our own number, if this device kept it (accounts from before build 13 may not have).
+  String? myPhone();
 
   static Core open({
     required String dbPath,
@@ -207,6 +215,9 @@ abstract class Core implements RustOpaqueInterface {
 
   void setContactLink({required bool enabled});
 
+  /// DISC-03: "Let people who have my number find me". "phone_mismatch": not our number.
+  Future<void> setDiscoverable({required bool enabled});
+
   void setDisplayName({required String name});
 
   /// MED-15: sets (PNG bytes) or removes (None) the group picture, if the settings allow us.
@@ -217,6 +228,8 @@ abstract class Core implements RustOpaqueInterface {
     required bool adminsOnlyInfo,
     required bool adminsOnlyAdd,
   });
+
+  void setMyPhone({required String phone});
 
   /// This device's FCM token, for content-free wake-ups (MSG-17).
   Future<void> setPushToken({required String pushToken});
@@ -495,6 +508,24 @@ enum CoreEventKind {
 }
 
 enum DevicePlatform { ios, android }
+
+class FoundContact {
+  final String phone;
+  final String username;
+
+  const FoundContact({required this.phone, required this.username});
+
+  @override
+  int get hashCode => phone.hashCode ^ username.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FoundContact &&
+          runtimeType == other.runtimeType &&
+          phone == other.phone &&
+          username == other.username;
+}
 
 /// GRP-12 system lines.
 enum GroupEventKind {

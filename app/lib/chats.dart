@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'avatar.dart';
+import 'discovery.dart';
 import 'format.dart';
 import 'groups.dart';
 import 'links.dart';
@@ -394,6 +395,16 @@ class _NewChatScreenState extends State<NewChatScreen> {
             icon: const Icon(Icons.qr_code_scanner),
             label: Text(t.scanQr),
             onPressed: _busy ? null : _scan,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.contacts_outlined),
+            label: Text(t.findContacts),
+            onPressed: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute<void>(
+                builder: (_) => FindContactsScreen(core: widget.core, service: widget.service),
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           const Divider(),

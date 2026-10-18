@@ -857,4 +857,45 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errAttachmentInvalid => 'Esse arquivo não pode ser enviado.';
+
+  @override
+  String get findContacts => 'Encontrar contatos';
+
+  @override
+  String get findContactsIntro =>
+      'Veja quais pessoas dos contatos do seu celular usam o Siegel e ativaram \"Permitir que me encontrem pelo meu número\". Os números são verificados de um jeito que o servidor não os vê, e nada dos seus contatos fica guardado lá.';
+
+  @override
+  String get checkContacts => 'Verificar meus contatos';
+
+  @override
+  String get contactsDenied =>
+      'O Siegel não consegue ler seus contatos. Você pode permitir nas configurações do celular.';
+
+  @override
+  String get noContactsFound =>
+      'Nenhum dos seus contatos pode ser encontrado ainda. Eles aparecem aqui quando ativarem \"Permitir que me encontrem pelo meu número\".';
+
+  @override
+  String get discoverable => 'Permitir que me encontrem pelo meu número';
+
+  @override
+  String get discoverableHelp =>
+      'Quem tem seu número nos contatos pode ver seu @usuário. Seu número não é mostrado a ninguém.';
+
+  @override
+  String get myNumberTitle => 'Seu número de celular';
+
+  @override
+  String get myNumberHelp => 'O número com que você se cadastrou';
+
+  @override
+  String get errPhoneMismatch =>
+      'Este não é o número com que esta conta foi cadastrada.';
+
+  @override
+  String get sourceCode => 'Código-fonte';
+
+  @override
+  String get sourceCodeHelp => 'O Siegel é software livre (AGPL-3.0)';
 }

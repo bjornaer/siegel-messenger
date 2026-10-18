@@ -40,10 +40,24 @@ class MainActivity : FlutterFragmentActivity() {
                     result.success(pendingLink)
                     pendingLink = null
                 }
+                // DISC-04: name and number of every phone contact, or null if the user says no.
+                "contacts" -> {
+                    if (checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == PERMISSION_GRANTED) {
+                        readContacts(result)
+                    } else {
+                        contactsResult = result
+                        requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS), CONTACTS_REQUEST)
+                    }
+                }
                 "share" -> {
                     val send = android.content.Intent(android.content.Intent.ACTION_SEND)
                         .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, call.arguments as String)
                     startActivity(android.content.Intent.createChooser(send, null))
+                    result.success(null)
+                }
+                "open" -> {
+                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(call.arguments as String)))
                     result.success(null)
                 }
                 "openStore" -> {
@@ -77,6 +91,29 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private var pendingLink: String? = null
+    private var contactsResult: MethodChannel.Result? = null
+
+    override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, grants: IntArray) {
+        super.onRequestPermissionsResult(code, permissions, grants)
+        if (code != CONTACTS_REQUEST) return
+        val result = contactsResult ?: return
+        contactsResult = null
+        if (grants.firstOrNull() == PERMISSION_GRANTED) readContacts(result) else result.success(null)
+    }
+
+    // Off the UI thread: big address books take a moment. Numbers are as typed; Dart normalizes them.
+    private fun readContacts(result: MethodChannel.Result) = Thread {
+        val list = ArrayList<List<String>>()
+        contentResolver.query(
+            android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER),
+            null, null, null,
+        )?.use { c ->
+            while (c.moveToNext()) list.add(listOf(c.getString(0) ?: "", c.getString(1) ?: ""))
+        }
+        runOnUiThread { result.success(list) }
+    }.start()
     private var appChannel: MethodChannel? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
@@ -92,5 +129,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     private companion object {
         const val CLOUD_PROJECT = 779364744809L // Google Cloud project linked in Play Console
+        const val CONTACTS_REQUEST = 7
+        const val PERMISSION_GRANTED = android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 }

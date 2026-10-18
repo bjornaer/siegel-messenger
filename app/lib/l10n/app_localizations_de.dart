@@ -866,4 +866,45 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get errAttachmentInvalid => 'Diese Datei lässt sich nicht senden.';
+
+  @override
+  String get findContacts => 'Kontakte finden';
+
+  @override
+  String get findContactsIntro =>
+      'Sieh, wer aus deinen Telefonkontakten Siegel nutzt und \"Über meine Nummer finden lassen\" eingeschaltet hat. Die Nummern werden so geprüft, dass der Server sie nicht sieht, und von deinen Kontakten wird dort nichts gespeichert.';
+
+  @override
+  String get checkContacts => 'Meine Kontakte prüfen';
+
+  @override
+  String get contactsDenied =>
+      'Siegel kann deine Kontakte nicht lesen. Du kannst es in den Einstellungen deines Telefons erlauben.';
+
+  @override
+  String get noContactsFound =>
+      'Noch kann keiner deiner Kontakte gefunden werden. Sie erscheinen hier, sobald sie \"Über meine Nummer finden lassen\" einschalten.';
+
+  @override
+  String get discoverable => 'Über meine Nummer finden lassen';
+
+  @override
+  String get discoverableHelp =>
+      'Wer deine Nummer in seinen Kontakten hat, sieht deinen @Benutzernamen. Deine Nummer wird niemandem gezeigt.';
+
+  @override
+  String get myNumberTitle => 'Deine Telefonnummer';
+
+  @override
+  String get myNumberHelp => 'Die Nummer, mit der du dich registriert hast';
+
+  @override
+  String get errPhoneMismatch =>
+      'Mit dieser Nummer wurde dieses Konto nicht registriert.';
+
+  @override
+  String get sourceCode => 'Quellcode';
+
+  @override
+  String get sourceCodeHelp => 'Siegel ist freie Software (AGPL-3.0)';
 }

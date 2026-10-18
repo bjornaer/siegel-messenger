@@ -855,4 +855,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errAttachmentInvalid => 'That file can\'t be sent.';
+
+  @override
+  String get findContacts => 'Find contacts';
+
+  @override
+  String get findContactsIntro =>
+      'See which people in your phone\'s contacts use Siegel and turned on \"Let people who have my number find me\". Their numbers are checked in a way that hides them from the server, and nothing from your contacts is stored there.';
+
+  @override
+  String get checkContacts => 'Check my contacts';
+
+  @override
+  String get contactsDenied =>
+      'Siegel can\'t read your contacts. You can allow it in your phone\'s settings.';
+
+  @override
+  String get noContactsFound =>
+      'None of your contacts can be found yet. People show up here once they turn on \"Let people who have my number find me\".';
+
+  @override
+  String get discoverable => 'Let people who have my number find me';
+
+  @override
+  String get discoverableHelp =>
+      'People with your number in their contacts can see your @username. Your number isn\'t shown to anyone.';
+
+  @override
+  String get myNumberTitle => 'Your phone number';
+
+  @override
+  String get myNumberHelp => 'The number you registered with';
+
+  @override
+  String get errPhoneMismatch =>
+      'That isn\'t the number this account was registered with.';
+
+  @override
+  String get sourceCode => 'Source code';
+
+  @override
+  String get sourceCodeHelp => 'Siegel is free software (AGPL-3.0)';
 }

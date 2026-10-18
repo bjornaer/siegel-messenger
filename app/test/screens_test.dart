@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:siegel/app_lock.dart';
+import 'package:siegel/discovery.dart';
+import 'package:siegel/links.dart' show appChannel;
 import 'package:siegel/avatar.dart';
 import 'package:siegel/chats.dart';
 import 'package:siegel/groups.dart';
@@ -75,6 +77,30 @@ class FakeCore implements Core {
   Future<Uint8List> openContactLink({required String link}) async {
     await _maybeFail('openContactLink');
     return startChat(username: 'linked');
+  }
+
+  String? phone;
+  bool discoverableOn = false;
+  @override
+  String? myPhone() => phone;
+  @override
+  void setMyPhone({required String phone}) => this.phone = phone;
+  @override
+  Future<bool> discoverable() async => discoverableOn;
+  @override
+  Future<void> setDiscoverable({required bool enabled}) async {
+    await _maybeFail('setDiscoverable');
+    discoverableOn = enabled;
+  }
+
+  List<String> searched = [];
+  @override
+  Future<List<FoundContact>> findContacts({required List<String> numbers}) async {
+    searched = numbers;
+    return [
+      for (final n in numbers)
+        if (n == '+34600111222') FoundContact(phone: n, username: 'bea'),
+    ];
   }
 
   final links = <GroupLinkView>[];
@@ -1319,6 +1345,38 @@ void main() {
     await tapText(t, 'My link');
     expect(core.link, isNull, reason: 'turned off');
     expect(find.text('Show code'), findsNothing);
+  });
+
+  testWidgets('find me by number asks for the number once; finding contacts (DISC-03..07)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await tapText(t, 'Let people who have my number find me');
+    await t.enterText(find.byType(TextField).last, '+34 600 999 888');
+    await tapText(t, 'Save');
+    expect((core.phone, core.discoverableOn), ('+34600999888', true));
+
+    const channel = appChannel;
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method != 'contacts') return null;
+      return [
+        ['Bea', '600 111 222'], // no country code: ours (Spain)
+        ['Bea', '+34 600-111-222'],
+        ['Carl', '+49 1512 3456789'],
+        ['Junk', '12'],
+      ];
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    final service = ChatService(core, onDeregistered: () {});
+    addTearDown(service.dispose);
+    await t.pumpWidget(wrap(FindContactsScreen(core: core, service: service)));
+    await tapText(t, 'Check my contacts');
+    expect(core.searched, unorderedEquals(['+34600111222', '+4915123456789']));
+    expect(find.text('Bea'), findsOneWidget);
+    expect(find.text('@bea'), findsOneWidget);
+    expect(find.text('Carl'), findsNothing);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

@@ -1559,6 +1559,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That file can\'t be sent.'**
   String get errAttachmentInvalid;
+
+  /// No description provided for @findContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Find contacts'**
+  String get findContacts;
+
+  /// No description provided for @findContactsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'See which people in your phone\'s contacts use Siegel and turned on \"Let people who have my number find me\". Their numbers are checked in a way that hides them from the server, and nothing from your contacts is stored there.'**
+  String get findContactsIntro;
+
+  /// No description provided for @checkContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Check my contacts'**
+  String get checkContacts;
+
+  /// No description provided for @contactsDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel can\'t read your contacts. You can allow it in your phone\'s settings.'**
+  String get contactsDenied;
+
+  /// No description provided for @noContactsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your contacts can be found yet. People show up here once they turn on \"Let people who have my number find me\".'**
+  String get noContactsFound;
+
+  /// No description provided for @discoverable.
+  ///
+  /// In en, this message translates to:
+  /// **'Let people who have my number find me'**
+  String get discoverable;
+
+  /// No description provided for @discoverableHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'People with your number in their contacts can see your @username. Your number isn\'t shown to anyone.'**
+  String get discoverableHelp;
+
+  /// No description provided for @myNumberTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your phone number'**
+  String get myNumberTitle;
+
+  /// No description provided for @myNumberHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The number you registered with'**
+  String get myNumberHelp;
+
+  /// No description provided for @errPhoneMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'That isn\'t the number this account was registered with.'**
+  String get errPhoneMismatch;
+
+  /// No description provided for @sourceCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Source code'**
+  String get sourceCode;
+
+  /// No description provided for @sourceCodeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel is free software (AGPL-3.0)'**
+  String get sourceCodeHelp;
 }
 
 class _AppLocalizationsDelegate

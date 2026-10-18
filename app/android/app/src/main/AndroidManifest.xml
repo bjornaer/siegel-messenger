@@ -8,6 +8,8 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <!-- MED-09 voice notes. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- DISC-04: finding contacts on Siegel, only when the user asks; numbers never leave the phone in the clear. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>

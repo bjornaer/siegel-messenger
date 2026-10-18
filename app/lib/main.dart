@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'app_lock.dart';
 import 'avatar.dart';
 import 'chats.dart';
+import 'discovery.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart';
 import 'media.dart';
@@ -213,6 +214,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           _Profile(core: core),
           MyLinkTile(core: core),
+          DiscoverableTile(core: core),
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
           ListTile(
@@ -239,6 +241,13 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.block),
             title: Text(t.blockedPeople),
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BlockedScreen(core: core))),
+          ),
+          // AGPL-3.0 section 13: people using the service can get its source.
+          ListTile(
+            leading: const Icon(Icons.code),
+            title: Text(t.sourceCode),
+            subtitle: Text(t.sourceCodeHelp),
+            onTap: () => appChannel.invokeMethod<void>('open', sourceUrl),
           ),
           const SizedBox(height: 16),
           OutlinedButton(onPressed: () => _delete(context), child: Text(t.deleteAccount)),

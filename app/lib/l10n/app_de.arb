@@ -242,5 +242,17 @@
   "videos": "Videos",
   "files": "Dateien",
   "none": "Nichts",
-  "errAttachmentInvalid": "Diese Datei lässt sich nicht senden."
+  "errAttachmentInvalid": "Diese Datei lässt sich nicht senden.",
+  "findContacts": "Kontakte finden",
+  "findContactsIntro": "Sieh, wer aus deinen Telefonkontakten Siegel nutzt und \"Über meine Nummer finden lassen\" eingeschaltet hat. Die Nummern werden so geprüft, dass der Server sie nicht sieht, und von deinen Kontakten wird dort nichts gespeichert.",
+  "checkContacts": "Meine Kontakte prüfen",
+  "contactsDenied": "Siegel kann deine Kontakte nicht lesen. Du kannst es in den Einstellungen deines Telefons erlauben.",
+  "noContactsFound": "Noch kann keiner deiner Kontakte gefunden werden. Sie erscheinen hier, sobald sie \"Über meine Nummer finden lassen\" einschalten.",
+  "discoverable": "Über meine Nummer finden lassen",
+  "discoverableHelp": "Wer deine Nummer in seinen Kontakten hat, sieht deinen @Benutzernamen. Deine Nummer wird niemandem gezeigt.",
+  "myNumberTitle": "Deine Telefonnummer",
+  "myNumberHelp": "Die Nummer, mit der du dich registriert hast",
+  "errPhoneMismatch": "Mit dieser Nummer wurde dieses Konto nicht registriert.",
+  "sourceCode": "Quellcode",
+  "sourceCodeHelp": "Siegel ist freie Software (AGPL-3.0)"
 }
