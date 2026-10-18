@@ -451,8 +451,9 @@ impl SiegelCore {
         let conv = self.conversation(group_id)?;
         let (revoked, recipients) = self.send_once(group_id, content, only).await?;
         if conv.is_group {
-            if !revoked.is_empty() {
-                self.replace_devices(group_id, &revoked).await;
+            // Their new devices join at the next epoch; send them what found the old ones gone.
+            if !revoked.is_empty() && self.replace_devices(group_id, &revoked).await.is_ok() {
+                self.send_once(group_id, content, Some(&revoked)).await?;
             }
         } else if recipients > 0 && !revoked.is_empty() {
             self.rekey(group_id).await?;

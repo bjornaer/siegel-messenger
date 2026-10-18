@@ -1375,3 +1375,69 @@ async fn change_number_moves_a_recycled_number() {
         "number_change_too_soon"
     );
 }
+
+#[tokio::test]
+async fn a_reregistered_member_gets_back_into_groups() {
+    // AC-05, ID-09, ID-13: a member re-registers on a new phone; the next group message finds
+    // the old device revoked, swaps in the new one, and everyone keeps talking.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    let (alice, _) = new_user(&url, "alice").await;
+    let (carol, carol_name) = new_user(&url, "carol").await;
+    let n = fresh_number();
+    let bob_phone = format!("+346{n:08}");
+    let bob_dir = std::env::temp_dir().join(format!("siegel-e2e-grbob-{n}"));
+    std::fs::create_dir_all(&bob_dir).unwrap();
+    let open_bob = |file: &str| {
+        std::sync::Arc::new(
+            SiegelCore::open(bob_dir.join(file).to_str().unwrap(), &[7; 32], &url).unwrap(),
+        )
+    };
+    let bob = open_bob("one.db");
+    register(&bob, &bob_phone).await;
+    let bob_name = format!("grbob{n}");
+    bob.set_username(&bob_name).await.unwrap();
+    let (mut ae, mut be, mut ce) = (listen(&alice), listen(&bob), listen(&carol));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    befriend(&alice, &mut ae, &carol, &carol_name, &mut ce).await;
+
+    let gid = alice
+        .create_group("Climbers", &[bob_name.clone(), carol_name.clone()])
+        .await
+        .unwrap();
+    until(&mut be, |e| matches!(e, Event::ConversationStarted { .. })).await;
+    until(&mut ce, |e| matches!(e, Event::ConversationStarted { .. })).await;
+
+    let new_bob = open_bob("two.db");
+    register(&new_bob, &bob_phone).await;
+    until(&mut be, |e| matches!(e, Event::Deregistered)).await;
+    let mut nbe = listen(&new_bob);
+
+    alice.send_text(&gid, "welcome back", None).await.unwrap();
+    until(
+        &mut ce,
+        |e| matches!(e, Event::Message(m) if m.text == "welcome back"),
+    )
+    .await;
+    let Event::Message(m) = until(&mut nbe, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    assert_eq!(
+        (m.group_id.as_slice(), m.text.as_str()),
+        (gid.as_slice(), "welcome back"),
+        "the new device is in the same group"
+    );
+    assert_eq!(new_bob.group_info(&gid).unwrap().members.len(), 3);
+
+    // His new phone has no contacts yet, so the group comes back as an invite (GRP-11). Once
+    // he accepts, he talks in it and Carol reads him.
+    new_bob.accept(&gid).await.unwrap();
+    new_bob.send_text(&gid, "new phone", None).await.unwrap();
+    until(
+        &mut ce,
+        |e| matches!(e, Event::Message(m) if m.text == "new phone"),
+    )
+    .await;
+}

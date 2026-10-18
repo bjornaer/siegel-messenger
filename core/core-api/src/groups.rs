@@ -763,10 +763,13 @@ impl SiegelCore {
 
     /// AC-05: members whose devices were revoked re-registered; replace their devices with the
     /// new ones. Any member may do this: the membership itself doesn't change.
-    pub(crate) async fn replace_devices(&self, conv: &[u8], accounts: &[Account]) {
-        let _ = self
-            .group_commit_from(conv, accounts, accounts, |s| s, true)
-            .await;
+    pub(crate) async fn replace_devices(
+        &self,
+        conv: &[u8],
+        accounts: &[Account],
+    ) -> Result<(), CoreError> {
+        self.group_commit_from(conv, accounts, accounts, |s| s, true)
+            .await
     }
 
     /// Shares our profile key with some members only (new members, or everyone but a blocked
