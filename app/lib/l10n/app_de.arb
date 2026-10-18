@@ -293,5 +293,7 @@
   "skKeys": "Schlüssel zum Starten von Chats: {count}",
   "skPushYes": "Benachrichtigungs-Token: gespeichert",
   "skPushNo": "Benachrichtigungs-Token: keiner",
-  "skCopyJson": "Als JSON kopieren"
+  "skCopyJson": "Als JSON kopieren",
+  "unreadCount": "{count, plural, =1{1 ungelesene Nachricht} other{{count} ungelesene Nachrichten}}",
+  "messageOptions": "Nachrichtenoptionen"
 }

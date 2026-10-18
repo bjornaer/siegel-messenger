@@ -1865,6 +1865,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy as JSON'**
   String get skCopyJson;
+
+  /// No description provided for @unreadCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 unread message} other{{count} unread messages}}'**
+  String unreadCount(int count);
+
+  /// No description provided for @messageOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Message options'**
+  String get messageOptions;
 }
 
 class _AppLocalizationsDelegate

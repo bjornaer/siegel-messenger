@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -195,27 +196,31 @@ Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSumma
   return ListTile(
     leading: c.isGroup ? Avatar(core: core, groupId: c.groupId) : Avatar(core: core, account: c.peerAccount),
     title: Text(chatTitle(t, c), style: bold),
+    // The count sits on the preview's line, so the row still fits at 200% text (CMP-05).
     subtitle: c.last == null
         ? null
-        : Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis, style: bold),
-    trailing: c.last == null
-        ? null
-        : Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
+        : Row(
             children: [
-              Text(_time(context, c.last!.sentAt), style: unread ? TextStyle(color: colors.primary) : null),
+              Expanded(
+                child: Text(_preview(t, core, c), maxLines: 1, overflow: TextOverflow.ellipsis, style: bold),
+              ),
               if (unread) ...[
-                const SizedBox(height: 4),
+                const SizedBox(width: 8),
                 // Muted chats count quietly, in grey.
                 Badge(
-                  label: Text(c.unread > 99 ? '99+' : '${c.unread}'),
+                  label: Semantics(
+                    label: t.unreadCount(c.unread),
+                    child: ExcludeSemantics(child: Text(c.unread > 99 ? '99+' : '${c.unread}')),
+                  ),
                   backgroundColor: isMuted(core, c.groupId) ? colors.outline : colors.primary,
                   textColor: isMuted(core, c.groupId) ? colors.surface : colors.onPrimary,
                 ),
               ],
             ],
           ),
+    trailing: c.last == null
+        ? null
+        : Text(_time(context, c.last!.sentAt), style: unread ? TextStyle(color: colors.primary) : null),
     onTap: () => Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChatScreen(core: core, service: service, groupId: c.groupId),
@@ -934,40 +939,43 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Avatar(
-                    core: core,
-                    account: c.isGroup ? null : c.peerAccount,
-                    groupId: c.isGroup ? c.groupId : null,
-                    radius: 18,
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
-                            if (c.peerVerified) ...[
-                              const SizedBox(width: 6),
-                              Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
-                            ],
-                          ],
-                        ),
-                        if (widget.service.isTyping(_group))
-                          Text(
-                            c.isGroup
-                                ? t.isTyping(memberName(t, core, widget.service.typingAccount(_group) ?? const []))
-                                : t.typing,
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                      ],
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48), // CMP-05: tap target
+                child: Row(
+                  children: [
+                    Avatar(
+                      core: core,
+                      account: c.isGroup ? null : c.peerAccount,
+                      groupId: c.isGroup ? c.groupId : null,
+                      radius: 18,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(child: Text(chatTitle(t, c), overflow: TextOverflow.ellipsis)),
+                              if (c.peerVerified) ...[
+                                const SizedBox(width: 6),
+                                Icon(Icons.verified_user, size: 18, semanticLabel: t.verified),
+                              ],
+                            ],
+                          ),
+                          if (widget.service.isTyping(_group))
+                            Text(
+                              c.isGroup
+                                  ? t.isTyping(memberName(t, core, widget.service.typingAccount(_group) ?? const []))
+                                  : t.typing,
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -1058,102 +1066,114 @@ class _ChatScreenState extends State<ChatScreen> {
     return Align(
       key: _keys.putIfAbsent(id, GlobalKey.new),
       alignment: m.outgoing ? Alignment.centerRight : Alignment.centerLeft,
-      child: _SwipeToReply(
-        onReply: m.deleted || c.request ? null : () => _reply(m),
-        child: GestureDetector(
-          onLongPress: () => _actions(m, c),
-          onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 3),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
-            decoration: BoxDecoration(
-              color: grad != null ? null : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
-              gradient: grad?.linear,
-              borderRadius: BorderRadius.circular(16),
-              // GRP-15: messages that @mention us stand out.
-              border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
-                  ? Border.all(color: colors.primary, width: 2)
-                  : null,
-            ),
-            // As wide as its widest line; text starts left, time and ticks end right.
-            child: onGradient(
-              context,
-              grad,
-              IntrinsicWidth(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (c.isGroup && !m.outgoing)
-                      Text(
-                        memberName(t, core, m.senderAccount),
-                        style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
-                      ),
-                    if (m.replyTo != null && !m.deleted)
-                      GestureDetector(
-                        onTap: () => _jumpTo(m.replyTo!),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 4),
-                          padding: const EdgeInsets.only(left: 8),
-                          decoration: BoxDecoration(
-                            border: Border(left: BorderSide(color: colors.primary, width: 3)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (quoted != null)
-                                Text(
-                                  quoted.outgoing
-                                      ? t.you
-                                      : c.isGroup
-                                      ? memberName(t, core, quoted.senderAccount)
-                                      : chatTitle(t, c),
-                                  style: small,
-                                ),
-                              Text(
-                                quoted == null
-                                    ? t.originalMissing
-                                    : quoted.deleted
-                                    ? t.messageDeleted
-                                    : messageText(t, quoted),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+      // CMP-05: read as one message with its sender; Reply stands in for the swipe.
+      child: Semantics(
+        container: true,
+        label: m.outgoing ? t.you : (c.isGroup ? memberName(t, core, m.senderAccount) : chatTitle(t, c)),
+        onLongPressHint: t.messageOptions,
+        customSemanticsActions: m.deleted || c.request
+            ? null
+            : {CustomSemanticsAction(label: t.reply): () => _reply(m)},
+        child: _SwipeToReply(
+          onReply: m.deleted || c.request ? null : () => _reply(m),
+          child: GestureDetector(
+            onLongPress: () => _actions(m, c),
+            onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+              decoration: BoxDecoration(
+                color: grad != null ? null : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
+                gradient: grad?.linear,
+                borderRadius: BorderRadius.circular(16),
+                // GRP-15: messages that @mention us stand out.
+                border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
+                    ? Border.all(color: colors.primary, width: 2)
+                    : null,
+              ),
+              // As wide as its widest line; text starts left, time and ticks end right.
+              child: onGradient(
+                context,
+                grad,
+                IntrinsicWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (c.isGroup && !m.outgoing)
+                        ExcludeSemantics(
+                          // the bubble already says who sent it
+                          child: Text(
+                            memberName(t, core, m.senderAccount),
+                            style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
                           ),
                         ),
-                      ),
-                    if (m.deleted)
-                      Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
-                    else if (m.attachment != null)
-                      attachmentView(core, m)
-                    else
-                      Text.rich(formatText(m.text)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (m.edited && !m.deleted)
-                          GestureDetector(
-                            onTap: () => _history(m),
-                            child: Text('${t.edited} ', style: small),
+                      if (m.replyTo != null && !m.deleted)
+                        GestureDetector(
+                          onTap: () => _jumpTo(m.replyTo!),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.only(left: 8),
+                            decoration: BoxDecoration(
+                              border: Border(left: BorderSide(color: colors.primary, width: 3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (quoted != null)
+                                  Text(
+                                    quoted.outgoing
+                                        ? t.you
+                                        : c.isGroup
+                                        ? memberName(t, core, quoted.senderAccount)
+                                        : chatTitle(t, c),
+                                    style: small,
+                                  ),
+                                Text(
+                                  quoted == null
+                                      ? t.originalMissing
+                                      : quoted.deleted
+                                      ? t.messageDeleted
+                                      : messageText(t, quoted),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
-                        Text(_time(context, m.sentAt), style: small),
-                        if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
-                      ],
-                    ),
-                    if (failed)
-                      Text(
-                        t.notSentRetry,
-                        textAlign: TextAlign.end,
-                        style: small?.copyWith(color: colors.error),
+                        ),
+                      if (m.deleted)
+                        Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+                      else if (m.attachment != null)
+                        attachmentView(core, m)
+                      else
+                        Text.rich(formatText(m.text)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (m.edited && !m.deleted)
+                            GestureDetector(
+                              onTap: () => _history(m),
+                              child: Text('${t.edited} ', style: small),
+                            ),
+                          Text(_time(context, m.sentAt), style: small),
+                          if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
+                        ],
                       ),
-                    if (counts.isNotEmpty)
-                      Text(
-                        [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
-                        textAlign: TextAlign.end,
-                      ),
-                  ],
+                      if (failed)
+                        Text(
+                          t.notSentRetry,
+                          textAlign: TextAlign.end,
+                          style: small?.copyWith(color: colors.error),
+                        ),
+                      if (counts.isNotEmpty)
+                        Text(
+                          [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
+                          textAlign: TextAlign.end,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1369,6 +1389,7 @@ class _SwipeToReplyState extends State<_SwipeToReply> {
     if (widget.onReply == null) return widget.child;
     final armed = _dx >= _threshold;
     return GestureDetector(
+      excludeFromSemantics: true, // screen readers get a Reply action on the bubble instead
       onHorizontalDragUpdate: (d) {
         final dx = (_dx + d.delta.dx).clamp(0.0, _threshold * 1.4);
         if (dx >= _threshold && _dx < _threshold) HapticFeedback.mediumImpact();

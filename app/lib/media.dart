@@ -182,6 +182,7 @@ class _AudioMessageState extends State<AudioMessage> {
               children: [
                 if (!_a.voiceNote) Text(_a.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
                 GestureDetector(
+                  excludeFromSemantics: true, // seeking by touch; Play and Pause are the accessible controls
                   onTapDown: (d) => _seek((d.localPosition.dx / _waveWidth).clamp(0.0, 1.0)),
                   child: _a.waveform.isEmpty
                       ? Padding(
@@ -199,6 +200,8 @@ class _AudioMessageState extends State<AudioMessage> {
                 Text(
                   formatDuration(_isPlaying || _pos > Duration.zero ? _pos.inMilliseconds : total),
                   style: Theme.of(context).textTheme.labelSmall,
+                  // CMP-05: "Voice message, 0:04", not just a time.
+                  semanticsLabel: _a.voiceNote ? '${t.voiceMessage}, ${formatDuration(total)}' : formatDuration(total),
                 ),
               ],
             ),

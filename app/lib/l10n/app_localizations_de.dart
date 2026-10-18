@@ -1048,4 +1048,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get skCopyJson => 'Als JSON kopieren';
+
+  @override
+  String unreadCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ungelesene Nachrichten',
+      one: '1 ungelesene Nachricht',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get messageOptions => 'Nachrichtenoptionen';
 }
