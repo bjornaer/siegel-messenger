@@ -17,6 +17,7 @@ mod media;
 mod messages;
 pub use chat::{ChatMessage, Event};
 pub use core_store::{Contact, ContactState, Conversation, Status};
+pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
 pub use discovery::Found;
 pub use groups::{
     GROUP_ADDS, GroupEvent, GroupEventKind, GroupInfo, GroupLink, GroupMember, GroupPreview,
@@ -249,6 +250,11 @@ impl SiegelCore {
             let _ = self.set_discoverable(true).await;
         }
         Ok(())
+    }
+
+    /// RM-01: what the server holds about this account, fetched live (CMP-06).
+    pub async fn server_data(&self) -> Result<ServerData, CoreError> {
+        Ok(self.net.export(&self.token()?).await?)
     }
 
     /// Our number went to another account that proved it, and we haven't added a new one.

@@ -929,4 +929,108 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errNumberSame => 'That\'s already your number.';
+
+  @override
+  String get skTitle => 'What Siegel knows about me';
+
+  @override
+  String get skHelp => 'Everything the server holds about your account';
+
+  @override
+  String get skIntro =>
+      'This is everything Siegel\'s server holds about your account, fetched just now. It can\'t read your messages, your contacts or your profile.';
+
+  @override
+  String get skAccount => 'Account';
+
+  @override
+  String get skCreated => 'Account created';
+
+  @override
+  String get skPhone => 'Phone number';
+
+  @override
+  String skPhoneHash(String hash) {
+    return 'Kept only as a code that can\'t be turned back into your number: $hash';
+  }
+
+  @override
+  String get skNumberChanged => 'Number last changed';
+
+  @override
+  String get skUsername => 'Username';
+
+  @override
+  String skUsernameSince(String username, String day) {
+    return '@$username, since $day';
+  }
+
+  @override
+  String get skReleased => 'Old usernames you can still take back';
+
+  @override
+  String get skIdentityKey => 'Identity key';
+
+  @override
+  String skIdentityKeyHelp(String key) {
+    return 'Public. Others use it to check that messages really come from you: $key';
+  }
+
+  @override
+  String get skOn => 'On';
+
+  @override
+  String get skOff => 'Off';
+
+  @override
+  String get skProfile => 'Profile';
+
+  @override
+  String get skProfileStored =>
+      'Your name and about, encrypted. Only people you chat with can read them.';
+
+  @override
+  String get skProfilePicture => 'Profile picture';
+
+  @override
+  String get skPictureStored =>
+      'Encrypted. Only people you chat with can see it.';
+
+  @override
+  String get skChecked => 'Contact numbers checked recently';
+
+  @override
+  String skCheckedCount(int count) {
+    return '$count. Only how many, never which ones.';
+  }
+
+  @override
+  String get skDevices => 'Devices';
+
+  @override
+  String get skThisDevice => 'This phone';
+
+  @override
+  String get skOtherDevice => 'Another device';
+
+  @override
+  String skLastSeen(String platform, String day) {
+    return '$platform, last connected $day';
+  }
+
+  @override
+  String skQueued(int count) {
+    return 'Encrypted messages waiting: $count';
+  }
+
+  @override
+  String skKeys(int count) {
+    return 'Keys for starting chats: $count';
+  }
+
+  @override
+  String get skPushYes => 'Notification token: stored';
+
+  @override
+  String get skPushNo => 'Notification token: none';
 }

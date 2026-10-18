@@ -1685,6 +1685,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That\'s already your number.'**
   String get errNumberSame;
+
+  /// No description provided for @skTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What Siegel knows about me'**
+  String get skTitle;
+
+  /// No description provided for @skHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything the server holds about your account'**
+  String get skHelp;
+
+  /// No description provided for @skIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'This is everything Siegel\'s server holds about your account, fetched just now. It can\'t read your messages, your contacts or your profile.'**
+  String get skIntro;
+
+  /// No description provided for @skAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get skAccount;
+
+  /// No description provided for @skCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Account created'**
+  String get skCreated;
+
+  /// No description provided for @skPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get skPhone;
+
+  /// No description provided for @skPhoneHash.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept only as a code that can\'t be turned back into your number: {hash}'**
+  String skPhoneHash(String hash);
+
+  /// No description provided for @skNumberChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Number last changed'**
+  String get skNumberChanged;
+
+  /// No description provided for @skUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get skUsername;
+
+  /// No description provided for @skUsernameSince.
+  ///
+  /// In en, this message translates to:
+  /// **'@{username}, since {day}'**
+  String skUsernameSince(String username, String day);
+
+  /// No description provided for @skReleased.
+  ///
+  /// In en, this message translates to:
+  /// **'Old usernames you can still take back'**
+  String get skReleased;
+
+  /// No description provided for @skIdentityKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Identity key'**
+  String get skIdentityKey;
+
+  /// No description provided for @skIdentityKeyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Public. Others use it to check that messages really come from you: {key}'**
+  String skIdentityKeyHelp(String key);
+
+  /// No description provided for @skOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get skOn;
+
+  /// No description provided for @skOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get skOff;
+
+  /// No description provided for @skProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get skProfile;
+
+  /// No description provided for @skProfileStored.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name and about, encrypted. Only people you chat with can read them.'**
+  String get skProfileStored;
+
+  /// No description provided for @skProfilePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile picture'**
+  String get skProfilePicture;
+
+  /// No description provided for @skPictureStored.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted. Only people you chat with can see it.'**
+  String get skPictureStored;
+
+  /// No description provided for @skChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact numbers checked recently'**
+  String get skChecked;
+
+  /// No description provided for @skCheckedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}. Only how many, never which ones.'**
+  String skCheckedCount(int count);
+
+  /// No description provided for @skDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices'**
+  String get skDevices;
+
+  /// No description provided for @skThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone'**
+  String get skThisDevice;
+
+  /// No description provided for @skOtherDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Another device'**
+  String get skOtherDevice;
+
+  /// No description provided for @skLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'{platform}, last connected {day}'**
+  String skLastSeen(String platform, String day);
+
+  /// No description provided for @skQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted messages waiting: {count}'**
+  String skQueued(int count);
+
+  /// No description provided for @skKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys for starting chats: {count}'**
+  String skKeys(int count);
+
+  /// No description provided for @skPushYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification token: stored'**
+  String get skPushYes;
+
+  /// No description provided for @skPushNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification token: none'**
+  String get skPushNo;
 }
 
 class _AppLocalizationsDelegate

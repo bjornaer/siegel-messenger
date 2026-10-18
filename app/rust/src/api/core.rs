@@ -32,6 +32,38 @@ pub struct FoundContact {
     pub username: String,
 }
 
+/// RM-01: what the server holds about us. Ids and hashes are hex; days are YYYY-MM-DD.
+pub struct ServerData {
+    pub account_id: String,
+    pub phone_hash: String,
+    pub created_day: String,
+    pub number_changed_day: String,
+    pub identity_key: String,
+    pub username: String,
+    pub username_claimed_day: String,
+    pub released_usernames: Vec<String>,
+    pub registration_lock: bool,
+    pub discoverable: bool,
+    pub profile: bool,
+    pub profile_picture: bool,
+    pub numbers_checked: i32,
+    pub devices: Vec<ServerDevice>,
+}
+
+pub struct ServerDevice {
+    pub id: String,
+    pub ios: bool,
+    pub last_seen_day: String,
+    pub push_token: bool,
+    pub queued: i32,
+    pub key_packages: i32,
+    pub this_device: bool,
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
 pub struct AppVersion {
     pub latest: u32,
     pub minimum: u32,
@@ -90,6 +122,38 @@ impl Core {
         pin: String,
     ) -> Result<(), CoreError> {
         Ok(self.0.change_number(&phone_e164, &otp, &pin).await?)
+    }
+
+    pub async fn server_data(&self) -> Result<ServerData, CoreError> {
+        let d = self.0.server_data().await?;
+        Ok(ServerData {
+            account_id: hex(&d.account_id),
+            phone_hash: hex(&d.phone_hmac),
+            created_day: d.created_day,
+            number_changed_day: d.number_changed_day,
+            identity_key: hex(&d.identity_pub),
+            username: d.username,
+            username_claimed_day: d.username_claimed_day,
+            released_usernames: d.released_usernames,
+            registration_lock: d.registration_lock,
+            discoverable: d.discoverable,
+            profile: d.profile,
+            profile_picture: d.profile_picture,
+            numbers_checked: d.numbers_checked,
+            devices: d
+                .devices
+                .into_iter()
+                .map(|v| ServerDevice {
+                    id: hex(&v.device_id),
+                    ios: v.platform == 1, // PLATFORM_IOS
+                    last_seen_day: v.last_seen_day,
+                    push_token: v.push_token,
+                    queued: v.queued,
+                    key_packages: v.key_packages,
+                    this_device: v.this_device,
+                })
+                .collect(),
+        })
     }
 
     #[frb(sync)]

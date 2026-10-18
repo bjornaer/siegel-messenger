@@ -491,3 +491,24 @@ func TestContactPageAndAssetLinks(t *testing.T) { // DISC-08
 		t.Fatal(string(b))
 	}
 }
+
+func TestExport(t *testing.T) { // CMP-06, RM-01
+	e := setup(t)
+	a, _ := e.register("+34600000041", "")
+	_, acct := e.clients(a.DeviceToken)
+	want(t, e.setUsername(a.DeviceToken, "exported"), "")
+	acct.SetRegistrationLock(e.ctx, connect.NewRequest(&siegelv1.SetRegistrationLockRequest{Pin: "1234"}))
+	acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "tok"}))
+	res, err := acct.Export(e.ctx, connect.NewRequest(&siegelv1.AccountServiceExportRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := res.Msg
+	if r.Username != "exported" || !r.RegistrationLock || len(r.PhoneHmac) != 32 || r.CreatedDay == "" || r.Discoverable ||
+		len(r.Devices) != 1 || !r.Devices[0].ThisDevice || !r.Devices[0].PushToken || r.Devices[0].Platform != siegelv1.Platform_PLATFORM_IOS {
+		t.Fatalf("export: %+v", r)
+	}
+	if strings.Contains(r.String(), "34600000041") {
+		t.Fatal("export must not hold the number")
+	}
+}

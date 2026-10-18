@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `send_event`, `status_view`
+// These functions are ignored because they are not marked as `pub`: `hex`, `send_event`, `status_view`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
@@ -212,6 +212,8 @@ abstract class Core implements RustOpaqueInterface {
 
   /// Call at most every 3 seconds while typing (MSG-14).
   Future<void> sendTyping({required List<int> groupId});
+
+  Future<ServerData> serverData();
 
   Future<void> setAdmin({
     required List<int> groupId,
@@ -822,4 +824,119 @@ class ReceiptView {
           runtimeType == other.runtimeType &&
           account == other.account &&
           status == other.status;
+}
+
+/// RM-01: what the server holds about us. Ids and hashes are hex; days are YYYY-MM-DD.
+class ServerData {
+  final String accountId;
+  final String phoneHash;
+  final String createdDay;
+  final String numberChangedDay;
+  final String identityKey;
+  final String username;
+  final String usernameClaimedDay;
+  final List<String> releasedUsernames;
+  final bool registrationLock;
+  final bool discoverable;
+  final bool profile;
+  final bool profilePicture;
+  final int numbersChecked;
+  final List<ServerDevice> devices;
+
+  const ServerData({
+    required this.accountId,
+    required this.phoneHash,
+    required this.createdDay,
+    required this.numberChangedDay,
+    required this.identityKey,
+    required this.username,
+    required this.usernameClaimedDay,
+    required this.releasedUsernames,
+    required this.registrationLock,
+    required this.discoverable,
+    required this.profile,
+    required this.profilePicture,
+    required this.numbersChecked,
+    required this.devices,
+  });
+
+  @override
+  int get hashCode =>
+      accountId.hashCode ^
+      phoneHash.hashCode ^
+      createdDay.hashCode ^
+      numberChangedDay.hashCode ^
+      identityKey.hashCode ^
+      username.hashCode ^
+      usernameClaimedDay.hashCode ^
+      releasedUsernames.hashCode ^
+      registrationLock.hashCode ^
+      discoverable.hashCode ^
+      profile.hashCode ^
+      profilePicture.hashCode ^
+      numbersChecked.hashCode ^
+      devices.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ServerData &&
+          runtimeType == other.runtimeType &&
+          accountId == other.accountId &&
+          phoneHash == other.phoneHash &&
+          createdDay == other.createdDay &&
+          numberChangedDay == other.numberChangedDay &&
+          identityKey == other.identityKey &&
+          username == other.username &&
+          usernameClaimedDay == other.usernameClaimedDay &&
+          releasedUsernames == other.releasedUsernames &&
+          registrationLock == other.registrationLock &&
+          discoverable == other.discoverable &&
+          profile == other.profile &&
+          profilePicture == other.profilePicture &&
+          numbersChecked == other.numbersChecked &&
+          devices == other.devices;
+}
+
+class ServerDevice {
+  final String id;
+  final bool ios;
+  final String lastSeenDay;
+  final bool pushToken;
+  final int queued;
+  final int keyPackages;
+  final bool thisDevice;
+
+  const ServerDevice({
+    required this.id,
+    required this.ios,
+    required this.lastSeenDay,
+    required this.pushToken,
+    required this.queued,
+    required this.keyPackages,
+    required this.thisDevice,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      ios.hashCode ^
+      lastSeenDay.hashCode ^
+      pushToken.hashCode ^
+      queued.hashCode ^
+      keyPackages.hashCode ^
+      thisDevice.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ServerDevice &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          ios == other.ios &&
+          lastSeenDay == other.lastSeenDay &&
+          pushToken == other.pushToken &&
+          queued == other.queued &&
+          keyPackages == other.keyPackages &&
+          thisDevice == other.thisDevice;
 }

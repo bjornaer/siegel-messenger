@@ -99,6 +99,38 @@ service AccountService {
   // Registration Lock PIN if one is set. At most once per 7 days. A number held by another
   // account moves too; that account keeps everything but its number (docs/change-number.md).
   rpc ChangeNumber(ChangeNumberRequest) returns (ChangeNumberResponse);
+  // Everything the server holds about the caller's account (CMP-06, RM-01). Auth: device.
+  rpc Export(AccountServiceExportRequest) returns (AccountServiceExportResponse);
+}
+
+message AccountServiceExportRequest {}
+
+// Days are YYYY-MM-DD (UTC), empty when unset. Message contents are never readable here.
+message AccountServiceExportResponse {
+  bytes account_id = 1;
+  bytes phone_hmac = 2; // HMAC of the number (ID-05); empty after another account took it
+  string created_day = 3;
+  string number_changed_day = 4;
+  bytes identity_pub = 5;
+  string username = 6;
+  string username_claimed_day = 7;
+  repeated string released_usernames = 8; // still reclaimable by this account (ID-07)
+  bool registration_lock = 9;
+  bool discoverable = 10;
+  bool profile = 11; // encrypted; the server can't read it (MSG-10)
+  bool profile_picture = 12; // encrypted blob
+  int32 numbers_checked = 13; // contact numbers checked this key period (DISC-06)
+  repeated ExportedDevice devices = 14;
+}
+
+message ExportedDevice {
+  bytes device_id = 1;
+  Platform platform = 2;
+  string last_seen_day = 3;
+  bool push_token = 4;
+  int32 queued = 5; // encrypted messages waiting for it
+  int32 key_packages = 6;
+  bool this_device = 7;
 }
 
 message ChangeNumberRequest {

@@ -474,5 +474,89 @@
   "numberRemovedTitle": "Your number moved to another account",
   "numberRemovedBody": "Your number was verified on another Siegel account. Your account still works; add a number in Settings so you can recover it later.",
   "errNumberChangeTooSoon": "You can change your number once every 7 days.",
-  "errNumberSame": "That's already your number."
+  "errNumberSame": "That's already your number.",
+  "skTitle": "What Siegel knows about me",
+  "skHelp": "Everything the server holds about your account",
+  "skIntro": "This is everything Siegel's server holds about your account, fetched just now. It can't read your messages, your contacts or your profile.",
+  "skAccount": "Account",
+  "skCreated": "Account created",
+  "skPhone": "Phone number",
+  "skPhoneHash": "Kept only as a code that can't be turned back into your number: {hash}",
+  "@skPhoneHash": {
+    "placeholders": {
+      "hash": {
+        "type": "String"
+      }
+    }
+  },
+  "skNumberChanged": "Number last changed",
+  "skUsername": "Username",
+  "skUsernameSince": "@{username}, since {day}",
+  "@skUsernameSince": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "skReleased": "Old usernames you can still take back",
+  "skIdentityKey": "Identity key",
+  "skIdentityKeyHelp": "Public. Others use it to check that messages really come from you: {key}",
+  "@skIdentityKeyHelp": {
+    "placeholders": {
+      "key": {
+        "type": "String"
+      }
+    }
+  },
+  "skOn": "On",
+  "skOff": "Off",
+  "skProfile": "Profile",
+  "skProfileStored": "Your name and about, encrypted. Only people you chat with can read them.",
+  "skProfilePicture": "Profile picture",
+  "skPictureStored": "Encrypted. Only people you chat with can see it.",
+  "skChecked": "Contact numbers checked recently",
+  "skCheckedCount": "{count}. Only how many, never which ones.",
+  "@skCheckedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "skDevices": "Devices",
+  "skThisDevice": "This phone",
+  "skOtherDevice": "Another device",
+  "skLastSeen": "{platform}, last connected {day}",
+  "@skLastSeen": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "skQueued": "Encrypted messages waiting: {count}",
+  "@skQueued": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "skKeys": "Keys for starting chats: {count}",
+  "@skKeys": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "skPushYes": "Notification token: stored",
+  "skPushNo": "Notification token: none"
 }

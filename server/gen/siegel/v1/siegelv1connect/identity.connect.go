@@ -65,6 +65,8 @@ const (
 	// AccountServiceChangeNumberProcedure is the fully-qualified name of the AccountService's
 	// ChangeNumber RPC.
 	AccountServiceChangeNumberProcedure = "/siegel.v1.AccountService/ChangeNumber"
+	// AccountServiceExportProcedure is the fully-qualified name of the AccountService's Export RPC.
+	AccountServiceExportProcedure = "/siegel.v1.AccountService/Export"
 	// ProfileServiceSetProcedure is the fully-qualified name of the ProfileService's Set RPC.
 	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
 	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
@@ -327,6 +329,8 @@ type AccountServiceClient interface {
 	// Registration Lock PIN if one is set. At most once per 7 days. A number held by another
 	// account moves too; that account keeps everything but its number (docs/change-number.md).
 	ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error)
+	// Everything the server holds about the caller's account (CMP-06, RM-01). Auth: device.
+	Export(context.Context, *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error)
 }
 
 // NewAccountServiceClient constructs a client for the siegel.v1.AccountService service. By default,
@@ -364,6 +368,12 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("ChangeNumber")),
 			connect.WithClientOptions(opts...),
 		),
+		export: connect.NewClient[v1.AccountServiceExportRequest, v1.AccountServiceExportResponse](
+			httpClient,
+			baseURL+AccountServiceExportProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("Export")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -373,6 +383,7 @@ type accountServiceClient struct {
 	delete              *connect.Client[v1.AccountServiceDeleteRequest, v1.AccountServiceDeleteResponse]
 	setPushToken        *connect.Client[v1.SetPushTokenRequest, v1.SetPushTokenResponse]
 	changeNumber        *connect.Client[v1.ChangeNumberRequest, v1.ChangeNumberResponse]
+	export              *connect.Client[v1.AccountServiceExportRequest, v1.AccountServiceExportResponse]
 }
 
 // SetRegistrationLock calls siegel.v1.AccountService.SetRegistrationLock.
@@ -395,6 +406,11 @@ func (c *accountServiceClient) ChangeNumber(ctx context.Context, req *connect.Re
 	return c.changeNumber.CallUnary(ctx, req)
 }
 
+// Export calls siegel.v1.AccountService.Export.
+func (c *accountServiceClient) Export(ctx context.Context, req *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error) {
+	return c.export.CallUnary(ctx, req)
+}
+
 // AccountServiceHandler is an implementation of the siegel.v1.AccountService service.
 type AccountServiceHandler interface {
 	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
@@ -407,6 +423,8 @@ type AccountServiceHandler interface {
 	// Registration Lock PIN if one is set. At most once per 7 days. A number held by another
 	// account moves too; that account keeps everything but its number (docs/change-number.md).
 	ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error)
+	// Everything the server holds about the caller's account (CMP-06, RM-01). Auth: device.
+	Export(context.Context, *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error)
 }
 
 // NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -440,6 +458,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("ChangeNumber")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceExportHandler := connect.NewUnaryHandler(
+		AccountServiceExportProcedure,
+		svc.Export,
+		connect.WithSchema(accountServiceMethods.ByName("Export")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountServiceSetRegistrationLockProcedure:
@@ -450,6 +474,8 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceSetPushTokenHandler.ServeHTTP(w, r)
 		case AccountServiceChangeNumberProcedure:
 			accountServiceChangeNumberHandler.ServeHTTP(w, r)
+		case AccountServiceExportProcedure:
+			accountServiceExportHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -473,6 +499,10 @@ func (UnimplementedAccountServiceHandler) SetPushToken(context.Context, *connect
 
 func (UnimplementedAccountServiceHandler) ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.ChangeNumber is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) Export(context.Context, *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.Export is not implemented"))
 }
 
 // ProfileServiceClient is a client for the siegel.v1.ProfileService service.

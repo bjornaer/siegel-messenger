@@ -17,6 +17,7 @@ import 'media.dart';
 import 'number.dart';
 import 'onboarding.dart';
 import 'push.dart';
+import 'server_data.dart';
 import 'themes.dart';
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
@@ -247,6 +248,13 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.block),
             title: Text(t.blockedPeople),
             onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BlockedScreen(core: core))),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dns_outlined),
+            title: Text(t.skTitle),
+            subtitle: Text(t.skHelp),
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ServerDataScreen(core: core))),
           ),
           // AGPL-3.0 section 13: people using the service can get its source.
           ListTile(

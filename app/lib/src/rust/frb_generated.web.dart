@@ -153,6 +153,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ReceiptView> dco_decode_list_receipt_view(dynamic raw);
 
   @protected
+  List<ServerDevice> dco_decode_list_server_device(dynamic raw);
+
+  @protected
   MessageStatus dco_decode_message_status(dynamic raw);
 
   @protected
@@ -178,6 +181,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReceiptView dco_decode_receipt_view(dynamic raw);
+
+  @protected
+  ServerData dco_decode_server_data(dynamic raw);
+
+  @protected
+  ServerDevice dco_decode_server_device(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -337,6 +346,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ReceiptView> sse_decode_list_receipt_view(SseDeserializer deserializer);
 
   @protected
+  List<ServerDevice> sse_decode_list_server_device(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   MessageStatus sse_decode_message_status(SseDeserializer deserializer);
 
   @protected
@@ -368,6 +382,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ReceiptView sse_decode_receipt_view(SseDeserializer deserializer);
+
+  @protected
+  ServerData sse_decode_server_data(SseDeserializer deserializer);
+
+  @protected
+  ServerDevice sse_decode_server_device(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -577,6 +597,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_server_device(
+    List<ServerDevice> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_message_status(MessageStatus self, SseSerializer serializer);
 
   @protected
@@ -614,6 +640,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_receipt_view(ReceiptView self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_server_data(ServerData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_server_device(ServerDevice self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

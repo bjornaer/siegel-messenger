@@ -931,4 +931,109 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errNumberSame => 'Esse já é o seu número.';
+
+  @override
+  String get skTitle => 'O que o Siegel sabe sobre mim';
+
+  @override
+  String get skHelp => 'Tudo o que o servidor guarda sobre a sua conta';
+
+  @override
+  String get skIntro =>
+      'Isto é tudo o que o servidor do Siegel guarda sobre a sua conta, consultado agora mesmo. Ele não consegue ler as suas mensagens, os seus contatos nem o seu perfil.';
+
+  @override
+  String get skAccount => 'Conta';
+
+  @override
+  String get skCreated => 'Conta criada';
+
+  @override
+  String get skPhone => 'Número de telefone';
+
+  @override
+  String skPhoneHash(String hash) {
+    return 'Guardado apenas como um código que não pode ser convertido de volta no seu número: $hash';
+  }
+
+  @override
+  String get skNumberChanged => 'Última mudança de número';
+
+  @override
+  String get skUsername => 'Nome de usuário';
+
+  @override
+  String skUsernameSince(String username, String day) {
+    return '@$username, desde $day';
+  }
+
+  @override
+  String get skReleased =>
+      'Nomes de usuário antigos que você ainda pode recuperar';
+
+  @override
+  String get skIdentityKey => 'Chave de identidade';
+
+  @override
+  String skIdentityKeyHelp(String key) {
+    return 'Pública. Outras pessoas a usam para confirmar que as mensagens vêm de você: $key';
+  }
+
+  @override
+  String get skOn => 'Ativado';
+
+  @override
+  String get skOff => 'Desativado';
+
+  @override
+  String get skProfile => 'Perfil';
+
+  @override
+  String get skProfileStored =>
+      'O seu nome e recado, criptografados. Só as pessoas com quem você conversa podem lê-los.';
+
+  @override
+  String get skProfilePicture => 'Foto do perfil';
+
+  @override
+  String get skPictureStored =>
+      'Criptografada. Só as pessoas com quem você conversa podem vê-la.';
+
+  @override
+  String get skChecked => 'Números de contatos verificados recentemente';
+
+  @override
+  String skCheckedCount(int count) {
+    return '$count. Só quantos, nunca quais.';
+  }
+
+  @override
+  String get skDevices => 'Dispositivos';
+
+  @override
+  String get skThisDevice => 'Este telefone';
+
+  @override
+  String get skOtherDevice => 'Outro dispositivo';
+
+  @override
+  String skLastSeen(String platform, String day) {
+    return '$platform, última conexão em $day';
+  }
+
+  @override
+  String skQueued(int count) {
+    return 'Mensagens criptografadas aguardando: $count';
+  }
+
+  @override
+  String skKeys(int count) {
+    return 'Chaves para iniciar conversas: $count';
+  }
+
+  @override
+  String get skPushYes => 'Token de notificações: guardado';
+
+  @override
+  String get skPushNo => 'Token de notificações: nenhum';
 }

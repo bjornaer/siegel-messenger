@@ -941,4 +941,108 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get errNumberSame => 'Das ist bereits deine Nummer.';
+
+  @override
+  String get skTitle => 'Was Siegel über mich weiß';
+
+  @override
+  String get skHelp => 'Alles, was der Server über dein Konto speichert';
+
+  @override
+  String get skIntro =>
+      'Das ist alles, was der Siegel-Server über dein Konto speichert, gerade eben abgerufen. Er kann deine Nachrichten, deine Kontakte und dein Profil nicht lesen.';
+
+  @override
+  String get skAccount => 'Konto';
+
+  @override
+  String get skCreated => 'Konto erstellt';
+
+  @override
+  String get skPhone => 'Telefonnummer';
+
+  @override
+  String skPhoneHash(String hash) {
+    return 'Nur als Code gespeichert, aus dem sich deine Nummer nicht zurückgewinnen lässt: $hash';
+  }
+
+  @override
+  String get skNumberChanged => 'Nummer zuletzt geändert';
+
+  @override
+  String get skUsername => 'Benutzername';
+
+  @override
+  String skUsernameSince(String username, String day) {
+    return '@$username, seit $day';
+  }
+
+  @override
+  String get skReleased => 'Alte Benutzernamen, die du noch zurückholen kannst';
+
+  @override
+  String get skIdentityKey => 'Identitätsschlüssel';
+
+  @override
+  String skIdentityKeyHelp(String key) {
+    return 'Öffentlich. Andere prüfen damit, dass Nachrichten wirklich von dir kommen: $key';
+  }
+
+  @override
+  String get skOn => 'An';
+
+  @override
+  String get skOff => 'Aus';
+
+  @override
+  String get skProfile => 'Profil';
+
+  @override
+  String get skProfileStored =>
+      'Dein Name und Info, verschlüsselt. Nur Leute, mit denen du chattest, können sie lesen.';
+
+  @override
+  String get skProfilePicture => 'Profilbild';
+
+  @override
+  String get skPictureStored =>
+      'Verschlüsselt. Nur Leute, mit denen du chattest, können es sehen.';
+
+  @override
+  String get skChecked => 'Kürzlich geprüfte Kontaktnummern';
+
+  @override
+  String skCheckedCount(int count) {
+    return '$count. Nur wie viele, nie welche.';
+  }
+
+  @override
+  String get skDevices => 'Geräte';
+
+  @override
+  String get skThisDevice => 'Dieses Telefon';
+
+  @override
+  String get skOtherDevice => 'Anderes Gerät';
+
+  @override
+  String skLastSeen(String platform, String day) {
+    return '$platform, zuletzt verbunden am $day';
+  }
+
+  @override
+  String skQueued(int count) {
+    return 'Wartende verschlüsselte Nachrichten: $count';
+  }
+
+  @override
+  String skKeys(int count) {
+    return 'Schlüssel zum Starten von Chats: $count';
+  }
+
+  @override
+  String get skPushYes => 'Benachrichtigungs-Token: gespeichert';
+
+  @override
+  String get skPushNo => 'Benachrichtigungs-Token: keiner';
 }

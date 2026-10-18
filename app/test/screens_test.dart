@@ -103,6 +103,34 @@ class FakeCore implements Core {
     removed = false;
   }
 
+  @override
+  Future<ServerData> serverData() async => ServerData(
+    accountId: 'aa',
+    phoneHash: '0123456789abcdef0123',
+    createdDay: '2026-10-01',
+    numberChangedDay: '',
+    identityKey: 'beef',
+    username: user ?? '',
+    usernameClaimedDay: '2026-10-02',
+    releasedUsernames: const ['old_ana'],
+    registrationLock: lockSet,
+    discoverable: discoverableOn,
+    profile: true,
+    profilePicture: false,
+    numbersChecked: 12,
+    devices: const [
+      ServerDevice(
+        id: 'd1',
+        ios: false,
+        lastSeenDay: '2026-10-18',
+        pushToken: true,
+        queued: 3,
+        keyPackages: 50,
+        thisDevice: true,
+      ),
+    ],
+  );
+
   List<String> searched = [];
   @override
   Future<List<FoundContact>> findContacts({required List<String> numbers}) async {
@@ -1410,6 +1438,23 @@ void main() {
     expect(core.calls, contains('changeNumber +34611222333 123456 1234'));
     expect(core.removed, isFalse);
     expect(find.text('Your number is now +34611222333.'), findsOneWidget);
+  });
+
+  testWidgets('what Siegel knows about me shows the server data in plain words (RM-01)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana'
+      ..lockSet = true;
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text('What Siegel knows about me'), 100);
+    await tapText(t, 'What Siegel knows about me');
+    expect(find.textContaining('0123456789abcdef…'), findsOneWidget); // the number only as a hash
+    expect(find.text('@ana, since Oct 2, 2026'), findsOneWidget);
+    expect(find.text('@old_ana'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('12. Only how many, never which ones.'), 100);
+    await t.scrollUntilVisible(find.text('This phone'), 100);
+    expect(find.textContaining('Encrypted messages waiting: 3'), findsOneWidget);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {
