@@ -25,6 +25,56 @@ pub use groups::{
 pub use media::{AttachmentInfo, OutgoingAttachment};
 pub use messages::{READ_RECEIPTS, TYPING};
 
+/// SEC-08: entry points for core/fuzz into parsers that take what other people send.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub mod fuzz {
+    use core_net::pb;
+    use prost::Message as _;
+
+    /// A decrypted message body, as stored and then shown in a chat.
+    pub fn content(body: &[u8]) {
+        if let Ok(pb::Content {
+            body: Some(pb::content::Body::Attachment(a)),
+            ..
+        }) = pb::Content::decode(body)
+            && crate::media::valid(&a)
+        {
+            let _ = crate::media::info(&a);
+        }
+        let _ = crate::chat::chat_message(
+            core_store::Message {
+                message_id: vec![],
+                group_id: vec![],
+                sender_account: vec![],
+                sent_at: 0,
+                body: body.to_vec(),
+                outgoing: false,
+                status: core_store::Status::Delivered,
+                edited: false,
+                deleted: false,
+            },
+            vec![],
+        );
+    }
+
+    /// A contact's decrypted profile.
+    pub fn profile(plain: &[u8]) {
+        if let Ok(pb::Profile {
+            avatar: Some(a), ..
+        }) = pb::Profile::decode(plain)
+        {
+            let _ = crate::media::valid(&a);
+        }
+    }
+
+    /// Links pasted or scanned by the user.
+    pub fn links(link: &str) {
+        let _ = crate::links::parse(link);
+        let _ = crate::groups::parse_group_link(link);
+    }
+}
+
 /// Machine-readable failure, e.g. "otp_invalid", "registration_lock_required", "network".
 #[derive(Debug, Clone, PartialEq)]
 pub struct CoreError {

@@ -831,7 +831,7 @@ fn random<const N: usize>() -> [u8; N] {
 }
 
 /// `/g/<id>#<key>`: ID and link key.
-fn parse_group_link(link: &str) -> Option<([u8; 16], [u8; 32])> {
+pub(crate) fn parse_group_link(link: &str) -> Option<([u8; 16], [u8; 32])> {
     use base64::Engine as _;
     let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
     let rest = link.split("/g/").nth(1)?;

@@ -60,6 +60,7 @@ jobs:
           key: core-${{ hashFiles('core/Cargo.lock') }}
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy -p core-api --features fuzzing -- -D warnings # the hooks core/fuzz uses (SEC-08)
       # ponytail: e2e test (core-api/tests/e2e.rs) skips here; run it against the compose stack once CI starts one.
       - run: cargo test
       - name: licences and advisories (SEC-07, D15)

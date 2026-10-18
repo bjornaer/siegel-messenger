@@ -47,11 +47,12 @@ pub fn entry_id(o: &[u8; 32]) -> [u8; 16] {
     tagged(b"id", o)[..16].try_into().expect("16 bytes")
 }
 
+/// `bits` comes from the server: more than 32 means every bucket (found by fuzzing, SEC-08).
 pub fn bucket_of(id: &[u8], bits: u32) -> u32 {
     if bits == 0 || id.len() < 4 {
         return 0;
     }
-    u32::from_be_bytes(id[..4].try_into().expect("4 bytes")) >> (32 - bits)
+    u32::from_be_bytes(id[..4].try_into().expect("4 bytes")) >> (32 - bits.min(32))
 }
 
 /// The @username in an entry, if this output opens it.
@@ -67,6 +68,14 @@ pub fn open(o: &[u8; 32], sealed: &[u8]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bucket_bits_from_the_server_are_clamped() {
+        let id = [0xff; 16];
+        assert_eq!(bucket_of(&id, 32), u32::MAX);
+        assert_eq!(bucket_of(&id, 200), u32::MAX);
+        assert_eq!(bucket_of(&id, 1), 1);
+    }
 
     /// The whole exchange with a stand-in server key: blinding hides the number, and the result
     /// matches what the server computes from the number directly.

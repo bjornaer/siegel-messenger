@@ -1,0 +1,58 @@
+# SEC-08: fuzz targets for every parser that takes untrusted input. Needs nightly:
+#   cargo +nightly fuzz run <target> -- -max_total_time=60
+# CI runs each one nightly (.github/workflows/fuzz.yml).
+[package]
+name = "core-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+core-api = { path = "../core-api", features = ["fuzzing"] }
+core-crypto = { path = "../core-crypto" }
+core-media = { path = "../core-media" }
+core-net = { path = "../core-net" }
+openmls_rust_crypto = "0.6"
+prost = "0.14"
+
+[[bin]]
+name = "mls_message"
+path = "fuzz_targets/mls_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "content"
+path = "fuzz_targets/content.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "group_data"
+path = "fuzz_targets/group_data.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decrypt"
+path = "fuzz_targets/decrypt.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "server_frames"
+path = "fuzz_targets/server_frames.rs"
+test = false
+doc = false
+bench = false

@@ -15,3 +15,9 @@ core/target/
 
 # macOS
 .DS_Store
+
+# Fuzzing (SEC-08): local corpus, crashes and builds
+core/fuzz/target/
+core/fuzz/corpus/
+core/fuzz/artifacts/
+core/fuzz/coverage/

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["core-crypto", "core-media", "core-net", "core-store", "core-api"]
+exclude = ["fuzz"] # nightly-only, its own workspace (SEC-08)
 
 [workspace.package]
 edition = "2024"

@@ -1,0 +1,58 @@
+# SEC-08: every fuzz target, nightly. Crashes are uploaded as artifacts; the corpus carries over
+# between runs through the cache.
+name: fuzz
+on:
+  schedule: [{cron: "17 2 * * *"}]
+  workflow_dispatch:
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: core/fuzz
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [mls_message, content, group_data, decrypt, server_frames]
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install nightly --profile minimal
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-fuzz
+            ~/.cargo/registry
+            core/fuzz/target
+          key: fuzz-${{ hashFiles('core/Cargo.lock', 'core/fuzz/Cargo.toml') }}
+      - run: command -v cargo-fuzz || cargo install cargo-fuzz --locked
+      - uses: actions/cache@v4
+        with:
+          path: core/fuzz/corpus/${{ matrix.target }}
+          key: corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: corpus-${{ matrix.target }}-
+      - run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=600
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crash-${{ matrix.target }}
+          path: core/fuzz/artifacts/${{ matrix.target }}
+
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - run: go test -run '^$' -fuzz FuzzUsername -fuzztime 5m ./
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crash-server
+          path: server/testdata/fuzz
