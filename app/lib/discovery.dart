@@ -11,7 +11,7 @@ import 'src/rust/api/core.dart';
 import 'themes.dart';
 
 /// The country numbers without a +prefix belong to: our own number's, else the phone's region.
-IsoCode? _region(Core core) {
+IsoCode? phoneRegion(Core core) {
   final mine = core.myPhone();
   if (mine != null && mine.isNotEmpty) {
     try {
@@ -68,7 +68,7 @@ class _DiscoverableTileState extends State<DiscoverableTile> {
           controller: field,
           autofocus: true,
           keyboardType: TextInputType.phone,
-          decoration: InputDecoration(labelText: t.phoneHint, helperText: t.myNumberHelp),
+          decoration: InputDecoration(hintText: t.phoneHint, helperText: t.myNumberHelp),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(d), child: Text(t.cancel)),
@@ -77,7 +77,7 @@ class _DiscoverableTileState extends State<DiscoverableTile> {
       ),
     );
     if (number == null || !mounted) return false;
-    final e164 = toE164(number, _region(widget.core));
+    final e164 = toE164(number, phoneRegion(widget.core));
     if (e164 == null) {
       showError(context, CoreError(code: 'phone_invalid'));
       return false;
@@ -143,7 +143,7 @@ class _FindContactsScreenState extends State<FindContactsScreen> {
         setState(() => _denied = true);
         return;
       }
-      final region = _region(widget.core);
+      final region = phoneRegion(widget.core);
       final names = <String, String>{};
       for (final r in rows) {
         final e164 = toE164(r[1] as String, region);

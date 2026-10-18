@@ -213,15 +213,8 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 		return nil, internal(err)
 	}
 
-	// Every call spends one attempt, so a code survives at most otpAttempts guesses (ID-03).
-	var code string
-	err = s.db.QueryRow(ctx, `UPDATE otps SET attempts = attempts + 1
-		WHERE phone_hmac = $1 AND expires_at > now() AND attempts < $2 RETURNING code`,
-		h, s.cfg.otpAttempts).Scan(&code)
-	if errors.Is(err, pgx.ErrNoRows) || err == nil && subtle.ConstantTimeCompare([]byte(code), []byte(m.Otp)) != 1 {
-		return nil, cerr(connect.CodePermissionDenied, "otp_invalid")
-	} else if err != nil {
-		return nil, internal(err)
+	if err := s.checkOtp(ctx, h, m.Otp); err != nil {
+		return nil, err
 	}
 
 	// Registration Lock (ID-10). Lapses once no device has been seen for lockLapseDay days.
@@ -238,20 +231,9 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, internal(err)
 	}
-	if existing && lockHash != nil && !lapsed {
-		switch {
-		case lockedUntil != nil && lockedUntil.After(time.Now()):
-			return nil, cerr(connect.CodePermissionDenied, "registration_lock_locked")
-		case m.RegistrationLockPin == "":
-			return nil, cerr(connect.CodePermissionDenied, "registration_lock_required")
-		case !pinMatches(*lockHash, m.RegistrationLockPin):
-			if _, err := s.db.Exec(ctx, `UPDATE accounts SET
-				reg_lock_attempts = CASE WHEN reg_lock_attempts + 1 >= $2 THEN 0 ELSE reg_lock_attempts + 1 END,
-				reg_lock_locked_until = CASE WHEN reg_lock_attempts + 1 >= $2 THEN now() + $3 * interval '1 second' ELSE reg_lock_locked_until END
-				WHERE id = $1`, accountID, s.cfg.lockAttempts, int(s.cfg.lockLockout.Seconds())); err != nil {
-				return nil, internal(err)
-			}
-			return nil, cerr(connect.CodePermissionDenied, "registration_lock_invalid")
+	if existing && !lapsed {
+		if err := s.checkLock(ctx, accountID, lockHash, lockedUntil, m.RegistrationLockPin); err != nil {
+			return nil, err
 		}
 	}
 
@@ -321,6 +303,117 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 		Username:         username,
 		RegistrationLock: locked,
 	}), nil
+}
+
+// checkOtp spends one attempt on the pending code, so a code survives at most otpAttempts
+// guesses (ID-03).
+func (s *server) checkOtp(ctx context.Context, phoneHmac []byte, otp string) error {
+	var code string
+	err := s.db.QueryRow(ctx, `UPDATE otps SET attempts = attempts + 1
+		WHERE phone_hmac = $1 AND expires_at > now() AND attempts < $2 RETURNING code`,
+		phoneHmac, s.cfg.otpAttempts).Scan(&code)
+	if errors.Is(err, pgx.ErrNoRows) || err == nil && subtle.ConstantTimeCompare([]byte(code), []byte(otp)) != 1 {
+		return cerr(connect.CodePermissionDenied, "otp_invalid")
+	} else if err != nil {
+		return internal(err)
+	}
+	return nil
+}
+
+// checkLock enforces the Registration Lock PIN (ID-10), if the account has one. Wrong PINs
+// count towards a lockout.
+func (s *server) checkLock(ctx context.Context, acct [16]byte, hash *string, lockedUntil *time.Time, pin string) error {
+	switch {
+	case hash == nil:
+		return nil
+	case lockedUntil != nil && lockedUntil.After(time.Now()):
+		return cerr(connect.CodePermissionDenied, "registration_lock_locked")
+	case pin == "":
+		return cerr(connect.CodePermissionDenied, "registration_lock_required")
+	case !pinMatches(*hash, pin):
+		if _, err := s.db.Exec(ctx, `UPDATE accounts SET
+			reg_lock_attempts = CASE WHEN reg_lock_attempts + 1 >= $2 THEN 0 ELSE reg_lock_attempts + 1 END,
+			reg_lock_locked_until = CASE WHEN reg_lock_attempts + 1 >= $2 THEN now() + $3 * interval '1 second' ELSE reg_lock_locked_until END
+			WHERE id = $1`, acct, s.cfg.lockAttempts, int(s.cfg.lockLockout.Seconds())); err != nil {
+			return internal(err)
+		}
+		return cerr(connect.CodePermissionDenied, "registration_lock_invalid")
+	}
+	return nil
+}
+
+// numberChangeEvery: a stolen session can't hop numbers to dodge the per-number limits.
+const numberChangeEvery = 7 * 24 * time.Hour
+
+// ChangeNumber moves the account to a proven new number (docs/change-number.md). Same account,
+// keys and devices. Whoever proves a number by SMS gets it: an account still holding it keeps
+// everything else and is told on its next connect.
+func (s *server) ChangeNumber(ctx context.Context, req *connect.Request[siegelv1.ChangeNumberRequest]) (*connect.Response[siegelv1.ChangeNumberResponse], error) {
+	m, me := req.Msg, account(ctx)
+	if !s.ipHits.allow("verify|"+peerIP(req.Peer()), s.cfg.verifyPerIP) {
+		return nil, cerr(connect.CodeResourceExhausted, "rate_limited")
+	}
+	if !e164.MatchString(m.PhoneE164) {
+		return nil, cerr(connect.CodeInvalidArgument, "phone_invalid")
+	}
+	var (
+		current     []byte
+		lockHash    *string
+		lockedUntil *time.Time
+		changedAt   *time.Time
+	)
+	if err := s.db.QueryRow(ctx, `SELECT phone_hmac, reg_lock_hash, reg_lock_locked_until, number_changed_at
+		FROM accounts WHERE id = $1`, me).Scan(&current, &lockHash, &lockedUntil, &changedAt); err != nil {
+		return nil, internal(err)
+	}
+	if changedAt != nil && time.Since(*changedAt) < numberChangeEvery {
+		return nil, cerr(connect.CodeFailedPrecondition, "number_change_too_soon")
+	}
+	h, err := s.hmacPhone(ctx, m.PhoneE164)
+	if err != nil {
+		return nil, internal(err)
+	}
+	if subtle.ConstantTimeCompare(current, h) == 1 {
+		return nil, cerr(connect.CodeInvalidArgument, "number_same")
+	}
+	if err := s.checkOtp(ctx, h, m.Otp); err != nil {
+		return nil, err
+	}
+	if err := s.checkLock(ctx, me, lockHash, lockedUntil, m.RegistrationLockPin); err != nil {
+		return nil, err
+	}
+	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		var other [16]byte
+		err := tx.QueryRow(ctx, `UPDATE accounts SET phone_hmac = NULL, number_removed = true
+			WHERE phone_hmac = $1 RETURNING id`, h).Scan(&other)
+		if err == nil {
+			// The number was recycled (or SIM-swapped): its old account stays, without it.
+			if _, err := tx.Exec(ctx, `DELETE FROM discovery WHERE account_id = $1`, other); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `SELECT pg_notify('queue', encode(uuid_send(device_id), 'hex'))
+				FROM devices WHERE account_id = $1`, other); err != nil {
+				return err
+			}
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		// Discovery listed the old number; the app opts in again with the new one.
+		if _, err := tx.Exec(ctx, `DELETE FROM discovery WHERE account_id = $1`, me); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE accounts SET phone_hmac = $2, number_changed_at = now(),
+			number_removed = false WHERE id = $1`, me, h); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `DELETE FROM otps WHERE phone_hmac = $1`, h)
+		return err
+	})
+	if err != nil {
+		return nil, internal(err)
+	}
+	s.count(ctx, "number_changed")
+	return connect.NewResponse(&siegelv1.ChangeNumberResponse{}), nil
 }
 
 func (s *server) AppVersion(_ context.Context, req *connect.Request[siegelv1.AppVersionRequest]) (*connect.Response[siegelv1.AppVersionResponse], error) {

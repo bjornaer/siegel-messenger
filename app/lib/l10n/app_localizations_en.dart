@@ -896,4 +896,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceCodeHelp => 'Siegel is free software (AGPL-3.0)';
+
+  @override
+  String get changeNumber => 'Change number';
+
+  @override
+  String get changeNumberHelp =>
+      'Your chats, groups, contacts and @username stay as they are. Nobody is told your new number.';
+
+  @override
+  String get newNumber => 'New phone number';
+
+  @override
+  String numberChanged(String number) {
+    return 'Your number is now $number.';
+  }
+
+  @override
+  String get noNumber =>
+      'No phone number: add one so you can recover your account';
+
+  @override
+  String get numberRemovedTitle => 'Your number moved to another account';
+
+  @override
+  String get numberRemovedBody =>
+      'Your number was verified on another Siegel account. Your account still works; add a number in Settings so you can recover it later.';
+
+  @override
+  String get errNumberChangeTooSoon =>
+      'You can change your number once every 7 days.';
+
+  @override
+  String get errNumberSame => 'That\'s already your number.';
 }

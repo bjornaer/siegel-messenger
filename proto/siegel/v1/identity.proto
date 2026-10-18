@@ -95,7 +95,19 @@ service AccountService {
   rpc Delete(AccountServiceDeleteRequest) returns (AccountServiceDeleteResponse);
   // This device's FCM or APNs token; empty clears it (MSG-17, SRV-05). Auth: device.
   rpc SetPushToken(SetPushTokenRequest) returns (SetPushTokenResponse);
+  // Moves the account to a new number, proven with an OTP from RequestOtp, plus the
+  // Registration Lock PIN if one is set. At most once per 7 days. A number held by another
+  // account moves too; that account keeps everything but its number (docs/change-number.md).
+  rpc ChangeNumber(ChangeNumberRequest) returns (ChangeNumberResponse);
 }
+
+message ChangeNumberRequest {
+  string phone_e164 = 1;
+  string otp = 2;
+  string registration_lock_pin = 3;
+}
+
+message ChangeNumberResponse {}
 
 message SetPushTokenRequest {
   string push_token = 1;

@@ -1316,3 +1316,59 @@ async fn find_contacts_by_number() {
         "opted out"
     );
 }
+
+#[tokio::test]
+async fn change_number_moves_a_recycled_number() {
+    // docs/change-number.md: whoever proves the number by SMS gets it; the old account stays.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (carol, carol_name) = new_user(&url, "carol").await;
+    let bob_phone = format!("+346{:08}", bob_name[3..].parse::<u128>().unwrap());
+    bob.set_discoverable(true).await.unwrap();
+    carol.set_discoverable(true).await.unwrap();
+    let mut bob_events = listen(&bob);
+
+    {
+        let _one_at_a_time = REGISTER.lock().await;
+        carol
+            .request_otp(&bob_phone, "", Platform::Android)
+            .await
+            .unwrap();
+        carol
+            .change_number(&bob_phone, &otp_from_db(), "")
+            .await
+            .unwrap();
+    }
+    assert_eq!(carol.my_phone().as_deref(), Some(bob_phone.as_str()));
+    assert!(carol.discoverable().await.unwrap(), "find-me moves along");
+    assert_eq!(
+        alice.find_contacts(&[bob_phone.clone()]).await.unwrap(),
+        vec![core_api::Found {
+            phone: bob_phone.clone(),
+            username: carol_name
+        }]
+    );
+
+    let told = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        while let Some(e) = bob_events.recv().await {
+            if matches!(e, core_api::Event::NumberRemoved) {
+                return;
+            }
+        }
+    })
+    .await;
+    assert!(told.is_ok(), "bob is told");
+    assert!(bob.number_removed());
+    assert!(!bob.discoverable().await.unwrap());
+    assert_eq!(
+        carol
+            .change_number("+34600000001", "000000", "")
+            .await
+            .unwrap_err()
+            .code,
+        "number_change_too_soon"
+    );
+}

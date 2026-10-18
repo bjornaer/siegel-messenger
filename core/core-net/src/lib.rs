@@ -168,6 +168,24 @@ impl Client {
         .map(|_| ())
     }
 
+    /// Moves the account to a new number, proven with an OTP (docs/change-number.md).
+    pub async fn change_number(
+        &self,
+        token: &str,
+        phone_e164: &str,
+        otp: &str,
+        pin: &str,
+    ) -> Result<(), Error> {
+        let req = pb::ChangeNumberRequest {
+            phone_e164: phone_e164.into(),
+            otp: otp.into(),
+            registration_lock_pin: pin.into(),
+        };
+        self.call::<pb::ChangeNumberResponse>("AccountService/ChangeNumber", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
     /// GRP-16: stores an invite's encrypted snapshot (`write_key` guards later writes).
     pub async fn put_invite(
         &self,
@@ -510,6 +528,8 @@ pub enum Frame {
     },
     /// This device was revoked or its account deleted: wipe (ID-12).
     Deregistered,
+    /// Another account proved our number and took it; we keep the account (change number).
+    NumberRemoved,
 }
 
 impl Stream {
@@ -526,6 +546,7 @@ impl Stream {
                     payload: m.payload,
                 }),
                 Some(pb::stream_frame::Kind::Deregistered(_)) => Some(Frame::Deregistered),
+                Some(pb::stream_frame::Kind::NumberRemoved(_)) => Some(Frame::NumberRemoved),
                 None => continue,
             });
         }

@@ -14,6 +14,7 @@ import 'discovery.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart';
 import 'media.dart';
+import 'number.dart';
 import 'onboarding.dart';
 import 'push.dart';
 import 'themes.dart';
@@ -107,6 +108,10 @@ class _SiegelAppState extends State<SiegelApp> {
     final service = ChatService(
       c,
       onDeregistered: _reset,
+      onNumberRemoved: () {
+        final ctx = _navigator.currentContext;
+        if (ctx != null && ctx.mounted) showNumberRemoved(ctx, c);
+      },
       // MSG-17: in the foreground the chat itself shows new messages.
       onMessage: (m) {
         if (!appVisible()) notifyMessage(c, m);
@@ -215,6 +220,7 @@ class SettingsScreen extends StatelessWidget {
           _Profile(core: core),
           MyLinkTile(core: core),
           DiscoverableTile(core: core),
+          ChangeNumberTile(core: core),
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
           ListTile(

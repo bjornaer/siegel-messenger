@@ -93,6 +93,16 @@ class FakeCore implements Core {
     discoverableOn = enabled;
   }
 
+  bool removed = false;
+  @override
+  bool numberRemoved() => removed;
+  @override
+  Future<void> changeNumber({required String phoneE164, required String otp, required String pin}) async {
+    await _maybeFail('changeNumber $phoneE164 $otp $pin');
+    phone = phoneE164;
+    removed = false;
+  }
+
   List<String> searched = [];
   @override
   Future<List<FoundContact>> findContacts({required List<String> numbers}) async {
@@ -741,6 +751,7 @@ void main() {
     await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async => deleted = true)));
     expect(find.text('You are @ana.b'), findsOneWidget);
     expect(find.textContaining('stored only on this phone'), findsOneWidget, reason: 'ID-14 in Settings');
+    await t.scrollUntilVisible(find.text('App lock'), 200);
     expect(find.text('App lock'), findsOneWidget);
 
     await t.scrollUntilVisible(find.text('Delete account'), 200);
@@ -1377,6 +1388,28 @@ void main() {
     expect(find.text('Bea'), findsOneWidget);
     expect(find.text('@bea'), findsOneWidget);
     expect(find.text('Carl'), findsNothing);
+  });
+
+  testWidgets('change number: new number, code and PIN; a numberless account is warned', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana'
+      ..lockSet = true
+      ..phone = ''
+      ..removed = true;
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.textContaining('No phone number'), 100);
+    await tapText(t, 'Change number');
+    await t.enterText(find.byType(TextField).first, '+34 611 222 333');
+    await tapText(t, 'Send code');
+    await t.enterText(find.widgetWithText(TextField, 'Code'), '123456');
+    await t.enterText(find.widgetWithText(TextField, '4-digit PIN'), '1234');
+    await t.tap(find.widgetWithText(FilledButton, 'Change number'));
+    await t.pumpAndSettle();
+    expect(core.calls, contains('changeNumber +34611222333 123456 1234'));
+    expect(core.removed, isFalse);
+    expect(find.text('Your number is now +34611222333.'), findsOneWidget);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

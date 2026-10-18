@@ -24,9 +24,12 @@ import 'themes.dart';
 
 /// Keeps the message stream connected (SRV-03) and tells screens when something arrived.
 class ChatService extends ChangeNotifier {
-  ChatService(this.core, {required this.onDeregistered, this.onMessage});
+  ChatService(this.core, {required this.onDeregistered, this.onMessage, this.onNumberRemoved});
   final Core core;
   final VoidCallback onDeregistered;
+
+  /// Another account took our number (docs/change-number.md).
+  final VoidCallback? onNumberRemoved;
 
   /// Every new incoming message, e.g. to notify while the app is in the background.
   final void Function(MessageView)? onMessage;
@@ -130,6 +133,7 @@ class ChatService extends ChangeNotifier {
             onDeregistered(); // ID-12: the core already wiped local data
             return;
           }
+          if (e.kind == CoreEventKind.numberRemoved) onNumberRemoved?.call();
           if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
             _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
           }

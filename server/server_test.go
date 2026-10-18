@@ -287,6 +287,60 @@ func TestRegistrationLockAndRevocation(t *testing.T) { // ID-09, ID-10, ID-16
 	want(t, e.setUsername(last.DeviceToken, "leaver2"), "unauthenticated")
 }
 
+func TestChangeNumber(t *testing.T) { // docs/change-number.md
+	e := setup(t)
+	e.s.cfg.otpPerNumber = 100
+	a, _ := e.register("+34600000031", "")
+	b, _ := e.register("+34600000032", "") // holds the number A is about to prove
+	_, acctA := e.clients(a.DeviceToken)
+	if _, err := acctA.SetRegistrationLock(e.ctx, connect.NewRequest(&siegelv1.SetRegistrationLockRequest{Pin: "1234"})); err != nil {
+		t.Fatal(err)
+	}
+	change := func(acct siegelv1connect.AccountServiceClient, phone, otp, pin string) string {
+		_, err := acct.ChangeNumber(e.ctx, connect.NewRequest(&siegelv1.ChangeNumberRequest{PhoneE164: phone, Otp: otp, RegistrationLockPin: pin}))
+		return errMsg(err)
+	}
+	conn, _, err := dial(e, b.DeviceToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+
+	e.otp("+34600000032")
+	code := e.sms["+34600000032"]
+	want(t, change(acctA, "+34600000032", "000000", "1234"), "otp_invalid")
+	want(t, change(acctA, "+34600000032", code, ""), "registration_lock_required")
+	want(t, change(acctA, "+34600000032", code, "1234"), "")
+	want(t, change(acctA, "+34600000033", code, "1234"), "number_change_too_soon")
+
+	// B keeps its account, without a number, and is told at once.
+	if f := next(t, conn); f.GetNumberRemoved() == nil {
+		t.Fatal("B must be told its number went", f)
+	}
+	var bHmac []byte
+	var removed bool
+	e.s.db.QueryRow(e.ctx, `SELECT phone_hmac, number_removed FROM accounts WHERE id = $1`, b.AccountId).Scan(&bHmac, &removed)
+	if bHmac != nil || !removed {
+		t.Fatal("B must be numberless", bHmac, removed)
+	}
+	// The number now leads to A: re-registering it needs A's PIN.
+	_, err = e.register("+34600000032", "")
+	want(t, errMsg(err), "registration_lock_required")
+
+	e.s.db.Exec(e.ctx, `UPDATE accounts SET number_changed_at = NULL`)
+	e.otp("+34600000032")
+	want(t, change(acctA, "+34600000032", e.sms["+34600000032"], "1234"), "number_same")
+
+	// A numberless account adds a number the same way.
+	_, acctB := e.clients(b.DeviceToken)
+	e.otp("+34600000034")
+	want(t, change(acctB, "+34600000034", e.sms["+34600000034"], ""), "")
+	e.s.db.QueryRow(e.ctx, `SELECT number_removed FROM accounts WHERE id = $1`, b.AccountId).Scan(&removed)
+	if removed {
+		t.Fatal("B has a number again")
+	}
+}
+
 func TestOtpCompletionAlert(t *testing.T) { // ID-04, SEC-04
 	e := setup(t)
 	var alerts []string

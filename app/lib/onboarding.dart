@@ -21,6 +21,8 @@ void showError(BuildContext context, CoreError e) {
   final msg = switch (e.code) {
     'phone_invalid' => t.errPhoneInvalid,
     'phone_mismatch' => t.errPhoneMismatch,
+    'number_change_too_soon' => t.errNumberChangeTooSoon,
+    'number_same' => t.errNumberSame,
     'rate_limited' => t.errRateLimited,
     'otp_invalid' => t.errOtpInvalid,
     'registration_lock_invalid' => t.errLockInvalid,

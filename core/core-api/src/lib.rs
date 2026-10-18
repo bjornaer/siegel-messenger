@@ -73,6 +73,7 @@ const CREDENTIAL: &str = "mls_credential";
 const REG_LOCK: &str = "registration_lock";
 /// Our own E.164 number, kept for discovery (DISC-03) and to read local contact numbers.
 const PHONE: &str = "phone_e164";
+const NUMBER_REMOVED: &str = "number_removed";
 
 pub struct SiegelCore {
     store: Mutex<Option<SqlCipher>>,
@@ -227,6 +228,32 @@ impl SiegelCore {
         let _ = self.ensure_key_packages().await;
         self.set_contact_link(true)?; // DISC-08: on from the start, can be turned off
         Ok(res.existing_account)
+    }
+
+    /// Moves the account to a new number (docs/change-number.md): the OTP from `request_otp`
+    /// proves it, plus the Registration Lock PIN if set. Keys, chats and contacts stay. If
+    /// "find me by my number" was on, it moves to the new number.
+    pub async fn change_number(
+        &self,
+        phone_e164: &str,
+        otp: &str,
+        pin: &str,
+    ) -> Result<(), CoreError> {
+        let token = self.token()?;
+        let was_discoverable = self.discoverable().await.unwrap_or(false);
+        self.net.change_number(&token, phone_e164, otp, pin).await?;
+        self.put(PHONE, phone_e164.as_bytes())?;
+        self.put(NUMBER_REMOVED, b"")?;
+        if was_discoverable {
+            // Best effort: the switch in Settings shows it off if this failed.
+            let _ = self.set_discoverable(true).await;
+        }
+        Ok(())
+    }
+
+    /// Our number went to another account that proved it, and we haven't added a new one.
+    pub fn number_removed(&self) -> bool {
+        self.get(NUMBER_REMOVED).ok().flatten().as_deref() == Some(b"1")
     }
 
     pub async fn set_username(&self, username: &str) -> Result<(), CoreError> {

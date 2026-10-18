@@ -254,5 +254,14 @@
   "myNumberHelp": "El número con el que te registraste",
   "errPhoneMismatch": "Ese no es el número con el que se registró esta cuenta.",
   "sourceCode": "Código fuente",
-  "sourceCodeHelp": "Siegel es software libre (AGPL-3.0)"
+  "sourceCodeHelp": "Siegel es software libre (AGPL-3.0)",
+  "changeNumber": "Cambiar número",
+  "changeNumberHelp": "Tus chats, grupos, contactos y @usuario se quedan como están. No se avisa a nadie de tu nuevo número.",
+  "newNumber": "Nuevo número de teléfono",
+  "numberChanged": "Tu número ahora es {number}.",
+  "noNumber": "Sin número de teléfono: añade uno para poder recuperar tu cuenta",
+  "numberRemovedTitle": "Tu número pasó a otra cuenta",
+  "numberRemovedBody": "Tu número se verificó en otra cuenta de Siegel. Tu cuenta sigue funcionando; añade un número en Ajustes para poder recuperarla más adelante.",
+  "errNumberChangeTooSoon": "Puedes cambiar tu número una vez cada 7 días.",
+  "errNumberSame": "Ese ya es tu número."
 }

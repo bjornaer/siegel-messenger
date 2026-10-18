@@ -62,6 +62,9 @@ const (
 	// AccountServiceSetPushTokenProcedure is the fully-qualified name of the AccountService's
 	// SetPushToken RPC.
 	AccountServiceSetPushTokenProcedure = "/siegel.v1.AccountService/SetPushToken"
+	// AccountServiceChangeNumberProcedure is the fully-qualified name of the AccountService's
+	// ChangeNumber RPC.
+	AccountServiceChangeNumberProcedure = "/siegel.v1.AccountService/ChangeNumber"
 	// ProfileServiceSetProcedure is the fully-qualified name of the ProfileService's Set RPC.
 	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
 	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
@@ -320,6 +323,10 @@ type AccountServiceClient interface {
 	Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error)
 	// This device's FCM or APNs token; empty clears it (MSG-17, SRV-05). Auth: device.
 	SetPushToken(context.Context, *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error)
+	// Moves the account to a new number, proven with an OTP from RequestOtp, plus the
+	// Registration Lock PIN if one is set. At most once per 7 days. A number held by another
+	// account moves too; that account keeps everything but its number (docs/change-number.md).
+	ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error)
 }
 
 // NewAccountServiceClient constructs a client for the siegel.v1.AccountService service. By default,
@@ -351,6 +358,12 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("SetPushToken")),
 			connect.WithClientOptions(opts...),
 		),
+		changeNumber: connect.NewClient[v1.ChangeNumberRequest, v1.ChangeNumberResponse](
+			httpClient,
+			baseURL+AccountServiceChangeNumberProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("ChangeNumber")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -359,6 +372,7 @@ type accountServiceClient struct {
 	setRegistrationLock *connect.Client[v1.SetRegistrationLockRequest, v1.SetRegistrationLockResponse]
 	delete              *connect.Client[v1.AccountServiceDeleteRequest, v1.AccountServiceDeleteResponse]
 	setPushToken        *connect.Client[v1.SetPushTokenRequest, v1.SetPushTokenResponse]
+	changeNumber        *connect.Client[v1.ChangeNumberRequest, v1.ChangeNumberResponse]
 }
 
 // SetRegistrationLock calls siegel.v1.AccountService.SetRegistrationLock.
@@ -376,6 +390,11 @@ func (c *accountServiceClient) SetPushToken(ctx context.Context, req *connect.Re
 	return c.setPushToken.CallUnary(ctx, req)
 }
 
+// ChangeNumber calls siegel.v1.AccountService.ChangeNumber.
+func (c *accountServiceClient) ChangeNumber(ctx context.Context, req *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error) {
+	return c.changeNumber.CallUnary(ctx, req)
+}
+
 // AccountServiceHandler is an implementation of the siegel.v1.AccountService service.
 type AccountServiceHandler interface {
 	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
@@ -384,6 +403,10 @@ type AccountServiceHandler interface {
 	Delete(context.Context, *connect.Request[v1.AccountServiceDeleteRequest]) (*connect.Response[v1.AccountServiceDeleteResponse], error)
 	// This device's FCM or APNs token; empty clears it (MSG-17, SRV-05). Auth: device.
 	SetPushToken(context.Context, *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error)
+	// Moves the account to a new number, proven with an OTP from RequestOtp, plus the
+	// Registration Lock PIN if one is set. At most once per 7 days. A number held by another
+	// account moves too; that account keeps everything but its number (docs/change-number.md).
+	ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error)
 }
 
 // NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -411,6 +434,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("SetPushToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceChangeNumberHandler := connect.NewUnaryHandler(
+		AccountServiceChangeNumberProcedure,
+		svc.ChangeNumber,
+		connect.WithSchema(accountServiceMethods.ByName("ChangeNumber")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountServiceSetRegistrationLockProcedure:
@@ -419,6 +448,8 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceDeleteHandler.ServeHTTP(w, r)
 		case AccountServiceSetPushTokenProcedure:
 			accountServiceSetPushTokenHandler.ServeHTTP(w, r)
+		case AccountServiceChangeNumberProcedure:
+			accountServiceChangeNumberHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -438,6 +469,10 @@ func (UnimplementedAccountServiceHandler) Delete(context.Context, *connect.Reque
 
 func (UnimplementedAccountServiceHandler) SetPushToken(context.Context, *connect.Request[v1.SetPushTokenRequest]) (*connect.Response[v1.SetPushTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.SetPushToken is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.ChangeNumber is not implemented"))
 }
 
 // ProfileServiceClient is a client for the siegel.v1.ProfileService service.

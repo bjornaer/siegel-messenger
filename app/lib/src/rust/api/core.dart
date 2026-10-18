@@ -42,6 +42,13 @@ abstract class Core implements RustOpaqueInterface {
   /// Blocked accounts for Settings (MSG-16).
   List<BlockedContact> blocked();
 
+  /// Moves the account to a new number proven with an OTP from `request_otp`.
+  Future<void> changeNumber({
+    required String phoneE164,
+    required String otp,
+    required String pin,
+  });
+
   /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
 
@@ -123,6 +130,8 @@ abstract class Core implements RustOpaqueInterface {
 
   /// Our own number, if this device kept it (accounts from before build 13 may not have).
   String? myPhone();
+
+  bool numberRemoved();
 
   static Core open({
     required String dbPath,
@@ -505,6 +514,9 @@ enum CoreEventKind {
 
   /// Local data is already wiped (ID-12): return to onboarding.
   deregistered,
+
+  /// Another account took our number; tell the user to add one (change number).
+  numberRemoved,
 }
 
 enum DevicePlatform { ios, android }

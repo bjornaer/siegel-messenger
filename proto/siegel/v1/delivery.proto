@@ -110,8 +110,13 @@ message StreamFrame {
     QueuedMessage message = 1;
     // The device was revoked or the account deleted: wipe keys and local data (ID-12).
     Deregistered deregistered = 2;
+    // Another account proved this account's number by SMS and took it. Sent on each connect
+    // until the account has a number again.
+    NumberRemoved number_removed = 3;
   }
 }
+
+message NumberRemoved {}
 
 message QueuedMessage {
   int64 id = 1;

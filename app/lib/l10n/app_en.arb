@@ -458,5 +458,21 @@
   "myNumberHelp": "The number you registered with",
   "errPhoneMismatch": "That isn't the number this account was registered with.",
   "sourceCode": "Source code",
-  "sourceCodeHelp": "Siegel is free software (AGPL-3.0)"
+  "sourceCodeHelp": "Siegel is free software (AGPL-3.0)",
+  "changeNumber": "Change number",
+  "changeNumberHelp": "Your chats, groups, contacts and @username stay as they are. Nobody is told your new number.",
+  "newNumber": "New phone number",
+  "numberChanged": "Your number is now {number}.",
+  "@numberChanged": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "noNumber": "No phone number: add one so you can recover your account",
+  "numberRemovedTitle": "Your number moved to another account",
+  "numberRemovedBody": "Your number was verified on another Siegel account. Your account still works; add a number in Settings so you can recover it later.",
+  "errNumberChangeTooSoon": "You can change your number once every 7 days.",
+  "errNumberSame": "That's already your number."
 }

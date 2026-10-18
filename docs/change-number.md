@@ -1,7 +1,6 @@
 # Changing your phone number (spec Q6)
 
-Status: design for review, 2026-10-18. Q6: wanted in v1. Needs new requirement IDs in section 5 once
-approved.
+Status: implemented 2026-10-18 (M5). Q6: wanted in v1. Needs new requirement IDs in section 5.
 
 ## What the user sees
 

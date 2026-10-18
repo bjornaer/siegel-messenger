@@ -82,6 +82,21 @@ impl Core {
             .await?)
     }
 
+    /// Moves the account to a new number proven with an OTP from `request_otp`.
+    pub async fn change_number(
+        &self,
+        phone_e164: String,
+        otp: String,
+        pin: String,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.change_number(&phone_e164, &otp, &pin).await?)
+    }
+
+    #[frb(sync)]
+    pub fn number_removed(&self) -> bool {
+        self.0.number_removed()
+    }
+
     /// Returns true when the number already had an account (re-registration).
     pub async fn verify(
         &self,
@@ -444,6 +459,8 @@ pub enum CoreEventKind {
     Typing,
     /// Local data is already wiped (ID-12): return to onboarding.
     Deregistered,
+    /// Another account took our number; tell the user to add one (change number).
+    NumberRemoved,
 }
 
 /// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
@@ -865,6 +882,7 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
         }
         core_api::Event::ProfileUpdated { .. } => (CoreEventKind::ProfileUpdated, None, None),
         core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
+        core_api::Event::NumberRemoved => (CoreEventKind::NumberRemoved, None, None),
     };
     let _ = sink.add(CoreEvent {
         kind,

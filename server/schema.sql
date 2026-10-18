@@ -121,3 +121,9 @@ CREATE TABLE IF NOT EXISTS discovery (
   account_id uuid PRIMARY KEY REFERENCES accounts ON DELETE CASCADE,
   y          bytea NOT NULL
 );
+
+-- Change number (docs/change-number.md): a number proven by another account moves there and
+-- leaves this account without one, which its devices are told.
+ALTER TABLE accounts ALTER COLUMN phone_hmac DROP NOT NULL;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS number_changed_at timestamptz;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS number_removed boolean NOT NULL DEFAULT false;

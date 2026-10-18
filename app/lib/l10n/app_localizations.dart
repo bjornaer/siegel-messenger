@@ -1631,6 +1631,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Siegel is free software (AGPL-3.0)'**
   String get sourceCodeHelp;
+
+  /// No description provided for @changeNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Change number'**
+  String get changeNumber;
+
+  /// No description provided for @changeNumberHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your chats, groups, contacts and @username stay as they are. Nobody is told your new number.'**
+  String get changeNumberHelp;
+
+  /// No description provided for @newNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'New phone number'**
+  String get newNumber;
+
+  /// No description provided for @numberChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Your number is now {number}.'**
+  String numberChanged(String number);
+
+  /// No description provided for @noNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'No phone number: add one so you can recover your account'**
+  String get noNumber;
+
+  /// No description provided for @numberRemovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your number moved to another account'**
+  String get numberRemovedTitle;
+
+  /// No description provided for @numberRemovedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your number was verified on another Siegel account. Your account still works; add a number in Settings so you can recover it later.'**
+  String get numberRemovedBody;
+
+  /// No description provided for @errNumberChangeTooSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'You can change your number once every 7 days.'**
+  String get errNumberChangeTooSoon;
+
+  /// No description provided for @errNumberSame.
+  ///
+  /// In en, this message translates to:
+  /// **'That\'s already your number.'**
+  String get errNumberSame;
 }
 
 class _AppLocalizationsDelegate

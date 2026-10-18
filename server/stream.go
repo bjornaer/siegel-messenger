@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -173,15 +174,22 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	ping := time.NewTicker(30 * time.Second)
 	defer ping.Stop()
 	var last int64 // unacknowledged messages are resent on the next connection; clients dedupe (MSG-03)
+	var toldRemoved bool
 	for {
-		var exists bool
-		if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM devices WHERE account_id = $1 AND device_id = $2)`,
-			c.account, c.device).Scan(&exists); err != nil {
-			return
-		}
-		if !exists {
+		var removed bool
+		err := s.db.QueryRow(ctx, `SELECT a.number_removed FROM devices d JOIN accounts a ON a.id = d.account_id
+			WHERE d.account_id = $1 AND d.device_id = $2`, c.account, c.device).Scan(&removed)
+		if errors.Is(err, pgx.ErrNoRows) {
 			deregistered()
 			return
+		} else if err != nil {
+			return
+		}
+		if removed && !toldRemoved {
+			toldRemoved = true
+			if send(&siegelv1.StreamFrame{Kind: &siegelv1.StreamFrame_NumberRemoved{NumberRemoved: &siegelv1.NumberRemoved{}}}) != nil {
+				return
+			}
 		}
 		rows, err := s.db.Query(ctx, `SELECT id, payload FROM queue WHERE account_id = $1 AND device_id = $2 AND id > $3
 			ORDER BY id LIMIT 100`, c.account, c.device, last)

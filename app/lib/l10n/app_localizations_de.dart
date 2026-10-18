@@ -907,4 +907,38 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get sourceCodeHelp => 'Siegel ist freie Software (AGPL-3.0)';
+
+  @override
+  String get changeNumber => 'Nummer ändern';
+
+  @override
+  String get changeNumberHelp =>
+      'Deine Chats, Gruppen, Kontakte und dein @Benutzername bleiben, wie sie sind. Niemand erfährt deine neue Nummer.';
+
+  @override
+  String get newNumber => 'Neue Telefonnummer';
+
+  @override
+  String numberChanged(String number) {
+    return 'Deine Nummer ist jetzt $number.';
+  }
+
+  @override
+  String get noNumber =>
+      'Keine Telefonnummer: Füge eine hinzu, damit du dein Konto wiederherstellen kannst';
+
+  @override
+  String get numberRemovedTitle =>
+      'Deine Nummer gehört jetzt zu einem anderen Konto';
+
+  @override
+  String get numberRemovedBody =>
+      'Deine Nummer wurde für ein anderes Siegel-Konto bestätigt. Dein Konto funktioniert weiter; füge in den Einstellungen eine Nummer hinzu, damit du es später wiederherstellen kannst.';
+
+  @override
+  String get errNumberChangeTooSoon =>
+      'Du kannst deine Nummer einmal alle 7 Tage ändern.';
+
+  @override
+  String get errNumberSame => 'Das ist bereits deine Nummer.';
 }

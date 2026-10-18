@@ -105,6 +105,9 @@ pub enum Event {
     },
     /// This device was revoked or the account deleted; local data is already wiped (ID-12).
     Deregistered,
+    /// Another account proved our number and took it. Everything else stays; the user should
+    /// add a number so the account can be recovered (docs/change-number.md). Sent once.
+    NumberRemoved,
 }
 
 /// What processing one payload produced; a profile key also needs a network fetch afterwards.
@@ -875,6 +878,13 @@ impl SiegelCore {
                             }
                         }
                         _ => {}
+                    }
+                }
+                Frame::NumberRemoved => {
+                    if !self.number_removed() {
+                        self.put(crate::PHONE, b"")?;
+                        self.put(crate::NUMBER_REMOVED, b"1")?;
+                        on_event(Event::NumberRemoved);
                     }
                 }
                 Frame::Deregistered => {
