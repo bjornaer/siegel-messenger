@@ -5,11 +5,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use core_crypto::discovery as d;
+use sha2::{Digest, Sha256};
 
 use crate::{CoreError, PHONE, SiegelCore};
 
 /// Evaluated outputs for contacts we already checked this key period, so re-checks don't spend
-/// the daily allowance (DISC-06): JSON {period, outputs: {number: hex(O)}}.
+/// the daily allowance (DISC-06): JSON {period, outputs: {hex(SHA-256(number)): hex(O)}}. Keyed by
+/// hash so contacts' numbers aren't kept on the phone.
+// ponytail: a plain hash of a phone number can be brute-forced; the DB is SQLCipher-encrypted anyway.
 const CACHE: &str = "discovery_cache";
 /// One request at most this many numbers (the server's first-sync allowance).
 const CHUNK: usize = 5000;
@@ -30,6 +33,11 @@ pub struct Found {
 
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+/// The cache key for a number.
+fn key(number: &str) -> String {
+    hex(&Sha256::digest(number))
 }
 
 fn unhex(s: &str) -> Option<[u8; 32]> {
@@ -75,13 +83,18 @@ impl SiegelCore {
             .get(CACHE)?
             .and_then(|b| serde_json::from_slice(&b).ok())
             .unwrap_or_default();
+        // Caches from before build 14 were keyed by the number itself.
+        cache.outputs = std::mem::take(&mut cache.outputs)
+            .into_iter()
+            .map(|(k, v)| (if k.starts_with('+') { key(&k) } else { k }, v))
+            .collect();
         let wanted: BTreeSet<&String> = numbers
             .iter()
             .filter(|n| Some(n.as_str()) != self.my_phone().as_deref())
             .collect();
         let mut todo: Vec<&String> = wanted
             .iter()
-            .filter(|n| !cache.outputs.contains_key(n.as_str()))
+            .filter(|n| !cache.outputs.contains_key(&key(n)))
             .copied()
             .collect();
         loop {
@@ -101,14 +114,14 @@ impl SiegelCore {
                 cache.bits = res.bucket_bits;
                 for ((n, (r, _)), ev) in chunk.iter().zip(&blinded).zip(&res.evaluated) {
                     if let Some(o) = d::finalize(r, ev) {
-                        cache.outputs.insert((*n).clone(), hex(&o));
+                        cache.outputs.insert(key(n), hex(&o));
                     }
                 }
             }
             // A rotation mid-way leaves some numbers unevaluated: do them again under the new key.
             let missing: Vec<&String> = wanted
                 .iter()
-                .filter(|n| !cache.outputs.contains_key(n.as_str()))
+                .filter(|n| !cache.outputs.contains_key(&key(n)))
                 .copied()
                 .collect();
             if missing.is_empty() || missing.len() == todo.len() {
@@ -121,7 +134,7 @@ impl SiegelCore {
 
         let ours: Vec<(&String, [u8; 32])> = wanted
             .iter()
-            .filter_map(|n| Some((*n, unhex(cache.outputs.get(n.as_str())?)?)))
+            .filter_map(|n| Some((*n, unhex(cache.outputs.get(&key(n))?)?)))
             .collect();
         let buckets: BTreeSet<u32> = ours
             .iter()
