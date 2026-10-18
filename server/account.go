@@ -63,12 +63,9 @@ func (s *server) authed() connect.Option {
 func who(ctx context.Context) caller       { return ctx.Value(callerKey{}).(caller) }
 func account(ctx context.Context) [16]byte { return who(ctx).account }
 
-// ponytail: tiny inline list; product owns the full reserved/offensive list (open question).
-var reserved = map[string]bool{"admin": true, "root": true, "siegel": true, "support": true, "system": true, "help": true, "official": true, "security": true}
-
 // validUsername implements ID-06: lowercase a-z, 0-9, '_' and '.', starting with a letter.
 func (s *server) validUsername(name string) bool {
-	if len(name) < s.cfg.userMin || len(name) > s.cfg.userMax || name[0] < 'a' || name[0] > 'z' || reserved[name] {
+	if len(name) < s.cfg.userMin || len(name) > s.cfg.userMax || name[0] < 'a' || name[0] > 'z' || blockedUsername(name) {
 		return false
 	}
 	for _, c := range name {

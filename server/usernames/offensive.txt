@@ -1,0 +1,68 @@
+# ID-06: slurs and abuse, matched on the normalised name (see reserved.txt). A plain line blocks any
+# name containing it; '=' blocks only that exact name, for words that hide inside innocent ones
+# ("puta" in "computadora", "pedo" in "torpedo"). Product owns this list.
+
+# en
+nigger
+nigga
+faggot
+retard
+tranny
+cunt
+whore
+motherfucker
+fuck
+pedophile
+paedophile
+hitler
+heilhitler
+siegheil
+whitepower
+kukluxklan
+untermensch
+=kike
+=spic
+=chink
+=slut
+=rape
+=rapist
+=pedo
+=nazi
+=kkk
+
+# es
+maricon
+gilipollas
+hijodeputa
+hijaputa
+malparido
+pendejo
+sudaca
+negrata
+subnormal
+=puta
+=puto
+=zorra
+=mongolo
+=cabron
+
+# de
+fotze
+hurensohn
+schwuchtel
+kanake
+wichser
+missgeburt
+judensau
+arschloch
+=neger
+=nutte
+
+# pt
+caralho
+buceta
+filhodaputa
+arrombado
+vagabunda
+=viado
+=porra
