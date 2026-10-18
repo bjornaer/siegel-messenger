@@ -188,8 +188,12 @@ impl Client {
 
     /// CMP-06: everything the server holds about this account.
     pub async fn export(&self, token: &str) -> Result<pb::AccountServiceExportResponse, Error> {
-        self.call("AccountService/Export", &pb::AccountServiceExportRequest {}, Some(token))
-            .await
+        self.call(
+            "AccountService/Export",
+            &pb::AccountServiceExportRequest {},
+            Some(token),
+        )
+        .await
     }
 
     /// GRP-16: stores an invite's encrypted snapshot (`write_key` guards later writes).

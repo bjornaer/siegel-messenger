@@ -16,8 +16,8 @@ mod links;
 mod media;
 mod messages;
 pub use chat::{ChatMessage, Event};
-pub use core_store::{Contact, ContactState, Conversation, Status};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
+pub use core_store::{Contact, ContactState, Conversation, Status};
 pub use discovery::Found;
 pub use groups::{
     GROUP_ADDS, GroupEvent, GroupEventKind, GroupInfo, GroupLink, GroupMember, GroupPreview,
