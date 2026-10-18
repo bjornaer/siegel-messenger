@@ -1345,7 +1345,10 @@ async fn change_number_moves_a_recycled_number() {
     assert_eq!(carol.my_phone().as_deref(), Some(bob_phone.as_str()));
     assert!(carol.discoverable().await.unwrap(), "find-me moves along");
     assert_eq!(
-        alice.find_contacts(&[bob_phone.clone()]).await.unwrap(),
+        alice
+            .find_contacts(std::slice::from_ref(&bob_phone))
+            .await
+            .unwrap(),
         vec![core_api::Found {
             phone: bob_phone.clone(),
             username: carol_name
