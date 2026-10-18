@@ -127,6 +127,10 @@ services:
       - |
         set -o pipefail
         umask 077
+        case "$$RECIPIENT" in
+          ""|age1*) ;;
+          *) echo "BACKUP_AGE_RECIPIENT must be the PUBLIC key (age1...), never the secret key"; exit 1 ;;
+        esac
         if [ -n "$$RECIPIENT" ]; then
           until apk add -q --no-cache age; do sleep 30; done
           out=postgres.dump.age
