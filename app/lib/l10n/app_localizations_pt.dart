@@ -1036,4 +1036,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get skPushNo => 'Token de notificações: nenhum';
+
+  @override
+  String get skCopyJson => 'Copiar como JSON';
 }

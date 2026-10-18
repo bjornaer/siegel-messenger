@@ -2,10 +2,10 @@
 // fake core. Real network and storage paths are covered by core-api/tests/e2e.rs.
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:siegel/app_lock.dart';
@@ -1455,6 +1455,16 @@ void main() {
     await t.scrollUntilVisible(find.text('12. Only how many, never which ones.'), 100);
     await t.scrollUntilVisible(find.text('This phone'), 100);
     expect(find.textContaining('Encrypted messages waiting: 3'), findsOneWidget);
+    String? copied;
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String;
+      return null;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    await t.scrollUntilVisible(find.text('Copy as JSON'), 100);
+    await tapText(t, 'Copy as JSON');
+    final json = jsonDecode(copied!) as Map<String, dynamic>;
+    expect((json['phone_number_hmac'], json['devices'][0]['queued_messages']), ('0123456789abcdef0123', 3));
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

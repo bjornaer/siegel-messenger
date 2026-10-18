@@ -292,5 +292,6 @@
   "skQueued": "Wartende verschlüsselte Nachrichten: {count}",
   "skKeys": "Schlüssel zum Starten von Chats: {count}",
   "skPushYes": "Benachrichtigungs-Token: gespeichert",
-  "skPushNo": "Benachrichtigungs-Token: keiner"
+  "skPushNo": "Benachrichtigungs-Token: keiner",
+  "skCopyJson": "Als JSON kopieren"
 }

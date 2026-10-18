@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'l10n/app_localizations.dart';
@@ -14,6 +17,35 @@ class ServerDataScreen extends StatefulWidget {
   @override
   State<ServerDataScreen> createState() => _ServerDataScreenState();
 }
+
+/// CMP-06: the same data, whole, for people to keep.
+String serverDataJson(ServerData d) => const JsonEncoder.withIndent('  ').convert({
+  'account_id': d.accountId,
+  'phone_number_hmac': d.phoneHash,
+  'created_day': d.createdDay,
+  'number_changed_day': d.numberChangedDay,
+  'identity_key': d.identityKey,
+  'username': d.username,
+  'username_claimed_day': d.usernameClaimedDay,
+  'released_usernames': d.releasedUsernames,
+  'registration_lock': d.registrationLock,
+  'discoverable': d.discoverable,
+  'encrypted_profile': d.profile,
+  'encrypted_profile_picture': d.profilePicture,
+  'contact_numbers_checked': d.numbersChecked,
+  'devices': [
+    for (final v in d.devices)
+      {
+        'device_id': v.id,
+        'platform': v.ios ? 'ios' : 'android',
+        'last_seen_day': v.lastSeenDay,
+        'push_token': v.pushToken,
+        'queued_messages': v.queued,
+        'key_packages': v.keyPackages,
+        'this_device': v.thisDevice,
+      },
+  ],
+});
 
 class _ServerDataScreenState extends State<ServerDataScreen> {
   ServerData? _data;
@@ -85,6 +117,15 @@ class _ServerDataScreenState extends State<ServerDataScreen> {
                       ].join('\n'),
                     ),
                   ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.copy),
+                  label: Text(t.skCopyJson),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: serverDataJson(d)));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.copied)));
+                  },
+                ),
               ],
             ),
     );

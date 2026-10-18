@@ -558,5 +558,6 @@
     }
   },
   "skPushYes": "Notification token: stored",
-  "skPushNo": "Notification token: none"
+  "skPushNo": "Notification token: none",
+  "skCopyJson": "Copy as JSON"
 }

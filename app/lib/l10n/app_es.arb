@@ -292,5 +292,6 @@
   "skQueued": "Mensajes cifrados en espera: {count}",
   "skKeys": "Claves para iniciar chats: {count}",
   "skPushYes": "Token de notificaciones: guardado",
-  "skPushNo": "Token de notificaciones: ninguno"
+  "skPushNo": "Token de notificaciones: ninguno",
+  "skCopyJson": "Copiar como JSON"
 }

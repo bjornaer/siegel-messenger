@@ -1033,4 +1033,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skPushNo => 'Notification token: none';
+
+  @override
+  String get skCopyJson => 'Copy as JSON';
 }

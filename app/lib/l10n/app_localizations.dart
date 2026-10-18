@@ -1859,6 +1859,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notification token: none'**
   String get skPushNo;
+
+  /// No description provided for @skCopyJson.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as JSON'**
+  String get skCopyJson;
 }
 
 class _AppLocalizationsDelegate
