@@ -622,6 +622,16 @@ func TestDiscovery(t *testing.T) { // DISC-03, DISC-05, DISC-06, DISC-07
 	if len(found) != 1 || found["+34600000094"] != "bobby" {
 		t.Fatal("Ana finds Bob and only Bob", found)
 	}
+	// SEC-05: the OPRF key rotates each period by itself. A client still on the last one is
+	// told to evaluate again, and the new key differs.
+	now := e.s.discPeriod(time.Now())
+	_, err := ad.Buckets(e.ctx, connect.NewRequest(&siegelv1.DiscoveryServiceBucketsRequest{Period: now - 1, Buckets: []uint32{0}}))
+	want(t, errMsg(err), "period_changed")
+	k1, _ := e.s.disc.scalar(e.ctx, fmt.Sprint("period:", now))
+	k2, _ := e.s.disc.scalar(e.ctx, fmt.Sprint("period:", now+1))
+	if k1.Equal(k2) == 1 {
+		t.Fatal("each period needs its own OPRF key")
+	}
 	// DISC-06: 5 for the first sync (test config), then 2 a day.
 	_, msg = lookup("+34622222222", "+34633333333", "+34644444444")
 	want(t, msg, "")

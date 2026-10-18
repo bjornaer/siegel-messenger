@@ -119,13 +119,29 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:-siegel}
       INTERVAL: ${BACKUP_INTERVAL:-86400}
+      # age public key (docs/deploy.md); its private key stays offline. Unset: plain dump (dev).
+      RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
     entrypoint:
       - sh
       - -c
       - |
+        set -o pipefail
+        umask 077
+        if [ -n "$$RECIPIENT" ]; then
+          until apk add -q --no-cache age; do sleep 30; done
+          out=postgres.dump.age
+        else
+          echo "BACKUP_AGE_RECIPIENT unset: backup is NOT encrypted"
+          out=postgres.dump
+        fi
         while true; do
-          pg_dump -h postgres -U postgres -Fc siegel > /backups/postgres.dump.tmp &&
-            mv /backups/postgres.dump.tmp /backups/postgres.dump && echo "postgres backup ok"
+          if [ -n "$$RECIPIENT" ]; then
+            pg_dump -h postgres -U postgres -Fc siegel | age -r "$$RECIPIENT" > /backups/$$out.tmp
+          else
+            pg_dump -h postgres -U postgres -Fc siegel > /backups/$$out.tmp
+          fi &&
+            mv /backups/$$out.tmp /backups/$$out && echo "postgres backup ok ($$out)" &&
+            if [ -n "$$RECIPIENT" ]; then rm -f /backups/postgres.dump; fi
           sleep "$$INTERVAL"
         done
     volumes: ["${BACKUP_DIR:-./backups}:/backups"]

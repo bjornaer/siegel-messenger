@@ -110,8 +110,45 @@ fix ships (`docker compose logs server` names the file).
 Deploys leave OpenBao running (unchanged containers are not recreated), so no unseal is needed,
 unless a commit bumps the OpenBao image.
 
+## Backups
+
 Backups land in `/opt/siegel/backups` (one copy each, overwritten daily). They do not include
 OpenBao: your offline unseal key plus the `baodata` volume are what matter there.
+
+The database dump is encrypted with [age](https://age-encryption.org) to a key whose private half
+never touches the server (threat model T7):
+
+1. On your laptop: `brew install age && age-keygen -o siegel-backup.key`. Store the file like the
+   unseal key: password manager plus an offline copy. Without it the backups can't be read.
+2. On the server, put the printed public key in `.env` as `BACKUP_AGE_RECIPIENT=age1...`, then
+   `docker compose up -d postgres-backup`. Its log says `postgres backup ok (postgres.dump.age)`, and
+   the old plain `postgres.dump` is deleted.
+3. The encrypted file can safely leave the host: `scp root@<host>:/opt/siegel/backups/postgres.dump.age .`
+
+Restore (try it once a quarter, on your laptop, so you know the key works):
+
+```sh
+age -d -i siegel-backup.key postgres.dump.age > postgres.dump
+pg_restore --list postgres.dump | head                 # the drill: it lists the tables
+pg_restore -h <db> -U postgres -d siegel --clean postgres.dump   # a real restore
+```
+
+The bucket mirror (`backups/bucket`) stays plain: attachments are encrypted by the apps with keys the
+server never has (MED-03), so it holds only ciphertext.
+
+## Key rotation (SEC-05)
+
+| Key | Rotates | How |
+| --- | --- | --- |
+| OPRF key (DISC-05) | Every `SIEGEL_DISCOVERY_KEY_DAYS` (90), by itself | Derived from the pepper and the period number. Apps on the old period get `period_changed` and check again. Nothing to do. |
+| OpenBao server token | Before its 32-day period lapses unused (the server renews it hourly), or on suspicion | Create a new one as in step 3, put it in `.env`, `docker compose up -d server`, then `bao token revoke <old>`. |
+| PostgreSQL password | On suspicion | `ALTER USER postgres PASSWORD '...'` in psql, update `POSTGRES_PASSWORD` in `.env`, `docker compose up -d`. |
+| S3 keys | On suspicion | Change `S3_ACCESS_KEY`/`S3_SECRET_KEY` in `.env`, `docker compose up -d`. |
+| Backup age key | On suspicion | New key pair as above; old backups stay readable with the old key until overwritten (a day). |
+| Phone pepper (ID-05) | Never routinely | Every phone HMAC, pending code and discovery entry is keyed with it, and the server doesn't know the numbers to rehash them. The server is pinned to key version 1, so a `transit/keys/siegel-phone/rotate` by mistake changes nothing. If it ever leaked, rotating wouldn't protect what an attacker already copied; it would need a lazy re-key (look up v1 or v2, rewrite on the next verification), which isn't built. |
+| AS signing key (CRY-08) | Never routinely | Apps store the AS public key at registration and check every member's credential against it. The server signs and publishes version 1 only, so an accidental rotate changes nothing. A real rotation needs apps that trust more than one AS key, which isn't built. |
+
+Device tokens are stored as hashes; a lost phone is cut off by re-registering the number (ID-09).
 
 ## Until device attestation ships (ID-02)
 

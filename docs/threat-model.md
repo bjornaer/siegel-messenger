@@ -108,8 +108,9 @@ Hetzner (EU, D8) has physical and hypervisor access to the host.
   The pepper and AS key sit on `siegel-bao`, a separate VM, but with the same provider.
 - Backups (A9) hold the same data as the live DB (phone HMACs, token hashes, queued ciphertext). They are
   overwritten each run, so with `BACKUP_INTERVAL` <= 24 h deleted accounts leave the backups within 24 h
-  (ID-16). Backups are not encrypted at rest. Use an encrypted volume or move them off-host
-  encrypted before launch.
+  (ID-16). The database dump is encrypted to an offline age key (`BACKUP_AGE_RECIPIENT`,
+  docs/deploy.md), so a copy that leaves the host, or a disk Hetzner discards, reveals nothing. On the
+  live host it adds nothing against T1: the database itself is there.
 
 ## Open risks (tracked)
 
@@ -121,5 +122,5 @@ Hetzner (EU, D8) has physical and hypervisor access to the host.
 | Lost OpenBao unseal key loses the pepper | High (data) | Offline copies of the unseal key | SEC-05 |
 | API → OpenBao plaintext on private network | Low | TLS listener if the network is shared | SEC-05 |
 | Unverified key substitution by server | Medium | Safety numbers now, key transparency later | SEC-12 |
-| Backups unencrypted on host | Medium | Encrypted volume / encrypted off-host copy | A9 |
+| No emergency AS key rotation | Medium | Apps that trust several AS keys, then a re-sign | SEC-05 |
 | Registration Lock lapse after 7 days | Accepted | Product decision | ID-10 |

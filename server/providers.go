@@ -77,10 +77,11 @@ func (b bao) hmac512(ctx context.Context, input string) ([]byte, error) {
 		map[string]any{"input": base64.StdEncoding.EncodeToString([]byte(input)), "key_version": 1})
 }
 
-// signAS is the Authentication Service Ed25519 signature (CRY-08).
+// signAS is the Authentication Service Ed25519 signature (CRY-08). Pinned to key version 1,
+// the one asPublicKey hands out: a rotated key must not start signing before apps trust it.
 func (b bao) signAS(ctx context.Context, msg []byte) ([]byte, error) {
 	return b.transit(ctx, "transit/sign/siegel-as", "signature",
-		map[string]any{"input": base64.StdEncoding.EncodeToString(msg)})
+		map[string]any{"input": base64.StdEncoding.EncodeToString(msg), "key_version": 1})
 }
 
 // asPublicKey reads the AS signing public key (key version 1) from transit.
