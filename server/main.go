@@ -26,9 +26,6 @@ import (
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
 
-//go:embed schema.sql
-var schema string
-
 // config holds every value the spec marks [default]; each is overridable by env.
 type config struct {
 	dev           bool   // stubs device attestation (and SMS / push when their credentials are unset)
@@ -183,8 +180,8 @@ func main() {
 	if err != nil {
 		fatal("db", "err", err)
 	}
-	if _, err := db.Exec(ctx, schema); err != nil {
-		fatal("schema", "err", err)
+	if err := migrate(ctx, db); err != nil {
+		fatal("migrate", "err", err)
 	}
 	s := newServer(cfg, db)
 	b := bao{addr: cfg.baoAddr, token: cfg.baoToken}

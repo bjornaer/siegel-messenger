@@ -101,6 +101,12 @@ curl -XPOST https://siegel.schlk.in/siegel.v1.RegistrationService/RequestOtp \
    - secret `DEPLOY_KNOWN_HOSTS`: output of `ssh-keyscan -t ed25519 <server IPv4>`;
    - variable `DEPLOY_HOST`: `<server IPv4>`. The deploy job is skipped until this is set.
 
+Schema changes ship as numbered files in `server/migrations/` (`NNNN_what.sql`). The server
+applies the ones a database hasn't had at startup, each in one transaction, and records them in
+`schema_migrations`. Never edit a file that has shipped; add a new one. A migration that fails
+rolls back and stops the server from starting: the deploy job fails and the API is down until a
+fix ships (`docker compose logs server` names the file).
+
 Deploys leave OpenBao running (unchanged containers are not recreated), so no unseal is needed,
 unless a commit bumps the OpenBao image.
 

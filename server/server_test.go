@@ -51,7 +51,10 @@ func setup(t *testing.T) *env_ {
 		t.Fatal(err)
 	}
 	t.Cleanup(db.Close)
-	if _, err := db.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"+schema); err != nil {
+	if _, err := db.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrate(ctx, db); err != nil {
 		t.Fatal(err)
 	}
 	seed := make([]byte, 32)
@@ -510,5 +513,22 @@ func TestExport(t *testing.T) { // CMP-06, RM-01
 	}
 	if strings.Contains(r.String(), "34600000041") {
 		t.Fatal("export must not hold the number")
+	}
+}
+
+func TestMigrateExistingDatabase(t *testing.T) { // prod had the schema before migrations
+	e := setup(t)
+	if _, err := e.s.db.Exec(e.ctx, `DROP TABLE schema_migrations`); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := migrate(e.ctx, e.s.db); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var n int
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n)
+	if n != 1 {
+		t.Fatal("baseline must be recorded once", n)
 	}
 }

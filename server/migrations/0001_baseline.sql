@@ -1,4 +1,5 @@
--- ponytail: idempotent schema applied at startup; switch to versioned migrations before the first prod deploy.
+-- Baseline: the schema as it stood when migrations were introduced. Every statement is
+-- idempotent because databases created before then already have it.
 
 CREATE TABLE IF NOT EXISTS accounts (
   id                    uuid PRIMARY KEY,
