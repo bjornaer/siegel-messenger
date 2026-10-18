@@ -6,6 +6,8 @@ implementation-status.json
 
 # Local secrets and backups
 .env
+siegel-backup.key
+*.age.key
 backups/
 
 # Rust build output
