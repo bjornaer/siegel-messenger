@@ -962,7 +962,7 @@ async fn removed_member_cannot_read_later_messages() {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(12);
-    let (admin, _) = new_user(&url, "admin").await;
+    let (admin, _) = new_user(&url, "boss").await;
     let mut members = Vec::new();
     for i in 1..n {
         members.push(new_user(&url, &format!("m{i}x")).await);
