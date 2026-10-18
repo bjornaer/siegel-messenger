@@ -731,13 +731,39 @@ impl<P: OpenMlsProvider> Mls<P> {
         let msg = MlsMessageIn::tls_deserialize_exact(bytes).map_err(err)?;
         match msg.extract() {
             MlsMessageBodyIn::Welcome(w) => {
-                let staged =
-                    StagedWelcome::new_from_welcome(&self.provider, &Self::join_config(), w, None)
+                let join =
+                    StagedWelcome::build_from_welcome(&self.provider, &Self::join_config(), w)
                         .map_err(err)?;
+                let gid = join
+                    .processed_welcome()
+                    .unverified_group_info()
+                    .group_id()
+                    .clone();
+                // A Welcome into a group we already have: our copy fell behind (a commit we
+                // couldn't read split us off) and an admin re-added us. See `repairs`.
+                let stale = MlsGroup::load(self.provider.storage(), &gid).map_err(err)?;
+                let join = if stale.is_some() {
+                    join.replace_old_group()
+                } else {
+                    join
+                };
+                let staged = join.build().map_err(err)?;
                 let adder = staged
                     .welcome_sender()
                     .ok()
                     .map(|l| member(l.credential(), l.signature_key().as_slice(), &self.as_pub));
+                if let Some(old) = &stale {
+                    let adder = adder.clone().transpose()?.map(|a| a.account_id);
+                    let new = state_of(staged.group_context().extensions());
+                    repairs(
+                        old,
+                        adder,
+                        new.as_ref(),
+                        &self.me(),
+                        staged.group_context().epoch().as_u64(),
+                    )
+                    .map_err(|r| Error(format!("unauthorized_commit:{r}")))?;
+                }
                 let mut g = staged.into_group(&self.provider).map_err(err)?;
                 let group_id = g.group_id().as_slice().to_vec();
                 let state = state_of(g.extensions());
@@ -910,6 +936,25 @@ fn group_info(
     {
         MlsMessageBodyIn::GroupInfo(gi) => Ok(gi),
         _ => Err(Error("not_a_snapshot".into())),
+    }
+}
+
+/// Whether a Welcome may replace our copy of a group: only a later epoch of the same group,
+/// sent by an admin of our copy, that still has us in it. Anyone can make a group with a known
+/// ID, so without these checks a stranger, or any member, could swap the group for their own.
+fn repairs(
+    old: &MlsGroup,
+    adder: Option<Account>,
+    new: Option<&GroupState>,
+    me: &Account,
+    epoch: u64,
+) -> Result<(), &'static str> {
+    let old_state = state_of(old.extensions()).ok_or("not_a_group")?;
+    let new = new.ok_or("state_missing")?;
+    match adder {
+        _ if epoch <= old.epoch().as_u64() => Err("stale_welcome"),
+        Some(a) if old_state.effective_admins().contains(&a) && new.joined.contains(me) => Ok(()),
+        _ => Err("repair_not_allowed"),
     }
 }
 
@@ -1205,6 +1250,65 @@ mod tests {
         b.confirm(&gid).unwrap();
         d.receive(&out.commit).unwrap();
         assert_eq!(d.state(&gid).unwrap().unwrap().name, "Hikers 2026");
+    }
+
+    #[test]
+    fn an_admin_repairs_a_split_off_member() {
+        // B missed a commit (an older app refused it), so its copy fell behind for good. The admin
+        // removes and re-adds B; B's Welcome replaces the stale copy.
+        let as_key = IdentityKey::generate();
+        let (a, b, c) = (
+            device(&as_key, 1, false),
+            device(&as_key, 2, false),
+            device(&as_key, 3, false),
+        );
+        let kps: Vec<_> = [&b, &c]
+            .iter()
+            .flat_map(|m| m.key_packages(1, false).unwrap())
+            .collect();
+        let out = a.create_group(&kps, Some(&GroupState::default())).unwrap();
+        a.confirm(&out.group_id).unwrap();
+        let gid = out.group_id.clone();
+        for m in [&b, &c] {
+            m.receive(&out.welcome).unwrap();
+        }
+        let rename = |st: GroupState| GroupState {
+            name: "Hikers".into(),
+            ..st
+        };
+        let st = a.state(&gid).unwrap().unwrap();
+        let missed = a.commit(&gid, &[], &[], Some(rename(st))).unwrap();
+        a.confirm(&gid).unwrap();
+        c.receive(&missed.commit).unwrap(); // B never sees it
+
+        // Only an admin of B's own copy may replace it.
+        let old = b.group(&gid).unwrap();
+        let mut st = b.state(&gid).unwrap().unwrap();
+        st.joined.push([2; 16]);
+        assert_eq!(
+            repairs(&old, Some([3; 16]), Some(&st), &[2; 16], 9),
+            Err("repair_not_allowed")
+        );
+        assert_eq!(
+            repairs(&old, Some([1; 16]), Some(&st), &[2; 16], 0),
+            Err("stale_welcome")
+        );
+
+        a.commit(&gid, &[], &[[2; 16]], None).unwrap();
+        a.confirm(&gid).unwrap();
+        let readd = a
+            .commit(&gid, &b.key_packages(1, false).unwrap(), &[], None)
+            .unwrap();
+        a.confirm(&gid).unwrap();
+        let Received::Joined { state, .. } = b.receive(&readd.welcome).unwrap() else {
+            panic!("rejoin")
+        };
+        assert_eq!(state.unwrap().name, "Hikers");
+        let hi = a.encrypt(&gid, b"back").unwrap();
+        let Received::Message { plaintext, .. } = b.receive(&hi).unwrap() else {
+            panic!("message")
+        };
+        assert_eq!(plaintext, b"back");
     }
 
     #[test]

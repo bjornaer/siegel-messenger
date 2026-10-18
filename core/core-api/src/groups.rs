@@ -182,10 +182,23 @@ pub(crate) fn joined_group(
         m.forget(&group_id).map_err(mls_err)?; // MSG-16
         return Ok(None);
     }
-    let invite = !everyone_may_add
-        && !matches!(&adder_contact, Some(c) if c.state == ContactState::Accepted);
+    // Re-added to a chat we have (after being removed, or to repair a split-off copy): the
+    // same chat again, still an invite if it was one.
+    let known = storage(s.conversations())?
+        .into_iter()
+        .find(|c| c.group_id == group_id);
+    let invite = match &known {
+        Some(c) => c.invite,
+        None => {
+            !everyone_may_add
+                && !matches!(&adder_contact, Some(c) if c.state == ContactState::Accepted)
+        }
+    };
     for member in members {
         note_identity(s, &member.account_id, &member.identity_pub)?;
+    }
+    if known.is_some() {
+        storage(s.set_conversation_flags(&group_id, invite, false))?;
     }
     storage(s.save_conversation(&Conversation {
         group_id: group_id.clone(),
