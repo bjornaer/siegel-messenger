@@ -183,6 +183,19 @@ impl SiegelCore {
         })
     }
 
+    /// Profiles fetched by an app without pictures (before build 12) never stored one, and
+    /// nothing fetches them again until the contact changes theirs: fetch those once.
+    pub(crate) async fn refresh_missing_profiles(&self) {
+        let Ok(contacts) = self.with_store(|s| storage(s.contacts())) else {
+            return;
+        };
+        for c in contacts {
+            if c.profile_key.is_some() && matches!(self.get(&avatar_key(&c.account_id)), Ok(None)) {
+                let _ = self.refresh_profile(&c.account_id).await;
+            }
+        }
+    }
+
     pub fn contact(&self, account: &[u8]) -> Option<Contact> {
         self.with_store(|s| storage(s.contact(account)))
             .ok()

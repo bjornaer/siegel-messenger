@@ -758,14 +758,12 @@ impl SiegelCore {
             .unwrap_or(Ok(()))
     }
 
-    async fn stream_until(
-        &self,
-        on_event: impl Fn(Event) + Send,
-        idle: Option<std::time::Duration>,
-    ) -> Result<(), CoreError> {
-        let token = self.token()?;
+    /// Upkeep on each connect: key packages (CRY-09), a profile publish that failed at
+    /// registration, self-updates (CRY-10), pending leaves (GRP-10), contacts' and groups'
+    /// pictures (MED-15).
+    async fn upkeep(&self) -> Result<(), CoreError> {
         let _ = self.ensure_key_packages().await;
-        let _ = self.publish_profile().await; // retries a publish that failed at registration
+        let _ = self.publish_profile().await;
         let _ = self.self_updates().await;
         for c in self.conversations()? {
             if c.is_group && c.left {
@@ -776,13 +774,29 @@ impl SiegelCore {
                 let _ = self.refresh_group_avatar(&c.group_id).await;
             }
         }
+        self.refresh_missing_profiles().await;
+        Ok(())
+    }
+
+    async fn stream_until(
+        &self,
+        on_event: impl Fn(Event) + Send,
+        idle: Option<std::time::Duration>,
+    ) -> Result<(), CoreError> {
+        let token = self.token()?;
         let mut stream = self.net.stream(&token).await?;
         // Every 5 s while live, busy or not: commit members' pending leave proposals (GRP-10).
+        // The first tick also does the upkeep, after what was queued: messages come first. A
+        // drain after a push skips it; the app does it when it is opened.
         let tick = std::time::Duration::from_secs(5);
         let mut last_tick = std::time::Instant::now();
+        let mut upkeep = idle.is_none();
         loop {
             if idle.is_none() && last_tick.elapsed() >= tick {
                 last_tick = std::time::Instant::now();
+                if std::mem::take(&mut upkeep) {
+                    self.upkeep().await?;
+                }
                 let _ = self.commit_due_proposals().await;
             }
             let wait = idle.unwrap_or(tick);

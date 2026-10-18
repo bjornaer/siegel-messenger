@@ -45,6 +45,17 @@ AppLocalizations notificationStrings(Locale locale) => lookupAppLocalizations(
   ),
 );
 
+/// The app is on screen, maybe partly covered (the notification shade, a dialog): inactive counts.
+bool appVisible() => switch (WidgetsBinding.instance.lifecycleState) {
+  AppLifecycleState.hidden || AppLifecycleState.paused || AppLifecycleState.detached => false,
+  _ => true,
+};
+
+int _notificationId(List<int> groupId) => Object.hashAll(groupId) & 0x7fffffff;
+
+/// The chat is on screen: its notification is stale.
+Future<void> clearNotification(List<int> groupId) => _notifications.cancel(id: _notificationId(groupId));
+
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
 /// unless the user allows private content there (Android's "private" visibility).
 Future<void> notifyMessage(Core core, MessageView m) async {
@@ -55,7 +66,7 @@ Future<void> notifyMessage(Core core, MessageView m) async {
   final t = notificationStrings(PlatformDispatcher.instance.locale);
   final chat = core.chats().where((c) => listEquals(c.groupId, m.groupId)).firstOrNull;
   await _notifications.show(
-    id: Object.hashAll(m.groupId) & 0x7fffffff,
+    id: _notificationId(m.groupId),
     title: chat == null ? null : chatTitle(t, chat),
     body: chat != null && chat.isGroup
         ? '${memberName(t, core, m.senderAccount)}: ${messageText(t, m)}'

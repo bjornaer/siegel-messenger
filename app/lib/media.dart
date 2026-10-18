@@ -485,8 +485,10 @@ class _ImageMessageState extends State<ImageMessage> with _Fetch {
     final shown = data ?? (a.thumbnail.isEmpty ? null : a.thumbnail);
     return GestureDetector(
       onTap: () async {
+        // The first tap only downloads, into the bubble; a downloaded photo opens full screen.
+        final had = data != null;
         final d = await fetch(widget.core, widget.message);
-        if (d != null && context.mounted) {
+        if (had && d != null && context.mounted) {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => _PhotoScreen(core: widget.core, message: widget.message, data: d),

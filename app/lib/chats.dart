@@ -16,6 +16,7 @@ import 'links.dart';
 import 'media.dart';
 import 'update.dart';
 import 'profile.dart';
+import 'push.dart' show appVisible, clearNotification;
 import 'safety.dart';
 import 'src/rust/api/core.dart';
 import 'themes.dart';
@@ -32,6 +33,8 @@ class ChatService extends ChangeNotifier {
   StreamSubscription<CoreEvent>? _sub;
   Completer<void>? _waiting; // the current connection, or the backoff before the next
   bool _woken = false;
+  bool _paused = false;
+  AppLifecycleListener? _lifecycle;
   final _typing = <String, Timer>{};
   final _typingWho = <String, List<int>>{};
 
@@ -53,7 +56,23 @@ class ChatService extends ChangeNotifier {
     });
   }
 
-  void start() => unawaited(_loop());
+  void start() {
+    // In the background the stream closes, so the server pushes at once (MSG-17). An open but
+    // frozen connection looks online to it, and nothing arrives until its ping fails (~40 s).
+    _lifecycle = AppLifecycleListener(onHide: pause, onShow: resume);
+    unawaited(_loop());
+  }
+
+  void pause() {
+    _paused = true;
+    _drop();
+  }
+
+  void resume() {
+    if (!_paused) return;
+    _paused = false;
+    wake();
+  }
 
   /// Our own actions change chats too (last message, ticks); screens rebuild on this.
   void refresh() => _stopped ? null : notifyListeners();
@@ -71,6 +90,7 @@ class ChatService extends ChangeNotifier {
       final quiet = now.difference(_lastEvent) > const Duration(seconds: 2);
       if ((quiet && now.difference(start) > const Duration(seconds: 4)) ||
           now.difference(start) > const Duration(seconds: 15)) {
+        if (_paused) _drop(); // back to sleep, so the next message pushes again
         return;
       }
     }
@@ -80,6 +100,10 @@ class ChatService extends ChangeNotifier {
   /// connection still looks open (a sleeping phone can leave it half-dead).
   void wake() {
     _woken = true;
+    _drop();
+  }
+
+  void _drop() {
     _sub?.cancel();
     _sub = null;
     if (_waiting?.isCompleted == false) _waiting!.complete();
@@ -88,6 +112,11 @@ class ChatService extends ChangeNotifier {
   Future<void> _loop() async {
     var backoff = const Duration(seconds: 1);
     while (!_stopped) {
+      if (_paused && !_woken) {
+        await (_waiting = Completer<void>()).future; // until a push or the app is shown
+        continue;
+      }
+      _woken = false;
       final done = _waiting = Completer<void>();
       void finish([Object? _]) => done.isCompleted ? null : done.complete();
       _sub = core.runStream().listen(
@@ -114,10 +143,7 @@ class ChatService extends ChangeNotifier {
       );
       await done.future;
       if (_stopped) return;
-      if (_woken) {
-        _woken = false;
-        continue; // reconnect without backoff
-      }
+      if (_woken || _paused) continue; // reconnect without backoff, or sleep until woken
       final sleep = _waiting = Completer<void>();
       final timer = Timer(backoff, () => sleep.isCompleted ? null : sleep.complete());
       await sleep.future;
@@ -129,6 +155,7 @@ class ChatService extends ChangeNotifier {
   @override
   void dispose() {
     _stopped = true;
+    _lifecycle?.dispose();
     wake();
     for (final t in _typing.values) {
       t.cancel();
@@ -420,12 +447,14 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     widget.service.addListener(_markRead);
+    _lifecycle = AppLifecycleListener(onShow: _markRead);
     _markRead();
   }
 
   @override
   void dispose() {
     widget.service.removeListener(_markRead);
+    _lifecycle.dispose();
     // The chat list redraws without this chat's unread count (after the tree is unlocked).
     final service = widget.service;
     Future.microtask(service.refresh);
@@ -437,7 +466,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// MSG-13: what arrives in an open chat counts as read.
-  void _markRead() => unawaited(core.markRead(groupId: _group).catchError((Object _) {}));
+  late final AppLifecycleListener _lifecycle;
+
+  /// What arrives while the app is hidden stays unread and gets a notification; once the chat
+  /// is on screen again, both go.
+  void _markRead() {
+    if (!appVisible()) return;
+    unawaited(clearNotification(_group).catchError((Object _) {}));
+    unawaited(core.markRead(groupId: _group).catchError((Object _) {}));
+  }
 
   ChatSummary? _summary() {
     for (final c in core.chats()) {

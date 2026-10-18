@@ -108,7 +108,7 @@ class _SiegelAppState extends State<SiegelApp> {
       onDeregistered: _reset,
       // MSG-17: in the foreground the chat itself shows new messages.
       onMessage: (m) {
-        if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) notifyMessage(c, m);
+        if (!appVisible()) notifyMessage(c, m);
       },
     )..start();
     unawaited(startPush(c, service.fetchNow));
