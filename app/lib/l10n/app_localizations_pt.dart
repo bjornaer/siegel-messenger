@@ -1200,4 +1200,74 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get tapToView => 'De alguém que você não aceitou. Toque para ver.';
+
+  @override
+  String get report => 'Denunciar';
+
+  @override
+  String get reportGroup => 'Denunciar grupo';
+
+  @override
+  String get reportWhy => 'O que está errado?';
+
+  @override
+  String get reportSpam => 'Spam ou golpe';
+
+  @override
+  String get reportHarassment => 'Assédio ou ameaças';
+
+  @override
+  String get reportHate => 'Ódio';
+
+  @override
+  String get reportChildSafety => 'Conteúdo sexual envolvendo menor';
+
+  @override
+  String get reportNonConsensual => 'Outro conteúdo sexual sem consentimento';
+
+  @override
+  String get reportViolence => 'Violência ou terrorismo';
+
+  @override
+  String get reportImpersonation => 'Fingindo ser outra pessoa';
+
+  @override
+  String get reportOther => 'Outra coisa';
+
+  @override
+  String get reportChildSafetyHelp =>
+      'Analisamos esses primeiro, em até 24 horas. Se você tem menos de 18, conte também a um adulto de confiança. Você não fez nada de errado.';
+
+  @override
+  String reportMessages(int count, int max) {
+    return 'Mensagens a enviar ($count de $max)';
+  }
+
+  @override
+  String get reportReadable =>
+      'Estas mensagens serão enviadas aos moderadores do Siegel, legíveis. A pessoa não saberá quem a denunciou.';
+
+  @override
+  String get reportNote => 'Algo mais que devemos saber? (opcional)';
+
+  @override
+  String reportAlsoBlock(String name) {
+    return 'Bloquear $name também';
+  }
+
+  @override
+  String get reportSend => 'Enviar denúncia';
+
+  @override
+  String get reportSent => 'Obrigado. Sua denúncia foi enviada.';
+
+  @override
+  String get reportAndBlock => 'Denunciar e bloquear';
+
+  @override
+  String get errReportsUnavailable =>
+      'As denúncias ainda não estão disponíveis. Escreva para o endereço na página de Termos.';
+
+  @override
+  String get errReportInvalid => 'Não foi possível enviar a denúncia.';
 }

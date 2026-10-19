@@ -98,6 +98,8 @@ jobs:
       SIEGEL_OTP_PER_IP_HOUR: "10000"
       SIEGEL_VERIFY_PER_IP_HOUR: "10000"
       SIEGEL_NEW_CHATS_PER_DAY: "10000"
+      # Test-only moderators' key (core/core-api/tests/reports-test.key), for the report e2e test.
+      SIEGEL_REPORTS_AGE_RECIPIENT: age1myv2g8hn04vm97gunmmnfeacw4l09xsv502uvpnx03tljamm9vdqhe482x
     steps:
       - uses: actions/checkout@v5
       - run: docker compose up -d --build --wait

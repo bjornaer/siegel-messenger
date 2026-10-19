@@ -1523,3 +1523,82 @@ async fn stickers_arrive_as_stickers() {
     let s = bob.add_sticker(&webp, "image/webp", "").unwrap();
     assert_eq!(bob.sticker_data(&s.id).unwrap(), Some(webp));
 }
+
+#[tokio::test]
+async fn reports_reach_the_server_sealed_to_the_moderators() {
+    // CMP-03, M7 part 3. Needs the server started with the test key's public half.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    use prost::Message as _;
+    use std::io::Read as _;
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let bob_chat = bob.conversations().unwrap()[0].group_id.clone();
+    bob.send_text(&bob_chat, "send me your pictures", None)
+        .await
+        .unwrap();
+    let Event::Message(m) = until(&mut ae, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    let chat = m.group_id.clone();
+    alice
+        .report(
+            &chat,
+            4,
+            "he keeps asking",
+            std::slice::from_ref(&m.message_id),
+            true,
+        )
+        .await
+        .unwrap();
+    assert!(
+        alice.contact(&m.sender_account).unwrap().state == core_api::ContactState::Blocked,
+        "report and block"
+    );
+
+    // What the server stored: only ciphertext, which the moderators' key opens.
+    let out = std::process::Command::new("docker")
+        .args([
+            "compose", "exec", "-T", "postgres", "psql", "-U", "postgres", "-d", "siegel", "-tAc",
+            &format!(
+                "SELECT encode(sealed, 'base64') FROM reports WHERE reported = '{}' ORDER BY id DESC LIMIT 1",
+                uuid::Uuid::from_slice(&m.sender_account).unwrap()
+            ),
+        ])
+        .output()
+        .expect("docker");
+    use base64::Engine as _;
+    let b64: String = String::from_utf8(out.stdout)
+        .unwrap()
+        .split_whitespace()
+        .collect();
+    let sealed = base64::engine::general_purpose::STANDARD
+        .decode(b64)
+        .unwrap();
+    assert!(!sealed.windows(9).any(|w| w == b"send me y"), "sealed");
+    let key = include_str!("reports-test.key");
+    let id: age::x25519::Identity = key
+        .lines()
+        .find(|l| l.starts_with("AGE-SECRET-KEY-"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    let mut plain = vec![];
+    age::Decryptor::new(sealed.as_slice())
+        .unwrap()
+        .decrypt(std::iter::once(&id as &dyn age::Identity))
+        .unwrap()
+        .read_to_end(&mut plain)
+        .unwrap();
+    let r = core_net::pb::Report::decode(plain.as_slice()).unwrap();
+    assert_eq!(
+        (r.category, r.note.as_str(), r.messages[0].text.as_str()),
+        (4, "he keeps asking", "send me your pictures")
+    );
+    assert_eq!(r.reported_account, m.sender_account);
+    assert_eq!(r.reported_name, format!("@{bob_name}"));
+}

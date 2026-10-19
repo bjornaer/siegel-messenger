@@ -15,6 +15,7 @@ import 'package:siegel/main.dart';
 import 'package:siegel/number.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/profile.dart';
+import 'package:siegel/report.dart';
 import 'package:siegel/server_data.dart';
 import 'package:siegel/src/rust/api/core.dart';
 import 'package:siegel/themes.dart';
@@ -90,13 +91,14 @@ Future<Map<String, Widget>> screens() async {
     'server data': ServerDataScreen(core: core),
     'change number': ChangeNumberScreen(core: core),
     'blocked': BlockedScreen(core: core),
+    'report': ReportScreen(core: core, chat: core.chats().firstWhere((c) => !c.isGroup)),
     'app lock': AppLock(core: FakeCore()..settings['app_lock'] = '60', child: const SizedBox()),
   };
 }
 
 const _names = [
   'onboarding', 'chat list', 'chat', 'media chat', 'group chat', 'group info', 'contact profile', 'settings', //
-  'themes', 'find contacts', 'server data', 'change number', 'blocked', 'app lock',
+  'themes', 'find contacts', 'server data', 'change number', 'blocked', 'app lock', 'report',
 ];
 
 void main() {

@@ -26,4 +26,5 @@ rand_core = { version = "0.6", features = ["getrandom"] }
 fuzzing = []
 
 [dev-dependencies]
+age = { version = "0.11", default-features = false }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }

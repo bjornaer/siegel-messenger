@@ -178,6 +178,16 @@ abstract class Core implements RustOpaqueInterface {
 
   Future<void> renameGroup({required List<int> groupId, required String name});
 
+  /// CMP-03: reports chosen messages of a chat, sealed to the moderators' key. `category` is
+  /// the ReportCategory number (1 spam … 8 other); `block` also blocks a 1:1 peer.
+  Future<void> report({
+    required List<int> groupId,
+    required int category,
+    required String note,
+    required List<Uint8List> messageIds,
+    required bool block,
+  });
+
   /// Returns the seconds until "Resend code" may be used (ID-04).
   Future<int> requestOtp({
     required String phoneE164,

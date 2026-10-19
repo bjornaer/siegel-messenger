@@ -4,6 +4,7 @@ pub mod discovery;
 pub mod groups;
 pub mod mls;
 pub mod profile;
+pub mod reports;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand_core::OsRng;

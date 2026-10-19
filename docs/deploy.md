@@ -137,6 +137,21 @@ pg_restore -h <db> -U postgres -d siegel --clean postgres.dump   # a real restor
 The bucket mirror (`backups/bucket`) stays plain: attachments are encrypted by the apps with keys the
 server never has (MED-03), so it holds only ciphertext.
 
+## Moderators' key (reports, M7)
+
+Reports are sealed by the reporter's app to this key; only its private half opens them.
+
+1. On your laptop: `age-keygen -o siegel-reports.key`. Keep it offline, like the backup key, and
+   never put it on a server.
+2. In the server `.env`: `SIEGEL_REPORTS_AGE_RECIPIENT=age1...` (the public line), then
+   `docker compose up -d server`. Until it's set, the app says reporting isn't available yet.
+3. To read a report by hand, until the console (Part 5) exists:
+   `psql ... -tAc "SELECT encode(sealed,'base64') FROM reports WHERE id = N" | base64 -d | age -d -i siegel-reports.key`
+   gives the `Report` protobuf (`proto/siegel/v1/reports.proto`).
+
+`core/core-api/tests/reports-test.key` is a test-only key for the e2e tests. Never set its public
+half in production.
+
 ## Key rotation (SEC-05)
 
 | Key | Rotates | How |

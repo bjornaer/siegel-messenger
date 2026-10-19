@@ -176,6 +176,22 @@ impl Core {
         })
     }
 
+    /// CMP-03: reports chosen messages of a chat, sealed to the moderators' key. `category` is
+    /// the ReportCategory number (1 spam … 8 other); `block` also blocks a 1:1 peer.
+    pub async fn report(
+        &self,
+        group_id: Vec<u8>,
+        category: i32,
+        note: String,
+        message_ids: Vec<Vec<u8>>,
+        block: bool,
+    ) -> Result<(), CoreError> {
+        Ok(self
+            .0
+            .report(&group_id, category, &note, &message_ids, block)
+            .await?)
+    }
+
     /// Adds a WebP or PNG sticker to a pack ("" = my stickers).
     #[frb(sync)]
     pub fn add_sticker(

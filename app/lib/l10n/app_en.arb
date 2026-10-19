@@ -645,5 +645,43 @@
   "skMinor": "Under 18",
   "yes": "Yes",
   "no": "No",
-  "tapToView": "From someone you haven't accepted. Tap to view."
+  "tapToView": "From someone you haven't accepted. Tap to view.",
+  "report": "Report",
+  "reportGroup": "Report group",
+  "reportWhy": "What's wrong?",
+  "reportSpam": "Spam or scam",
+  "reportHarassment": "Harassment or threats",
+  "reportHate": "Hate",
+  "reportChildSafety": "Sexual content involving a minor",
+  "reportNonConsensual": "Other sexual content without consent",
+  "reportViolence": "Violence or terrorism",
+  "reportImpersonation": "Pretending to be someone else",
+  "reportOther": "Something else",
+  "reportChildSafetyHelp": "We look at these first, within 24 hours. If you're under 18, please also tell an adult you trust. You've done nothing wrong.",
+  "reportMessages": "Messages to send ({count} of {max})",
+  "@reportMessages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "reportReadable": "These messages will be sent to Siegel's moderators, readable. The person isn't told who reported them.",
+  "reportNote": "Anything else we should know? (optional)",
+  "reportAlsoBlock": "Also block {name}",
+  "@reportAlsoBlock": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reportSend": "Send report",
+  "reportSent": "Thanks. Your report was sent.",
+  "reportAndBlock": "Report and block",
+  "errReportsUnavailable": "Reporting isn't available yet. Write to us at the address on the Terms page.",
+  "errReportInvalid": "That report couldn't be sent."
 }

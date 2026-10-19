@@ -20,6 +20,7 @@ import 'links.dart';
 import 'media.dart';
 import 'update.dart';
 import 'profile.dart';
+import 'report.dart';
 import 'stickers.dart';
 import 'push.dart' show appVisible, clearNotification;
 import 'safety.dart';
@@ -917,6 +918,17 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// CMP-03: the report screen; a blocked 1:1 chat closes, like blocking does.
+  Future<void> _report(ChatSummary c, {MessageView? around, bool block = false}) async {
+    final sent = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ReportScreen(core: core, chat: c, around: around, block: block),
+      ),
+    );
+    widget.service.refresh();
+    if (sent == true && block && mounted) Navigator.of(context).pop();
+  }
+
   Future<void> _saveSticker(MessageView m) => _run(() async {
     final data = await core.attachmentData(messageId: m.messageId);
     core.addSticker(data: data, mimeType: m.attachment!.mimeType, pack: '');
@@ -1023,6 +1035,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   leading: const Icon(Icons.shortcut),
                   title: Text(t.forward),
                   onTap: () => act(() => _forward(m)),
+                ),
+              if (!m.outgoing && !m.deleted && m.event == null && !m.keyChange)
+                ListTile(
+                  leading: const Icon(Icons.flag_outlined),
+                  title: Text(t.report),
+                  onTap: () => act(() => _report(c, around: m)),
                 ),
               if (!m.deleted && m.attachment?.sticker == true)
                 ListTile(
@@ -1168,8 +1186,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 PopupMenuButton<void>(
                   itemBuilder: (_) => [
                     PopupMenuItem(onTap: () => _safety(c), child: Text(t.safetyNumber)),
+                    PopupMenuItem(onTap: () => _report(c), child: Text(t.report)),
                     PopupMenuItem(onTap: () => _block(c), child: Text(t.block)),
                   ],
+                ),
+              if (!c.request && c.isGroup)
+                PopupMenuButton<void>(
+                  itemBuilder: (_) => [PopupMenuItem(onTap: () => _report(c), child: Text(t.reportGroup))],
                 ),
             ],
           ),
@@ -1471,6 +1494,7 @@ class _ChatScreenState extends State<ChatScreen> {
           alignment: WrapAlignment.center,
           children: [
             OutlinedButton(onPressed: _busy ? null : () => _block(c), child: Text(t.block)),
+            OutlinedButton(onPressed: _busy ? null : () => _report(c, block: true), child: Text(t.reportAndBlock)),
             OutlinedButton(
               onPressed: _busy
                   ? null

@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package siegel.v1;
+
+option go_package = "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1";
+
+// CMP-03, M7 part 3: user reports. The app seals each report to the moderators' age key, so the
+// server stores and forwards only ciphertext; moderators decrypt on their own machine.
+service ReportService {
+  // The moderators' age public key (age1...); empty while reporting isn't set up. Auth: device.
+  rpc Key(ReportServiceKeyRequest) returns (ReportServiceKeyResponse);
+  // Stores a sealed report, at most 20 a day per account. Auth: device.
+  rpc Submit(ReportServiceSubmitRequest) returns (ReportServiceSubmitResponse);
+}
+
+// The same choices as the report screen and /guidelines.
+enum ReportCategory {
+  REPORT_CATEGORY_UNSPECIFIED = 0;
+  REPORT_CATEGORY_SPAM = 1;
+  REPORT_CATEGORY_HARASSMENT = 2;
+  REPORT_CATEGORY_HATE = 3;
+  REPORT_CATEGORY_CHILD_SAFETY = 4; // sexual content involving a minor: reviewed first (D1)
+  REPORT_CATEGORY_NON_CONSENSUAL = 5;
+  REPORT_CATEGORY_VIOLENCE = 6;
+  REPORT_CATEGORY_IMPERSONATION = 7;
+  REPORT_CATEGORY_OTHER = 8;
+}
+
+message ReportServiceKeyRequest {}
+
+message ReportServiceKeyResponse {
+  string age_recipient = 1;
+}
+
+message ReportServiceSubmitRequest {
+  ReportCategory category = 1; // in clear: orders the review queue
+  bytes reported_account = 2; // empty when a group is reported
+  bytes sealed = 3; // age ciphertext of a Report
+}
+
+message ReportServiceSubmitResponse {}
+
+// What moderators read once they decrypt `sealed`.
+message Report {
+  ReportCategory category = 1;
+  string note = 2;
+  bytes reporter_account = 3;
+  bytes reported_account = 4;
+  string reported_name = 5; // @username or display name, as the reporter saw it
+  bytes group_id = 6;
+  string group_name = 7; // group names are end-to-end encrypted: only reports reveal them
+  repeated ReportedMessage messages = 8;
+  int64 reported_at = 9; // unix ms
+}
+
+message ReportedMessage {
+  bytes message_id = 1;
+  bytes sender_account = 2;
+  string sender_name = 3;
+  int64 sent_at = 4; // unix ms
+  string text = 5;
+  string mime_type = 6;
+  bytes media = 7; // decrypted, up to a cap; the thumbnail when larger
+  string file_name = 8;
+}

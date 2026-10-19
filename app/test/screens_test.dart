@@ -24,6 +24,7 @@ import 'package:siegel/media.dart';
 import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/push.dart' show notificationStrings;
+import 'package:siegel/report.dart';
 import 'package:siegel/stickers.dart';
 import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
@@ -137,6 +138,20 @@ class FakeCore implements Core {
       ),
     ],
   );
+
+  final reports = <String>[];
+  @override
+  Future<void> report({
+    required List<int> groupId,
+    required int category,
+    required String note,
+    required List<Uint8List> messageIds,
+    required bool block,
+  }) async {
+    await _maybeFail('report');
+    reports.add('$category ${messageIds.length} $note block=$block');
+    if (block) await this.block(account: chatList.firstWhere((c) => listEquals(c.groupId, groupId)).peerAccount);
+  }
 
   bool isMinor = false;
   @override
@@ -1889,6 +1904,65 @@ void main() {
     expect(find.byType(ImageMessage), findsNothing);
     await tapText(t, "From someone you haven't accepted. Tap to view.");
     expect(find.byType(ImageMessage), findsOneWidget);
+  });
+
+  testWidgets('report a message: preselected, a reason, sent sealed (CMP-03)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    core.receive(id, 'first');
+    await core.sendText(groupId: id, text: 'mine', mentions: const []);
+    core.receive(id, 'nasty');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.longPress(find.text('nasty'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Report');
+    expect(find.text('Messages to send (2 of 50)'), findsOneWidget, reason: "bob's two, not mine");
+    expect(find.textContaining("sent to Siegel's moderators, readable"), findsOneWidget);
+    final page = find.descendant(of: find.byType(ReportScreen), matching: find.byType(Scrollable)).first;
+    final note = find.widgetWithText(TextField, 'Anything else we should know? (optional)');
+    await t.scrollUntilVisible(find.text('Send report'), 200, scrollable: page);
+    expect(
+      t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Send report')).onPressed,
+      isNull,
+      reason: 'a reason first',
+    );
+    await t.scrollUntilVisible(find.text('Harassment or threats'), -200, scrollable: page);
+    await t.ensureVisible(find.text('Harassment or threats'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Harassment or threats');
+    await t.scrollUntilVisible(note, 200, scrollable: page);
+    await t.enterText(note, 'every night');
+    await t.scrollUntilVisible(find.text('Send report'), 200, scrollable: page);
+    await tapText(t, 'Send report');
+    expect(core.reports, ['2 2 every night block=false']);
+    expect(find.text('Thanks. Your report was sent.'), findsOneWidget);
+  });
+
+  testWidgets('report and block from a message request; child safety says what happens', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    core.incomingRequest('Zoe');
+    final id = core.chatList.last.groupId;
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await tapText(t, 'Report and block');
+    await t.ensureVisible(find.text('Sexual content involving a minor'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Sexual content involving a minor');
+    expect(find.textContaining('within 24 hours'), findsOneWidget);
+    await t.scrollUntilVisible(
+      find.text('Send report'),
+      200,
+      scrollable: find.descendant(of: find.byType(ReportScreen), matching: find.byType(Scrollable)).first,
+    );
+    expect(t.widget<CheckboxListTile>(find.widgetWithText(CheckboxListTile, 'Also block Zoe')).value, isTrue);
+    await tapText(t, 'Send report');
+    expect(core.reports.single, startsWith('4 1 '));
+    expect(core.reports.single, endsWith('block=true'));
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

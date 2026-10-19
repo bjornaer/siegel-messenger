@@ -217,6 +217,36 @@ impl Client {
         .await
     }
 
+    /// CMP-03: the moderators' age public key; empty while reporting isn't set up.
+    pub async fn report_key(&self, token: &str) -> Result<String, Error> {
+        let r: pb::ReportServiceKeyResponse = self
+            .call(
+                "ReportService/Key",
+                &pb::ReportServiceKeyRequest {},
+                Some(token),
+            )
+            .await?;
+        Ok(r.age_recipient)
+    }
+
+    /// CMP-03: a report sealed to the moderators' key.
+    pub async fn submit_report(
+        &self,
+        token: &str,
+        category: i32,
+        reported_account: &[u8],
+        sealed: Vec<u8>,
+    ) -> Result<(), Error> {
+        let req = pb::ReportServiceSubmitRequest {
+            category,
+            reported_account: reported_account.into(),
+            sealed,
+        };
+        self.call::<pb::ReportServiceSubmitResponse>("ReportService/Submit", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
     /// GRP-16: stores an invite's encrypted snapshot (`write_key` guards later writes).
     pub async fn put_invite(
         &self,

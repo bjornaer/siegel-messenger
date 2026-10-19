@@ -5,6 +5,7 @@ fn main() {
             "siegel/v1/identity.proto",
             "siegel/v1/delivery.proto",
             "siegel/v1/content.proto",
+            "siegel/v1/reports.proto",
         ],
         ["../../proto"],
     )

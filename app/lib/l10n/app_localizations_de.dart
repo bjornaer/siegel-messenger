@@ -1210,4 +1210,74 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get tapToView =>
       'Von jemandem, den du nicht angenommen hast. Tippe zum Ansehen.';
+
+  @override
+  String get report => 'Melden';
+
+  @override
+  String get reportGroup => 'Gruppe melden';
+
+  @override
+  String get reportWhy => 'Was ist los?';
+
+  @override
+  String get reportSpam => 'Spam oder Betrug';
+
+  @override
+  String get reportHarassment => 'Belästigung oder Drohungen';
+
+  @override
+  String get reportHate => 'Hass';
+
+  @override
+  String get reportChildSafety => 'Sexuelle Inhalte mit Minderjährigen';
+
+  @override
+  String get reportNonConsensual => 'Andere sexuelle Inhalte ohne Zustimmung';
+
+  @override
+  String get reportViolence => 'Gewalt oder Terrorismus';
+
+  @override
+  String get reportImpersonation => 'Gibt sich als jemand anderes aus';
+
+  @override
+  String get reportOther => 'Etwas anderes';
+
+  @override
+  String get reportChildSafetyHelp =>
+      'Diese prüfen wir zuerst, innerhalb von 24 Stunden. Bist du unter 18, sag es bitte auch einem Erwachsenen, dem du vertraust. Du hast nichts falsch gemacht.';
+
+  @override
+  String reportMessages(int count, int max) {
+    return 'Mitzusendende Nachrichten ($count von $max)';
+  }
+
+  @override
+  String get reportReadable =>
+      'Diese Nachrichten gehen lesbar an die Moderation von Siegel. Die Person erfährt nicht, wer sie gemeldet hat.';
+
+  @override
+  String get reportNote => 'Sollen wir noch etwas wissen? (optional)';
+
+  @override
+  String reportAlsoBlock(String name) {
+    return '$name auch blockieren';
+  }
+
+  @override
+  String get reportSend => 'Meldung senden';
+
+  @override
+  String get reportSent => 'Danke. Deine Meldung wurde gesendet.';
+
+  @override
+  String get reportAndBlock => 'Melden und blockieren';
+
+  @override
+  String get errReportsUnavailable =>
+      'Melden ist noch nicht verfügbar. Schreib uns an die Adresse auf der Seite mit den Bedingungen.';
+
+  @override
+  String get errReportInvalid => 'Die Meldung konnte nicht gesendet werden.';
 }

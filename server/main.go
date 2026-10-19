@@ -65,6 +65,7 @@ type config struct {
 	fcmKey        []byte   // Google service account JSON: FCM push (SRV-05) and Play Integrity (ID-02)
 	inactiveDays  int      // section 10: accounts with no device seen this long are deleted
 	contactEmail  string   // shown on the public privacy and deletion pages
+	reportsKey    string   // CMP-03: the moderators' age public key; empty = reporting off
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -117,6 +118,7 @@ func loadConfig() config {
 		otpAlertMin:   env("SIEGEL_OTP_ALERT_MIN", 20, strconv.Atoi),
 		inactiveDays:  env("SIEGEL_INACTIVE_DAYS", 180, strconv.Atoi),
 		contactEmail:  os.Getenv("SIEGEL_CONTACT_EMAIL"),
+		reportsKey:    os.Getenv("SIEGEL_REPORTS_AGE_RECIPIENT"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
@@ -301,6 +303,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle(siegelv1connect.NewInvitesServiceHandler(invites{s}, s.authed(), connect.WithReadMaxBytes(2<<20)))
 	mux.Handle(siegelv1connect.NewAttachmentsServiceHandler(attachments{s}, s.authed(), small))
 	mux.Handle(siegelv1connect.NewDiscoveryServiceHandler(discovery{s}, s.authed(), connect.WithReadMaxBytes(1<<20)))
+	// Reports carry the chosen messages and their media, sealed: up to 32 MB.
+	mux.Handle(siegelv1connect.NewReportServiceHandler(reports{s}, s.authed(), connect.WithReadMaxBytes(32<<20)))
 	mux.HandleFunc("PUT /v1/blobs/{id}", s.putBlob)
 	mux.HandleFunc("GET /v1/blobs/{id}", s.getBlob)
 	mux.HandleFunc("GET /v1/stream", s.stream)

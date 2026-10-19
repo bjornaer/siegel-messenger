@@ -589,3 +589,47 @@ func TestMinorsAreFoundOnlyByTheirNumber(t *testing.T) { // M7 part 2
 	acct.SetMinor(e.ctx, connect.NewRequest(&siegelv1.SetMinorRequest{Minor: false}))
 	want(t, lookup(adultUsers, nil), "") // 18th birthday
 }
+
+func TestReports(t *testing.T) { // CMP-03, M7 part 3
+	e := setup(t)
+	a, _ := e.register("+34600000061", "")
+	b, _ := e.register("+34600000062", "")
+	r := siegelv1connect.NewReportServiceClient(http.DefaultClient, e.url, connect.WithInterceptors(
+		connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+				req.Header().Set("Authorization", "Bearer "+a.DeviceToken)
+				return next(ctx, req)
+			}
+		})))
+	key, _ := r.Key(e.ctx, connect.NewRequest(&siegelv1.ReportServiceKeyRequest{}))
+	if key.Msg.AgeRecipient != "" {
+		t.Fatal("no key configured: reporting is off")
+	}
+	e.s.cfg.reportsKey = "AGE-SECRET-KEY-1XYZ"
+	key, _ = r.Key(e.ctx, connect.NewRequest(&siegelv1.ReportServiceKeyRequest{}))
+	if key.Msg.AgeRecipient != "" {
+		t.Fatal("a secret key is never handed out")
+	}
+	e.s.cfg.reportsKey = "age1testrecipient"
+	key, _ = r.Key(e.ctx, connect.NewRequest(&siegelv1.ReportServiceKeyRequest{}))
+	want(t, key.Msg.AgeRecipient, "age1testrecipient")
+
+	submit := func(sealed string) string {
+		_, err := r.Submit(e.ctx, connect.NewRequest(&siegelv1.ReportServiceSubmitRequest{
+			Category: siegelv1.ReportCategory_REPORT_CATEGORY_CHILD_SAFETY, ReportedAccount: b.AccountId, Sealed: []byte(sealed)}))
+		return errMsg(err)
+	}
+	want(t, submit("plaintext report"), "report_invalid") // only sealed reports are kept
+	sealed := "age-encryption.org/v1\n-> X25519 stub\nciphertext"
+	want(t, submit(sealed), "")
+	var n int
+	var stored []byte
+	e.s.db.QueryRow(e.ctx, `SELECT count(*), max(sealed) FROM reports WHERE reported = $1 AND category = 4`, b.AccountId).Scan(&n, &stored)
+	if n != 1 || string(stored) != sealed {
+		t.Fatal("stored as sent", n)
+	}
+	for range reportsPerDay - 1 {
+		submit(sealed)
+	}
+	want(t, submit(sealed), "rate_limited")
+}

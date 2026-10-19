@@ -15,6 +15,7 @@ mod groups;
 mod links;
 mod media;
 mod messages;
+mod reports;
 mod stickers;
 pub use chat::{ChatMessage, Event};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};

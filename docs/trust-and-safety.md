@@ -107,8 +107,9 @@ confirm (OQ-014).
   - each message's sender, time, text and decrypted media;
   - the reporter's account.
 - **Server:**
-  - `ReportService.Submit` encrypts the report on arrival to the moderators' age public key
-    (`SIEGEL_REPORTS_AGE_RECIPIENT`), so the database and backups hold only ciphertext;
+  - the **app** seals the report to the moderators' age public key (`ReportService.Key`, from
+    `SIEGEL_REPORTS_AGE_RECIPIENT`) before sending. The server never holds a readable report,
+    not even in memory, and `ReportService.Submit` refuses anything that isn't age ciphertext;
   - limit: 20 reports per account per day;
   - stores the category and time in clear for the queue's order.
 - **Privacy page:** a "Reports" section, live with this part: what a report sends, who reads it,

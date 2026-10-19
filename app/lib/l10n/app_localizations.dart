@@ -2129,6 +2129,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'From someone you haven\'t accepted. Tap to view.'**
   String get tapToView;
+
+  /// No description provided for @report.
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get report;
+
+  /// No description provided for @reportGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Report group'**
+  String get reportGroup;
+
+  /// No description provided for @reportWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s wrong?'**
+  String get reportWhy;
+
+  /// No description provided for @reportSpam.
+  ///
+  /// In en, this message translates to:
+  /// **'Spam or scam'**
+  String get reportSpam;
+
+  /// No description provided for @reportHarassment.
+  ///
+  /// In en, this message translates to:
+  /// **'Harassment or threats'**
+  String get reportHarassment;
+
+  /// No description provided for @reportHate.
+  ///
+  /// In en, this message translates to:
+  /// **'Hate'**
+  String get reportHate;
+
+  /// No description provided for @reportChildSafety.
+  ///
+  /// In en, this message translates to:
+  /// **'Sexual content involving a minor'**
+  String get reportChildSafety;
+
+  /// No description provided for @reportNonConsensual.
+  ///
+  /// In en, this message translates to:
+  /// **'Other sexual content without consent'**
+  String get reportNonConsensual;
+
+  /// No description provided for @reportViolence.
+  ///
+  /// In en, this message translates to:
+  /// **'Violence or terrorism'**
+  String get reportViolence;
+
+  /// No description provided for @reportImpersonation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pretending to be someone else'**
+  String get reportImpersonation;
+
+  /// No description provided for @reportOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get reportOther;
+
+  /// No description provided for @reportChildSafetyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'We look at these first, within 24 hours. If you\'re under 18, please also tell an adult you trust. You\'ve done nothing wrong.'**
+  String get reportChildSafetyHelp;
+
+  /// No description provided for @reportMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages to send ({count} of {max})'**
+  String reportMessages(int count, int max);
+
+  /// No description provided for @reportReadable.
+  ///
+  /// In en, this message translates to:
+  /// **'These messages will be sent to Siegel\'s moderators, readable. The person isn\'t told who reported them.'**
+  String get reportReadable;
+
+  /// No description provided for @reportNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything else we should know? (optional)'**
+  String get reportNote;
+
+  /// No description provided for @reportAlsoBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Also block {name}'**
+  String reportAlsoBlock(String name);
+
+  /// No description provided for @reportSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send report'**
+  String get reportSend;
+
+  /// No description provided for @reportSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks. Your report was sent.'**
+  String get reportSent;
+
+  /// No description provided for @reportAndBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Report and block'**
+  String get reportAndBlock;
+
+  /// No description provided for @errReportsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Reporting isn\'t available yet. Write to us at the address on the Terms page.'**
+  String get errReportsUnavailable;
+
+  /// No description provided for @errReportInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That report couldn\'t be sent.'**
+  String get errReportInvalid;
 }
 
 class _AppLocalizationsDelegate

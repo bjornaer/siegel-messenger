@@ -1197,4 +1197,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tapToView => 'From someone you haven\'t accepted. Tap to view.';
+
+  @override
+  String get report => 'Report';
+
+  @override
+  String get reportGroup => 'Report group';
+
+  @override
+  String get reportWhy => 'What\'s wrong?';
+
+  @override
+  String get reportSpam => 'Spam or scam';
+
+  @override
+  String get reportHarassment => 'Harassment or threats';
+
+  @override
+  String get reportHate => 'Hate';
+
+  @override
+  String get reportChildSafety => 'Sexual content involving a minor';
+
+  @override
+  String get reportNonConsensual => 'Other sexual content without consent';
+
+  @override
+  String get reportViolence => 'Violence or terrorism';
+
+  @override
+  String get reportImpersonation => 'Pretending to be someone else';
+
+  @override
+  String get reportOther => 'Something else';
+
+  @override
+  String get reportChildSafetyHelp =>
+      'We look at these first, within 24 hours. If you\'re under 18, please also tell an adult you trust. You\'ve done nothing wrong.';
+
+  @override
+  String reportMessages(int count, int max) {
+    return 'Messages to send ($count of $max)';
+  }
+
+  @override
+  String get reportReadable =>
+      'These messages will be sent to Siegel\'s moderators, readable. The person isn\'t told who reported them.';
+
+  @override
+  String get reportNote => 'Anything else we should know? (optional)';
+
+  @override
+  String reportAlsoBlock(String name) {
+    return 'Also block $name';
+  }
+
+  @override
+  String get reportSend => 'Send report';
+
+  @override
+  String get reportSent => 'Thanks. Your report was sent.';
+
+  @override
+  String get reportAndBlock => 'Report and block';
+
+  @override
+  String get errReportsUnavailable =>
+      'Reporting isn\'t available yet. Write to us at the address on the Terms page.';
+
+  @override
+  String get errReportInvalid => 'That report couldn\'t be sent.';
 }
