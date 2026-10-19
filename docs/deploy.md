@@ -103,7 +103,8 @@ curl -XPOST https://siegel.schlk.in/siegel.v1.RegistrationService/RequestOtp \
 
 Schema changes ship as numbered files in `server/migrations/` (`NNNN_what.sql`). The server
 applies the ones a database hasn't had at startup, each in one transaction, and records them in
-`schema_migrations`. Never edit a file that has shipped; add a new one. A migration that fails
+`schema_migrations`. Never edit a file that has shipped; add a new one. Write each statement so it can run twice
+(`ADD COLUMN IF NOT EXISTS`, `CREATE ... IF NOT EXISTS`): a test replays them all on an existing database. A migration that fails
 rolls back and stops the server from starting: the deploy job fails and the API is down until a
 fix ships (`docker compose logs server` names the file).
 

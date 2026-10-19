@@ -628,5 +628,22 @@
   "privacyPolicy": "Privacy policy",
   "terms": "Terms",
   "guidelines": "Guidelines",
-  "agreeToTerms": "By continuing you accept our"
+  "agreeToTerms": "By continuing you accept our",
+  "birthMonth": "Birth month",
+  "birthYear": "Birth year",
+  "birthTitle": "When were you born?",
+  "birthWhy": "Siegel protects people under 18: strangers can't find them by @username, and only their contacts can add them to groups. Your birth date stays on this phone; we only learn whether you're under 18.",
+  "tooYoung": "Siegel is for people aged {age} and over.",
+  "@tooYoung": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      }
+    }
+  },
+  "groupAddsMinor": "Contacts only: you're under 18.",
+  "skMinor": "Under 18",
+  "yes": "Yes",
+  "no": "No",
+  "tapToView": "From someone you haven't accepted. Tap to view."
 }

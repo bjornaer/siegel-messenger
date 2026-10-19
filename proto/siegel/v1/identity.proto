@@ -80,6 +80,11 @@ message UsernameServiceSetResponse {}
 
 message UsernameServiceLookupRequest {
   string username = 1;
+  // M7: accounts of people under 18 are found only with proof the caller has their number:
+  // the discovery output O for that number in the current key period (DISC-05).
+  bytes discovery_proof = 2;
+  // M7: or the secret from their contact link, which their app registered (as a hash) with SetMinor.
+  bytes link_secret = 3;
 }
 
 message UsernameServiceLookupResponse {
@@ -101,7 +106,19 @@ service AccountService {
   rpc ChangeNumber(ChangeNumberRequest) returns (ChangeNumberResponse);
   // Everything the server holds about the caller's account (CMP-06, RM-01). Auth: device.
   rpc Export(AccountServiceExportRequest) returns (AccountServiceExportResponse);
+  // M7: the account belongs to someone under 18 (the app knows the birth date; we only learn
+  // this flag). Hides the account from @username search. Auth: device.
+  rpc SetMinor(SetMinorRequest) returns (SetMinorResponse);
 }
+
+message SetMinorRequest {
+  bool minor = 1;
+  // SHA-256 of the current contact-link secret, so people given the link can still find them;
+  // empty when the link is off.
+  bytes link_secret_hash = 2;
+}
+
+message SetMinorResponse {}
 
 message AccountServiceExportRequest {}
 
@@ -121,6 +138,7 @@ message AccountServiceExportResponse {
   bool profile_picture = 12; // encrypted blob
   int32 numbers_checked = 13; // contact numbers checked this key period (DISC-06)
   repeated ExportedDevice devices = 14;
+  bool minor = 15; // M7: under 18, as the app told us
 }
 
 message ExportedDevice {

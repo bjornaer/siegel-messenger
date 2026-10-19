@@ -30,6 +30,8 @@ pub struct GroupPreviewView {
 pub struct FoundContact {
     pub phone: String,
     pub username: String,
+    /// Starts a chat even with someone under 18 (`start_chat_by_number`).
+    pub proof: Vec<u8>,
 }
 
 /// RM-01: what the server holds about us. Ids and hashes are hex; days are YYYY-MM-DD.
@@ -48,6 +50,7 @@ pub struct ServerData {
     pub profile_picture: bool,
     pub numbers_checked: i32,
     pub devices: Vec<ServerDevice>,
+    pub minor: bool,
 }
 
 pub struct ServerDevice {
@@ -156,6 +159,7 @@ impl Core {
             profile: d.profile,
             profile_picture: d.profile_picture,
             numbers_checked: d.numbers_checked,
+            minor: d.minor,
             devices: d
                 .devices
                 .into_iter()
@@ -352,6 +356,7 @@ impl Core {
             .map(|f| FoundContact {
                 phone: f.phone,
                 username: f.username,
+                proof: f.proof,
             })
             .collect())
     }
@@ -590,6 +595,24 @@ pub struct CoreEvent {
 
 impl Core {
     /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
+    pub async fn start_chat_by_number(
+        &self,
+        username: String,
+        proof: Vec<u8>,
+    ) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.start_chat_by_number(&username, &proof).await?)
+    }
+
+    /// M7: under 18, as the app worked out from the birth date it keeps.
+    pub async fn set_minor(&self, minor: bool) -> Result<(), CoreError> {
+        Ok(self.0.set_minor(minor).await?)
+    }
+
+    #[frb(sync)]
+    pub fn minor(&self) -> bool {
+        self.0.minor()
+    }
+
     pub async fn start_chat(&self, username: String) -> Result<Vec<u8>, CoreError> {
         Ok(self.0.start_chat(&username).await?)
     }

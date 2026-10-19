@@ -443,8 +443,13 @@ func (*UsernameServiceSetResponse) Descriptor() ([]byte, []int) {
 }
 
 type UsernameServiceLookupRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Username string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	// M7: accounts of people under 18 are found only with proof the caller has their number:
+	// the discovery output O for that number in the current key period (DISC-05).
+	DiscoveryProof []byte `protobuf:"bytes,2,opt,name=discovery_proof,json=discoveryProof,proto3" json:"discovery_proof,omitempty"`
+	// M7: or the secret from their contact link, which their app registered (as a hash) with SetMinor.
+	LinkSecret    []byte `protobuf:"bytes,3,opt,name=link_secret,json=linkSecret,proto3" json:"link_secret,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -484,6 +489,20 @@ func (x *UsernameServiceLookupRequest) GetUsername() string {
 		return x.Username
 	}
 	return ""
+}
+
+func (x *UsernameServiceLookupRequest) GetDiscoveryProof() []byte {
+	if x != nil {
+		return x.DiscoveryProof
+	}
+	return nil
+}
+
+func (x *UsernameServiceLookupRequest) GetLinkSecret() []byte {
+	if x != nil {
+		return x.LinkSecret
+	}
+	return nil
 }
 
 type UsernameServiceLookupResponse struct {
@@ -546,6 +565,96 @@ func (x *UsernameServiceLookupResponse) GetAsSignature() []byte {
 	return nil
 }
 
+type SetMinorRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Minor bool                   `protobuf:"varint,1,opt,name=minor,proto3" json:"minor,omitempty"`
+	// SHA-256 of the current contact-link secret, so people given the link can still find them;
+	// empty when the link is off.
+	LinkSecretHash []byte `protobuf:"bytes,2,opt,name=link_secret_hash,json=linkSecretHash,proto3" json:"link_secret_hash,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetMinorRequest) Reset() {
+	*x = SetMinorRequest{}
+	mi := &file_siegel_v1_identity_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetMinorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetMinorRequest) ProtoMessage() {}
+
+func (x *SetMinorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_identity_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetMinorRequest.ProtoReflect.Descriptor instead.
+func (*SetMinorRequest) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SetMinorRequest) GetMinor() bool {
+	if x != nil {
+		return x.Minor
+	}
+	return false
+}
+
+func (x *SetMinorRequest) GetLinkSecretHash() []byte {
+	if x != nil {
+		return x.LinkSecretHash
+	}
+	return nil
+}
+
+type SetMinorResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetMinorResponse) Reset() {
+	*x = SetMinorResponse{}
+	mi := &file_siegel_v1_identity_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetMinorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetMinorResponse) ProtoMessage() {}
+
+func (x *SetMinorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_identity_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetMinorResponse.ProtoReflect.Descriptor instead.
+func (*SetMinorResponse) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{9}
+}
+
 type AccountServiceExportRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -554,7 +663,7 @@ type AccountServiceExportRequest struct {
 
 func (x *AccountServiceExportRequest) Reset() {
 	*x = AccountServiceExportRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[8]
+	mi := &file_siegel_v1_identity_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +675,7 @@ func (x *AccountServiceExportRequest) String() string {
 func (*AccountServiceExportRequest) ProtoMessage() {}
 
 func (x *AccountServiceExportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[8]
+	mi := &file_siegel_v1_identity_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +688,7 @@ func (x *AccountServiceExportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountServiceExportRequest.ProtoReflect.Descriptor instead.
 func (*AccountServiceExportRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{8}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{10}
 }
 
 // Days are YYYY-MM-DD (UTC), empty when unset. Message contents are never readable here.
@@ -599,13 +708,14 @@ type AccountServiceExportResponse struct {
 	ProfilePicture     bool                   `protobuf:"varint,12,opt,name=profile_picture,json=profilePicture,proto3" json:"profile_picture,omitempty"` // encrypted blob
 	NumbersChecked     int32                  `protobuf:"varint,13,opt,name=numbers_checked,json=numbersChecked,proto3" json:"numbers_checked,omitempty"` // contact numbers checked this key period (DISC-06)
 	Devices            []*ExportedDevice      `protobuf:"bytes,14,rep,name=devices,proto3" json:"devices,omitempty"`
+	Minor              bool                   `protobuf:"varint,15,opt,name=minor,proto3" json:"minor,omitempty"` // M7: under 18, as the app told us
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *AccountServiceExportResponse) Reset() {
 	*x = AccountServiceExportResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[9]
+	mi := &file_siegel_v1_identity_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +727,7 @@ func (x *AccountServiceExportResponse) String() string {
 func (*AccountServiceExportResponse) ProtoMessage() {}
 
 func (x *AccountServiceExportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[9]
+	mi := &file_siegel_v1_identity_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +740,7 @@ func (x *AccountServiceExportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountServiceExportResponse.ProtoReflect.Descriptor instead.
 func (*AccountServiceExportResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{9}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AccountServiceExportResponse) GetAccountId() []byte {
@@ -731,6 +841,13 @@ func (x *AccountServiceExportResponse) GetDevices() []*ExportedDevice {
 	return nil
 }
 
+func (x *AccountServiceExportResponse) GetMinor() bool {
+	if x != nil {
+		return x.Minor
+	}
+	return false
+}
+
 type ExportedDevice struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeviceId      []byte                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
@@ -746,7 +863,7 @@ type ExportedDevice struct {
 
 func (x *ExportedDevice) Reset() {
 	*x = ExportedDevice{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[10]
+	mi := &file_siegel_v1_identity_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +875,7 @@ func (x *ExportedDevice) String() string {
 func (*ExportedDevice) ProtoMessage() {}
 
 func (x *ExportedDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[10]
+	mi := &file_siegel_v1_identity_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +888,7 @@ func (x *ExportedDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportedDevice.ProtoReflect.Descriptor instead.
 func (*ExportedDevice) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{10}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ExportedDevice) GetDeviceId() []byte {
@@ -834,7 +951,7 @@ type ChangeNumberRequest struct {
 
 func (x *ChangeNumberRequest) Reset() {
 	*x = ChangeNumberRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[11]
+	mi := &file_siegel_v1_identity_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -846,7 +963,7 @@ func (x *ChangeNumberRequest) String() string {
 func (*ChangeNumberRequest) ProtoMessage() {}
 
 func (x *ChangeNumberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[11]
+	mi := &file_siegel_v1_identity_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -859,7 +976,7 @@ func (x *ChangeNumberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeNumberRequest.ProtoReflect.Descriptor instead.
 func (*ChangeNumberRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{11}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ChangeNumberRequest) GetPhoneE164() string {
@@ -891,7 +1008,7 @@ type ChangeNumberResponse struct {
 
 func (x *ChangeNumberResponse) Reset() {
 	*x = ChangeNumberResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[12]
+	mi := &file_siegel_v1_identity_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +1020,7 @@ func (x *ChangeNumberResponse) String() string {
 func (*ChangeNumberResponse) ProtoMessage() {}
 
 func (x *ChangeNumberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[12]
+	mi := &file_siegel_v1_identity_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +1033,7 @@ func (x *ChangeNumberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeNumberResponse.ProtoReflect.Descriptor instead.
 func (*ChangeNumberResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{12}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{14}
 }
 
 type SetPushTokenRequest struct {
@@ -928,7 +1045,7 @@ type SetPushTokenRequest struct {
 
 func (x *SetPushTokenRequest) Reset() {
 	*x = SetPushTokenRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[13]
+	mi := &file_siegel_v1_identity_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -940,7 +1057,7 @@ func (x *SetPushTokenRequest) String() string {
 func (*SetPushTokenRequest) ProtoMessage() {}
 
 func (x *SetPushTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[13]
+	mi := &file_siegel_v1_identity_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -953,7 +1070,7 @@ func (x *SetPushTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPushTokenRequest.ProtoReflect.Descriptor instead.
 func (*SetPushTokenRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{13}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SetPushTokenRequest) GetPushToken() string {
@@ -971,7 +1088,7 @@ type SetPushTokenResponse struct {
 
 func (x *SetPushTokenResponse) Reset() {
 	*x = SetPushTokenResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[14]
+	mi := &file_siegel_v1_identity_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +1100,7 @@ func (x *SetPushTokenResponse) String() string {
 func (*SetPushTokenResponse) ProtoMessage() {}
 
 func (x *SetPushTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[14]
+	mi := &file_siegel_v1_identity_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +1113,7 @@ func (x *SetPushTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPushTokenResponse.ProtoReflect.Descriptor instead.
 func (*SetPushTokenResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{14}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{16}
 }
 
 type SetRegistrationLockRequest struct {
@@ -1008,7 +1125,7 @@ type SetRegistrationLockRequest struct {
 
 func (x *SetRegistrationLockRequest) Reset() {
 	*x = SetRegistrationLockRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[15]
+	mi := &file_siegel_v1_identity_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1020,7 +1137,7 @@ func (x *SetRegistrationLockRequest) String() string {
 func (*SetRegistrationLockRequest) ProtoMessage() {}
 
 func (x *SetRegistrationLockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[15]
+	mi := &file_siegel_v1_identity_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1033,7 +1150,7 @@ func (x *SetRegistrationLockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRegistrationLockRequest.ProtoReflect.Descriptor instead.
 func (*SetRegistrationLockRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{15}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SetRegistrationLockRequest) GetPin() string {
@@ -1051,7 +1168,7 @@ type SetRegistrationLockResponse struct {
 
 func (x *SetRegistrationLockResponse) Reset() {
 	*x = SetRegistrationLockResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[16]
+	mi := &file_siegel_v1_identity_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1063,7 +1180,7 @@ func (x *SetRegistrationLockResponse) String() string {
 func (*SetRegistrationLockResponse) ProtoMessage() {}
 
 func (x *SetRegistrationLockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[16]
+	mi := &file_siegel_v1_identity_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1076,7 +1193,7 @@ func (x *SetRegistrationLockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRegistrationLockResponse.ProtoReflect.Descriptor instead.
 func (*SetRegistrationLockResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{16}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{18}
 }
 
 type AccountServiceDeleteRequest struct {
@@ -1087,7 +1204,7 @@ type AccountServiceDeleteRequest struct {
 
 func (x *AccountServiceDeleteRequest) Reset() {
 	*x = AccountServiceDeleteRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[17]
+	mi := &file_siegel_v1_identity_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1099,7 +1216,7 @@ func (x *AccountServiceDeleteRequest) String() string {
 func (*AccountServiceDeleteRequest) ProtoMessage() {}
 
 func (x *AccountServiceDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[17]
+	mi := &file_siegel_v1_identity_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1112,7 +1229,7 @@ func (x *AccountServiceDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountServiceDeleteRequest.ProtoReflect.Descriptor instead.
 func (*AccountServiceDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{17}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{19}
 }
 
 type AccountServiceDeleteResponse struct {
@@ -1123,7 +1240,7 @@ type AccountServiceDeleteResponse struct {
 
 func (x *AccountServiceDeleteResponse) Reset() {
 	*x = AccountServiceDeleteResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[18]
+	mi := &file_siegel_v1_identity_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1135,7 +1252,7 @@ func (x *AccountServiceDeleteResponse) String() string {
 func (*AccountServiceDeleteResponse) ProtoMessage() {}
 
 func (x *AccountServiceDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[18]
+	mi := &file_siegel_v1_identity_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1148,7 +1265,7 @@ func (x *AccountServiceDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountServiceDeleteResponse.ProtoReflect.Descriptor instead.
 func (*AccountServiceDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{18}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{20}
 }
 
 type ProfileServiceSetRequest struct {
@@ -1164,7 +1281,7 @@ type ProfileServiceSetRequest struct {
 
 func (x *ProfileServiceSetRequest) Reset() {
 	*x = ProfileServiceSetRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[19]
+	mi := &file_siegel_v1_identity_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1176,7 +1293,7 @@ func (x *ProfileServiceSetRequest) String() string {
 func (*ProfileServiceSetRequest) ProtoMessage() {}
 
 func (x *ProfileServiceSetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[19]
+	mi := &file_siegel_v1_identity_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1189,7 +1306,7 @@ func (x *ProfileServiceSetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileServiceSetRequest.ProtoReflect.Descriptor instead.
 func (*ProfileServiceSetRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{19}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProfileServiceSetRequest) GetEncryptedProfile() []byte {
@@ -1221,7 +1338,7 @@ type ProfileServiceSetResponse struct {
 
 func (x *ProfileServiceSetResponse) Reset() {
 	*x = ProfileServiceSetResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[20]
+	mi := &file_siegel_v1_identity_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +1350,7 @@ func (x *ProfileServiceSetResponse) String() string {
 func (*ProfileServiceSetResponse) ProtoMessage() {}
 
 func (x *ProfileServiceSetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[20]
+	mi := &file_siegel_v1_identity_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1246,7 +1363,7 @@ func (x *ProfileServiceSetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileServiceSetResponse.ProtoReflect.Descriptor instead.
 func (*ProfileServiceSetResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{20}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{22}
 }
 
 type ProfileServiceGetRequest struct {
@@ -1258,7 +1375,7 @@ type ProfileServiceGetRequest struct {
 
 func (x *ProfileServiceGetRequest) Reset() {
 	*x = ProfileServiceGetRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[21]
+	mi := &file_siegel_v1_identity_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1270,7 +1387,7 @@ func (x *ProfileServiceGetRequest) String() string {
 func (*ProfileServiceGetRequest) ProtoMessage() {}
 
 func (x *ProfileServiceGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[21]
+	mi := &file_siegel_v1_identity_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1283,7 +1400,7 @@ func (x *ProfileServiceGetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileServiceGetRequest.ProtoReflect.Descriptor instead.
 func (*ProfileServiceGetRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{21}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ProfileServiceGetRequest) GetAccountId() []byte {
@@ -1302,7 +1419,7 @@ type ProfileServiceGetResponse struct {
 
 func (x *ProfileServiceGetResponse) Reset() {
 	*x = ProfileServiceGetResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[22]
+	mi := &file_siegel_v1_identity_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1314,7 +1431,7 @@ func (x *ProfileServiceGetResponse) String() string {
 func (*ProfileServiceGetResponse) ProtoMessage() {}
 
 func (x *ProfileServiceGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[22]
+	mi := &file_siegel_v1_identity_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1327,7 +1444,7 @@ func (x *ProfileServiceGetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileServiceGetResponse.ProtoReflect.Descriptor instead.
 func (*ProfileServiceGetResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{22}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ProfileServiceGetResponse) GetEncryptedProfile() []byte {
@@ -1346,7 +1463,7 @@ type AppVersionRequest struct {
 
 func (x *AppVersionRequest) Reset() {
 	*x = AppVersionRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[23]
+	mi := &file_siegel_v1_identity_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1358,7 +1475,7 @@ func (x *AppVersionRequest) String() string {
 func (*AppVersionRequest) ProtoMessage() {}
 
 func (x *AppVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[23]
+	mi := &file_siegel_v1_identity_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1371,7 +1488,7 @@ func (x *AppVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AppVersionRequest.ProtoReflect.Descriptor instead.
 func (*AppVersionRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{23}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AppVersionRequest) GetPlatform() Platform {
@@ -1391,7 +1508,7 @@ type AppVersionResponse struct {
 
 func (x *AppVersionResponse) Reset() {
 	*x = AppVersionResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[24]
+	mi := &file_siegel_v1_identity_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1520,7 @@ func (x *AppVersionResponse) String() string {
 func (*AppVersionResponse) ProtoMessage() {}
 
 func (x *AppVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[24]
+	mi := &file_siegel_v1_identity_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1533,7 @@ func (x *AppVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AppVersionResponse.ProtoReflect.Descriptor instead.
 func (*AppVersionResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{24}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *AppVersionResponse) GetLatest() uint32 {
@@ -1442,7 +1559,7 @@ type DiscoveryServiceSetDiscoverableRequest struct {
 
 func (x *DiscoveryServiceSetDiscoverableRequest) Reset() {
 	*x = DiscoveryServiceSetDiscoverableRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[25]
+	mi := &file_siegel_v1_identity_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1454,7 +1571,7 @@ func (x *DiscoveryServiceSetDiscoverableRequest) String() string {
 func (*DiscoveryServiceSetDiscoverableRequest) ProtoMessage() {}
 
 func (x *DiscoveryServiceSetDiscoverableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[25]
+	mi := &file_siegel_v1_identity_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1467,7 +1584,7 @@ func (x *DiscoveryServiceSetDiscoverableRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use DiscoveryServiceSetDiscoverableRequest.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceSetDiscoverableRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{25}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *DiscoveryServiceSetDiscoverableRequest) GetPhoneE164() string {
@@ -1485,7 +1602,7 @@ type DiscoveryServiceSetDiscoverableResponse struct {
 
 func (x *DiscoveryServiceSetDiscoverableResponse) Reset() {
 	*x = DiscoveryServiceSetDiscoverableResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[26]
+	mi := &file_siegel_v1_identity_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1497,7 +1614,7 @@ func (x *DiscoveryServiceSetDiscoverableResponse) String() string {
 func (*DiscoveryServiceSetDiscoverableResponse) ProtoMessage() {}
 
 func (x *DiscoveryServiceSetDiscoverableResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[26]
+	mi := &file_siegel_v1_identity_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1627,7 @@ func (x *DiscoveryServiceSetDiscoverableResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use DiscoveryServiceSetDiscoverableResponse.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceSetDiscoverableResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{26}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{28}
 }
 
 type DiscoveryServiceGetDiscoverableRequest struct {
@@ -1521,7 +1638,7 @@ type DiscoveryServiceGetDiscoverableRequest struct {
 
 func (x *DiscoveryServiceGetDiscoverableRequest) Reset() {
 	*x = DiscoveryServiceGetDiscoverableRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[27]
+	mi := &file_siegel_v1_identity_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1533,7 +1650,7 @@ func (x *DiscoveryServiceGetDiscoverableRequest) String() string {
 func (*DiscoveryServiceGetDiscoverableRequest) ProtoMessage() {}
 
 func (x *DiscoveryServiceGetDiscoverableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[27]
+	mi := &file_siegel_v1_identity_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1546,7 +1663,7 @@ func (x *DiscoveryServiceGetDiscoverableRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use DiscoveryServiceGetDiscoverableRequest.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceGetDiscoverableRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{27}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{29}
 }
 
 type DiscoveryServiceGetDiscoverableResponse struct {
@@ -1558,7 +1675,7 @@ type DiscoveryServiceGetDiscoverableResponse struct {
 
 func (x *DiscoveryServiceGetDiscoverableResponse) Reset() {
 	*x = DiscoveryServiceGetDiscoverableResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[28]
+	mi := &file_siegel_v1_identity_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1570,7 +1687,7 @@ func (x *DiscoveryServiceGetDiscoverableResponse) String() string {
 func (*DiscoveryServiceGetDiscoverableResponse) ProtoMessage() {}
 
 func (x *DiscoveryServiceGetDiscoverableResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[28]
+	mi := &file_siegel_v1_identity_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1583,7 +1700,7 @@ func (x *DiscoveryServiceGetDiscoverableResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use DiscoveryServiceGetDiscoverableResponse.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceGetDiscoverableResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{28}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DiscoveryServiceGetDiscoverableResponse) GetOn() bool {
@@ -1602,7 +1719,7 @@ type DiscoveryServiceEvaluateRequest struct {
 
 func (x *DiscoveryServiceEvaluateRequest) Reset() {
 	*x = DiscoveryServiceEvaluateRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[29]
+	mi := &file_siegel_v1_identity_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +1731,7 @@ func (x *DiscoveryServiceEvaluateRequest) String() string {
 func (*DiscoveryServiceEvaluateRequest) ProtoMessage() {}
 
 func (x *DiscoveryServiceEvaluateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[29]
+	mi := &file_siegel_v1_identity_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +1744,7 @@ func (x *DiscoveryServiceEvaluateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryServiceEvaluateRequest.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceEvaluateRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{29}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *DiscoveryServiceEvaluateRequest) GetBlinded() [][]byte {
@@ -1648,7 +1765,7 @@ type DiscoveryServiceEvaluateResponse struct {
 
 func (x *DiscoveryServiceEvaluateResponse) Reset() {
 	*x = DiscoveryServiceEvaluateResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[30]
+	mi := &file_siegel_v1_identity_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1660,7 +1777,7 @@ func (x *DiscoveryServiceEvaluateResponse) String() string {
 func (*DiscoveryServiceEvaluateResponse) ProtoMessage() {}
 
 func (x *DiscoveryServiceEvaluateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[30]
+	mi := &file_siegel_v1_identity_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1673,7 +1790,7 @@ func (x *DiscoveryServiceEvaluateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryServiceEvaluateResponse.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceEvaluateResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{30}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *DiscoveryServiceEvaluateResponse) GetEvaluated() [][]byte {
@@ -1707,7 +1824,7 @@ type DiscoveryServiceBucketsRequest struct {
 
 func (x *DiscoveryServiceBucketsRequest) Reset() {
 	*x = DiscoveryServiceBucketsRequest{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[31]
+	mi := &file_siegel_v1_identity_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1719,7 +1836,7 @@ func (x *DiscoveryServiceBucketsRequest) String() string {
 func (*DiscoveryServiceBucketsRequest) ProtoMessage() {}
 
 func (x *DiscoveryServiceBucketsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[31]
+	mi := &file_siegel_v1_identity_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1732,7 +1849,7 @@ func (x *DiscoveryServiceBucketsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryServiceBucketsRequest.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceBucketsRequest) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{31}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DiscoveryServiceBucketsRequest) GetPeriod() int64 {
@@ -1758,7 +1875,7 @@ type DiscoveryServiceBucketsResponse struct {
 
 func (x *DiscoveryServiceBucketsResponse) Reset() {
 	*x = DiscoveryServiceBucketsResponse{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[32]
+	mi := &file_siegel_v1_identity_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1770,7 +1887,7 @@ func (x *DiscoveryServiceBucketsResponse) String() string {
 func (*DiscoveryServiceBucketsResponse) ProtoMessage() {}
 
 func (x *DiscoveryServiceBucketsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[32]
+	mi := &file_siegel_v1_identity_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1783,7 +1900,7 @@ func (x *DiscoveryServiceBucketsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryServiceBucketsResponse.ProtoReflect.Descriptor instead.
 func (*DiscoveryServiceBucketsResponse) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{32}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DiscoveryServiceBucketsResponse) GetEntries() []*DirectoryEntry {
@@ -1805,7 +1922,7 @@ type DirectoryEntry struct {
 
 func (x *DirectoryEntry) Reset() {
 	*x = DirectoryEntry{}
-	mi := &file_siegel_v1_identity_proto_msgTypes[33]
+	mi := &file_siegel_v1_identity_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1817,7 +1934,7 @@ func (x *DirectoryEntry) String() string {
 func (*DirectoryEntry) ProtoMessage() {}
 
 func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_identity_proto_msgTypes[33]
+	mi := &file_siegel_v1_identity_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1830,7 +1947,7 @@ func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectoryEntry.ProtoReflect.Descriptor instead.
 func (*DirectoryEntry) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{33}
+	return file_siegel_v1_identity_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DirectoryEntry) GetId() []byte {
@@ -1878,15 +1995,22 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\x11registration_lock\x18\b \x01(\bR\x10registrationLock\"7\n" +
 	"\x19UsernameServiceSetRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\"\x1c\n" +
-	"\x1aUsernameServiceSetResponse\":\n" +
+	"\x1aUsernameServiceSetResponse\"\x84\x01\n" +
 	"\x1cUsernameServiceLookupRequest\x12\x1a\n" +
-	"\busername\x18\x01 \x01(\tR\busername\"\x84\x01\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12'\n" +
+	"\x0fdiscovery_proof\x18\x02 \x01(\fR\x0ediscoveryProof\x12\x1f\n" +
+	"\vlink_secret\x18\x03 \x01(\fR\n" +
+	"linkSecret\"\x84\x01\n" +
 	"\x1dUsernameServiceLookupResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\fR\taccountId\x12!\n" +
 	"\fidentity_pub\x18\x02 \x01(\fR\videntityPub\x12!\n" +
-	"\fas_signature\x18\x03 \x01(\fR\vasSignature\"\x1d\n" +
-	"\x1bAccountServiceExportRequest\"\xbd\x04\n" +
+	"\fas_signature\x18\x03 \x01(\fR\vasSignature\"Q\n" +
+	"\x0fSetMinorRequest\x12\x14\n" +
+	"\x05minor\x18\x01 \x01(\bR\x05minor\x12(\n" +
+	"\x10link_secret_hash\x18\x02 \x01(\fR\x0elinkSecretHash\"\x12\n" +
+	"\x10SetMinorResponse\"\x1d\n" +
+	"\x1bAccountServiceExportRequest\"\xd3\x04\n" +
 	"\x1cAccountServiceExportResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\fR\taccountId\x12\x1d\n" +
@@ -1905,7 +2029,8 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"\aprofile\x18\v \x01(\bR\aprofile\x12'\n" +
 	"\x0fprofile_picture\x18\f \x01(\bR\x0eprofilePicture\x12'\n" +
 	"\x0fnumbers_checked\x18\r \x01(\x05R\x0enumbersChecked\x123\n" +
-	"\adevices\x18\x0e \x03(\v2\x19.siegel.v1.ExportedDeviceR\adevices\"\xfd\x01\n" +
+	"\adevices\x18\x0e \x03(\v2\x19.siegel.v1.ExportedDeviceR\adevices\x12\x14\n" +
+	"\x05minor\x18\x0f \x01(\bR\x05minor\"\xfd\x01\n" +
 	"\x0eExportedDevice\x12\x1b\n" +
 	"\tdevice_id\x18\x01 \x01(\fR\bdeviceId\x12/\n" +
 	"\bplatform\x18\x02 \x01(\x0e2\x13.siegel.v1.PlatformR\bplatform\x12\"\n" +
@@ -1980,13 +2105,14 @@ const file_siegel_v1_identity_proto_rawDesc = "" +
 	"AppVersion\x12\x1c.siegel.v1.AppVersionRequest\x1a\x1d.siegel.v1.AppVersionResponse2\xc2\x01\n" +
 	"\x0fUsernameService\x12R\n" +
 	"\x03Set\x12$.siegel.v1.UsernameServiceSetRequest\x1a%.siegel.v1.UsernameServiceSetResponse\x12[\n" +
-	"\x06Lookup\x12'.siegel.v1.UsernameServiceLookupRequest\x1a(.siegel.v1.UsernameServiceLookupResponse2\xce\x03\n" +
+	"\x06Lookup\x12'.siegel.v1.UsernameServiceLookupRequest\x1a(.siegel.v1.UsernameServiceLookupResponse2\x93\x04\n" +
 	"\x0eAccountService\x12d\n" +
 	"\x13SetRegistrationLock\x12%.siegel.v1.SetRegistrationLockRequest\x1a&.siegel.v1.SetRegistrationLockResponse\x12Y\n" +
 	"\x06Delete\x12&.siegel.v1.AccountServiceDeleteRequest\x1a'.siegel.v1.AccountServiceDeleteResponse\x12O\n" +
 	"\fSetPushToken\x12\x1e.siegel.v1.SetPushTokenRequest\x1a\x1f.siegel.v1.SetPushTokenResponse\x12O\n" +
 	"\fChangeNumber\x12\x1e.siegel.v1.ChangeNumberRequest\x1a\x1f.siegel.v1.ChangeNumberResponse\x12Y\n" +
-	"\x06Export\x12&.siegel.v1.AccountServiceExportRequest\x1a'.siegel.v1.AccountServiceExportResponse2\xb4\x01\n" +
+	"\x06Export\x12&.siegel.v1.AccountServiceExportRequest\x1a'.siegel.v1.AccountServiceExportResponse\x12C\n" +
+	"\bSetMinor\x12\x1a.siegel.v1.SetMinorRequest\x1a\x1b.siegel.v1.SetMinorResponse2\xb4\x01\n" +
 	"\x0eProfileService\x12P\n" +
 	"\x03Set\x12#.siegel.v1.ProfileServiceSetRequest\x1a$.siegel.v1.ProfileServiceSetResponse\x12P\n" +
 	"\x03Get\x12#.siegel.v1.ProfileServiceGetRequest\x1a$.siegel.v1.ProfileServiceGetResponse2\xcd\x03\n" +
@@ -2009,7 +2135,7 @@ func file_siegel_v1_identity_proto_rawDescGZIP() []byte {
 }
 
 var file_siegel_v1_identity_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_siegel_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_siegel_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_siegel_v1_identity_proto_goTypes = []any{
 	(Platform)(0),                                   // 0: siegel.v1.Platform
 	(*RequestOtpRequest)(nil),                       // 1: siegel.v1.RequestOtpRequest
@@ -2020,74 +2146,78 @@ var file_siegel_v1_identity_proto_goTypes = []any{
 	(*UsernameServiceSetResponse)(nil),              // 6: siegel.v1.UsernameServiceSetResponse
 	(*UsernameServiceLookupRequest)(nil),            // 7: siegel.v1.UsernameServiceLookupRequest
 	(*UsernameServiceLookupResponse)(nil),           // 8: siegel.v1.UsernameServiceLookupResponse
-	(*AccountServiceExportRequest)(nil),             // 9: siegel.v1.AccountServiceExportRequest
-	(*AccountServiceExportResponse)(nil),            // 10: siegel.v1.AccountServiceExportResponse
-	(*ExportedDevice)(nil),                          // 11: siegel.v1.ExportedDevice
-	(*ChangeNumberRequest)(nil),                     // 12: siegel.v1.ChangeNumberRequest
-	(*ChangeNumberResponse)(nil),                    // 13: siegel.v1.ChangeNumberResponse
-	(*SetPushTokenRequest)(nil),                     // 14: siegel.v1.SetPushTokenRequest
-	(*SetPushTokenResponse)(nil),                    // 15: siegel.v1.SetPushTokenResponse
-	(*SetRegistrationLockRequest)(nil),              // 16: siegel.v1.SetRegistrationLockRequest
-	(*SetRegistrationLockResponse)(nil),             // 17: siegel.v1.SetRegistrationLockResponse
-	(*AccountServiceDeleteRequest)(nil),             // 18: siegel.v1.AccountServiceDeleteRequest
-	(*AccountServiceDeleteResponse)(nil),            // 19: siegel.v1.AccountServiceDeleteResponse
-	(*ProfileServiceSetRequest)(nil),                // 20: siegel.v1.ProfileServiceSetRequest
-	(*ProfileServiceSetResponse)(nil),               // 21: siegel.v1.ProfileServiceSetResponse
-	(*ProfileServiceGetRequest)(nil),                // 22: siegel.v1.ProfileServiceGetRequest
-	(*ProfileServiceGetResponse)(nil),               // 23: siegel.v1.ProfileServiceGetResponse
-	(*AppVersionRequest)(nil),                       // 24: siegel.v1.AppVersionRequest
-	(*AppVersionResponse)(nil),                      // 25: siegel.v1.AppVersionResponse
-	(*DiscoveryServiceSetDiscoverableRequest)(nil),  // 26: siegel.v1.DiscoveryServiceSetDiscoverableRequest
-	(*DiscoveryServiceSetDiscoverableResponse)(nil), // 27: siegel.v1.DiscoveryServiceSetDiscoverableResponse
-	(*DiscoveryServiceGetDiscoverableRequest)(nil),  // 28: siegel.v1.DiscoveryServiceGetDiscoverableRequest
-	(*DiscoveryServiceGetDiscoverableResponse)(nil), // 29: siegel.v1.DiscoveryServiceGetDiscoverableResponse
-	(*DiscoveryServiceEvaluateRequest)(nil),         // 30: siegel.v1.DiscoveryServiceEvaluateRequest
-	(*DiscoveryServiceEvaluateResponse)(nil),        // 31: siegel.v1.DiscoveryServiceEvaluateResponse
-	(*DiscoveryServiceBucketsRequest)(nil),          // 32: siegel.v1.DiscoveryServiceBucketsRequest
-	(*DiscoveryServiceBucketsResponse)(nil),         // 33: siegel.v1.DiscoveryServiceBucketsResponse
-	(*DirectoryEntry)(nil),                          // 34: siegel.v1.DirectoryEntry
+	(*SetMinorRequest)(nil),                         // 9: siegel.v1.SetMinorRequest
+	(*SetMinorResponse)(nil),                        // 10: siegel.v1.SetMinorResponse
+	(*AccountServiceExportRequest)(nil),             // 11: siegel.v1.AccountServiceExportRequest
+	(*AccountServiceExportResponse)(nil),            // 12: siegel.v1.AccountServiceExportResponse
+	(*ExportedDevice)(nil),                          // 13: siegel.v1.ExportedDevice
+	(*ChangeNumberRequest)(nil),                     // 14: siegel.v1.ChangeNumberRequest
+	(*ChangeNumberResponse)(nil),                    // 15: siegel.v1.ChangeNumberResponse
+	(*SetPushTokenRequest)(nil),                     // 16: siegel.v1.SetPushTokenRequest
+	(*SetPushTokenResponse)(nil),                    // 17: siegel.v1.SetPushTokenResponse
+	(*SetRegistrationLockRequest)(nil),              // 18: siegel.v1.SetRegistrationLockRequest
+	(*SetRegistrationLockResponse)(nil),             // 19: siegel.v1.SetRegistrationLockResponse
+	(*AccountServiceDeleteRequest)(nil),             // 20: siegel.v1.AccountServiceDeleteRequest
+	(*AccountServiceDeleteResponse)(nil),            // 21: siegel.v1.AccountServiceDeleteResponse
+	(*ProfileServiceSetRequest)(nil),                // 22: siegel.v1.ProfileServiceSetRequest
+	(*ProfileServiceSetResponse)(nil),               // 23: siegel.v1.ProfileServiceSetResponse
+	(*ProfileServiceGetRequest)(nil),                // 24: siegel.v1.ProfileServiceGetRequest
+	(*ProfileServiceGetResponse)(nil),               // 25: siegel.v1.ProfileServiceGetResponse
+	(*AppVersionRequest)(nil),                       // 26: siegel.v1.AppVersionRequest
+	(*AppVersionResponse)(nil),                      // 27: siegel.v1.AppVersionResponse
+	(*DiscoveryServiceSetDiscoverableRequest)(nil),  // 28: siegel.v1.DiscoveryServiceSetDiscoverableRequest
+	(*DiscoveryServiceSetDiscoverableResponse)(nil), // 29: siegel.v1.DiscoveryServiceSetDiscoverableResponse
+	(*DiscoveryServiceGetDiscoverableRequest)(nil),  // 30: siegel.v1.DiscoveryServiceGetDiscoverableRequest
+	(*DiscoveryServiceGetDiscoverableResponse)(nil), // 31: siegel.v1.DiscoveryServiceGetDiscoverableResponse
+	(*DiscoveryServiceEvaluateRequest)(nil),         // 32: siegel.v1.DiscoveryServiceEvaluateRequest
+	(*DiscoveryServiceEvaluateResponse)(nil),        // 33: siegel.v1.DiscoveryServiceEvaluateResponse
+	(*DiscoveryServiceBucketsRequest)(nil),          // 34: siegel.v1.DiscoveryServiceBucketsRequest
+	(*DiscoveryServiceBucketsResponse)(nil),         // 35: siegel.v1.DiscoveryServiceBucketsResponse
+	(*DirectoryEntry)(nil),                          // 36: siegel.v1.DirectoryEntry
 }
 var file_siegel_v1_identity_proto_depIdxs = []int32{
 	0,  // 0: siegel.v1.RequestOtpRequest.platform:type_name -> siegel.v1.Platform
 	0,  // 1: siegel.v1.VerifyRequest.platform:type_name -> siegel.v1.Platform
-	11, // 2: siegel.v1.AccountServiceExportResponse.devices:type_name -> siegel.v1.ExportedDevice
+	13, // 2: siegel.v1.AccountServiceExportResponse.devices:type_name -> siegel.v1.ExportedDevice
 	0,  // 3: siegel.v1.ExportedDevice.platform:type_name -> siegel.v1.Platform
 	0,  // 4: siegel.v1.AppVersionRequest.platform:type_name -> siegel.v1.Platform
-	34, // 5: siegel.v1.DiscoveryServiceBucketsResponse.entries:type_name -> siegel.v1.DirectoryEntry
+	36, // 5: siegel.v1.DiscoveryServiceBucketsResponse.entries:type_name -> siegel.v1.DirectoryEntry
 	1,  // 6: siegel.v1.RegistrationService.RequestOtp:input_type -> siegel.v1.RequestOtpRequest
 	3,  // 7: siegel.v1.RegistrationService.Verify:input_type -> siegel.v1.VerifyRequest
-	24, // 8: siegel.v1.RegistrationService.AppVersion:input_type -> siegel.v1.AppVersionRequest
+	26, // 8: siegel.v1.RegistrationService.AppVersion:input_type -> siegel.v1.AppVersionRequest
 	5,  // 9: siegel.v1.UsernameService.Set:input_type -> siegel.v1.UsernameServiceSetRequest
 	7,  // 10: siegel.v1.UsernameService.Lookup:input_type -> siegel.v1.UsernameServiceLookupRequest
-	16, // 11: siegel.v1.AccountService.SetRegistrationLock:input_type -> siegel.v1.SetRegistrationLockRequest
-	18, // 12: siegel.v1.AccountService.Delete:input_type -> siegel.v1.AccountServiceDeleteRequest
-	14, // 13: siegel.v1.AccountService.SetPushToken:input_type -> siegel.v1.SetPushTokenRequest
-	12, // 14: siegel.v1.AccountService.ChangeNumber:input_type -> siegel.v1.ChangeNumberRequest
-	9,  // 15: siegel.v1.AccountService.Export:input_type -> siegel.v1.AccountServiceExportRequest
-	20, // 16: siegel.v1.ProfileService.Set:input_type -> siegel.v1.ProfileServiceSetRequest
-	22, // 17: siegel.v1.ProfileService.Get:input_type -> siegel.v1.ProfileServiceGetRequest
-	26, // 18: siegel.v1.DiscoveryService.SetDiscoverable:input_type -> siegel.v1.DiscoveryServiceSetDiscoverableRequest
-	28, // 19: siegel.v1.DiscoveryService.GetDiscoverable:input_type -> siegel.v1.DiscoveryServiceGetDiscoverableRequest
-	30, // 20: siegel.v1.DiscoveryService.Evaluate:input_type -> siegel.v1.DiscoveryServiceEvaluateRequest
-	32, // 21: siegel.v1.DiscoveryService.Buckets:input_type -> siegel.v1.DiscoveryServiceBucketsRequest
-	2,  // 22: siegel.v1.RegistrationService.RequestOtp:output_type -> siegel.v1.RequestOtpResponse
-	4,  // 23: siegel.v1.RegistrationService.Verify:output_type -> siegel.v1.VerifyResponse
-	25, // 24: siegel.v1.RegistrationService.AppVersion:output_type -> siegel.v1.AppVersionResponse
-	6,  // 25: siegel.v1.UsernameService.Set:output_type -> siegel.v1.UsernameServiceSetResponse
-	8,  // 26: siegel.v1.UsernameService.Lookup:output_type -> siegel.v1.UsernameServiceLookupResponse
-	17, // 27: siegel.v1.AccountService.SetRegistrationLock:output_type -> siegel.v1.SetRegistrationLockResponse
-	19, // 28: siegel.v1.AccountService.Delete:output_type -> siegel.v1.AccountServiceDeleteResponse
-	15, // 29: siegel.v1.AccountService.SetPushToken:output_type -> siegel.v1.SetPushTokenResponse
-	13, // 30: siegel.v1.AccountService.ChangeNumber:output_type -> siegel.v1.ChangeNumberResponse
-	10, // 31: siegel.v1.AccountService.Export:output_type -> siegel.v1.AccountServiceExportResponse
-	21, // 32: siegel.v1.ProfileService.Set:output_type -> siegel.v1.ProfileServiceSetResponse
-	23, // 33: siegel.v1.ProfileService.Get:output_type -> siegel.v1.ProfileServiceGetResponse
-	27, // 34: siegel.v1.DiscoveryService.SetDiscoverable:output_type -> siegel.v1.DiscoveryServiceSetDiscoverableResponse
-	29, // 35: siegel.v1.DiscoveryService.GetDiscoverable:output_type -> siegel.v1.DiscoveryServiceGetDiscoverableResponse
-	31, // 36: siegel.v1.DiscoveryService.Evaluate:output_type -> siegel.v1.DiscoveryServiceEvaluateResponse
-	33, // 37: siegel.v1.DiscoveryService.Buckets:output_type -> siegel.v1.DiscoveryServiceBucketsResponse
-	22, // [22:38] is the sub-list for method output_type
-	6,  // [6:22] is the sub-list for method input_type
+	18, // 11: siegel.v1.AccountService.SetRegistrationLock:input_type -> siegel.v1.SetRegistrationLockRequest
+	20, // 12: siegel.v1.AccountService.Delete:input_type -> siegel.v1.AccountServiceDeleteRequest
+	16, // 13: siegel.v1.AccountService.SetPushToken:input_type -> siegel.v1.SetPushTokenRequest
+	14, // 14: siegel.v1.AccountService.ChangeNumber:input_type -> siegel.v1.ChangeNumberRequest
+	11, // 15: siegel.v1.AccountService.Export:input_type -> siegel.v1.AccountServiceExportRequest
+	9,  // 16: siegel.v1.AccountService.SetMinor:input_type -> siegel.v1.SetMinorRequest
+	22, // 17: siegel.v1.ProfileService.Set:input_type -> siegel.v1.ProfileServiceSetRequest
+	24, // 18: siegel.v1.ProfileService.Get:input_type -> siegel.v1.ProfileServiceGetRequest
+	28, // 19: siegel.v1.DiscoveryService.SetDiscoverable:input_type -> siegel.v1.DiscoveryServiceSetDiscoverableRequest
+	30, // 20: siegel.v1.DiscoveryService.GetDiscoverable:input_type -> siegel.v1.DiscoveryServiceGetDiscoverableRequest
+	32, // 21: siegel.v1.DiscoveryService.Evaluate:input_type -> siegel.v1.DiscoveryServiceEvaluateRequest
+	34, // 22: siegel.v1.DiscoveryService.Buckets:input_type -> siegel.v1.DiscoveryServiceBucketsRequest
+	2,  // 23: siegel.v1.RegistrationService.RequestOtp:output_type -> siegel.v1.RequestOtpResponse
+	4,  // 24: siegel.v1.RegistrationService.Verify:output_type -> siegel.v1.VerifyResponse
+	27, // 25: siegel.v1.RegistrationService.AppVersion:output_type -> siegel.v1.AppVersionResponse
+	6,  // 26: siegel.v1.UsernameService.Set:output_type -> siegel.v1.UsernameServiceSetResponse
+	8,  // 27: siegel.v1.UsernameService.Lookup:output_type -> siegel.v1.UsernameServiceLookupResponse
+	19, // 28: siegel.v1.AccountService.SetRegistrationLock:output_type -> siegel.v1.SetRegistrationLockResponse
+	21, // 29: siegel.v1.AccountService.Delete:output_type -> siegel.v1.AccountServiceDeleteResponse
+	17, // 30: siegel.v1.AccountService.SetPushToken:output_type -> siegel.v1.SetPushTokenResponse
+	15, // 31: siegel.v1.AccountService.ChangeNumber:output_type -> siegel.v1.ChangeNumberResponse
+	12, // 32: siegel.v1.AccountService.Export:output_type -> siegel.v1.AccountServiceExportResponse
+	10, // 33: siegel.v1.AccountService.SetMinor:output_type -> siegel.v1.SetMinorResponse
+	23, // 34: siegel.v1.ProfileService.Set:output_type -> siegel.v1.ProfileServiceSetResponse
+	25, // 35: siegel.v1.ProfileService.Get:output_type -> siegel.v1.ProfileServiceGetResponse
+	29, // 36: siegel.v1.DiscoveryService.SetDiscoverable:output_type -> siegel.v1.DiscoveryServiceSetDiscoverableResponse
+	31, // 37: siegel.v1.DiscoveryService.GetDiscoverable:output_type -> siegel.v1.DiscoveryServiceGetDiscoverableResponse
+	33, // 38: siegel.v1.DiscoveryService.Evaluate:output_type -> siegel.v1.DiscoveryServiceEvaluateResponse
+	35, // 39: siegel.v1.DiscoveryService.Buckets:output_type -> siegel.v1.DiscoveryServiceBucketsResponse
+	23, // [23:40] is the sub-list for method output_type
+	6,  // [6:23] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -2104,7 +2234,7 @@ func file_siegel_v1_identity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_identity_proto_rawDesc), len(file_siegel_v1_identity_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   34,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   5,
 		},

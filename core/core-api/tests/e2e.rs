@@ -1027,6 +1027,7 @@ async fn contact_links_skip_the_request_and_verify() {
     let (carol, _) = new_user(&url, "carol").await;
     let mut bob_events = listen(&bob);
     let link = bob.contact_link().unwrap().expect("on from registration");
+    bob.set_minor(true).await.unwrap(); // M7: the link still finds someone under 18
     assert!(link.starts_with(&format!("{url}/u/")));
 
     // A tampered fingerprint means a different key: refused.
@@ -1303,13 +1304,27 @@ async fn find_contacts_by_number() {
     );
     bob.set_discoverable(true).await.unwrap();
     assert!(bob.discoverable().await.unwrap());
+    let found = alice.find_contacts(&book).await.unwrap();
     assert_eq!(
-        alice.find_contacts(&book).await.unwrap(),
-        vec![core_api::Found {
-            phone: bob_phone.clone(),
-            username: bob_name.clone()
-        }]
+        found
+            .iter()
+            .map(|f| (f.phone.clone(), f.username.clone()))
+            .collect::<Vec<_>>(),
+        vec![(bob_phone.clone(), bob_name.clone())]
     );
+
+    // M7: under 18, Bob can't be found by @username, only through his number (or link).
+    bob.set_minor(true).await.unwrap();
+    assert!(bob.minor());
+    assert_eq!(
+        alice.start_chat(&bob_name).await.unwrap_err().code,
+        "username_not_found"
+    );
+    alice
+        .start_chat_by_number(&bob_name, &found[0].proof)
+        .await
+        .unwrap();
+    bob.set_minor(false).await.unwrap();
     bob.set_discoverable(false).await.unwrap();
     assert!(
         alice.find_contacts(&book).await.unwrap().is_empty(),
@@ -1348,11 +1363,11 @@ async fn change_number_moves_a_recycled_number() {
         alice
             .find_contacts(std::slice::from_ref(&bob_phone))
             .await
-            .unwrap(),
-        vec![core_api::Found {
-            phone: bob_phone.clone(),
-            username: carol_name
-        }]
+            .unwrap()
+            .into_iter()
+            .map(|f| (f.phone, f.username))
+            .collect::<Vec<_>>(),
+        vec![(bob_phone.clone(), carol_name)]
     );
 
     let told = tokio::time::timeout(std::time::Duration::from_secs(10), async {

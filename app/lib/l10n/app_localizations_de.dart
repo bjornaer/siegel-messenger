@@ -1176,4 +1176,38 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get agreeToTerms => 'Mit dem Fortfahren akzeptierst du unsere';
+
+  @override
+  String get birthMonth => 'Geburtsmonat';
+
+  @override
+  String get birthYear => 'Geburtsjahr';
+
+  @override
+  String get birthTitle => 'Wann bist du geboren?';
+
+  @override
+  String get birthWhy =>
+      'Siegel schützt Menschen unter 18: Fremde finden sie nicht über ihren @Benutzernamen, und nur ihre Kontakte können sie zu Gruppen hinzufügen. Dein Geburtsdatum bleibt auf diesem Telefon; wir erfahren nur, ob du unter 18 bist.';
+
+  @override
+  String tooYoung(int age) {
+    return 'Siegel ist für Menschen ab $age Jahren.';
+  }
+
+  @override
+  String get groupAddsMinor => 'Nur Kontakte: Du bist unter 18.';
+
+  @override
+  String get skMinor => 'Unter 18';
+
+  @override
+  String get yes => 'Ja';
+
+  @override
+  String get no => 'Nein';
+
+  @override
+  String get tapToView =>
+      'Von jemandem, den du nicht angenommen hast. Tippe zum Ansehen.';
 }

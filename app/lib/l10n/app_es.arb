@@ -327,5 +327,15 @@
   "privacyPolicy": "Política de privacidad",
   "terms": "Términos",
   "guidelines": "Normas",
-  "agreeToTerms": "Al continuar aceptas nuestros"
+  "agreeToTerms": "Al continuar aceptas nuestros",
+  "birthMonth": "Mes de nacimiento",
+  "birthYear": "Año de nacimiento",
+  "birthTitle": "¿Cuándo naciste?",
+  "birthWhy": "Siegel protege a los menores de 18: los desconocidos no pueden encontrarlos por su @usuario, y solo sus contactos pueden añadirlos a grupos. Tu fecha de nacimiento se queda en este teléfono; solo sabemos si tienes menos de 18.",
+  "tooYoung": "Siegel es para personas de {age} años o más.",
+  "groupAddsMinor": "Solo contactos: tienes menos de 18.",
+  "skMinor": "Menor de 18",
+  "yes": "Sí",
+  "no": "No",
+  "tapToView": "De alguien que no has aceptado. Toca para ver."
 }

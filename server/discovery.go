@@ -147,6 +147,41 @@ func (s discovery) GetDiscoverable(ctx context.Context, _ *connect.Request[siege
 	return connect.NewResponse(&siegelv1.DiscoveryServiceGetDiscoverableResponse{On: on}), nil
 }
 
+// discHolds: does proof equal the account's discovery output O this key period (or the last
+// one, around a rotation)? Only someone who evaluated their number gets O (M7).
+func (s *server) discHolds(ctx context.Context, acct [16]byte, proof []byte) (bool, error) {
+	if len(proof) != sha256.Size {
+		return false, nil
+	}
+	var yb []byte
+	err := s.db.QueryRow(ctx, `SELECT y FROM discovery WHERE account_id = $1`, acct).Scan(&yb)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	y, err := ristretto255.NewElement().SetCanonicalBytes(yb)
+	if err != nil {
+		return false, nil
+	}
+	m, err := s.disc.scalar(ctx, "master")
+	if err != nil {
+		return false, err
+	}
+	now := s.discPeriod(time.Now())
+	for _, p := range []int64{now, now - 1} {
+		k, err := s.disc.scalar(ctx, fmt.Sprint("period:", p))
+		if err != nil {
+			return false, err
+		}
+		shift := ristretto255.NewScalar().Multiply(k, ristretto255.NewScalar().Invert(m))
+		if subtle.ConstantTimeCompare(discOutput(ristretto255.NewElement().ScalarMult(shift, y)), proof) == 1 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // discQuota is DISC-06: a first-sync allowance per key period, then a daily one.
 func (s *server) discQuota(ctx context.Context, acct [16]byte, n int) (bool, error) {
 	a := hex.EncodeToString(acct[:])

@@ -327,5 +327,15 @@
   "privacyPolicy": "Datenschutzerklärung",
   "terms": "Bedingungen",
   "guidelines": "Regeln",
-  "agreeToTerms": "Mit dem Fortfahren akzeptierst du unsere"
+  "agreeToTerms": "Mit dem Fortfahren akzeptierst du unsere",
+  "birthMonth": "Geburtsmonat",
+  "birthYear": "Geburtsjahr",
+  "birthTitle": "Wann bist du geboren?",
+  "birthWhy": "Siegel schützt Menschen unter 18: Fremde finden sie nicht über ihren @Benutzernamen, und nur ihre Kontakte können sie zu Gruppen hinzufügen. Dein Geburtsdatum bleibt auf diesem Telefon; wir erfahren nur, ob du unter 18 bist.",
+  "tooYoung": "Siegel ist für Menschen ab {age} Jahren.",
+  "groupAddsMinor": "Nur Kontakte: Du bist unter 18.",
+  "skMinor": "Unter 18",
+  "yes": "Ja",
+  "no": "Nein",
+  "tapToView": "Von jemandem, den du nicht angenommen hast. Tippe zum Ansehen."
 }

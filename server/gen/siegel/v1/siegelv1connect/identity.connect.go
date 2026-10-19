@@ -67,6 +67,8 @@ const (
 	AccountServiceChangeNumberProcedure = "/siegel.v1.AccountService/ChangeNumber"
 	// AccountServiceExportProcedure is the fully-qualified name of the AccountService's Export RPC.
 	AccountServiceExportProcedure = "/siegel.v1.AccountService/Export"
+	// AccountServiceSetMinorProcedure is the fully-qualified name of the AccountService's SetMinor RPC.
+	AccountServiceSetMinorProcedure = "/siegel.v1.AccountService/SetMinor"
 	// ProfileServiceSetProcedure is the fully-qualified name of the ProfileService's Set RPC.
 	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
 	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
@@ -331,6 +333,9 @@ type AccountServiceClient interface {
 	ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error)
 	// Everything the server holds about the caller's account (CMP-06, RM-01). Auth: device.
 	Export(context.Context, *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error)
+	// M7: the account belongs to someone under 18 (the app knows the birth date; we only learn
+	// this flag). Hides the account from @username search. Auth: device.
+	SetMinor(context.Context, *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error)
 }
 
 // NewAccountServiceClient constructs a client for the siegel.v1.AccountService service. By default,
@@ -374,6 +379,12 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("Export")),
 			connect.WithClientOptions(opts...),
 		),
+		setMinor: connect.NewClient[v1.SetMinorRequest, v1.SetMinorResponse](
+			httpClient,
+			baseURL+AccountServiceSetMinorProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("SetMinor")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -384,6 +395,7 @@ type accountServiceClient struct {
 	setPushToken        *connect.Client[v1.SetPushTokenRequest, v1.SetPushTokenResponse]
 	changeNumber        *connect.Client[v1.ChangeNumberRequest, v1.ChangeNumberResponse]
 	export              *connect.Client[v1.AccountServiceExportRequest, v1.AccountServiceExportResponse]
+	setMinor            *connect.Client[v1.SetMinorRequest, v1.SetMinorResponse]
 }
 
 // SetRegistrationLock calls siegel.v1.AccountService.SetRegistrationLock.
@@ -411,6 +423,11 @@ func (c *accountServiceClient) Export(ctx context.Context, req *connect.Request[
 	return c.export.CallUnary(ctx, req)
 }
 
+// SetMinor calls siegel.v1.AccountService.SetMinor.
+func (c *accountServiceClient) SetMinor(ctx context.Context, req *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error) {
+	return c.setMinor.CallUnary(ctx, req)
+}
+
 // AccountServiceHandler is an implementation of the siegel.v1.AccountService service.
 type AccountServiceHandler interface {
 	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
@@ -425,6 +442,9 @@ type AccountServiceHandler interface {
 	ChangeNumber(context.Context, *connect.Request[v1.ChangeNumberRequest]) (*connect.Response[v1.ChangeNumberResponse], error)
 	// Everything the server holds about the caller's account (CMP-06, RM-01). Auth: device.
 	Export(context.Context, *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error)
+	// M7: the account belongs to someone under 18 (the app knows the birth date; we only learn
+	// this flag). Hides the account from @username search. Auth: device.
+	SetMinor(context.Context, *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error)
 }
 
 // NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -464,6 +484,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("Export")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceSetMinorHandler := connect.NewUnaryHandler(
+		AccountServiceSetMinorProcedure,
+		svc.SetMinor,
+		connect.WithSchema(accountServiceMethods.ByName("SetMinor")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountServiceSetRegistrationLockProcedure:
@@ -476,6 +502,8 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceChangeNumberHandler.ServeHTTP(w, r)
 		case AccountServiceExportProcedure:
 			accountServiceExportHandler.ServeHTTP(w, r)
+		case AccountServiceSetMinorProcedure:
+			accountServiceSetMinorHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -503,6 +531,10 @@ func (UnimplementedAccountServiceHandler) ChangeNumber(context.Context, *connect
 
 func (UnimplementedAccountServiceHandler) Export(context.Context, *connect.Request[v1.AccountServiceExportRequest]) (*connect.Response[v1.AccountServiceExportResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.Export is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) SetMinor(context.Context, *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.SetMinor is not implemented"))
 }
 
 // ProfileServiceClient is a client for the siegel.v1.ProfileService service.

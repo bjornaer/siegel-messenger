@@ -14,6 +14,7 @@ import 'chats.dart';
 import 'discovery.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart';
+import 'minors.dart';
 import 'media.dart';
 import 'number.dart';
 import 'onboarding.dart';
@@ -162,10 +163,14 @@ class _SiegelAppState extends State<SiegelApp> {
       home: ready
           ? AppLock(
               core: core,
-              child: ChatListScreen(
+              child: BirthDateGate(
                 core: core,
-                service: _service(),
-                settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
+                onDelete: (ctx) => confirmDeleteAccount(ctx, core, _reset),
+                child: ChatListScreen(
+                  core: core,
+                  service: _service(),
+                  settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
+                ),
               ),
             )
           : Onboarding(
@@ -181,32 +186,33 @@ class _SiegelAppState extends State<SiegelApp> {
   }
 }
 
+/// ID-16, after a confirmation.
+Future<void> confirmDeleteAccount(BuildContext context, Core core, Future<void> Function() onDeleted) async {
+  final t = AppLocalizations.of(context)!;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text(t.deleteConfirmTitle),
+      content: Text(t.deleteConfirmBody),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t.cancel)),
+        TextButton(onPressed: () => Navigator.pop(c, true), child: Text(t.delete)),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    await core.deleteAccount();
+    await onDeleted();
+  } on CoreError catch (e) {
+    if (context.mounted) showError(context, e);
+  }
+}
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.core, required this.onDeleted});
   final Core core;
   final Future<void> Function() onDeleted;
-
-  Future<void> _delete(BuildContext context) async {
-    final t = AppLocalizations.of(context)!;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text(t.deleteConfirmTitle),
-        content: Text(t.deleteConfirmBody),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t.cancel)),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(t.delete)),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    try {
-      await core.deleteAccount();
-      await onDeleted();
-    } on CoreError catch (e) {
-      if (context.mounted) showError(context, e);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +280,7 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => appChannel.invokeMethod<void>('open', sourceUrl),
           ),
           const SizedBox(height: 16),
-          OutlinedButton(onPressed: () => _delete(context), child: Text(t.deleteAccount)),
+          OutlinedButton(onPressed: () => confirmDeleteAccount(context, core, onDeleted), child: Text(t.deleteAccount)),
         ],
       ),
     );
@@ -361,28 +367,33 @@ class _GroupAddsState extends State<_GroupAdds> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final everyone = widget.core.setting(key: 'group_adds') == 'everyone';
+    final minor = widget.core.minor(); // M7: locked to contacts
     return ListTile(
       leading: const Icon(Icons.group_add_outlined),
       title: Text(t.groupAdds),
-      subtitle: Text('${everyone ? t.groupAddsEveryone : t.groupAddsContacts}. ${t.groupAddsHelp}'),
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        builder: (s) => SafeArea(
-          child: Wrap(
-            children: [
-              for (final (label, value) in [(t.groupAddsContacts, 'contacts'), (t.groupAddsEveryone, 'everyone')])
-                ListTile(
-                  title: Text(label),
-                  trailing: (value == 'everyone') == everyone ? const Icon(Icons.check) : null,
-                  onTap: () {
-                    Navigator.pop(s);
-                    setState(() => widget.core.setSetting(key: 'group_adds', value: value));
-                  },
-                ),
-            ],
-          ),
-        ),
+      subtitle: Text(
+        minor ? t.groupAddsMinor : '${everyone ? t.groupAddsEveryone : t.groupAddsContacts}. ${t.groupAddsHelp}',
       ),
+      onTap: minor
+          ? null
+          : () => showModalBottomSheet<void>(
+              context: context,
+              builder: (s) => SafeArea(
+                child: Wrap(
+                  children: [
+                    for (final (label, value) in [(t.groupAddsContacts, 'contacts'), (t.groupAddsEveryone, 'everyone')])
+                      ListTile(
+                        title: Text(label),
+                        trailing: (value == 'everyone') == everyone ? const Icon(Icons.check) : null,
+                        onTap: () {
+                          Navigator.pop(s);
+                          setState(() => widget.core.setSetting(key: 'group_adds', value: value));
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }

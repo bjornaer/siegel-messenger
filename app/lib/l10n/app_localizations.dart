@@ -2069,6 +2069,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'By continuing you accept our'**
   String get agreeToTerms;
+
+  /// No description provided for @birthMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth month'**
+  String get birthMonth;
+
+  /// No description provided for @birthYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Birth year'**
+  String get birthYear;
+
+  /// No description provided for @birthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When were you born?'**
+  String get birthTitle;
+
+  /// No description provided for @birthWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel protects people under 18: strangers can\'t find them by @username, and only their contacts can add them to groups. Your birth date stays on this phone; we only learn whether you\'re under 18.'**
+  String get birthWhy;
+
+  /// No description provided for @tooYoung.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel is for people aged {age} and over.'**
+  String tooYoung(int age);
+
+  /// No description provided for @groupAddsMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Contacts only: you\'re under 18.'**
+  String get groupAddsMinor;
+
+  /// No description provided for @skMinor.
+  ///
+  /// In en, this message translates to:
+  /// **'Under 18'**
+  String get skMinor;
+
+  /// No description provided for @yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @tapToView.
+  ///
+  /// In en, this message translates to:
+  /// **'From someone you haven\'t accepted. Tap to view.'**
+  String get tapToView;
 }
 
 class _AppLocalizationsDelegate

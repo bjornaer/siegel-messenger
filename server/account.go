@@ -127,13 +127,26 @@ func (s *server) Lookup(ctx context.Context, req *connect.Request[siegelv1.Usern
 		return nil, cerr(connect.CodeResourceExhausted, "rate_limited") // ID-08: slows dictionary scans
 	}
 	var id [16]byte
+	var minor bool
+	var linkHash []byte
 	res := &siegelv1.UsernameServiceLookupResponse{}
-	err := s.db.QueryRow(ctx, `SELECT a.id, a.identity_pub, a.as_signature FROM usernames u JOIN accounts a ON a.id = u.account_id
-		WHERE u.name = $1 AND u.quarantined_until IS NULL`, strings.ToLower(req.Msg.Username)).Scan(&id, &res.IdentityPub, &res.AsSignature)
+	err := s.db.QueryRow(ctx, `SELECT a.id, a.identity_pub, a.as_signature, a.minor, a.minor_link_hash FROM usernames u
+		JOIN accounts a ON a.id = u.account_id WHERE u.name = $1 AND u.quarantined_until IS NULL`,
+		strings.ToLower(req.Msg.Username)).Scan(&id, &res.IdentityPub, &res.AsSignature, &minor, &linkHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, cerr(connect.CodeNotFound, "username_not_found")
 	} else if err != nil {
 		return nil, internal(err)
+	}
+	// M7: someone under 18 is found only by people who were given their contact link, or who have
+	// their number (if they turned discovery on). Otherwise it looks like an unknown name.
+	if given := sha256.Sum256(req.Msg.LinkSecret); minor && id != me &&
+		!(len(req.Msg.LinkSecret) > 0 && subtle.ConstantTimeCompare(given[:], linkHash) == 1) {
+		if ok, err := s.discHolds(ctx, id, req.Msg.DiscoveryProof); err != nil {
+			return nil, internal(err)
+		} else if !ok {
+			return nil, cerr(connect.CodeNotFound, "username_not_found")
+		}
 	}
 	res.AccountId = id[:]
 	return connect.NewResponse(res), nil
@@ -237,13 +250,26 @@ func (s *server) expireInactive(ctx context.Context) {
 	}
 }
 
+// SetMinor records that the account belongs to someone under 18 (M7); the app clears it at 18.
+func (s *server) SetMinor(ctx context.Context, req *connect.Request[siegelv1.SetMinorRequest]) (*connect.Response[siegelv1.SetMinorResponse], error) {
+	var hash []byte
+	if req.Msg.Minor && len(req.Msg.LinkSecretHash) == sha256.Size {
+		hash = req.Msg.LinkSecretHash
+	}
+	if _, err := s.db.Exec(ctx, `UPDATE accounts SET minor = $2, minor_link_hash = $3 WHERE id = $1`,
+		account(ctx), req.Msg.Minor, hash); err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&siegelv1.SetMinorResponse{}), nil
+}
+
 // Export is everything the server holds about the caller's account (CMP-06), for the
 // "What Siegel knows about me" screen (RM-01).
 func (s *server) Export(ctx context.Context, _ *connect.Request[siegelv1.AccountServiceExportRequest]) (*connect.Response[siegelv1.AccountServiceExportResponse], error) {
 	c := who(ctx)
 	r := &siegelv1.AccountServiceExportResponse{AccountId: c.account[:]}
 	err := s.db.QueryRow(ctx, `SELECT coalesce(phone_hmac, ''), created_day::text, coalesce(number_changed_at::date::text, ''),
-		identity_pub, reg_lock_hash IS NOT NULL,
+		identity_pub, reg_lock_hash IS NOT NULL, minor,
 		coalesce((SELECT name FROM usernames WHERE account_id = a.id AND quarantined_until IS NULL), ''),
 		coalesce((SELECT claimed_day::text FROM usernames WHERE account_id = a.id AND quarantined_until IS NULL), ''),
 		array(SELECT name FROM usernames WHERE account_id = a.id AND quarantined_until IS NOT NULL ORDER BY name),
@@ -253,7 +279,7 @@ func (s *server) Export(ctx context.Context, _ *connect.Request[siegelv1.Account
 		coalesce((SELECT sum(count) FROM rate_limits WHERE key = 'disc_period:' || encode($2::bytea, 'hex') AND window_start = $3), 0)
 		FROM accounts a WHERE id = $1`,
 		c.account, c.account[:], time.Unix(s.discPeriod(time.Now())*int64(s.cfg.discPeriod/time.Second), 0).UTC(),
-	).Scan(&r.PhoneHmac, &r.CreatedDay, &r.NumberChangedDay, &r.IdentityPub, &r.RegistrationLock,
+	).Scan(&r.PhoneHmac, &r.CreatedDay, &r.NumberChangedDay, &r.IdentityPub, &r.RegistrationLock, &r.Minor,
 		&r.Username, &r.UsernameClaimedDay, &r.ReleasedUsernames, &r.Discoverable, &r.Profile, &r.ProfilePicture, &r.NumbersChecked)
 	if err != nil {
 		return nil, internal(err)

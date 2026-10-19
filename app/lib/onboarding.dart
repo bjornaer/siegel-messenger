@@ -9,13 +9,12 @@ import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 import 'avatar.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart' show openPage;
+import 'minors.dart';
 import 'src/rust/api/core.dart';
 import 'themes.dart';
 
 /// CMP-02: minimum age per country calling code. GDPR default is 16; Spain allows 14 (LOPDGDD art. 7).
 /// ponytail: fill in per launch country once Q2 is settled.
-const _minAgeByCallingCode = {'34': 14};
-const _defaultMinAge = 16;
 
 void showError(BuildContext context, CoreError e) {
   final t = AppLocalizations.of(context)!;
@@ -97,7 +96,8 @@ class _OnboardingState extends State<Onboarding> {
   final _username = TextEditingController();
   final _name = TextEditingController();
   PhoneNumber? _parsed;
-  bool _ageOk = false;
+  int? _birthYear;
+  int? _birthMonth;
   bool _busy = false;
   // ID-04: the server sets when a resend is allowed; each wait doubles, with a daily cap.
   int _resendLeft = 0; // seconds; the server enforces the real wait
@@ -161,6 +161,7 @@ class _OnboardingState extends State<Onboarding> {
       pin: _pin.text.trim(),
       platform: _platform,
     );
+    unawaited(syncMinor(core)); // M7: under 18 is known from now on
     setState(() => step = _Step.profile);
   });
 
@@ -198,7 +199,9 @@ class _OnboardingState extends State<Onboarding> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final minAge = _minAgeByCallingCode[_parsed?.countryCode] ?? _defaultMinAge;
+    final minAge = minAgeFor(_parsed?.countryCode);
+    final age = _birthYear == null || _birthMonth == null ? null : ageAt(DateTime.now(), _birthYear!, _birthMonth!);
+    final ageOk = age != null && age >= minAge;
     Widget primary(String label, VoidCallback? onPressed) =>
         FilledButton(onPressed: _busy ? null : onPressed, child: Text(label));
 
@@ -239,17 +242,23 @@ class _OnboardingState extends State<Onboarding> {
               TextButton(onPressed: () => openPage('/privacy'), child: Text(t.privacyPolicy)),
             ],
           ),
-          CheckboxListTile(
-            value: _ageOk,
-            onChanged: (v) => setState(() => _ageOk = v ?? false),
-            title: Text(t.ageConfirm(minAge)),
-            controlAffinity: ListTileControlAffinity.leading,
+          // CMP-02 and M7: the birth month and year stay on this phone.
+          BirthDateFields(
+            year: _birthYear,
+            month: _birthMonth,
+            onChanged: (y, m) => setState(() {
+              _birthYear = y;
+              _birthMonth = m;
+            }),
           ),
+          if (age != null && !ageOk)
+            Text(t.tooYoung(minAge), style: TextStyle(color: Theme.of(context).colorScheme.error)),
           primary(
             t.sendCode,
-            _parsed == null || !_ageOk
+            _parsed == null || !ageOk
                 ? null
                 : () => _run(() async {
+                    setBirth(core, _birthYear!, _birthMonth!);
                     await _sendCode();
                     setState(() => step = _Step.code);
                   }),

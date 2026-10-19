@@ -1339,7 +1339,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       if (m.deleted)
                         Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
                       else if (m.attachment != null)
-                        attachmentView(core, m)
+                        attachmentView(core, m, held: c.request)
                       else
                         Text.rich(formatText(m.text)),
                       Row(

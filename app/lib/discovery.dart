@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
@@ -129,8 +130,8 @@ class _FindContactsScreenState extends State<FindContactsScreen> {
   bool _busy = false;
   bool _denied = false;
 
-  /// (name from the address book, @username), once checked.
-  List<(String, String)>? _found;
+  /// (name from the address book, @username, discovery proof), once checked.
+  List<(String, String, Uint8List)>? _found;
 
   Future<void> _check() async {
     setState(() {
@@ -150,7 +151,7 @@ class _FindContactsScreenState extends State<FindContactsScreen> {
         if (e164 != null) names.putIfAbsent(e164, () => r[0] as String);
       }
       final found = await widget.core.findContacts(numbers: names.keys.toList());
-      final list = [for (final f in found) (names[f.phone] ?? f.phone, f.username)]
+      final list = [for (final f in found) (names[f.phone] ?? f.phone, f.username, f.proof)]
         ..sort((a, b) => a.$1.toLowerCase().compareTo(b.$1.toLowerCase()));
       if (mounted) setState(() => _found = list);
     } on CoreError catch (e) {
@@ -160,10 +161,11 @@ class _FindContactsScreenState extends State<FindContactsScreen> {
     }
   }
 
-  Future<void> _chat(String username) async {
+  Future<void> _chat(String username, Uint8List proof) async {
     setState(() => _busy = true);
     try {
-      final id = await widget.core.startChat(username: username);
+      // The proof finds people under 18 too, who aren't found by @username (M7).
+      final id = await widget.core.startChatByNumber(username: username, proof: proof);
       widget.service.refresh();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -201,13 +203,16 @@ class _FindContactsScreenState extends State<FindContactsScreen> {
           ] else if (found.isEmpty)
             Text(t.noContactsFound)
           else
-            for (final (name, username) in found)
+            for (final (name, username, proof) in found)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(child: Text(name.isEmpty ? '?' : name.characters.first.toUpperCase())),
                 title: Text(name),
                 subtitle: Text('@$username'),
-                trailing: FilledButton.tonal(onPressed: _busy ? null : () => _chat(username), child: Text(t.startChat)),
+                trailing: FilledButton.tonal(
+                  onPressed: _busy ? null : () => _chat(username, proof),
+                  child: Text(t.startChat),
+                ),
               ),
         ],
       ),

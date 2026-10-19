@@ -96,6 +96,7 @@ class _ServerDataScreenState extends State<ServerDataScreen> {
                 if (d.releasedUsernames.isNotEmpty) row(t.skReleased, d.releasedUsernames.map((u) => '@$u').join(', ')),
                 row(t.skIdentityKey, t.skIdentityKeyHelp(short(d.identityKey))),
                 row(t.pinTitle, d.registrationLock ? t.skOn : t.skOff),
+                row(t.skMinor, d.minor ? t.yes : t.no),
                 heading(t.skProfile),
                 row(t.skProfile, d.profile ? t.skProfileStored : t.none),
                 row(t.skProfilePicture, d.profilePicture ? t.skPictureStored : t.none),

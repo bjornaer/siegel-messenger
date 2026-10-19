@@ -146,13 +146,18 @@ impl Client {
             .map(|_| ())
     }
 
+    /// `discovery_proof` or `link_secret` find someone under 18 (M7); empty otherwise.
     pub async fn lookup_username(
         &self,
         token: &str,
         username: &str,
+        discovery_proof: &[u8],
+        link_secret: &[u8],
     ) -> Result<pb::UsernameServiceLookupResponse, Error> {
         let req = pb::UsernameServiceLookupRequest {
             username: username.into(),
+            discovery_proof: discovery_proof.into(),
+            link_secret: link_secret.into(),
         };
         self.call("UsernameService/Lookup", &req, Some(token)).await
     }
@@ -166,6 +171,22 @@ impl Client {
         )
         .await
         .map(|_| ())
+    }
+
+    /// M7: under 18, with the hash of the current contact-link secret (empty when off).
+    pub async fn set_minor(
+        &self,
+        token: &str,
+        minor: bool,
+        link_secret_hash: &[u8],
+    ) -> Result<(), Error> {
+        let req = pb::SetMinorRequest {
+            minor,
+            link_secret_hash: link_secret_hash.into(),
+        };
+        self.call::<pb::SetMinorResponse>("AccountService/SetMinor", &req, Some(token))
+            .await
+            .map(|_| ())
     }
 
     /// Moves the account to a new number, proven with an OTP (docs/change-number.md).

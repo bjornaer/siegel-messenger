@@ -21,6 +21,7 @@ import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/media.dart';
+import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/push.dart' show notificationStrings;
 import 'package:siegel/stickers.dart';
@@ -123,6 +124,7 @@ class FakeCore implements Core {
     profile: true,
     profilePicture: false,
     numbersChecked: 12,
+    minor: isMinor,
     devices: const [
       ServerDevice(
         id: 'd1',
@@ -136,13 +138,28 @@ class FakeCore implements Core {
     ],
   );
 
+  bool isMinor = false;
+  @override
+  bool minor() => isMinor;
+  @override
+  Future<void> setMinor({required bool minor}) async {
+    calls.add('setMinor $minor');
+    isMinor = minor;
+  }
+
+  @override
+  Future<Uint8List> startChatByNumber({required String username, required List<int> proof}) {
+    calls.add('startChatByNumber $username');
+    return startChat(username: username);
+  }
+
   List<String> searched = [];
   @override
   Future<List<FoundContact>> findContacts({required List<String> numbers}) async {
     searched = numbers;
     return [
       for (final n in numbers)
-        if (n == '+34600111222') FoundContact(phone: n, username: 'bea'),
+        if (n == '+34600111222') FoundContact(phone: n, username: 'bea', proof: Uint8List.fromList([9])),
     ];
   }
 
@@ -733,13 +750,25 @@ Future<void> enter(WidgetTester t, String label, String value) async {
 }
 
 /// Drives welcome -> phone -> code.
+/// Picks January of [year] as the birth date on the sign-up phone step.
+Future<void> pickBirth(WidgetTester t, int year) async {
+  await t.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Birth month'));
+  await t.pumpAndSettle();
+  await t.tap(find.text('January').last);
+  await t.pumpAndSettle();
+  await t.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Birth year'));
+  await t.pumpAndSettle();
+  await t.scrollUntilVisible(find.text('$year').hitTestable(), 200, scrollable: find.byType(Scrollable).last);
+  await t.tap(find.text('$year').hitTestable().last);
+  await t.pumpAndSettle();
+}
+
 Future<void> toCodeScreen(WidgetTester t, FakeCore core) async {
   await tapText(t, 'Continue');
   final send = find.widgetWithText(FilledButton, 'Send code');
   await enter(t, 'Your phone number', '+34 611 22 33 44');
-  expect(find.text('I am at least 14 years old'), findsOneWidget, reason: 'CMP-02: Spain is 14');
   expect(t.widget<FilledButton>(send).onPressed, isNull, reason: 'age gate blocks sending');
-  await tapText(t, 'I am at least 14 years old');
+  await pickBirth(t, DateTime.now().year - 30);
   await tapText(t, 'Send code');
   expect(core.calls.last, 'requestOtp +34611223344', reason: 'ID-01: E.164');
   expect(find.textContaining('Enter the 6-digit code'), findsOneWidget);
@@ -1479,6 +1508,8 @@ void main() {
     expect(find.text('Bea'), findsOneWidget);
     expect(find.text('@bea'), findsOneWidget);
     expect(find.text('Carl'), findsNothing);
+    await tapText(t, 'Start chat');
+    expect(core.calls, contains('startChatByNumber bea'), reason: 'the discovery proof finds under-18s too');
   });
 
   testWidgets('change number: new number, code and PIN; a numberless account is warned', (t) async {
@@ -1751,6 +1782,113 @@ void main() {
     await t.scrollUntilVisible(find.text('Terms and community guidelines'), 100);
     await tapText(t, 'Terms and community guidelines');
     expect(opened.last, 'https://siegel.schlk.in/terms');
+  });
+
+  test('age from birth month and year never overstates it', () {
+    final now = DateTime(2026, 10, 19);
+    expect(ageAt(now, 2008, 9), 18);
+    expect(ageAt(now, 2008, 10), 17, reason: 'this month: the day is unknown, so not yet');
+    expect(ageAt(now, 2008, 11), 17);
+    expect(ageAt(now, 2012, 1), 14);
+  });
+
+  testWidgets('sign-up asks the birth date: too young stops, under 18 is told to the server (M7)', (t) async {
+    final core = FakeCore();
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () {})));
+    await tapText(t, 'Continue');
+    await enter(t, 'Your phone number', '+34 611 22 33 44');
+    final send = find.widgetWithText(FilledButton, 'Send code');
+    await pickBirth(t, DateTime.now().year - 10);
+    expect(find.text('Siegel is for people aged 14 and over.'), findsOneWidget);
+    expect(t.widget<FilledButton>(send).onPressed, isNull);
+
+    await pickBirth(t, DateTime.now().year - 16);
+    await tapText(t, 'Send code');
+    expect(core.settings['birth'], '${DateTime.now().year - 16}-01', reason: 'kept on the phone');
+    await enter(t, 'Code', '123456');
+    await tapText(t, 'Verify');
+    expect(core.calls, contains('setMinor true'));
+    expect(core.settings['group_adds'], 'contacts');
+  });
+
+  testWidgets('existing accounts are asked once; under 18 locks group adds to contacts', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana'
+      ..phone = '+34611223344';
+    await t.pumpWidget(wrap(BirthDateGate(core: core, onDelete: (_) async {}, child: const Text('chats'))));
+    await t.pumpAndSettle();
+    expect(find.text('When were you born?'), findsOneWidget);
+    expect(find.text('chats'), findsNothing);
+    await t.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Birth month'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('January').last);
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(DropdownButtonFormField<int>, 'Birth year'));
+    await t.pumpAndSettle();
+    final year = DateTime.now().year - 15;
+    await t.scrollUntilVisible(find.text('$year').hitTestable(), 200, scrollable: find.byType(Scrollable).last);
+    await t.tap(find.text('$year').hitTestable().last);
+    await t.pumpAndSettle();
+    await tapText(t, 'Save');
+    expect(find.text('chats'), findsOneWidget);
+    expect(core.calls, contains('setMinor true'));
+
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text("Contacts only: you're under 18."), 100);
+    expect(
+      t
+          .widget<ListTile>(
+            find.ancestor(of: find.text("Contacts only: you're under 18."), matching: find.byType(ListTile)),
+          )
+          .onTap,
+      isNull,
+    );
+
+    core.settings['birth'] = '${DateTime.now().year - 10}-01'; // younger than allowed
+    await t.pumpWidget(
+      wrap(BirthDateGate(key: UniqueKey(), core: core, onDelete: (_) async {}, child: const Text('chats'))),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Siegel is for people aged 14 and over.'), findsOneWidget);
+    expect(find.text('Delete account'), findsOneWidget);
+  });
+
+  testWidgets('media from a message request stays blurred and undownloaded until tapped (M7)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    core.incomingRequest('Zoe');
+    final id = core.chatList.last.groupId;
+    final photo = FakeCore.msg(
+      id,
+      '',
+      outgoing: false,
+      attachment: AttachmentView(
+        mimeType: 'image/jpeg',
+        fileName: '',
+        size: BigInt.from(1000),
+        durationMs: 0,
+        voiceNote: false,
+        waveform: Uint8List(0),
+        width: 4,
+        height: 3,
+        thumbnail: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        ),
+        sticker: false,
+      ),
+    );
+    (core.history[base64Encode(id)] ??= []).add(photo);
+    await autoDownload(core, photo);
+    expect(core.calls, isNot(contains('attachmentData')), reason: 'nothing downloads by itself');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.text("From someone you haven't accepted. Tap to view."), findsOneWidget);
+    expect(find.byType(ImageMessage), findsNothing);
+    await tapText(t, "From someone you haven't accepted. Tap to view.");
+    expect(find.byType(ImageMessage), findsOneWidget);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

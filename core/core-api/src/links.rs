@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use crate::{CoreError, IDENTITY, SiegelCore, USERNAME, storage};
 
 /// The owner's current link secret; absent when the link is turned off.
-const LINK_SECRET: &str = "contact_link_secret";
+pub(crate) const LINK_SECRET: &str = "contact_link_secret";
 /// 96 bits of the identity key's hash: enough that no one can make a key that matches.
 const FINGERPRINT_LEN: usize = 12;
 
@@ -87,7 +87,10 @@ impl SiegelCore {
         match (on, has) {
             (true, true) => Ok(()),
             (true, false) => self.reset_contact_link(),
-            (false, _) => self.put(LINK_SECRET, b""), // empty = off
+            (false, _) => {
+                self.put(LINK_SECRET, b"")?; // empty = off
+                self.note_link_changed()
+            }
         }
     }
 
@@ -96,19 +99,31 @@ impl SiegelCore {
         use rand_core::RngCore as _;
         let mut secret = [0u8; 16];
         rand_core::OsRng.fill_bytes(&mut secret);
-        self.put(LINK_SECRET, &secret)
+        self.put(LINK_SECRET, &secret)?;
+        self.note_link_changed()
+    }
+
+    /// Under 18, the server keeps the link's hash; resend it on the next connect.
+    fn note_link_changed(&self) -> Result<(), CoreError> {
+        if self.minor() {
+            self.put(crate::MINOR_SYNC, b"1")?;
+        }
+        Ok(())
     }
 
     /// Opens someone's link: checks the key against the fingerprint, starts (or reopens) the
     /// chat, marks them verified (DISC-02) and proves we were given the link (DISC-08).
     pub async fn open_contact_link(&self, link: &str) -> Result<Vec<u8>, CoreError> {
         let (user, fp, secret) = parse(link).ok_or(CoreError::new("link_invalid"))?;
-        let found = self.net.lookup_username(&self.token()?, &user).await?;
+        let found = self
+            .net
+            .lookup_username(&self.token()?, &user, &[], &secret)
+            .await?;
         if fingerprint(&found.identity_pub) != fp {
             // The server handed us a different key than the one in the link: never trust it.
             return Err(CoreError::new("link_key_mismatch"));
         }
-        let chat = self.start_chat(&user).await?;
+        let chat = self.start_chat_with(&user, &[], &secret).await?;
         if let Some(mut c) = self.contact(&found.account_id)
             && c.identity_key.as_deref() == Some(found.identity_pub.as_slice())
         {

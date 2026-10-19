@@ -29,6 +29,8 @@ struct Cache {
 pub struct Found {
     pub phone: String,
     pub username: String,
+    /// The discovery output for the number: lets us start a chat with someone under 18 (M7).
+    pub proof: Vec<u8>,
 }
 
 fn hex(b: &[u8]) -> String {
@@ -166,6 +168,7 @@ impl SiegelCore {
                 found.push(Found {
                     phone: n.clone(),
                     username: name,
+                    proof: o.to_vec(),
                 });
             }
         }

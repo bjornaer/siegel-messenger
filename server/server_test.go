@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gtank/ristretto255"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
@@ -528,7 +530,62 @@ func TestMigrateExistingDatabase(t *testing.T) { // prod had the schema before m
 	}
 	var n int
 	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n)
-	if n != 1 {
-		t.Fatal("baseline must be recorded once", n)
+	files, _ := fs.Glob(migrations, "migrations/*.sql")
+	if n != len(files) {
+		t.Fatal("each migration recorded once", n, len(files))
 	}
+}
+
+func TestMinorsAreFoundOnlyByTheirNumber(t *testing.T) { // M7 part 2
+	e := setup(t)
+	kid, _ := e.register("+34600000051", "")
+	adult, _ := e.register("+34600000052", "")
+	want(t, e.setUsername(kid.DeviceToken, "kiddo"), "")
+	users, acct := e.clients(kid.DeviceToken)
+	if _, err := acct.SetMinor(e.ctx, connect.NewRequest(&siegelv1.SetMinorRequest{Minor: true})); err != nil {
+		t.Fatal(err)
+	}
+	adultUsers, _ := e.clients(adult.DeviceToken)
+	lookup := func(u siegelv1connect.UsernameServiceClient, proof []byte) string {
+		_, err := u.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "kiddo", DiscoveryProof: proof}))
+		return errMsg(err)
+	}
+	want(t, lookup(adultUsers, nil), "username_not_found")
+	want(t, lookup(users, nil), "") // themselves
+
+	// With discovery on, the output for their number (what an OPRF evaluation yields) finds them.
+	d := siegelv1connect.NewDiscoveryServiceClient(http.DefaultClient, e.url, connect.WithInterceptors(
+		connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+				r.Header().Set("Authorization", "Bearer "+kid.DeviceToken)
+				return next(ctx, r)
+			}
+		})))
+	if _, err := d.SetDiscoverable(e.ctx, connect.NewRequest(&siegelv1.DiscoveryServiceSetDiscoverableRequest{PhoneE164: "+34600000051"})); err != nil {
+		t.Fatal(err)
+	}
+	k, _ := e.s.disc.scalar(e.ctx, fmt.Sprint("period:", e.s.discPeriod(time.Now())))
+	out := func(phone string) []byte {
+		return discOutput(ristretto255.NewElement().ScalarMult(k, discPoint(phone)))
+	}
+	want(t, lookup(adultUsers, out("+34600000099")), "username_not_found") // someone else's number
+	want(t, lookup(adultUsers, out("+34600000051")), "")
+
+	// Their contact link works for whoever was given it.
+	secret := []byte("0123456789abcdef")
+	h := sha256.Sum256(secret)
+	acct.SetMinor(e.ctx, connect.NewRequest(&siegelv1.SetMinorRequest{Minor: true, LinkSecretHash: h[:]}))
+	byLink := func(s []byte) string {
+		_, err := adultUsers.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "kiddo", LinkSecret: s}))
+		return errMsg(err)
+	}
+	want(t, byLink([]byte("wrong")), "username_not_found")
+	want(t, byLink(secret), "")
+
+	res, _ := acct.Export(e.ctx, connect.NewRequest(&siegelv1.AccountServiceExportRequest{}))
+	if !res.Msg.Minor {
+		t.Fatal("export shows the flag")
+	}
+	acct.SetMinor(e.ctx, connect.NewRequest(&siegelv1.SetMinorRequest{Minor: false}))
+	want(t, lookup(adultUsers, nil), "") // 18th birthday
 }

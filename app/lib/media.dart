@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -417,6 +418,8 @@ Future<bool> isMetered() async {
 Future<void> autoDownload(Core core, MessageView m) async {
   final a = m.attachment;
   if (a == null || a.voiceNote) return; // voice notes download on play
+  // Nothing from people not yet accepted downloads by itself (M7).
+  if (core.chats().any((c) => c.request && listEquals(c.groupId, m.groupId))) return;
   final kind = switch (kindOf(a)) {
     AttachmentKind.image => 'image',
     AttachmentKind.video => 'video',
@@ -464,6 +467,70 @@ mixin _Fetch<T extends StatefulWidget> on State<T> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+}
+
+class _Held extends StatefulWidget {
+  const _Held({required this.core, required this.message});
+  final Core core;
+  final MessageView message;
+
+  @override
+  State<_Held> createState() => _HeldState();
+}
+
+class _HeldState extends State<_Held> {
+  bool _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_shown) return _attachmentView(widget.core, widget.message);
+    final t = AppLocalizations.of(context)!;
+    final thumb = widget.message.attachment!.thumbnail;
+    return Semantics(
+      button: true,
+      label: t.tapToView,
+      child: InkWell(
+        onTap: () => setState(() => _shown = true),
+        child: SizedBox(
+          width: 220,
+          height: 160,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (thumb.isNotEmpty)
+                  ImageFiltered(
+                    imageFilter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                    child: Image.memory(thumb, fit: BoxFit.cover, excludeFromSemantics: true),
+                  )
+                else
+                  ColoredBox(color: Theme.of(context).colorScheme.surfaceContainerHigh),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            t.tapToView,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -789,7 +856,15 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
 }
 
 /// Picks what goes in a bubble for an attachment.
-Widget attachmentView(Core core, MessageView m) => m.attachment!.sticker
+/// [held]: from someone not yet accepted (a message request). Photos, videos and stickers stay
+/// blurred and undownloaded until tapped (M7, docs/csa-risk-assessment.md).
+Widget attachmentView(Core core, MessageView m, {bool held = false}) =>
+    held &&
+        (m.attachment!.sticker || const {AttachmentKind.image, AttachmentKind.video}.contains(kindOf(m.attachment!)))
+    ? _Held(core: core, message: m)
+    : _attachmentView(core, m);
+
+Widget _attachmentView(Core core, MessageView m) => m.attachment!.sticker
     ? StickerMessage(core: core, message: m)
     : switch (kindOf(m.attachment!)) {
         AttachmentKind.audio => AudioMessage(core: core, message: m),

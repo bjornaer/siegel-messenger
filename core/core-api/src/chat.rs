@@ -266,8 +266,28 @@ impl SiegelCore {
     /// Starts (or returns the existing) 1:1 chat with @username. Returns the conversation ID.
     /// Starting a chat makes them our contact and shares our profile key with them.
     pub async fn start_chat(&self, username: &str) -> Result<Vec<u8>, CoreError> {
+        self.start_chat_with(username, &[], &[]).await
+    }
+
+    /// A chat with someone found by number: `proof` is the discovery output for it (M7).
+    pub async fn start_chat_by_number(
+        &self,
+        username: &str,
+        proof: &[u8],
+    ) -> Result<Vec<u8>, CoreError> {
+        self.start_chat_with(username, proof, &[]).await
+    }
+
+    pub(crate) async fn start_chat_with(
+        &self,
+        username: &str,
+        discovery_proof: &[u8],
+        link_secret: &[u8],
+    ) -> Result<Vec<u8>, CoreError> {
         let username = username.to_lowercase();
-        let peer = self.lookup_username(&username).await?;
+        let peer = self
+            .lookup_with(&username, discovery_proof, link_secret)
+            .await?;
         if let Some(c) = self
             .conversations()?
             .into_iter()
@@ -553,7 +573,9 @@ impl SiegelCore {
     /// Decrypts one queued payload and stores what it carries.
     fn handle(&self, payload: &[u8]) -> Result<Option<Handled>, CoreError> {
         let (read_receipts, typing) = (self.enabled(READ_RECEIPTS), self.enabled(TYPING));
-        let everyone_may_add = self.setting(GROUP_ADDS).as_deref() == Some("everyone");
+        // M7: under 18, only contacts can add us to groups; anyone else's add is an invite.
+        let everyone_may_add =
+            self.setting(GROUP_ADDS).as_deref() == Some("everyone") && !self.minor();
         let me = self.get(crate::ACCOUNT)?.unwrap_or_default();
         self.with_mls(|m, s| match m.receive(payload).map_err(mls_err)? {
             Received::Joined {
@@ -766,6 +788,9 @@ impl SiegelCore {
     /// registration, self-updates (CRY-10), pending leaves (GRP-10), contacts' and groups'
     /// pictures (MED-15).
     async fn upkeep(&self) -> Result<(), CoreError> {
+        if self.get(crate::MINOR_SYNC)?.as_deref() == Some(b"1") {
+            let _ = self.set_minor(self.minor()).await;
+        }
         let _ = self.ensure_key_packages().await;
         let _ = self.publish_profile().await;
         let _ = self.self_updates().await;

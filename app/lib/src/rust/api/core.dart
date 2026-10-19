@@ -136,6 +136,8 @@ abstract class Core implements RustOpaqueInterface {
 
   List<MessageView> messages({required List<int> groupId, required int limit});
 
+  bool minor();
+
   Uint8List? myAvatar();
 
   /// Our own number, if this device kept it (accounts from before build 13 may not have).
@@ -254,6 +256,9 @@ abstract class Core implements RustOpaqueInterface {
     required bool adminsOnlyAdd,
   });
 
+  /// M7: under 18, as the app worked out from the birth date it keeps.
+  Future<void> setMinor({required bool minor});
+
   void setMyPhone({required String phone});
 
   /// This device's FCM token, for content-free wake-ups (MSG-17).
@@ -267,8 +272,13 @@ abstract class Core implements RustOpaqueInterface {
 
   String? setting({required String key});
 
-  /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
   Future<Uint8List> startChat({required String username});
+
+  /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
+  Future<Uint8List> startChatByNumber({
+    required String username,
+    required List<int> proof,
+  });
 
   Uint8List? stickerData({required String id});
 
@@ -551,10 +561,17 @@ class FoundContact {
   final String phone;
   final String username;
 
-  const FoundContact({required this.phone, required this.username});
+  /// Starts a chat even with someone under 18 (`start_chat_by_number`).
+  final Uint8List proof;
+
+  const FoundContact({
+    required this.phone,
+    required this.username,
+    required this.proof,
+  });
 
   @override
-  int get hashCode => phone.hashCode ^ username.hashCode;
+  int get hashCode => phone.hashCode ^ username.hashCode ^ proof.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -562,7 +579,8 @@ class FoundContact {
       other is FoundContact &&
           runtimeType == other.runtimeType &&
           phone == other.phone &&
-          username == other.username;
+          username == other.username &&
+          proof == other.proof;
 }
 
 /// GRP-12 system lines.
@@ -866,6 +884,7 @@ class ServerData {
   final bool profilePicture;
   final int numbersChecked;
   final List<ServerDevice> devices;
+  final bool minor;
 
   const ServerData({
     required this.accountId,
@@ -882,6 +901,7 @@ class ServerData {
     required this.profilePicture,
     required this.numbersChecked,
     required this.devices,
+    required this.minor,
   });
 
   @override
@@ -899,7 +919,8 @@ class ServerData {
       profile.hashCode ^
       profilePicture.hashCode ^
       numbersChecked.hashCode ^
-      devices.hashCode;
+      devices.hashCode ^
+      minor.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -919,7 +940,8 @@ class ServerData {
           profile == other.profile &&
           profilePicture == other.profilePicture &&
           numbersChecked == other.numbersChecked &&
-          devices == other.devices;
+          devices == other.devices &&
+          minor == other.minor;
 }
 
 class ServerDevice {

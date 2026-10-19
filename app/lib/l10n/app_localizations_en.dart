@@ -1164,4 +1164,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agreeToTerms => 'By continuing you accept our';
+
+  @override
+  String get birthMonth => 'Birth month';
+
+  @override
+  String get birthYear => 'Birth year';
+
+  @override
+  String get birthTitle => 'When were you born?';
+
+  @override
+  String get birthWhy =>
+      'Siegel protects people under 18: strangers can\'t find them by @username, and only their contacts can add them to groups. Your birth date stays on this phone; we only learn whether you\'re under 18.';
+
+  @override
+  String tooYoung(int age) {
+    return 'Siegel is for people aged $age and over.';
+  }
+
+  @override
+  String get groupAddsMinor => 'Contacts only: you\'re under 18.';
+
+  @override
+  String get skMinor => 'Under 18';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get tapToView => 'From someone you haven\'t accepted. Tap to view.';
 }

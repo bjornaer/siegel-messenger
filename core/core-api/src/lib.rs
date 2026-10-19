@@ -127,6 +127,9 @@ const REG_LOCK: &str = "registration_lock";
 /// Our own E.164 number, kept for discovery (DISC-03) and to read local contact numbers.
 const PHONE: &str = "phone_e164";
 const NUMBER_REMOVED: &str = "number_removed";
+const MINOR: &str = "minor";
+/// The contact link changed while under 18: tell the server on the next connect.
+pub(crate) const MINOR_SYNC: &str = "minor_sync";
 
 pub struct SiegelCore {
     store: Mutex<Option<SqlCipher>>,
@@ -342,12 +345,48 @@ impl SiegelCore {
     }
 
     /// Exact @username lookup (ID-08). Returns the account ID.
+    /// A contact's username resolves here, without asking the server; anyone else's is looked
+    /// up (M7: someone under 18 only with a discovery proof or their link's secret).
     pub async fn lookup_username(&self, username: &str) -> Result<Vec<u8>, CoreError> {
+        self.lookup_with(username, &[], &[]).await
+    }
+
+    pub(crate) async fn lookup_with(
+        &self,
+        username: &str,
+        discovery_proof: &[u8],
+        link_secret: &[u8],
+    ) -> Result<Vec<u8>, CoreError> {
+        let known = self
+            .with_store(|s| storage(s.contacts()))?
+            .into_iter()
+            .find(|c| c.state != ContactState::Blocked && c.username.as_deref() == Some(username));
+        if let Some(c) = known {
+            return Ok(c.account_id);
+        }
         Ok(self
             .net
-            .lookup_username(&self.token()?, username)
+            .lookup_username(&self.token()?, username, discovery_proof, link_secret)
             .await?
             .account_id)
+    }
+
+    /// M7: tells the server this account is someone's under 18 (or no longer), with the hash of
+    /// the contact-link secret so the link keeps working for whoever was given it.
+    pub async fn set_minor(&self, minor: bool) -> Result<(), CoreError> {
+        let secret = self.get(crate::links::LINK_SECRET)?.unwrap_or_default();
+        let hash = if minor && !secret.is_empty() {
+            <sha2::Sha256 as sha2::Digest>::digest(&secret).to_vec()
+        } else {
+            vec![]
+        };
+        self.net.set_minor(&self.token()?, minor, &hash).await?;
+        self.put(MINOR, if minor { b"1" } else { b"" })?;
+        self.put(MINOR_SYNC, b"")
+    }
+
+    pub fn minor(&self) -> bool {
+        self.get(MINOR).ok().flatten().as_deref() == Some(b"1")
     }
 
     /// Local UI preferences (app lock, screen security...), kept in the encrypted DB.
