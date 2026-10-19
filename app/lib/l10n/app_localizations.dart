@@ -2291,6 +2291,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This number can\'t use Siegel. Think this is a mistake? Write to the address on our Terms page.'**
   String get errNumberBanned;
+
+  /// No description provided for @stickerText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get stickerText;
+
+  /// No description provided for @editSticker.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit sticker'**
+  String get editSticker;
+
+  /// No description provided for @addText.
+  ///
+  /// In en, this message translates to:
+  /// **'Add text'**
+  String get addText;
+
+  /// No description provided for @stickerTextHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag text to move it; double-tap to change it.'**
+  String get stickerTextHelp;
+
+  /// No description provided for @textSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get textSize;
+
+  /// No description provided for @removeText.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove text'**
+  String get removeText;
+
+  /// No description provided for @importStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importStickers;
+
+  /// No description provided for @stickersAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No stickers found there.} =1{1 sticker added.} other{{count} stickers added.}}'**
+  String stickersAdded(int count);
 }
 
 class _AppLocalizationsDelegate

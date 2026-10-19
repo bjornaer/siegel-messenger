@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import 'media.dart';
 import 'number.dart';
 import 'onboarding.dart';
 import 'push.dart';
+import 'stickers.dart' show importStickerFiles;
 import 'suspended.dart';
 import 'server_data.dart';
 import 'themes.dart';
@@ -68,10 +70,27 @@ class _SiegelAppState extends State<SiegelApp> {
     // DISC-08: links opened while the app runs, and the one it was started with.
     appChannel.setMethodCallHandler((call) async {
       if (call.method == 'link') _openLink(call.arguments as String);
+      if (call.method == 'shared') _importShared(call.arguments as List<Object?>);
     });
     appChannel.invokeMethod<String>('takeLink').then((l) {
       if (l != null) _openLink(l);
     }, onError: (Object _) {});
+    appChannel.invokeMethod<List<Object?>>('takeShared').then((f) {
+      if (f != null) _importShared(f);
+    }, onError: (Object _) {});
+  }
+
+  /// Stickers or packs shared to Siegel by another app: straight into my stickers.
+  void _importShared(List<Object?> files) {
+    final added = importStickerFiles(core, [
+      for (final f in files.cast<List<Object?>>()) (f[0] as String, f[1] as Uint8List),
+    ]);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _navigator.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.maybeOf(ctx)
+          ?.showSnackBar(SnackBar(content: Text(AppLocalizations.of(ctx)!.stickersAdded(added))));
+    });
   }
 
   String? _pendingLink; // opened before onboarding finished

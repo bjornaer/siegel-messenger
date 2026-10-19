@@ -364,5 +364,13 @@
   "noticeRule": "Norma: {rule}",
   "appealHow": "¿Crees que es un error? Escribe a la dirección de nuestra página de Términos. Una persona revisa cada recurso.",
   "usernameRemoved": "Nuestros moderadores han quitado tu @usuario. Elige uno nuevo.",
-  "errNumberBanned": "Este número no puede usar Siegel. ¿Crees que es un error? Escribe a la dirección de nuestra página de Términos."
+  "errNumberBanned": "Este número no puede usar Siegel. ¿Crees que es un error? Escribe a la dirección de nuestra página de Términos.",
+  "stickerText": "Texto",
+  "editSticker": "Editar sticker",
+  "addText": "Añadir texto",
+  "stickerTextHelp": "Arrastra el texto para moverlo; tócalo dos veces para cambiarlo.",
+  "textSize": "Tamaño del texto",
+  "removeText": "Quitar texto",
+  "importStickers": "Importar",
+  "stickersAdded": "{count, plural, =0{No se encontraron stickers.} =1{1 sticker añadido.} other{{count} stickers añadidos.}}"
 }

@@ -1292,4 +1292,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errNumberBanned =>
       'This number can\'t use Siegel. Think this is a mistake? Write to the address on our Terms page.';
+
+  @override
+  String get stickerText => 'Text';
+
+  @override
+  String get editSticker => 'Edit sticker';
+
+  @override
+  String get addText => 'Add text';
+
+  @override
+  String get stickerTextHelp =>
+      'Drag text to move it; double-tap to change it.';
+
+  @override
+  String get textSize => 'Text size';
+
+  @override
+  String get removeText => 'Remove text';
+
+  @override
+  String get importStickers => 'Import';
+
+  @override
+  String stickersAdded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stickers added.',
+      one: '1 sticker added.',
+      zero: 'No stickers found there.',
+    );
+    return '$_temp0';
+  }
 }

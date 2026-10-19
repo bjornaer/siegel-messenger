@@ -703,5 +703,20 @@
   },
   "appealHow": "Think this is a mistake? Write to the address on our Terms page. A person reviews every appeal.",
   "usernameRemoved": "Your @username was removed by our moderators. Choose a new one.",
-  "errNumberBanned": "This number can't use Siegel. Think this is a mistake? Write to the address on our Terms page."
+  "errNumberBanned": "This number can't use Siegel. Think this is a mistake? Write to the address on our Terms page.",
+  "stickerText": "Text",
+  "editSticker": "Edit sticker",
+  "addText": "Add text",
+  "stickerTextHelp": "Drag text to move it; double-tap to change it.",
+  "textSize": "Text size",
+  "removeText": "Remove text",
+  "importStickers": "Import",
+  "stickersAdded": "{count, plural, =0{No stickers found there.} =1{1 sticker added.} other{{count} stickers added.}}",
+  "@stickersAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

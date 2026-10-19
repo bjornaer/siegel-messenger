@@ -1300,4 +1300,38 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errNumberBanned =>
       'Este número no puede usar Siegel. ¿Crees que es un error? Escribe a la dirección de nuestra página de Términos.';
+
+  @override
+  String get stickerText => 'Texto';
+
+  @override
+  String get editSticker => 'Editar sticker';
+
+  @override
+  String get addText => 'Añadir texto';
+
+  @override
+  String get stickerTextHelp =>
+      'Arrastra el texto para moverlo; tócalo dos veces para cambiarlo.';
+
+  @override
+  String get textSize => 'Tamaño del texto';
+
+  @override
+  String get removeText => 'Quitar texto';
+
+  @override
+  String get importStickers => 'Importar';
+
+  @override
+  String stickersAdded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stickers añadidos.',
+      one: '1 sticker añadido.',
+      zero: 'No se encontraron stickers.',
+    );
+    return '$_temp0';
+  }
 }

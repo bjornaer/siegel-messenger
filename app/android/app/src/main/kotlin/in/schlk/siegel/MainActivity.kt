@@ -35,6 +35,11 @@ class MainActivity : FlutterFragmentActivity() {
                 // MED-12: auto-download settings differ on metered (mobile) networks.
                 "metered" -> result.success(
                     (getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).isActiveNetworkMetered)
+                // Stickers shared to Siegel by another app, once: [[name, bytes], ...].
+                "takeShared" -> {
+                    result.success(pendingShared)
+                    pendingShared = null
+                }
                 // DISC-08: the link the app was opened with, once.
                 "takeLink" -> {
                     result.success(pendingLink)
@@ -117,14 +122,56 @@ class MainActivity : FlutterFragmentActivity() {
     private var appChannel: MethodChannel? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        pendingLink = intent?.dataString
+        if (!readShared(intent)) pendingLink = intent?.dataString
         super.onCreate(savedInstanceState)
     }
 
     // A link opened while the app runs: hand it to Dart right away.
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        intent.dataString?.let { appChannel?.invokeMethod("link", it) }
+        if (!readShared(intent)) intent.dataString?.let { appChannel?.invokeMethod("link", it) }
+    }
+
+    private var pendingShared: List<List<Any>>? = null
+
+    /// Stickers (WebP) or a sticker pack (.wastickers) shared or opened with Siegel. Read off the
+    /// UI thread from the sender's content URIs; at most 64 files of 64 MB each.
+    @Suppress("DEPRECATION") // the typed getParcelableExtra needs Android 13; we support 9+
+    private fun readShared(intent: android.content.Intent?): Boolean {
+        val uris: List<android.net.Uri> = when (intent?.action) {
+            android.content.Intent.ACTION_SEND -> listOfNotNull(
+                intent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM))
+            android.content.Intent.ACTION_SEND_MULTIPLE ->
+                intent.getParcelableArrayListExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM) ?: emptyList()
+            android.content.Intent.ACTION_VIEW -> listOfNotNull(intent.data?.takeIf { it.scheme == "content" || it.scheme == "file" })
+            else -> emptyList()
+        }
+        if (uris.isEmpty()) return false
+        Thread {
+            val files = uris.take(64).mapNotNull { uri ->
+                try {
+                    var name = uri.lastPathSegment ?: ""
+                    var size = -1L
+                    contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME,
+                        android.provider.OpenableColumns.SIZE), null, null, null)?.use { c ->
+                        if (c.moveToFirst()) {
+                            name = c.getString(0) ?: name
+                            if (!c.isNull(1)) size = c.getLong(1)
+                        }
+                    }
+                    if (size > 64L shl 20) return@mapNotNull null
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@mapNotNull null
+                    listOf(name, bytes)
+                } catch (e: Exception) {
+                    null // unreadable: skip it, keep the rest
+                }
+            }
+            runOnUiThread {
+                val channel = appChannel
+                if (channel != null) channel.invokeMethod("shared", files) else pendingShared = files
+            }
+        }.start()
+        return true
     }
 
     private companion object {

@@ -25,6 +25,7 @@ import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/push.dart' show notificationStrings;
 import 'package:siegel/report.dart';
+import 'package:siegel/sticker_editor.dart';
 import 'package:siegel/stickers.dart';
 import 'package:siegel/suspended.dart';
 import 'package:siegel/themes.dart';
@@ -2004,6 +2005,67 @@ void main() {
     expect(find.textContaining('Your @username was removed by our moderators'), findsOneWidget);
     expect(find.textContaining('Rule: Pretending to be someone else'), findsOneWidget);
     expect(find.textContaining('looks like staff'), findsOneWidget);
+  });
+
+  test('files picked or shared: WebP and PNG to my stickers, packs as packs, the rest skipped', () {
+    final core = FakeCore();
+    final webp = Uint8List.fromList([...'RIFF'.codeUnits, 1, 0, 0, 0, ...'WEBP'.codeUnits, 7, 7]);
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    );
+    final pack = ZipEncoder().encodeBytes(
+      Archive()
+        ..add(ArchiveFile.bytes('title.txt', utf8.encode('Cats')))
+        ..add(ArchiveFile.bytes('1.webp', Uint8List.fromList([1, 2, 3]))),
+    );
+    final added = importStickerFiles(core, [
+      ('a.webp', webp),
+      ('b.png', png),
+      ('notes.txt', Uint8List.fromList(utf8.encode('hello'))),
+      ('cats.wastickers', pack),
+    ]);
+    expect(added, 3);
+    expect(
+      [for (final s in core.stickers()) (s.pack, s.mimeType)],
+      [('', 'image/webp'), ('', 'image/png'), ('Cats', 'image/webp')],
+    );
+  });
+
+  testWidgets('edit a sticker: add text, move it, colour it, save a new PNG', (t) async {
+    final png = await t.runAsync(() => renderSiegelSticker('flame'));
+    Uint8List? saved;
+    await t.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () async =>
+                saved = await Navigator.of(context)
+                    .push<Uint8List>(MaterialPageRoute(builder: (_) => StickerEditor(image: png!))),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    t.view.physicalSize = const Size(1080, 2340);
+    t.view.devicePixelRatio = 2.75; // a phone: the editor fits on screen
+    addTearDown(t.view.reset);
+    await tapText(t, 'open');
+    await tapText(t, 'Add text');
+    await t.enterText(find.byType(TextField), 'hot!');
+    await t.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Save')));
+    await t.pumpAndSettle();
+    expect(find.text('hot!'), findsNWidgets(2), reason: 'outline and fill');
+    await t.drag(find.text('hot!').first, const Offset(0, -60));
+    await t.pump();
+    await t.tap(find.bySemanticsLabel('#ffd54f'));
+    await t.pump();
+    await t.runAsync(() async {
+      await t.tap(find.descendant(of: find.byType(SiegelBar), matching: find.text('Save')));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    });
+    await t.pumpAndSettle();
+    expect(saved, isNotNull);
+    expect(saved!.sublist(1, 4), 'PNG'.codeUnits);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

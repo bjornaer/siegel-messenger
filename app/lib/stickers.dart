@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'src/rust/api/core.dart';
+import 'sticker_editor.dart';
 
 /// A sticker ready to send.
 typedef StickerPick = ({Uint8List data, String mime});
@@ -51,29 +52,65 @@ class _StickerSheetState extends State<_StickerSheet> {
   Future<void> _fromPhoto() => _run(() async {
     final file = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file == null) return;
-    final png = await squareSticker(await file.readAsBytes());
-    final webp = await FlutterImageCompress.compressWithList(png, format: CompressFormat.webp, quality: 80);
-    if (webp.isNotEmpty) {
-      core.addSticker(data: webp, mimeType: 'image/webp', pack: '');
-    } else {
-      core.addSticker(data: png, mimeType: 'image/png', pack: '');
-    }
+    final square = await squareSticker(await file.readAsBytes());
+    if (!mounted) return;
+    // Straight into the editor: add a caption, or just save.
+    final png = await Navigator.of(context)
+        .push<Uint8List>(MaterialPageRoute(builder: (_) => StickerEditor(image: square)));
+    if (png != null) await saveSticker(core, png);
   });
 
-  /// A WhatsApp sticker pack (.wastickers): a zip with title.txt and WebP stickers.
+  /// Edit (text on top) or remove a stored sticker.
+  Future<void> _options(String pack, StickerView s, Uint8List data) async {
+    final t = AppLocalizations.of(context)!;
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.text_fields),
+              title: Text(t.editSticker),
+              onTap: () => Navigator.pop(c, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: Text(t.removeSticker),
+              onTap: () => Navigator.pop(c, 'remove'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (pick == 'remove') return _remove(pack, s.id);
+    if (pick != 'edit') return;
+    final png = await Navigator.of(context)
+        .push<Uint8List>(MaterialPageRoute(builder: (_) => StickerEditor(image: data)));
+    if (png != null) await _run(() => saveSticker(core, png)); // a new sticker; the original stays
+  }
+
+  /// Sticker files (WebP, PNG) and WhatsApp packs (.wastickers), several at once.
   Future<void> _import() => _run(() async {
-    final f = await FilePicker.pickFile(type: FileType.any);
-    if (f == null) return;
+    final t = AppLocalizations.of(context)!;
+    final picked = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['webp', 'png', 'wastickers', 'zip'],
+    );
+    if (picked.isEmpty) return;
     try {
-      if ((f.lengthSync() ?? 0) > 64 << 20) throw const CoreError(code: 'sticker_invalid');
-      final added = importStickerPack(
-        core,
-        await f.readAsBytes(),
-        fallbackName: f.name.replaceAll(RegExp(r'\.[^.]*$'), ''),
-      );
-      if (added == 0) throw const CoreError(code: 'sticker_invalid');
+      final files = <(String, Uint8List)>[];
+      for (final f in picked.take(120)) {
+        if ((f.lengthSync() ?? 0) > 64 << 20) continue;
+        files.add((f.name, await f.readAsBytes()));
+      }
+      final added = importStickerFiles(core, files);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stickersAdded(added))));
+      }
     } finally {
-      unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
+      unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copies in our cache
     }
   });
 
@@ -125,7 +162,7 @@ class _StickerSheetState extends State<_StickerSheet> {
               ),
               TextButton.icon(
                 icon: const Icon(Icons.download_outlined),
-                label: Text(t.importStickerPack),
+                label: Text(t.importStickers),
                 onPressed: _import,
               ),
             ],
@@ -147,7 +184,7 @@ class _StickerSheetState extends State<_StickerSheet> {
                   label: t.sticker,
                   child: Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true),
                   onTap: () => Navigator.pop(context, (data: d, mime: s.mimeType)),
-                  onLongPress: () => _remove(pack, s.id),
+                  onLongPress: () => _options(pack, s, d),
                 ),
           ]),
         ),
@@ -199,6 +236,44 @@ class _Cell extends StatelessWidget {
     ),
   );
 }
+
+/// A sticker edited or made here (PNG): kept as WebP when the phone can encode it.
+Future<void> saveSticker(Core core, Uint8List png) async {
+  final webp = await FlutterImageCompress.compressWithList(png, format: CompressFormat.webp, quality: 85);
+  core.addSticker(data: webp.isNotEmpty ? webp : png, mimeType: webp.isNotEmpty ? 'image/webp' : 'image/png', pack: '');
+}
+
+/// Files picked or shared to Siegel: WebP or PNG stickers go to my stickers, .wastickers packs
+/// become packs. Returns how many stickers were added; anything else is skipped.
+int importStickerFiles(Core core, List<(String, Uint8List)> files) {
+  var added = 0;
+  for (final (name, bytes) in files) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.wastickers') || lower.endsWith('.zip')) {
+      added += importStickerPack(core, bytes, fallbackName: name.replaceAll(RegExp(r'\.[^.]*$'), ''));
+      continue;
+    }
+    final mime = _isWebp(bytes)
+        ? 'image/webp'
+        : _isPng(bytes)
+        ? 'image/png'
+        : null;
+    if (mime == null) continue;
+    try {
+      core.addSticker(data: bytes, mimeType: mime, pack: '');
+      added++;
+    } on CoreError {
+      // too large: skip it
+    }
+  }
+  return added;
+}
+
+bool _isWebp(Uint8List b) =>
+    b.length > 12 &&
+    String.fromCharCodes(b.sublist(0, 4)) == 'RIFF' &&
+    String.fromCharCodes(b.sublist(8, 12)) == 'WEBP';
+bool _isPng(Uint8List b) => b.length > 8 && b[0] == 0x89 && String.fromCharCodes(b.sublist(1, 4)) == 'PNG';
 
 /// Adds every WebP sticker in a .wastickers zip as one pack; returns how many.
 int importStickerPack(Core core, Uint8List zip, {required String fallbackName}) {
