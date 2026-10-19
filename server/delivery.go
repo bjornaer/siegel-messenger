@@ -130,8 +130,10 @@ func (s *server) Commit(ctx context.Context, req *connect.Request[siegelv1.Group
 			if ok, err := s.hit(ctx, fmt.Sprintf("newchat:%x", account(ctx)), 24*time.Hour, s.cfg.newChatPerDay); err != nil {
 				return err
 			} else if !ok {
+				s.signal(ctx, account(ctx), sigNewChatLimit)
 				return cerr(connect.CodeResourceExhausted, "rate_limited")
 			}
+			s.signal(ctx, account(ctx), sigNewChat)
 			q = `INSERT INTO groups (group_id, epoch) VALUES ($1, 1) ON CONFLICT DO NOTHING`
 		}
 		args := []any{m.GroupId}

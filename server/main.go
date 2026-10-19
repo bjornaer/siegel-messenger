@@ -331,6 +331,7 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			`DELETE FROM rate_limits WHERE window_start < now() - interval '200 days'`,
 			`DELETE FROM usernames WHERE quarantined_until < now() AND account_id IS NULL`,
 			`DELETE FROM metrics WHERE hour < now() - interval '30 days'`,
+			`DELETE FROM signals WHERE day < current_date - 30`,                // M7 part 6
 			`DELETE FROM queue WHERE enqueued_at < now() - interval '30 days'`, // MSG-06
 			`DELETE FROM group_invites WHERE expires_at < now()`,               // GRP-16
 			// MED-15: a deleted account's picture expires with it.

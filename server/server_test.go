@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -714,5 +715,29 @@ func TestEnforcement(t *testing.T) { // M7 part 4
 	}
 	if err := e.s.admin(e.ctx, []string{"remove-username", "--rule", "spam", "@x"}, &out); !errors.Is(err, errNoReason) {
 		t.Fatal("reason required", err)
+	}
+}
+
+func TestSignals(t *testing.T) { // M7 part 6
+	e := setup(t)
+	e.s.cfg.lookupPerDay = 1
+	a, _ := e.register("+34600000081", "")
+	users, _ := e.clients(a.DeviceToken)
+	for range 3 {
+		users.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "nobody"}))
+	}
+	var id [16]byte
+	copy(id[:], a.AccountId)
+	e.s.db.Exec(e.ctx, `INSERT INTO reports (reporter, reported, category, sealed) VALUES ($1, $2, 4, 'x'), ($1, $2, 1, 'x')`, id, id)
+	g, err := e.s.signals(e.ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.LookupLimit != 2 || g.Reports != 2 || g.ChildSafetyReports != 1 || g.CreatedDay == "" {
+		t.Fatalf("signals %+v", g)
+	}
+	var out strings.Builder
+	if err := e.s.admin(e.ctx, []string{"signals", hex.EncodeToString(id[:])}, &out); err != nil || !strings.Contains(out.String(), "lookup limit hit 2") {
+		t.Fatal(out.String(), err)
 	}
 }

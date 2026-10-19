@@ -130,6 +130,7 @@ func (s *server) Lookup(ctx context.Context, req *connect.Request[siegelv1.Usern
 	if ok, err := s.hit(ctx, fmt.Sprintf("lookup:%x", me), 24*time.Hour, s.cfg.lookupPerDay); err != nil {
 		return nil, internal(err)
 	} else if !ok {
+		s.signal(ctx, me, sigLookupLimit)
 		return nil, cerr(connect.CodeResourceExhausted, "rate_limited") // ID-08: slows dictionary scans
 	}
 	var id [16]byte

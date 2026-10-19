@@ -29,6 +29,7 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   remove-username --rule R --reason "…" <name>
   remove-link --reason "…" <link id, hex>
   remove-blob --reason "…" <blob id, hex>
+  signals <account>                                     (last 30 days)
   audit [--verify] [--last N]
 rules: spam harassment hate child_safety non_consensual violence impersonation other
 every action also takes --by <operator> (default: $SIEGEL_OPERATOR or "operator")`
@@ -146,6 +147,20 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 			return s.removeLink(ctx, id, a)
 		}
 		return s.removeBlob(ctx, id, a)
+	case "signals":
+		if target == "" {
+			return errors.New("no target")
+		}
+		acct, err := s.resolve(ctx, target)
+		if err != nil {
+			return err
+		}
+		g, err := s.signals(ctx, acct)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "account since %s\nchats started %d\nnew-chat limit hit %d\nlookup limit hit %d\nreports %d (child safety %d)\n",
+			g.CreatedDay, g.NewChats, g.NewChatLimit, g.LookupLimit, g.Reports, g.ChildSafetyReports)
 	case "audit":
 		if *verify {
 			bad, err := s.auditVerify(ctx)
