@@ -60,6 +60,8 @@ services:
       SIEGEL_CONTACT_EMAIL: ${SIEGEL_CONTACT_EMAIL:-}
       # CMP-03: the moderators' age public key (age1...). Its private key never goes on a server.
       SIEGEL_REPORTS_AGE_RECIPIENT: ${SIEGEL_REPORTS_AGE_RECIPIENT:-}
+      # M7: the moderation console, published on the host's loopback only (ssh -L 9443:127.0.0.1:9443).
+      SIEGEL_CONSOLE_ADDR: ":9443"
       SIEGEL_ANDROID_LATEST_BUILD: ${SIEGEL_ANDROID_LATEST_BUILD:-0}
       SIEGEL_ANDROID_MIN_BUILD: ${SIEGEL_ANDROID_MIN_BUILD:-0}
       SIEGEL_ANDROID_CERT_SHA256: ${SIEGEL_ANDROID_CERT_SHA256:-}
@@ -83,6 +85,7 @@ services:
     ports:
       - "${SIEGEL_HTTP_PORT:-58080}:8080"   # plain API without SIEGEL_DOMAIN; ACME + HTTPS redirect with it
       - "${SIEGEL_HTTPS_PORT:-58443}:8443"  # TLS 1.3, Let's Encrypt (ARCH-02)
+      - "127.0.0.1:9443:9443"               # M7 moderation console: loopback only, never public
     volumes: [certs:/certs]
     depends_on:
       postgres: {condition: service_healthy}

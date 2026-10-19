@@ -132,6 +132,8 @@ const NUMBER_REMOVED: &str = "number_removed";
 const MINOR: &str = "minor";
 /// M7: the last moderators' notice (pb::Enforcement).
 pub(crate) const NOTICE: &str = "notice";
+/// M7: reviewed reports we haven't told the user about yet.
+pub(crate) const REVIEWED: &str = "reports_reviewed";
 /// The contact link changed while under 18: tell the server on the next connect.
 pub(crate) const MINOR_SYNC: &str = "minor_sync";
 
@@ -331,6 +333,19 @@ impl SiegelCore {
 
     pub fn username(&self) -> Option<String> {
         self.get_string(USERNAME).filter(|u| !u.is_empty()) // empty: removed by a moderator (M7)
+    }
+
+    pub(crate) fn reports_reviewed(&self) -> i32 {
+        self.get_string(REVIEWED)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0)
+    }
+
+    /// M7: how many of our reports were reviewed since we last asked; resets to 0.
+    pub fn take_reports_reviewed(&self) -> i32 {
+        let n = self.reports_reviewed();
+        let _ = self.put(REVIEWED, b"0");
+        n
     }
 
     /// M7: the moderators' notice that still applies: a suspension until its end, or a removed

@@ -20,6 +20,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -763,5 +764,90 @@ func TestUsernameScan(t *testing.T) { // M7 part 8
 	e.s.admin(e.ctx, []string{"flags"}, &out)
 	if !strings.Contains(out.String(), "@teen.nudes  contains teen and nude") {
 		t.Fatal(out.String())
+	}
+}
+
+func TestConsole(t *testing.T) { // M7 part 5
+	e := setup(t)
+	c, err := newConsole(e.s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(c.routes())
+	defer srv.Close()
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+	res, _ := noRedirect.Get(srv.URL + "/")
+	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/login" {
+		t.Fatal("login first", res.StatusCode)
+	}
+	res, _ = http.Get(srv.URL + "/static/age.js")
+	if res.StatusCode != 200 || !strings.Contains(res.Header.Get("Content-Type"), "javascript") {
+		t.Fatal("bundled age served", res.StatusCode, res.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(res.Header.Get("Content-Security-Policy"), "default-src 'self'") {
+		t.Fatal("CSP")
+	}
+
+	// Enrolment links are single use.
+	link, _ := e.s.enrolLink(e.ctx, "max")
+	tok := link[strings.Index(link, "?t=")+3:]
+	begin := func(t string) int {
+		req, _ := http.NewRequest("POST", srv.URL+"/enrol/begin?t="+t, nil)
+		req.Header.Set("Origin", consoleOrigin)
+		res, _ := http.DefaultClient.Do(req)
+		return res.StatusCode
+	}
+	want(t, fmt.Sprint(begin(tok)), "200")
+	want(t, fmt.Sprint(begin(tok)), "403")
+
+	// A logged-in operator (the passkey ceremony needs a real authenticator; seed the session).
+	opID := []byte("operator-id-0123456789abcdef0123")
+	e.s.db.Exec(e.ctx, `INSERT INTO console_operators (id, name) VALUES ($1, 'max')`, opID)
+	session := "session-token"
+	e.s.db.Exec(e.ctx, `INSERT INTO console_sessions (token_hash, operator_id, expires_at) VALUES ($1, $2, now() + interval '1 hour')`,
+		hashToken(session), opID)
+	reporter, _ := e.register("+34600000101", "")
+	bad, _ := e.register("+34600000102", "")
+	var rid int64
+	e.s.db.QueryRow(e.ctx, `INSERT INTO reports (reporter, reported, category, sealed) VALUES ($1, $2, 4, 'age-encryption.org/v1 x') RETURNING id`,
+		reporter.AccountId, bad.AccountId).Scan(&rid)
+	get := func(path string) string {
+		req, _ := http.NewRequest("GET", srv.URL+path, nil)
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session})
+		res, _ := http.DefaultClient.Do(req)
+		b, _ := io.ReadAll(res.Body)
+		return string(b)
+	}
+	if q := get("/"); !strings.Contains(q, fmt.Sprintf(`href="/report/%d"`, rid)) || !strings.Contains(q, "child_safety") {
+		t.Fatal("queue shows the report")
+	}
+	if p := get(fmt.Sprintf("/report/%d", rid)); !strings.Contains(p, `data-sealed="`) || !strings.Contains(p, "second operator") {
+		t.Fatal("report page carries the sealed report and the child-safety reminder")
+	}
+
+	post := func(origin string, form url.Values) int {
+		req, _ := http.NewRequest("POST", srv.URL+"/action", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", origin)
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session})
+		res, _ := noRedirect.Do(req)
+		return res.StatusCode
+	}
+	resolve := url.Values{"kind": {"resolve-report"}, "target": {fmt.Sprint(rid)}, "outcome": {"action taken"}, "reason": {"banned"}}
+	want(t, fmt.Sprint(post("https://evil.example", resolve)), "403")
+	want(t, fmt.Sprint(post(consoleOrigin, resolve)), "303")
+	var op string
+	e.s.db.QueryRow(e.ctx, `SELECT operator FROM audit_log ORDER BY id DESC LIMIT 1`).Scan(&op)
+	want(t, op, "max")
+
+	// The reporter's app hears that it was reviewed, once.
+	conn, _, err := dial(e, reporter.DeviceToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	if f := next(t, conn).GetReportsReviewed(); f == nil || f.Count != 1 {
+		t.Fatal("told once", f)
 	}
 }

@@ -29,7 +29,14 @@ import 'themes.dart';
 
 /// Keeps the message stream connected (SRV-03) and tells screens when something arrived.
 class ChatService extends ChangeNotifier {
-  ChatService(this.core, {required this.onDeregistered, this.onMessage, this.onNumberRemoved, this.onEnforcement});
+  ChatService(
+    this.core, {
+    required this.onDeregistered,
+    this.onMessage,
+    this.onNumberRemoved,
+    this.onEnforcement,
+    this.onReportsReviewed,
+  });
   final Core core;
   final VoidCallback onDeregistered;
 
@@ -38,6 +45,9 @@ class ChatService extends ChangeNotifier {
 
   /// M7: suspended, or our @username was removed (`core.notice()`).
   final VoidCallback? onEnforcement;
+
+  /// M7: moderators reviewed this many of our reports.
+  final void Function(int)? onReportsReviewed;
 
   /// Every new incoming message, e.g. to notify while the app is in the background.
   final void Function(MessageView)? onMessage;
@@ -143,6 +153,7 @@ class ChatService extends ChangeNotifier {
           }
           if (e.kind == CoreEventKind.numberRemoved) onNumberRemoved?.call();
           if (e.kind == CoreEventKind.enforcement) onEnforcement?.call();
+          if (e.kind == CoreEventKind.reportsReviewed) onReportsReviewed?.call(core.takeReportsReviewed());
           if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
             _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
           }

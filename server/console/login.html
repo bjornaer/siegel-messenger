@@ -1,0 +1,7 @@
+{{define "login"}}{{template "top" .}}
+<h1>Log in</h1>
+<p>Use the passkey you enrolled for this console.</p>
+<button id="login">Log in with a passkey</button>
+<p id="status" class="muted"></p>
+<script type="module" src="/static/passkey.js"></script>
+{{template "bottom"}}{{end}}

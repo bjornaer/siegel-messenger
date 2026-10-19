@@ -134,6 +134,12 @@ class _SiegelAppState extends State<SiegelApp> {
         if (ctx != null && ctx.mounted) showNumberRemoved(ctx, c);
       },
       // M7: suspended or username removed; the home below shows which.
+      onReportsReviewed: (n) {
+        final ctx = _navigator.currentContext;
+        if (n <= 0 || ctx == null || !ctx.mounted) return;
+        ScaffoldMessenger.maybeOf(ctx)
+            ?.showSnackBar(SnackBar(content: Text(AppLocalizations.of(ctx)!.reportsReviewed(n))));
+      },
       onEnforcement: () {
         _navigator.currentState?.popUntil((r) => r.isFirst);
         if (mounted) setState(() {});

@@ -110,6 +110,8 @@ pub enum Event {
     NumberRemoved,
     /// M7: suspended, or our @username was removed; `SiegelCore::notice` says why.
     Enforcement,
+    /// M7: moderators reviewed some of our reports (`take_reports_reviewed` says how many).
+    ReportsReviewed,
 }
 
 /// What processing one payload produced; a profile key also needs a network fetch afterwards.
@@ -914,6 +916,11 @@ impl SiegelCore {
                         self.put(crate::NUMBER_REMOVED, b"1")?;
                         on_event(Event::NumberRemoved);
                     }
+                }
+                Frame::ReportsReviewed(n) => {
+                    let before = self.reports_reviewed();
+                    self.put(crate::REVIEWED, (before + n.max(0)).to_string().as_bytes())?;
+                    on_event(Event::ReportsReviewed);
                 }
                 Frame::Enforcement(e) => {
                     if e.kind() == pb::enforcement::Kind::UsernameRemoved {

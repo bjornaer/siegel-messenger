@@ -1329,4 +1329,15 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String reportsReviewed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Analisamos $count das suas denúncias. Obrigado por nos avisar.',
+      one: 'Analisamos sua denúncia. Obrigado por nos avisar.',
+    );
+    return '$_temp0';
+  }
 }

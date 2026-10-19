@@ -169,7 +169,21 @@ $A remove-blob --reason "removal order 2026/123" --by max <blob id hex>
 $A audit --verify --last 50
 ```
 
-Rules: spam, harassment, hate, child_safety, non_consensual, violence, impersonation, other. A
+Rules: spam, harassment, hate, child_safety, non_consensual, violence, impersonation, other.
+
+### The web console
+
+The same actions, plus the report queue and in-browser decryption. It listens only on the server's
+loopback, so it is reached through SSH:
+
+1. Once per operator: `$A console-enrol max` prints a single-use link (30 minutes).
+2. On your laptop: `ssh -L 9443:127.0.0.1:9443 root@<server>`, then open the link in a browser on
+   the same laptop and create a passkey (Touch ID, your phone, or a security key).
+3. From then on: keep the tunnel open and go to `http://localhost:9443`.
+4. On a report, load `siegel-reports.key`. It is read in the page and never uploaded; closing the
+   tab forgets it.
+
+The browser needs to be from 2024 or newer, because older ones lack the WebAuthn JSON helpers. A
 banned number can't register again; its @username stays taken for good. The web console (M7
 part 5) runs the same actions.
 

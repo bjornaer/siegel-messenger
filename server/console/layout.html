@@ -1,0 +1,26 @@
+{{define "top"}}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Siegel moderation</title>
+<style>
+:root { --fg:#1b1c1a; --bg:#f7f8f4; --muted:#5d6159; --accent:#2f543b; --line:#d9dcd3; --warn:#b3182f; }
+@media (prefers-color-scheme: dark) { :root { --fg:#e3e4de; --bg:#121411; --muted:#a9ada4; --accent:#9fd3a9; --line:#30332d; --warn:#ff8a80; } }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
+header { display:flex; gap:1rem; align-items:center; padding:.6rem 1rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+header a { color:var(--accent); text-decoration:none; font-weight:600; }
+main { max-width:64rem; margin:0 auto; padding:1rem; }
+table { border-collapse:collapse; width:100%; } th, td { text-align:left; padding:.35rem .5rem; border-bottom:1px solid var(--line); vertical-align:top; }
+.muted { color:var(--muted); } .warn { color:var(--warn); font-weight:600; } .error { color:var(--warn); }
+.cat-child_safety { color:var(--warn); font-weight:700; }
+fieldset { border:1px solid var(--line); border-radius:8px; margin:1rem 0; } input, select, textarea, button { font:inherit; }
+textarea { width:100%; } .msg { border:1px solid var(--line); border-radius:8px; padding:.5rem; margin:.4rem 0; }
+.msg img, .msg video { max-width:100%; max-height:24rem; display:block; }
+</style></head><body>
+<header><strong>Siegel moderation</strong>
+{{if .Operator}}<a href="/">Queue</a><a href="/audit">Audit log</a><span class="muted">{{.Operator}}</span>
+<form method="post" action="/logout" style="margin-left:auto"><button>Log out</button></form>{{end}}
+</header><main>{{if .Error}}<p class="error">{{.Error}}</p>{{end}}{{end}}
+{{define "bottom"}}</main></body></html>{{end}}
+
+{{define "rules"}}<select name="rule" required><option value="">rule…</option>
+<option>spam</option><option>harassment</option><option>hate</option><option>child_safety</option>
+<option>non_consensual</option><option>violence</option><option>impersonation</option><option>other</option></select>{{end}}

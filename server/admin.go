@@ -33,6 +33,7 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   flags                                                 (usernames the scan flagged, open ones)
   scan-usernames                                        (run the scan now)
   audit [--verify] [--last N]
+  console-enrol <operator name>                         (a single-use link to add a passkey)
 rules: spam harassment hate child_safety non_consensual violence impersonation other
 every action also takes --by <operator> (default: $SIEGEL_OPERATOR or "operator")`
 
@@ -149,6 +150,12 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 			return s.removeLink(ctx, id, a)
 		}
 		return s.removeBlob(ctx, id, a)
+	case "console-enrol":
+		link, err := s.enrolLink(ctx, target)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "Open within 30 minutes, through the SSH tunnel:\n%s\n", link)
 	case "scan-usernames":
 		n, err := s.scanUsernames(ctx)
 		if err != nil {

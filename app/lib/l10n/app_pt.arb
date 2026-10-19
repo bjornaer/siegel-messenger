@@ -372,5 +372,6 @@
   "textSize": "Tamanho do texto",
   "removeText": "Remover texto",
   "importStickers": "Importar",
-  "stickersAdded": "{count, plural, =0{Nenhuma figurinha encontrada.} =1{1 figurinha adicionada.} other{{count} figurinhas adicionadas.}}"
+  "stickersAdded": "{count, plural, =0{Nenhuma figurinha encontrada.} =1{1 figurinha adicionada.} other{{count} figurinhas adicionadas.}}",
+  "reportsReviewed": "{count, plural, =1{Analisamos sua denúncia. Obrigado por nos avisar.} other{Analisamos {count} das suas denúncias. Obrigado por nos avisar.}}"
 }

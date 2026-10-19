@@ -1339,4 +1339,16 @@ class AppLocalizationsDe extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String reportsReviewed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Wir haben $count deiner Meldungen geprüft. Danke für die Hinweise.',
+      one: 'Wir haben deine Meldung geprüft. Danke für den Hinweis.',
+    );
+    return '$_temp0';
+  }
 }

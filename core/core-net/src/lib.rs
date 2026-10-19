@@ -593,6 +593,8 @@ pub enum Frame {
     NumberRemoved,
     /// M7: a moderator acted on this account (pb::enforcement::Kind, the rule, why, until when).
     Enforcement(pb::Enforcement),
+    /// M7: moderators reviewed this many of our reports.
+    ReportsReviewed(i32),
 }
 
 impl Stream {
@@ -611,6 +613,9 @@ impl Stream {
                 Some(pb::stream_frame::Kind::Deregistered(_)) => Some(Frame::Deregistered),
                 Some(pb::stream_frame::Kind::NumberRemoved(_)) => Some(Frame::NumberRemoved),
                 Some(pb::stream_frame::Kind::Enforcement(e)) => Some(Frame::Enforcement(e)),
+                Some(pb::stream_frame::Kind::ReportsReviewed(r)) => {
+                    Some(Frame::ReportsReviewed(r.count))
+                }
                 None => continue,
             });
         }

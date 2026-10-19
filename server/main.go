@@ -66,6 +66,7 @@ type config struct {
 	inactiveDays  int      // section 10: accounts with no device seen this long are deleted
 	contactEmail  string   // shown on the public privacy and deletion pages
 	reportsKey    string   // CMP-03: the moderators' age public key; empty = reporting off
+	consoleAddr   string   // M7: the moderation console's listen address; empty = off
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -119,6 +120,7 @@ func loadConfig() config {
 		inactiveDays:  env("SIEGEL_INACTIVE_DAYS", 180, strconv.Atoi),
 		contactEmail:  os.Getenv("SIEGEL_CONTACT_EMAIL"),
 		reportsKey:    os.Getenv("SIEGEL_REPORTS_AGE_RECIPIENT"),
+		consoleAddr:   os.Getenv("SIEGEL_CONSOLE_ADDR"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
@@ -257,6 +259,15 @@ func main() {
 	}
 	s.blobs = cfg.s3
 	go s.janitor(ctx, b)
+	// M7 part 5: the moderation console, on its own port; compose publishes it on the host's
+	// 127.0.0.1 only (reach it through an SSH tunnel).
+	if cfg.consoleAddr != "" {
+		c, err := newConsole(s)
+		if err != nil {
+			fatal("console", "err", err)
+		}
+		go func() { fatal("console stopped", "err", http.ListenAndServe(cfg.consoleAddr, c.routes())) }()
+	}
 
 	// ponytail: whole-request timeouts suit unary RPCs; the M2 WebSocket must manage its own deadlines.
 	srv := &http.Server{

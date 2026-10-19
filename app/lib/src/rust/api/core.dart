@@ -296,6 +296,8 @@ abstract class Core implements RustOpaqueInterface {
 
   List<StickerView> stickers();
 
+  int takeReportsReviewed();
+
   /// They become a contact again and get our profile key.
   Future<void> unblock({required List<int> account});
 
@@ -568,6 +570,9 @@ enum CoreEventKind {
 
   /// M7: suspended or @username removed; `notice` says why.
   enforcement,
+
+  /// M7: some of our reports were reviewed; `take_reports_reviewed` says how many.
+  reportsReviewed,
 }
 
 enum DevicePlatform { ios, android }

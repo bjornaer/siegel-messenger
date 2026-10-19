@@ -177,6 +177,15 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	var toldRemoved bool
 	var told *siegelv1.Enforcement // M7: each notice once per connection
 	for {
+		var reviewed int32
+		if err := s.db.QueryRow(ctx, `WITH t AS (UPDATE reports SET reporter_told = true
+			WHERE reporter = $1 AND resolved_at IS NOT NULL AND NOT reporter_told RETURNING 1) SELECT count(*) FROM t`,
+			c.account).Scan(&reviewed); err != nil {
+			return
+		} else if reviewed > 0 && send(&siegelv1.StreamFrame{Kind: &siegelv1.StreamFrame_ReportsReviewed{
+			ReportsReviewed: &siegelv1.ReportsReviewed{Count: reviewed}}}) != nil {
+			return
+		}
 		if e, err := s.enforcement(ctx, c.account); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return
 		} else if e != nil && (told == nil || told.Kind != e.Kind || told.Reason != e.Reason) {

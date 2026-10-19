@@ -1,0 +1,19 @@
+{{define "account"}}{{template "top" .}}{{with .Data}}
+<h1>Account {{printf "%x" .ID}}</h1>
+{{if .Exists}}<p>{{if .Username}}@{{.Username}}{{else}}<span class="muted">no username</span>{{end}} · since {{.Created}}
+{{if .Minor}} · <strong>under 18</strong>{{end}}{{with .Suspended}} · suspended until {{day .}}{{end}}</p>
+{{else}}<p class="muted">Deleted or banned.</p>{{end}}
+<p>Chats started {{.Signals.NewChats}} · new-chat limit hit {{.Signals.NewChatLimit}} · lookup limit hit {{.Signals.LookupLimit}} ·
+reports {{.Signals.Reports}} (child safety {{.Signals.ChildSafetyReports}}) <span class="muted">(30 days)</span></p>
+<h2>Reports about this account</h2>
+<ul>{{range .Reports}}<li><a href="/report/{{.ID}}">{{.ID}}</a> {{category .Category}} · {{day .Created}}</li>{{else}}<li class="muted">None.</li>{{end}}</ul>
+{{if .Exists}}<fieldset><legend>Act</legend>
+<form method="post" action="/action"><input type="hidden" name="target" value="{{printf "%x" .ID}}"><input type="hidden" name="back" value="/account/{{printf "%x" .ID}}">
+<select name="kind"><option value="suspend">suspend</option><option value="unsuspend">unsuspend</option><option value="ban">ban</option></select>
+<input name="days" type="number" min="0" placeholder="days"> {{template "rules"}}
+<p><textarea name="reason" rows="2" placeholder="Reason: the person reads this" required></textarea></p><button>Apply</button></form>
+{{if .Username}}<form method="post" action="/action"><input type="hidden" name="kind" value="remove-username"><input type="hidden" name="target" value="{{.Username}}">
+<input type="hidden" name="back" value="/account/{{printf "%x" .ID}}"> Remove @{{.Username}}: {{template "rules"}}
+<input name="reason" placeholder="reason" required> <button>Remove</button></form>{{end}}
+</fieldset>{{end}}
+{{end}}{{template "bottom"}}{{end}}

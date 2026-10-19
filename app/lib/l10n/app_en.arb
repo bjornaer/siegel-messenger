@@ -718,5 +718,13 @@
         "type": "int"
       }
     }
+  },
+  "reportsReviewed": "{count, plural, =1{We reviewed your report. Thank you for telling us.} other{We reviewed {count} of your reports. Thank you for telling us.}}",
+  "@reportsReviewed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

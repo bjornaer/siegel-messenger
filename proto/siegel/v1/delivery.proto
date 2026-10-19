@@ -118,7 +118,13 @@ message StreamFrame {
     // M7: a moderator acted on this account. Sent on each connect while it applies; a suspended
     // account's stream then closes.
     Enforcement enforcement = 4;
+    // M7: moderators reviewed this many of our reports since we were last told (never what they did).
+    ReportsReviewed reports_reviewed = 5;
   }
+}
+
+message ReportsReviewed {
+  int32 count = 1;
 }
 
 message NumberRemoved {}

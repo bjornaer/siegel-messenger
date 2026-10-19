@@ -1,0 +1,32 @@
+{{define "report"}}{{template "top" .}}{{with .Data}}
+<h1>Report {{.ID}} <span class="cat-{{category .Category}}">{{category .Category}}</span></h1>
+<p class="muted">Received {{day .Created}} · from {{short .Reporter}}
+{{if .Reported}} · about <a href="/account/{{printf "%x" .Reported}}">{{short .Reported}}</a>{{else}} · about a group{{end}}
+{{if .Resolved}} · <strong>resolved</strong>: {{.Outcome}}{{end}}</p>
+{{if eq (category .Category) "child_safety"}}<p class="warn">Child safety: look at no more than you need. Preserve, ban, report to the
+authorities per docs/child-safety.md, and get a second operator's sign-off.</p>{{end}}
+
+<fieldset><legend>Contents</legend>
+<p>Load the moderators' key file (siegel-reports.key). It stays in this page and is never sent anywhere.</p>
+<input type="file" id="key" accept=".key,.txt">
+<div id="contents" data-sealed="{{.Sealed}}"></div>
+</fieldset>
+
+{{with .Signals}}<fieldset><legend>Signals (30 days)</legend>
+Account since {{.CreatedDay}} · chats started {{.NewChats}} · new-chat limit hit {{.NewChatLimit}} · lookup limit hit {{.LookupLimit}} ·
+reports {{.Reports}} (child safety {{.ChildSafetyReports}})</fieldset>{{end}}
+
+{{if .Reported}}<fieldset><legend>Act on the account</legend>
+<form method="post" action="/action"><input type="hidden" name="target" value="{{printf "%x" .Reported}}"><input type="hidden" name="back" value="/report/{{.ID}}">
+<select name="kind"><option value="suspend">suspend</option><option value="ban">ban</option></select>
+<input name="days" type="number" min="0" placeholder="days (ban: empty = for good)"> {{template "rules"}}
+<p><textarea name="reason" rows="2" placeholder="Reason: the person reads this" required></textarea></p><button>Apply</button></form></fieldset>{{end}}
+
+{{if not .Resolved}}<fieldset><legend>Resolve</legend>
+<form method="post" action="/action"><input type="hidden" name="kind" value="resolve-report"><input type="hidden" name="target" value="{{.ID}}">
+<input type="hidden" name="back" value="/">
+<select name="outcome"><option>action taken</option><option>no violation</option><option>duplicate</option><option>reported to authorities</option></select>
+<input name="reason" placeholder="note for the audit log" required> <button>Resolve</button></form>
+<p class="muted">The reporter is told their report was reviewed, never what was done.</p></fieldset>{{end}}
+<script type="module" src="/static/report.js"></script>
+{{end}}{{template "bottom"}}{{end}}

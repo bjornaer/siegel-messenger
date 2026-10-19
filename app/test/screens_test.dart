@@ -155,6 +155,9 @@ class FakeCore implements Core {
     if (block) await this.block(account: chatList.firstWhere((c) => listEquals(c.groupId, groupId)).peerAccount);
   }
 
+  @override
+  int takeReportsReviewed() => 0;
+
   NoticeView? notice_;
   @override
   NoticeView? notice() => notice_;

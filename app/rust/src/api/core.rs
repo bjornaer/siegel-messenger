@@ -608,6 +608,8 @@ pub enum CoreEventKind {
     NumberRemoved,
     /// M7: suspended or @username removed; `notice` says why.
     Enforcement,
+    /// M7: some of our reports were reviewed; `take_reports_reviewed` says how many.
+    ReportsReviewed,
 }
 
 /// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
@@ -632,6 +634,11 @@ impl Core {
     /// M7: under 18, as the app worked out from the birth date it keeps.
     pub async fn set_minor(&self, minor: bool) -> Result<(), CoreError> {
         Ok(self.0.set_minor(minor).await?)
+    }
+
+    #[frb(sync)]
+    pub fn take_reports_reviewed(&self) -> i32 {
+        self.0.take_reports_reviewed()
     }
 
     #[frb(sync)]
@@ -1061,6 +1068,7 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
         core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
         core_api::Event::NumberRemoved => (CoreEventKind::NumberRemoved, None, None),
         core_api::Event::Enforcement => (CoreEventKind::Enforcement, None, None),
+        core_api::Event::ReportsReviewed => (CoreEventKind::ReportsReviewed, None, None),
     };
     let _ = sink.add(CoreEvent {
         kind,

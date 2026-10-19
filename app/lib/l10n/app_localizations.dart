@@ -2339,6 +2339,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =0{No stickers found there.} =1{1 sticker added.} other{{count} stickers added.}}'**
   String stickersAdded(int count);
+
+  /// No description provided for @reportsReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{We reviewed your report. Thank you for telling us.} other{We reviewed {count} of your reports. Thank you for telling us.}}'**
+  String reportsReviewed(int count);
 }
 
 class _AppLocalizationsDelegate

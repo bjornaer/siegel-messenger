@@ -1,0 +1,18 @@
+{{define "queue"}}{{template "top" .}}
+<h1>Open reports</h1>
+<p class="muted">Child safety first (24 hours), then harassment and threats, then the rest (7 days), oldest first.</p>
+<table><tr><th>#</th><th>Reason</th><th>Reported account</th><th>Open about them</th><th>Received</th></tr>
+{{range .Data.Reports}}<tr><td><a href="/report/{{.ID}}">{{.ID}}</a></td><td class="cat-{{category .Category}}">{{category .Category}}</td>
+<td>{{if .Reported}}<a href="/account/{{printf "%x" .Reported}}">{{short .Reported}}</a>{{else}}<span class="muted">a group</span>{{end}}</td>
+<td>{{.Reports}}</td><td>{{day .Created}}</td></tr>
+{{else}}<tr><td colspan="5" class="muted">Nothing open.</td></tr>{{end}}</table>
+
+<h2>Usernames flagged by the scan</h2>
+<table><tr><th>Name</th><th>Why</th><th>Account</th><th>Flagged</th><th></th></tr>
+{{range .Data.Flags}}<tr><td>@{{.Name}}</td><td>{{.Why}}</td>
+<td>{{if .Account}}<a href="/account/{{printf "%x" .Account}}">{{short .Account}}</a>{{end}}</td><td>{{day .Created}}</td>
+<td><form method="post" action="/action"><input type="hidden" name="kind" value="resolve-flag"><input type="hidden" name="target" value="{{.Name}}">
+<input type="hidden" name="back" value="/"><input name="outcome" placeholder="outcome" required><input name="reason" placeholder="reason" required>
+<button>Close</button></form></td></tr>
+{{else}}<tr><td colspan="5" class="muted">Nothing flagged.</td></tr>{{end}}</table>
+{{template "bottom"}}{{end}}

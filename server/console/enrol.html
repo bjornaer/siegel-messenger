@@ -1,0 +1,7 @@
+{{define "enrol"}}{{template "top" .}}
+<h1>Add a passkey</h1>
+<p>This single-use link adds a passkey for the operator named when it was made. It expires in 30 minutes.</p>
+<button id="enrol">Create a passkey</button>
+<p id="status" class="muted"></p>
+<script type="module" src="/static/passkey.js"></script>
+{{template "bottom"}}{{end}}

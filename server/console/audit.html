@@ -1,0 +1,10 @@
+{{define "audit"}}{{template "top" .}}
+<h1>Audit log</h1>
+<p>Chain: <strong>{{.Data.Status}}</strong></p>
+<fieldset><legend>Removal orders</legend>
+<form method="post" action="/action"><input type="hidden" name="back" value="/audit">
+<select name="kind"><option value="remove-link">remove link</option><option value="remove-blob">remove blob</option></select>
+<input name="target" placeholder="ID (hex)" required> <input name="reason" placeholder="order reference" required> <button>Remove</button></form></fieldset>
+<table><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Target</th><th>Reason</th></tr>
+{{range .Data.Rows}}<tr><td>{{.ID}}</td><td>{{day .At}}</td><td>{{.Operator}}</td><td>{{.Action}}</td><td>{{.Target}}</td><td>{{.Why}}</td></tr>{{end}}
+</table>{{template "bottom"}}{{end}}
