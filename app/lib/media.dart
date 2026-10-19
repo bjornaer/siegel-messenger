@@ -24,6 +24,7 @@ String messageText(AppLocalizations t, MessageView m) {
   final a = m.attachment;
   if (a == null) return m.text;
   if (a.voiceNote) return '🎤 ${t.voiceMessage} (${formatDuration(a.durationMs)})';
+  if (a.sticker) return '💟 ${t.sticker}';
   return switch (kindOf(a)) {
     AttachmentKind.audio => '🎵 ${a.fileName}',
     AttachmentKind.image => '📷 ${t.photo}',

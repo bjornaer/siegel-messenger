@@ -1686,6 +1686,11 @@ void main() {
     await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
     await t.pumpAndSettle();
     expect(find.byType(StickerMessage), findsOneWidget);
+    expect(
+      messageText(lookupAppLocalizations(const Locale('en')), theirs),
+      '💟 Sticker',
+      reason: 'chat list, notifications',
+    );
 
     await t.longPress(find.byType(StickerMessage));
     await t.pumpAndSettle();
