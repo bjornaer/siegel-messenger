@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'l10n/app_localizations.dart';
@@ -37,19 +39,48 @@ class SiegelTheme {
   }
 }
 
-/// The colours of a gradient theme and what reads on top of them.
+/// The colours of a gradient theme, what reads on top of them, and the read ticks on our
+/// bubbles (a colour that is neither the gradient nor [on]).
 class SiegelGradient extends ThemeExtension<SiegelGradient> {
-  const SiegelGradient(this.colors, this.on);
+  const SiegelGradient(this.colors, this.on, this.read);
   final List<Color> colors;
   final Color on;
+  final Color read;
 
   LinearGradient get linear => LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight);
 
   @override
-  SiegelGradient copyWith({List<Color>? colors, Color? on}) => SiegelGradient(colors ?? this.colors, on ?? this.on);
+  SiegelGradient copyWith({List<Color>? colors, Color? on, Color? read}) =>
+      SiegelGradient(colors ?? this.colors, on ?? this.on, read ?? this.read);
 
   @override
   SiegelGradient lerp(SiegelGradient? other, double t) => t < 0.5 || other == null ? this : other;
+}
+
+/// WCAG contrast ratio, 1 to 21.
+double contrast(Color a, Color b) {
+  final (x, y) = (a.computeLuminance(), b.computeLuminance());
+  return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
+}
+
+/// MSG-04: read ticks stand out from our bubble: 3:1 contrast (WCAG 1.4.11), a clearly different
+/// hue, and saturated, so they never look like the grey sent and delivered ticks.
+Color readTickColor(ThemeData theme) {
+  final g = theme.extension<SiegelGradient>();
+  if (g != null) return g.read;
+  final s = theme.colorScheme;
+  final bg = HSLColor.fromColor(s.primaryContainer);
+  final dark = theme.brightness == Brightness.dark;
+  final vivid = dark
+      ? const [Color(0xFF64B5F6), Color(0xFFF48FB1), Color(0xFF81C784)] // sky, rose, leaf
+      : const [Color(0xFF1565C0), Color(0xFFAD1457), Color(0xFF2E7D32)]; // gentian, raspberry, fir
+  bool apart(Color c) {
+    final h = HSLColor.fromColor(c);
+    final d = (h.hue - bg.hue).abs() % 360;
+    return contrast(c, s.primaryContainer) >= 3 && h.saturation >= 0.35 && math.min(d, 360 - d) >= 60;
+  }
+
+  return vivid.firstWhere(apart, orElse: () => vivid.first);
 }
 
 /// [child] restyled to read on the gradient [g] (our bubbles); unchanged without one.
@@ -108,7 +139,11 @@ final siegelThemes = [
     const Color(0xFF9B1B30),
     (t) => t.themeDrache,
     variant: DynamicSchemeVariant.vibrant,
-    gradient: const SiegelGradient([Color(0xFFB3182F), Color(0xFF5C0A24)], Colors.white), // fire to dried blood
+    gradient: const SiegelGradient(
+      [Color(0xFFB3182F), Color(0xFF5C0A24)],
+      Colors.white,
+      Color(0xFFFFD54F),
+    ), // fire to dried blood; gold
   ),
   SiegelTheme('loewe', 'Löwe', const Color(0xFFC8962E), (t) => t.themeLoewe),
   SiegelTheme(
@@ -116,7 +151,11 @@ final siegelThemes = [
     'Lindwurm',
     const Color(0xFF0F7C73),
     (t) => t.themeLindwurm,
-    gradient: const SiegelGradient([Color(0xFF12A190), Color(0xFF0B4A43)], Colors.white), // scales into deep water
+    gradient: const SiegelGradient(
+      [Color(0xFF12A190), Color(0xFF0B4A43)],
+      Colors.white,
+      Color(0xFFFFD54F),
+    ), // scales into deep water; gold
   ),
   SiegelTheme('schnee', 'Schnee', const Color(0xFF8FB8DE), (t) => t.themeSchnee),
   SiegelTheme(
@@ -125,7 +164,11 @@ final siegelThemes = [
     const Color(0xFFC2410C),
     (t) => t.themeKrampus,
     variant: DynamicSchemeVariant.fidelity,
-    gradient: const SiegelGradient([Color(0xFFE8631E), Color(0xFF3A1A12)], Colors.white), // ember to soot
+    gradient: const SiegelGradient(
+      [Color(0xFFE8631E), Color(0xFF3A1A12)],
+      Colors.white,
+      Color(0xFF80DEEA),
+    ), // ember to soot; ice
   ),
   SiegelTheme(
     'nordlicht',
@@ -141,7 +184,22 @@ final siegelThemes = [
     const Color(0xFFE3C55A), // the flower's yellow heart
     (t) => t.themeEdelweiss,
     lightOnly: true,
-    gradient: const SiegelGradient([Color(0xFFFFFFFF), Color(0xFFC3C9D2)], Color(0xFF22272E)), // snow to silver
+    gradient: const SiegelGradient(
+      [Color(0xFFFFFFFF), Color(0xFFC3C9D2)],
+      Color(0xFF22272E),
+      Color(0xFF1565C0),
+    ), // snow to silver; gentian blue
+  ),
+  SiegelTheme(
+    'kraehe',
+    'Krähe',
+    const Color(0xFF1B2D5E),
+    (t) => t.themeKraehe,
+    gradient: const SiegelGradient(
+      [Color(0xFF1B2D5E), Color(0xFF050608)],
+      Colors.white,
+      Color(0xFFFFCA28),
+    ), // midnight blue to black; amber
   ),
 ];
 

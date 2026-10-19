@@ -295,5 +295,6 @@
   "skPushNo": "Benachrichtigungs-Token: keiner",
   "skCopyJson": "Als JSON kopieren",
   "unreadCount": "{count, plural, =1{1 ungelesene Nachricht} other{{count} ungelesene Nachrichten}}",
-  "messageOptions": "Nachrichtenoptionen"
+  "messageOptions": "Nachrichtenoptionen",
+  "themeKraehe": "Mitternachtsblau bis Schwarz."
 }

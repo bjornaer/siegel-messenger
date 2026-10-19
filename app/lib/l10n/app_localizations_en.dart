@@ -1050,4 +1050,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messageOptions => 'Message options';
+
+  @override
+  String get themeKraehe => 'Crow. Midnight blue into black.';
 }

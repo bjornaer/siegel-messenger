@@ -295,5 +295,6 @@
   "skPushNo": "Token de notificaciones: ninguno",
   "skCopyJson": "Copiar como JSON",
   "unreadCount": "{count, plural, =1{1 mensaje sin leer} other{{count} mensajes sin leer}}",
-  "messageOptions": "Opciones del mensaje"
+  "messageOptions": "Opciones del mensaje",
+  "themeKraehe": "Cuervo. Azul medianoche hasta negro."
 }

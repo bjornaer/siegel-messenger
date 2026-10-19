@@ -1062,4 +1062,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get messageOptions => 'Nachrichtenoptionen';
+
+  @override
+  String get themeKraehe => 'Mitternachtsblau bis Schwarz.';
 }

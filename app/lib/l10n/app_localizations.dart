@@ -1877,6 +1877,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Message options'**
   String get messageOptions;
+
+  /// No description provided for @themeKraehe.
+  ///
+  /// In en, this message translates to:
+  /// **'Crow. Midnight blue into black.'**
+  String get themeKraehe;
 }
 
 class _AppLocalizationsDelegate

@@ -1158,7 +1158,16 @@ class _ChatScreenState extends State<ChatScreen> {
                               child: Text('${t.edited} ', style: small),
                             ),
                           Text(_time(context, m.sentAt), style: small),
-                          if (m.outgoing) ...[const SizedBox(width: 4), _status(t, m.status, colors)],
+                          if (m.outgoing) ...[
+                            const SizedBox(width: 4),
+                            _status(
+                              t,
+                              m.status,
+                              colors,
+                              read: readTickColor(Theme.of(context)),
+                              muted: grad?.on.withValues(alpha: 0.75) ?? colors.onSurfaceVariant,
+                            ),
+                          ],
                         ],
                       ),
                       if (failed)
@@ -1246,13 +1255,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   /// MSG-04 ticks, with labels for screen readers.
-  Widget _status(AppLocalizations t, MessageStatus s, ColorScheme colors) => switch (s) {
-    MessageStatus.failed => Icon(Icons.error_outline, size: 14, color: colors.error, semanticLabel: t.notSentRetry),
-    MessageStatus.sending => Icon(Icons.schedule, size: 14, semanticLabel: t.statusSending),
-    MessageStatus.sent => Icon(Icons.check, size: 14, semanticLabel: t.statusSent),
-    MessageStatus.delivered => Icon(Icons.done_all, size: 14, semanticLabel: t.statusDelivered),
-    MessageStatus.read => Icon(Icons.done_all, size: 14, color: colors.primary, semanticLabel: t.statusRead),
-  };
+  /// Sent and delivered are muted like the time; read is the theme's read colour.
+  Widget _status(AppLocalizations t, MessageStatus s, ColorScheme colors, {required Color read, Color? muted}) =>
+      switch (s) {
+        MessageStatus.failed => Icon(Icons.error_outline, size: 14, color: colors.error, semanticLabel: t.notSentRetry),
+        MessageStatus.sending => Icon(Icons.schedule, size: 14, color: muted, semanticLabel: t.statusSending),
+        MessageStatus.sent => Icon(Icons.check, size: 14, color: muted, semanticLabel: t.statusSent),
+        MessageStatus.delivered => Icon(Icons.done_all, size: 14, color: muted, semanticLabel: t.statusDelivered),
+        MessageStatus.read => Icon(Icons.done_all, size: 16, color: read, semanticLabel: t.statusRead),
+      };
 
   /// MSG-15: accept, delete or block before anything goes back to the requester.
   Widget _requestBar(AppLocalizations t, ChatSummary c) => Padding(

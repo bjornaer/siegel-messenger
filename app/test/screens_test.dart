@@ -2,6 +2,7 @@
 // fake core. Real network and storage paths are covered by core-api/tests/e2e.rs.
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
@@ -1092,12 +1093,35 @@ void main() {
     expect(find.byType(Badge), findsNothing, reason: 'read once opened');
   });
 
-  test('gradient themes: Drache, Krampus, Lindwurm and Edelweiß; Edelweiß stays light', () {
+  test('read ticks stand out from our bubble and from delivered ticks, in every theme (MSG-04)', () {
+    for (final th in siegelThemes) {
+      for (final b in Brightness.values) {
+        final theme = th.data(b);
+        final read = readTickColor(theme);
+        final g = theme.extension<SiegelGradient>();
+        // Ticks sit bottom right: check the gradient from its middle to its end.
+        final backgrounds = g == null
+            ? [theme.colorScheme.primaryContainer]
+            : [Color.lerp(g.colors.first, g.colors.last, 0.5)!, g.colors.last];
+        for (final bg in backgrounds) {
+          expect(contrast(read, bg), greaterThanOrEqualTo(3), reason: '${th.id} ${b.name} on $bg');
+        }
+        expect(HSLColor.fromColor(read).saturation, greaterThanOrEqualTo(0.35), reason: '${th.id}: not grey');
+        expect(read, isNot(g?.on ?? theme.colorScheme.onSurfaceVariant), reason: th.id);
+        if (g == null) {
+          final d = (HSLColor.fromColor(read).hue - HSLColor.fromColor(theme.colorScheme.primaryContainer).hue).abs();
+          expect(math.min(d, 360 - d), greaterThanOrEqualTo(60), reason: '${th.id} ${b.name}: a different hue');
+        }
+      }
+    }
+  });
+
+  test('gradient themes: Drache, Krampus, Lindwurm, Edelweiß and Krähe; Edelweiß stays light', () {
     final gradient = [
       for (final th in siegelThemes)
         if (th.gradient != null) th.id,
     ];
-    expect(gradient, unorderedEquals(['drache', 'krampus', 'lindwurm', 'edelweiss']));
+    expect(gradient, unorderedEquals(['drache', 'krampus', 'lindwurm', 'edelweiss', 'kraehe']));
     final edelweiss = themeById('edelweiss');
     expect(edelweiss.data(Brightness.dark).brightness, Brightness.light);
     expect(edelweiss.data(Brightness.dark).extension<SiegelGradient>(), isNotNull);

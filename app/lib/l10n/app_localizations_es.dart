@@ -1058,4 +1058,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get messageOptions => 'Opciones del mensaje';
+
+  @override
+  String get themeKraehe => 'Cuervo. Azul medianoche hasta negro.';
 }
