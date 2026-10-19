@@ -1441,3 +1441,34 @@ async fn a_reregistered_member_gets_back_into_groups() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn a_deleted_chat_comes_back_with_the_next_message() {
+    // Deleting an ongoing 1:1 chat clears it here but keeps its keys.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+    alice.send_text(&chat, "old news", None).await.unwrap();
+    until(
+        &mut be,
+        |e| matches!(e, Event::Message(m) if m.text == "old news"),
+    )
+    .await;
+
+    alice.clear_chat(&chat).unwrap();
+    assert!(alice.messages(&chat, 50).unwrap().is_empty());
+    let bob_chat = bob.conversations().unwrap()[0].group_id.clone();
+    bob.send_text(&bob_chat, "still there?", None)
+        .await
+        .unwrap();
+    let Event::Message(m) = until(&mut ae, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    assert_eq!((m.group_id, m.text.as_str()), (chat, "still there?"));
+}

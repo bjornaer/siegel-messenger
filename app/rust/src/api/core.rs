@@ -156,6 +156,12 @@ impl Core {
         })
     }
 
+    /// Deletes a 1:1 chat's messages; its next message brings it back.
+    #[frb(sync)]
+    pub fn clear_chat(&self, group_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.clear_chat(&group_id)?)
+    }
+
     #[frb(sync)]
     pub fn number_removed(&self) -> bool {
         self.0.number_removed()

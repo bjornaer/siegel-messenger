@@ -1907,6 +1907,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My photo'**
   String get backgroundPhoto;
+
+  /// No description provided for @archive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get archive;
+
+  /// No description provided for @unarchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Unarchive'**
+  String get unarchive;
+
+  /// No description provided for @archived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get archived;
+
+  /// No description provided for @noArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'No archived chats.'**
+  String get noArchived;
+
+  /// No description provided for @unreadChats.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 chat with unread messages} other{{count} chats with unread messages}}'**
+  String unreadChats(int count);
+
+  /// No description provided for @deleteChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete chat'**
+  String get deleteChat;
+
+  /// No description provided for @deleteChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the chat with {name}?'**
+  String deleteChatTitle(String name);
+
+  /// No description provided for @deleteChatBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Its messages are deleted from this phone. If they write again, the chat comes back.'**
+  String get deleteChatBody;
+
+  /// No description provided for @leaveAndDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave {name} and delete the chat?'**
+  String leaveAndDeleteTitle(String name);
+
+  /// No description provided for @leaveAndDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Members see that you left. The messages are deleted from this phone.'**
+  String get leaveAndDeleteBody;
 }
 
 class _AppLocalizationsDelegate

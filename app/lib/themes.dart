@@ -83,6 +83,54 @@ Color readTickColor(ThemeData theme) {
   return vivid.firstWhere(apart, orElse: () => vivid.first);
 }
 
+/// Group members' names: 20 hues (hue, saturation, lightness shift) so neighbours in a chat
+/// rarely share one. Light and dark green, and the blues, differ by lightness as well as hue.
+const _nameHues = <(double, double, double)>[
+  (4, 0.85, 0), // red
+  (24, 0.95, 0), // orange
+  (40, 0.95, 0), // amber
+  (52, 1, 0), // yellow
+  (80, 0.8, 0), // lime
+  (110, 0.7, 0.08), // light green
+  (140, 0.75, -0.1), // dark green
+  (172, 0.8, 0), // teal
+  (188, 0.9, 0), // cyan
+  (200, 0.9, 0.05), // sky
+  (212, 1, 0), // bright blue
+  (225, 0.8, -0.05), // blue
+  (242, 0.7, 0), // indigo
+  (262, 0.8, 0.05), // violet
+  (278, 0.75, -0.05), // purple
+  (295, 0.85, 0), // magenta
+  (315, 0.95, 0.03), // fuchsia
+  (335, 0.9, 0.06), // pink
+  (350, 0.8, -0.04), // rose
+  (28, 0.6, -0.12), // brown
+];
+
+int get memberColorCount => _nameHues.length;
+
+/// The name colour for a group member: the same for them in every chat, readable (4.5:1) on
+/// [bubble] in any theme, light or dark.
+Color memberColor(List<int> account, Color bubble) {
+  var h = 0x811c9dc5; // FNV-1a
+  for (final b in account) {
+    h = ((h ^ b) * 0x01000193) & 0xffffffff;
+  }
+  return memberColorAt(h % _nameHues.length, bubble);
+}
+
+Color memberColorAt(int i, Color bubble) {
+  final (hue, sat, shift) = _nameHues[i];
+  final dark = bubble.computeLuminance() < 0.3;
+  var l = (dark ? 0.66 : 0.42) + shift;
+  Color c() => HSLColor.fromAHSL(1, hue, sat, l.clamp(0.0, 1.0)).toColor();
+  while (contrast(c(), bubble) < 4.5 && l > 0 && l < 1) {
+    l += dark ? 0.02 : -0.02;
+  }
+  return c();
+}
+
 /// [child] restyled to read on the gradient [g] (our bubbles); unchanged without one.
 Widget onGradient(BuildContext context, SiegelGradient? g, Widget child) {
   if (g == null) return child;

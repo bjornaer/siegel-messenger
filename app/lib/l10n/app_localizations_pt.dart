@@ -1068,4 +1068,48 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get backgroundPhoto => 'Minha foto';
+
+  @override
+  String get archive => 'Arquivar';
+
+  @override
+  String get unarchive => 'Desarquivar';
+
+  @override
+  String get archived => 'Arquivadas';
+
+  @override
+  String get noArchived => 'Nenhuma conversa arquivada.';
+
+  @override
+  String unreadChats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count conversas com mensagens não lidas',
+      one: '1 conversa com mensagens não lidas',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteChat => 'Apagar conversa';
+
+  @override
+  String deleteChatTitle(String name) {
+    return 'Apagar a conversa com $name?';
+  }
+
+  @override
+  String get deleteChatBody =>
+      'As mensagens são apagadas deste telefone. Se a pessoa escrever de novo, a conversa volta.';
+
+  @override
+  String leaveAndDeleteTitle(String name) {
+    return 'Sair de $name e apagar a conversa?';
+  }
+
+  @override
+  String get leaveAndDeleteBody =>
+      'Os membros verão que você saiu. As mensagens são apagadas deste telefone.';
 }

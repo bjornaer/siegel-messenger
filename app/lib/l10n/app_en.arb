@@ -573,5 +573,36 @@
   "chatBackground": "Chat background",
   "backgroundPattern": "The theme's pattern",
   "backgroundPlain": "Plain",
-  "backgroundPhoto": "My photo"
+  "backgroundPhoto": "My photo",
+  "archive": "Archive",
+  "unarchive": "Unarchive",
+  "archived": "Archived",
+  "noArchived": "No archived chats.",
+  "unreadChats": "{count, plural, =1{1 chat with unread messages} other{{count} chats with unread messages}}",
+  "@unreadChats": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteChat": "Delete chat",
+  "deleteChatTitle": "Delete the chat with {name}?",
+  "@deleteChatTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteChatBody": "Its messages are deleted from this phone. If they write again, the chat comes back.",
+  "leaveAndDeleteTitle": "Leave {name} and delete the chat?",
+  "@leaveAndDeleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "leaveAndDeleteBody": "Members see that you left. The messages are deleted from this phone."
 }

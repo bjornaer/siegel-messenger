@@ -1065,4 +1065,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backgroundPhoto => 'My photo';
+
+  @override
+  String get archive => 'Archive';
+
+  @override
+  String get unarchive => 'Unarchive';
+
+  @override
+  String get archived => 'Archived';
+
+  @override
+  String get noArchived => 'No archived chats.';
+
+  @override
+  String unreadChats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chats with unread messages',
+      one: '1 chat with unread messages',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteChat => 'Delete chat';
+
+  @override
+  String deleteChatTitle(String name) {
+    return 'Delete the chat with $name?';
+  }
+
+  @override
+  String get deleteChatBody =>
+      'Its messages are deleted from this phone. If they write again, the chat comes back.';
+
+  @override
+  String leaveAndDeleteTitle(String name) {
+    return 'Leave $name and delete the chat?';
+  }
+
+  @override
+  String get leaveAndDeleteBody =>
+      'Members see that you left. The messages are deleted from this phone.';
 }

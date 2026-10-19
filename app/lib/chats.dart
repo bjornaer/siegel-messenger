@@ -227,7 +227,106 @@ Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSumma
         builder: (_) => ChatScreen(core: core, service: service, groupId: c.groupId),
       ),
     ),
+    onLongPress: c.request ? null : () => _chatActions(context, core, service, c),
   );
+}
+
+/// Archive or delete a chat from the list.
+Future<void> _chatActions(BuildContext context, Core core, ChatService service, ChatSummary c) async {
+  final t = AppLocalizations.of(context)!;
+  final archived = isArchived(core, c.groupId);
+  final pick = await showModalBottomSheet<String>(
+    context: context,
+    builder: (s) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(archived ? Icons.unarchive_outlined : Icons.archive_outlined),
+            title: Text(archived ? t.unarchive : t.archive),
+            onTap: () => Navigator.pop(s, 'archive'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: Text(t.deleteChat),
+            onTap: () => Navigator.pop(s, 'delete'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (pick == 'archive') {
+    setArchived(core, c.groupId, !archived);
+    service.refresh();
+  } else if (pick == 'delete' && context.mounted) {
+    await deleteChat(context, core, service, c);
+  }
+}
+
+/// A 1:1 chat loses its messages here and comes back with the next one; a group is left and
+/// deleted in one step.
+Future<bool> deleteChat(BuildContext context, Core core, ChatService service, ChatSummary c) async {
+  final t = AppLocalizations.of(context)!;
+  final name = chatTitle(t, c);
+  final leave = c.isGroup && !c.left;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (d) => AlertDialog(
+      title: Text(leave ? t.leaveAndDeleteTitle(name) : t.deleteChatTitle(name)),
+      content: Text(leave ? t.leaveAndDeleteBody : t.deleteChatBody),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+        TextButton(onPressed: () => Navigator.pop(d, true), child: Text(t.delete)),
+      ],
+    ),
+  );
+  if (ok != true) return false;
+  try {
+    if (c.isGroup) {
+      if (leave) await core.leaveGroup(groupId: c.groupId);
+      core.deleteChat(groupId: c.groupId);
+    } else {
+      core.clearChat(groupId: c.groupId);
+      core.setSetting(key: hiddenKey(c.groupId), value: '1');
+    }
+    setArchived(core, c.groupId, false);
+  } on CoreError catch (e) {
+    if (context.mounted) showError(context, e);
+    return false;
+  }
+  service.refresh();
+  return true;
+}
+
+/// Chats in the main list (or the archive): no requests, no deleted 1:1 chats still empty.
+List<ChatSummary> listedChats(Core core, {required bool archived}) => [
+  for (final c in core.chats())
+    if (!c.request &&
+        isArchived(core, c.groupId) == archived &&
+        !(c.last == null && core.setting(key: hiddenKey(c.groupId)) == '1'))
+      c,
+];
+
+class ArchivedScreen extends StatelessWidget {
+  const ArchivedScreen({super.key, required this.core, required this.service});
+  final Core core;
+  final ChatService service;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return Scaffold(
+      appBar: SiegelBar(title: Text(t.archived)),
+      body: ListenableBuilder(
+        listenable: service,
+        builder: (context, _) {
+          final chats = listedChats(core, archived: true);
+          if (chats.isEmpty) return Center(child: Text(t.noArchived));
+          return ListView(children: [for (final c in chats) _chatTile(context, core, service, c)]);
+        },
+      ),
+    );
+  }
 }
 
 class ChatListScreen extends StatelessWidget {
@@ -254,8 +353,10 @@ class ChatListScreen extends StatelessWidget {
         listenable: service,
         builder: (context, _) {
           final all = core.chats();
-          final chats = all.where((c) => !c.request).toList();
-          final requests = all.length - chats.length;
+          final chats = listedChats(core, archived: false);
+          final requests = all.where((c) => c.request).length;
+          final archived = listedChats(core, archived: true);
+          final archivedUnread = archived.where((c) => c.unread > 0).length;
           // Pull down to reconnect at once and fetch anything waiting.
           return RefreshIndicator(
             onRefresh: () async {
@@ -277,7 +378,20 @@ class ChatListScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (chats.isEmpty && requests == 0)
+                if (archived.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.archive_outlined),
+                    title: Text(t.archived),
+                    trailing: archivedUnread == 0
+                        ? null
+                        : Text('$archivedUnread', semanticsLabel: t.unreadChats(archivedUnread)),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ArchivedScreen(core: core, service: service),
+                      ),
+                    ),
+                  ),
+                if (chats.isEmpty && requests == 0 && archived.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(32),
                     child: Text(t.noChats, textAlign: TextAlign.center),
@@ -1109,7 +1223,10 @@ class _ChatScreenState extends State<ChatScreen> {
                           // the bubble already says who sent it
                           child: Text(
                             memberName(t, core, m.senderAccount),
-                            style: small?.copyWith(color: colors.primary, fontWeight: FontWeight.bold),
+                            style: small?.copyWith(
+                              color: memberColor(m.senderAccount, colors.surfaceContainerHighest),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       if (m.replyTo != null && !m.deleted)

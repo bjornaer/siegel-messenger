@@ -245,6 +245,12 @@ class FakeCore implements Core {
   }
 
   @override
+  void clearChat({required List<int> groupId}) {
+    calls.add('clearChat');
+    history[base64Encode(groupId)] = [];
+  }
+
+  @override
   void deleteChat({required List<int> groupId}) {
     calls.add('deleteChat');
     chatList.removeWhere((c) => listEquals(c.groupId, groupId));
@@ -1525,6 +1531,73 @@ void main() {
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
     await openChat();
     expect(find.descendant(of: find.byType(ChatBackground), matching: find.byType(Image)), findsOneWidget);
+  });
+
+  testWidgets('archive and delete chats from the list; archived chats stay silent', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {});
+    addTearDown(service.dispose);
+    final bob = await core.startChat(username: 'bob');
+    core.receive(bob, 'hi');
+    final group = await core.createGroup(name: 'Hikers', usernames: ['carol']);
+    core.receive(group, 'stove?');
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    await t.pumpAndSettle();
+
+    await t.longPress(find.text('@bob'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Archive');
+    expect(find.text('@bob'), findsNothing);
+    expect(find.text('Archived'), findsOneWidget);
+    expect(find.text('1'), findsWidgets, reason: 'archived chats with unread messages');
+    await tapText(t, 'Archived');
+    expect(find.text('@bob'), findsOneWidget);
+    await t.longPress(find.text('@bob'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Unarchive');
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('@bob'), findsOneWidget);
+    expect(find.text('Archived'), findsNothing);
+
+    // Delete a 1:1 chat: gone until the next message.
+    await t.longPress(find.text('@bob'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Delete chat');
+    expect(find.text('Delete the chat with @bob?'), findsOneWidget);
+    await tapText(t, 'Delete');
+    expect(core.calls, contains('clearChat'));
+    expect(find.text('@bob'), findsNothing);
+    core.receive(bob, 'back again');
+    service.refresh();
+    await t.pumpAndSettle();
+    expect(find.text('@bob'), findsOneWidget);
+
+    // Delete a group: leave and delete in one step.
+    await t.longPress(find.text('Hikers'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Delete chat');
+    expect(find.text('Leave Hikers and delete the chat?'), findsOneWidget);
+    await tapText(t, 'Delete');
+    expect(core.calls, containsAllInOrder(['leaveGroup', 'deleteChat']));
+    expect(find.text('Hikers'), findsNothing);
+  });
+
+  test('group name colours: 20, readable on incoming bubbles in every theme, stable per person', () {
+    expect(memberColorCount, inInclusiveRange(16, 24));
+    for (final th in siegelThemes) {
+      for (final b in Brightness.values) {
+        final bubble = th.data(b).colorScheme.surfaceContainerHighest;
+        final colours = {for (var i = 0; i < memberColorCount; i++) memberColorAt(i, bubble)};
+        expect(colours.length, memberColorCount, reason: '${th.id} ${b.name}: all distinct');
+        for (final c in colours) {
+          expect(contrast(c, bubble), greaterThanOrEqualTo(4.5), reason: '${th.id} ${b.name} $c');
+          expect(HSLColor.fromColor(c).saturation, greaterThan(0.5), reason: 'colourful, not grey');
+        }
+      }
+    }
+    final bubble = siegelThemes.first.data(Brightness.light).colorScheme.surfaceContainerHighest;
+    expect(memberColor([1, 2, 3], bubble), memberColor([1, 2, 3], bubble));
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

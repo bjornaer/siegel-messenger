@@ -23,6 +23,15 @@ bool isMuted(Core core, List<int> groupId) {
   return until != null && DateTime.now().millisecondsSinceEpoch < until;
 }
 
+/// Archived chats leave the list and stay silent, even when new messages arrive.
+String archiveKey(List<int> groupId) => 'archive.${base64Encode(groupId)}';
+bool isArchived(Core core, List<int> groupId) => core.setting(key: archiveKey(groupId)) == '1';
+void setArchived(Core core, List<int> groupId, bool on) =>
+    core.setSetting(key: archiveKey(groupId), value: on ? '1' : '');
+
+/// A deleted 1:1 chat stays hidden until its next message.
+String hiddenKey(List<int> groupId) => 'hidden.${base64Encode(groupId)}';
+
 /// Muted "always": not even @mentions get through (GRP-15).
 bool isMutedAlways(Core core, List<int> groupId) =>
     const {'on', 'always'}.contains(core.setting(key: muteKey(groupId)));

@@ -300,5 +300,15 @@
   "chatBackground": "Fundo da conversa",
   "backgroundPattern": "O padrão do tema",
   "backgroundPlain": "Liso",
-  "backgroundPhoto": "Minha foto"
+  "backgroundPhoto": "Minha foto",
+  "archive": "Arquivar",
+  "unarchive": "Desarquivar",
+  "archived": "Arquivadas",
+  "noArchived": "Nenhuma conversa arquivada.",
+  "unreadChats": "{count, plural, =1{1 conversa com mensagens não lidas} other{{count} conversas com mensagens não lidas}}",
+  "deleteChat": "Apagar conversa",
+  "deleteChatTitle": "Apagar a conversa com {name}?",
+  "deleteChatBody": "As mensagens são apagadas deste telefone. Se a pessoa escrever de novo, a conversa volta.",
+  "leaveAndDeleteTitle": "Sair de {name} e apagar a conversa?",
+  "leaveAndDeleteBody": "Os membros verão que você saiu. As mensagens são apagadas deste telefone."
 }

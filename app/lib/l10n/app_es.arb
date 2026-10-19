@@ -300,5 +300,15 @@
   "chatBackground": "Fondo del chat",
   "backgroundPattern": "El motivo del tema",
   "backgroundPlain": "Liso",
-  "backgroundPhoto": "Mi foto"
+  "backgroundPhoto": "Mi foto",
+  "archive": "Archivar",
+  "unarchive": "Desarchivar",
+  "archived": "Archivados",
+  "noArchived": "No hay chats archivados.",
+  "unreadChats": "{count, plural, =1{1 chat con mensajes sin leer} other{{count} chats con mensajes sin leer}}",
+  "deleteChat": "Eliminar chat",
+  "deleteChatTitle": "¿Eliminar el chat con {name}?",
+  "deleteChatBody": "Sus mensajes se eliminan de este teléfono. Si te vuelve a escribir, el chat reaparece.",
+  "leaveAndDeleteTitle": "¿Salir de {name} y eliminar el chat?",
+  "leaveAndDeleteBody": "Los miembros verán que saliste. Los mensajes se eliminan de este teléfono."
 }

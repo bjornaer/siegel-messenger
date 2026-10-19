@@ -52,6 +52,9 @@ abstract class Core implements RustOpaqueInterface {
   /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
 
+  /// Deletes a 1:1 chat's messages; its next message brings it back.
+  void clearChat({required List<int> groupId});
+
   /// DISC-08: our contact link, or None when it is off.
   String? contactLink();
 

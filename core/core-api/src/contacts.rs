@@ -233,6 +233,15 @@ impl SiegelCore {
         self.share_profile_key(group_id).await
     }
 
+    /// Deletes every message of a chat from this device but keeps the chat's keys, so the next
+    /// message from the other side still arrives (deleting an ongoing 1:1 chat).
+    pub fn clear_chat(&self, group_id: &[u8]) -> Result<(), CoreError> {
+        for m in self.with_store(|s| storage(s.messages(group_id, u32::MAX)))? {
+            self.delete_for_me(&m.message_id)?;
+        }
+        Ok(())
+    }
+
     /// Deletes a chat from this device (declining a request, or MSG-12 for a whole chat).
     pub fn delete_chat(&self, group_id: &[u8]) -> Result<(), CoreError> {
         let peer = self.peer_contact(group_id).ok();

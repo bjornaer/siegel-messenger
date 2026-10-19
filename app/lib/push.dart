@@ -12,7 +12,7 @@ import 'groups.dart' show memberName, myAccount;
 import 'l10n/app_localizations.dart';
 import 'main.dart' show openCore;
 import 'media.dart' show messageText;
-import 'profile.dart' show isMuted, isMutedAlways;
+import 'profile.dart' show isArchived, isMuted, isMutedAlways;
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -59,7 +59,7 @@ Future<void> clearNotification(List<int> groupId) => _notifications.cancel(id: _
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
 /// unless the user allows private content there (Android's "private" visibility).
 Future<void> notifyMessage(Core core, MessageView m) async {
-  if (m.outgoing || m.event != null || isMutedAlways(core, m.groupId)) return;
+  if (m.outgoing || m.event != null || isMutedAlways(core, m.groupId) || isArchived(core, m.groupId)) return;
   // GRP-15: an @mention gets through a timed mute.
   final me = myAccount(core, m.groupId);
   if (isMuted(core, m.groupId) && !m.mentions.any((a) => listEquals(a, me))) return;

@@ -1073,4 +1073,48 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get backgroundPhoto => 'Mi foto';
+
+  @override
+  String get archive => 'Archivar';
+
+  @override
+  String get unarchive => 'Desarchivar';
+
+  @override
+  String get archived => 'Archivados';
+
+  @override
+  String get noArchived => 'No hay chats archivados.';
+
+  @override
+  String unreadChats(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count chats con mensajes sin leer',
+      one: '1 chat con mensajes sin leer',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get deleteChat => 'Eliminar chat';
+
+  @override
+  String deleteChatTitle(String name) {
+    return '¿Eliminar el chat con $name?';
+  }
+
+  @override
+  String get deleteChatBody =>
+      'Sus mensajes se eliminan de este teléfono. Si te vuelve a escribir, el chat reaparece.';
+
+  @override
+  String leaveAndDeleteTitle(String name) {
+    return '¿Salir de $name y eliminar el chat?';
+  }
+
+  @override
+  String get leaveAndDeleteBody =>
+      'Los miembros verán que saliste. Los mensajes se eliminan de este teléfono.';
 }
