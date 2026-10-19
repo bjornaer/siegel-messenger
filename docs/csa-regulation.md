@@ -54,19 +54,12 @@ snapshots and public @usernames, it may also count as a *hosting service*. Lawye
   and Siegel's design depends on it.
 - **Read user reports beyond what the reporter chose to send.**
 
-## Decisions this adds for you
+## Decisions
 
-1. **Minors.** Today we only check "at least 14/16". Options:
-   - (a) keep that;
-   - (b) ask the birth year at sign-up and give under-18s safer defaults: message requests only
-     from people whose number they have, no group adds by strangers, discovery off;
-   - (c) also offer a privacy-preserving age check (the EU age-verification app or EUDI wallet)
-     if the final text makes age verification mandatory where there is a solicitation risk.
-
-   I'd build (b) now and keep (c) ready.
-2. **Who files reports** to the EU Centre or the police, and the second person who signs off on
-   child-safety cases. This is the same question as OQ-014 and the trust-and-safety plan.
-3. **24-hour on-call** for removal orders and child-safety reports: you alone, or shared?
+- **Minors (decided 2026-10-19):** birth year at sign-up; under-18s get safer defaults. The age
+  check stays designed but unbuilt until the law requires it. See `docs/trust-and-safety.md`
+  Part 2.
+- **Who files reports and who is on call:** open, O1, O3 and O4 in `docs/trust-and-safety.md`.
 
 ## Watch list
 
