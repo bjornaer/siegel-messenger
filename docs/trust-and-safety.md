@@ -20,6 +20,11 @@ usernames and invite links, answer lawful requests with the little we hold, and 
 
 ## Law to confirm (OQ-014)
 
+- **EU Child Sexual Abuse Regulation (CSAR, "chat control"), not yet adopted.** It brings a risk
+  assessment, mitigation, a user flagging mechanism, reporting to the EU Centre, 24-hour removal
+  orders and a point of contact, with no small-provider exemption. Detection of end-to-end
+  encrypted content is reportedly excluded. Full analysis and what it means here:
+  `docs/csa-regulation.md`.
 - **EU Digital Services Act (Regulation 2022/2065).** Every intermediary service needs a point of
   contact for authorities and users (Art. 11, 12) and terms that explain moderation (Art. 14).
   Transparency reports (Art. 15) don't apply to micro and small enterprises. Notice and action
@@ -46,7 +51,12 @@ Each part ships on its own, like earlier milestones.
 - `/terms` page: who may use Siegel (age per CMP-02), what isn't allowed, what we do about it,
   how to appeal, the contact for authorities. A link from onboarding, Settings and the privacy page.
 - Community guidelines in plain words, using the same categories the report flow uses (below).
-- Done when: both pages are live, linked from the app, and the lawyer has reviewed them.
+- **CSA risk assessment** (`docs/csa-risk-assessment.md`, CSAR Art. 3-5): Siegel's features,
+  how each could be misused to share abuse material or groom children, what mitigates it, and the
+  risk that remains. It is reviewed yearly and whenever a feature widens reach.
+- A published point of contact for authorities (CSAR, DSA Art. 11), monitored.
+- Done when: both pages are live, linked from the app, the risk assessment is written, and the
+  lawyer has reviewed them.
 
 ### Part 2: Reporting in the app (CMP-03)
 
@@ -55,6 +65,8 @@ Each part ships on its own, like earlier milestones.
 - **What the reporter chooses:** a category, then the messages to include (pre-selected: the pressed
   message plus up to 10 before it from the same sender, adjustable, at most 50), and an optional note.
   The screen says plainly: "These messages will be sent to Siegel's moderators, readable."
+  The wording is short and plain enough for a teenager: CSAR Art. 12(3) asks for an "accessible,
+  age-appropriate and user-friendly" mechanism.
 - **Categories:** spam or scam; harassment or threats; hate; sexual content involving a minor;
   other sexual content without consent; violence or terrorism; impersonation; something else.
 - **Sent:** the category, the note, the reported account ID (or group ID), and for each message: the
@@ -81,6 +93,8 @@ Each part ships on its own, like earlier milestones.
 - **Username takedown:** the name is released and quarantined forever, and the account has to pick
   a new one at next start (the app already has the picker).
 - **Invite link takedown:** the link is deleted (GRP-16), and the group can make a new one.
+- **Removal orders (CSAR, DSA):** a blob, link or username named in an order is removed within
+  24 hours with `siegel-admin remove`, and the order is kept in the audit log.
 - **Statement of reasons (DSA Art. 17):** every action sends the account its reason, the rule it
   broke and how to appeal, through the stream and on the suspended screen.
 - Done when: server tests cover each state, and the e2e test shows a suspended app gets the screen
@@ -126,7 +140,10 @@ Each part ships on its own, like earlier milestones.
 - **Child abuse material in a report:**
   - only the minimum is viewed;
   - the report is preserved and the account banned;
-  - authorities are told as the lawyer advises;
+  - it is reported without delay: to the EU Centre once it operates (CSAR Art. 12), until then to
+    the authority the lawyer names;
+  - the reported user is told, unless the Centre or the police say not to;
+  - the report is kept 12 months at most (CSAR Art. 22), unless a court asks for longer;
   - a second operator signs off.
 - **Yearly transparency report** at `/transparency`: reports by category, actions by type, appeals and
   outcomes, requests received and answered. Even if Art. 15 doesn't bind us, it backs up TRUST-01.
@@ -142,3 +159,6 @@ Each part ships on its own, like earlier milestones.
 4. Ban length: permanent, or a set time, such as one year, before the number can register again?
 5. Where appeals go: an email address on `/terms`, for a start.
 6. Who holds the moderator key, and who is the second operator for child-safety cases?
+7. Minors (from `docs/csa-regulation.md`): keep the age checkbox only, or ask the birth year and
+   give under-18s safer defaults, with a privacy-preserving age check ready if the law requires one.
+8. Who is on call for 24-hour removal orders and child-safety reports?
