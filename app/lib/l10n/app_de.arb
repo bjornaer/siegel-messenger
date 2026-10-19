@@ -296,5 +296,9 @@
   "skCopyJson": "Als JSON kopieren",
   "unreadCount": "{count, plural, =1{1 ungelesene Nachricht} other{{count} ungelesene Nachrichten}}",
   "messageOptions": "Nachrichtenoptionen",
-  "themeKraehe": "Mitternachtsblau bis Schwarz."
+  "themeKraehe": "Mitternachtsblau bis Schwarz.",
+  "chatBackground": "Chat-Hintergrund",
+  "backgroundPattern": "Das Muster des Themas",
+  "backgroundPlain": "Einfarbig",
+  "backgroundPhoto": "Mein Foto"
 }

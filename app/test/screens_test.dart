@@ -13,6 +13,7 @@ import 'package:siegel/app_lock.dart';
 import 'package:siegel/discovery.dart';
 import 'package:siegel/links.dart' show appChannel;
 import 'package:siegel/avatar.dart';
+import 'package:siegel/backgrounds.dart';
 import 'package:siegel/chats.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
@@ -1489,6 +1490,41 @@ void main() {
     await tapText(t, 'Copy as JSON');
     final json = jsonDecode(copied!) as Map<String, dynamic>;
     expect((json['phone_number_hmac'], json['devices'][0]['queued_messages']), ('0123456789abcdef0123', 3));
+  });
+
+  testWidgets('chat background: the theme pattern by default, plain, or my photo', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    final service = ChatService(core, onDeregistered: () {});
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    Future<void> openChat() async {
+      await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+      await t.pumpAndSettle();
+    }
+
+    await openChat();
+    expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is ThemePattern), findsOneWidget);
+
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text('Chat background'), 100);
+    expect(find.text("The theme's pattern"), findsOneWidget);
+    await t.ensureVisible(find.text('Chat background'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Chat background');
+    await tapText(t, 'Plain');
+    expect(core.settings['chat_background'], 'plain');
+    await openChat();
+    expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is ThemePattern), findsNothing);
+
+    core.settings
+      ..['chat_background'] = 'photo'
+      ..['chat_background_photo'] =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    await openChat();
+    expect(find.descendant(of: find.byType(ChatBackground), matching: find.byType(Image)), findsOneWidget);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

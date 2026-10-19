@@ -1056,4 +1056,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get themeKraehe => 'Corvo. Azul meia-noite até preto.';
+
+  @override
+  String get chatBackground => 'Fundo da conversa';
+
+  @override
+  String get backgroundPattern => 'O padrão do tema';
+
+  @override
+  String get backgroundPlain => 'Liso';
+
+  @override
+  String get backgroundPhoto => 'Minha foto';
 }

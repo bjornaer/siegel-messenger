@@ -296,5 +296,9 @@
   "skCopyJson": "Copiar como JSON",
   "unreadCount": "{count, plural, =1{1 mensagem não lida} other{{count} mensagens não lidas}}",
   "messageOptions": "Opções da mensagem",
-  "themeKraehe": "Corvo. Azul meia-noite até preto."
+  "themeKraehe": "Corvo. Azul meia-noite até preto.",
+  "chatBackground": "Fundo da conversa",
+  "backgroundPattern": "O padrão do tema",
+  "backgroundPlain": "Liso",
+  "backgroundPhoto": "Minha foto"
 }

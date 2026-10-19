@@ -1065,4 +1065,16 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get themeKraehe => 'Mitternachtsblau bis Schwarz.';
+
+  @override
+  String get chatBackground => 'Chat-Hintergrund';
+
+  @override
+  String get backgroundPattern => 'Das Muster des Themas';
+
+  @override
+  String get backgroundPlain => 'Einfarbig';
+
+  @override
+  String get backgroundPhoto => 'Mein Foto';
 }

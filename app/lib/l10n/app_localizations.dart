@@ -1883,6 +1883,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Crow. Midnight blue into black.'**
   String get themeKraehe;
+
+  /// No description provided for @chatBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat background'**
+  String get chatBackground;
+
+  /// No description provided for @backgroundPattern.
+  ///
+  /// In en, this message translates to:
+  /// **'The theme\'s pattern'**
+  String get backgroundPattern;
+
+  /// No description provided for @backgroundPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Plain'**
+  String get backgroundPlain;
+
+  /// No description provided for @backgroundPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'My photo'**
+  String get backgroundPhoto;
 }
 
 class _AppLocalizationsDelegate

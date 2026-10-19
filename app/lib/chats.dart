@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'avatar.dart';
+import 'backgrounds.dart';
 import 'discovery.dart';
 import 'format.dart';
 import 'groups.dart';
@@ -990,7 +991,9 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           body: Column(
             children: [
-              Expanded(child: _messages(context, c)),
+              Expanded(
+                child: ChatBackground(core: core, child: _messages(context, c)),
+              ),
               SafeArea(
                 top: false,
                 child: c.left

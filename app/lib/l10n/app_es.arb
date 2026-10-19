@@ -296,5 +296,9 @@
   "skCopyJson": "Copiar como JSON",
   "unreadCount": "{count, plural, =1{1 mensaje sin leer} other{{count} mensajes sin leer}}",
   "messageOptions": "Opciones del mensaje",
-  "themeKraehe": "Cuervo. Azul medianoche hasta negro."
+  "themeKraehe": "Cuervo. Azul medianoche hasta negro.",
+  "chatBackground": "Fondo del chat",
+  "backgroundPattern": "El motivo del tema",
+  "backgroundPlain": "Liso",
+  "backgroundPhoto": "Mi foto"
 }

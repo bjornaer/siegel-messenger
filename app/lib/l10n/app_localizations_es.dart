@@ -1061,4 +1061,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get themeKraehe => 'Cuervo. Azul medianoche hasta negro.';
+
+  @override
+  String get chatBackground => 'Fondo del chat';
+
+  @override
+  String get backgroundPattern => 'El motivo del tema';
+
+  @override
+  String get backgroundPlain => 'Liso';
+
+  @override
+  String get backgroundPhoto => 'Mi foto';
 }

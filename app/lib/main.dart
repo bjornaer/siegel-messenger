@@ -8,6 +8,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app_lock.dart';
+import 'backgrounds.dart';
 import 'avatar.dart';
 import 'chats.dart';
 import 'discovery.dart';
@@ -239,6 +240,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
+          ChatBackgroundTile(core: core),
           AppLockSettings(core: core),
           AutoDownloadTile(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),

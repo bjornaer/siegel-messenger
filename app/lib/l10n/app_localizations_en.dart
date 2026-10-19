@@ -1053,4 +1053,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeKraehe => 'Crow. Midnight blue into black.';
+
+  @override
+  String get chatBackground => 'Chat background';
+
+  @override
+  String get backgroundPattern => 'The theme\'s pattern';
+
+  @override
+  String get backgroundPlain => 'Plain';
+
+  @override
+  String get backgroundPhoto => 'My photo';
 }

@@ -569,5 +569,9 @@
       }
     }
   },
-  "themeKraehe": "Crow. Midnight blue into black."
+  "themeKraehe": "Crow. Midnight blue into black.",
+  "chatBackground": "Chat background",
+  "backgroundPattern": "The theme's pattern",
+  "backgroundPlain": "Plain",
+  "backgroundPhoto": "My photo"
 }
