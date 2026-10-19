@@ -8,7 +8,11 @@ import 'src/rust/api/core.dart';
 /// Talks to the Android side: the link the app was opened with, and the share sheet.
 const appChannel = MethodChannel('siegel/app');
 
+const serverUrl = String.fromEnvironment('SIEGEL_SERVER', defaultValue: 'https://siegel.schlk.in');
 const sourceUrl = 'https://github.com/bjornaer/siegel-messenger';
+
+/// Our public pages: /terms, /guidelines, /privacy.
+void openPage(String path) => appChannel.invokeMethod<void>('open', '$serverUrl$path');
 
 /// DISC-08: is this one of our contact links?
 bool isContactLink(String s) => s.contains('/u/') && s.contains('#');

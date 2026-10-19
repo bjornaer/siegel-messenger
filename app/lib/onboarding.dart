@@ -8,6 +8,7 @@ import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import 'avatar.dart';
 import 'l10n/app_localizations.dart';
+import 'links.dart' show openPage;
 import 'src/rust/api/core.dart';
 import 'themes.dart';
 
@@ -227,6 +228,16 @@ class _OnboardingState extends State<Onboarding> {
             autofillHints: const [AutofillHints.telephoneNumber],
             decoration: InputDecoration(labelText: t.phoneTitle, hintText: t.phoneHint),
             onChanged: _onPhoneChanged,
+          ),
+          // Terms and privacy before the first SMS (DSA Art. 14, CMP-07).
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(t.agreeToTerms),
+              TextButton(onPressed: () => openPage('/terms'), child: Text(t.terms)),
+              TextButton(onPressed: () => openPage('/guidelines'), child: Text(t.guidelines)),
+              TextButton(onPressed: () => openPage('/privacy'), child: Text(t.privacyPolicy)),
+            ],
           ),
           CheckboxListTile(
             value: _ageOk,

@@ -48,8 +48,7 @@ confirm (OQ-014).
   - what we do about it, and how to appeal;
   - the point of contact for authorities and users (DSA Art. 11/12, CSAR).
 - `/guidelines` in plain words. Its categories are the ones the report flow uses (Part 3).
-- Linked from onboarding (the age step), Settings and the privacy page. The privacy page also gains
-  a "Reports" section: what a report sends, who reads it, how long it's kept.
+- Linked from onboarding (the phone step), Settings and every page's footer.
 - `docs/csa-risk-assessment.md` (CSAR Art. 3-4): every feature that widens reach, how it could be
   misused against children, what mitigates it, and the risk that remains. The features are
   @username search, discovery by number, contact links, invite links, groups up to 256, media,
@@ -109,6 +108,8 @@ confirm (OQ-014).
     (`SIEGEL_REPORTS_AGE_RECIPIENT`), so the database and backups hold only ciphertext;
   - limit: 20 reports per account per day;
   - stores the category and time in clear for the queue's order.
+- **Privacy page:** a "Reports" section, live with this part: what a report sends, who reads it,
+  how long it's kept (D2). `/terms` then points to the in-app flow instead of email.
 - **Report and block** also blocks locally (MSG-16). The reporter is later told "We reviewed your
   report", without saying what we did.
 - **Done when:**

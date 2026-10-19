@@ -322,5 +322,10 @@
   "removeSticker": "Diesen Sticker entfernen?",
   "addToMyStickers": "Zu meinen Stickern",
   "stickerAdded": "Zu deinen Stickern hinzugefügt.",
-  "errStickerInvalid": "Das kann kein Sticker sein: WebP oder PNG, bis 1 MB."
+  "errStickerInvalid": "Das kann kein Sticker sein: WebP oder PNG, bis 1 MB.",
+  "termsAndGuidelines": "Nutzungsbedingungen und Community-Regeln",
+  "privacyPolicy": "Datenschutzerklärung",
+  "terms": "Bedingungen",
+  "guidelines": "Regeln",
+  "agreeToTerms": "Mit dem Fortfahren akzeptierst du unsere"
 }

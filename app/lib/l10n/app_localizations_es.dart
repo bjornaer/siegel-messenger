@@ -1157,4 +1157,19 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errStickerInvalid =>
       'Eso no puede ser un sticker: WebP o PNG, hasta 1 MB.';
+
+  @override
+  String get termsAndGuidelines => 'Términos y normas de la comunidad';
+
+  @override
+  String get privacyPolicy => 'Política de privacidad';
+
+  @override
+  String get terms => 'Términos';
+
+  @override
+  String get guidelines => 'Normas';
+
+  @override
+  String get agreeToTerms => 'Al continuar aceptas nuestros';
 }

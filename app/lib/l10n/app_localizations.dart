@@ -2039,6 +2039,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That can\'t be a sticker: WebP or PNG, up to 1 MB.'**
   String get errStickerInvalid;
+
+  /// No description provided for @termsAndGuidelines.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms and community guidelines'**
+  String get termsAndGuidelines;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @terms.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms'**
+  String get terms;
+
+  /// No description provided for @guidelines.
+  ///
+  /// In en, this message translates to:
+  /// **'Guidelines'**
+  String get guidelines;
+
+  /// No description provided for @agreeToTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing you accept our'**
+  String get agreeToTerms;
 }
 
 class _AppLocalizationsDelegate

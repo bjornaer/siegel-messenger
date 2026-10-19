@@ -23,8 +23,6 @@ import 'themes.dart';
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
 
-const serverUrl = String.fromEnvironment('SIEGEL_SERVER', defaultValue: 'https://siegel.schlk.in');
-
 // CRY-15: the DB key lives only in the Keychain / Keystore, never in backups or other devices.
 // resetOnError stays false: a silent reset would destroy the key and with it the whole history.
 const _secure = FlutterSecureStorage(
@@ -257,6 +255,16 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(t.skHelp),
             onTap: () =>
                 Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ServerDataScreen(core: core))),
+          ),
+          ListTile(
+            leading: const Icon(Icons.gavel_outlined),
+            title: Text(t.termsAndGuidelines),
+            onTap: () => openPage('/terms'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: Text(t.privacyPolicy),
+            onTap: () => openPage('/privacy'),
           ),
           // AGPL-3.0 section 13: people using the service can get its source.
           ListTile(

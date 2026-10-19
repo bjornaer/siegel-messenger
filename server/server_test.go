@@ -409,7 +409,7 @@ func TestHTTPErrorLogHasNoIPs(t *testing.T) { // SEC-03
 
 func TestPublicPages(t *testing.T) { // CMP-07
 	e := setup(t)
-	for path, want := range map[string]string{"/privacy": "Privacy policy", "/delete-account": "Settings → Delete account"} {
+	for path, want := range map[string]string{"/privacy": "Privacy policy", "/delete-account": "Settings → Delete account", "/terms": "Terms of service", "/guidelines": "Sexual content involving a minor"} {
 		res, err := http.Get(e.url + path)
 		if err != nil {
 			t.Fatal(err)

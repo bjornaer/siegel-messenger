@@ -1152,4 +1152,19 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get errStickerInvalid =>
       'Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB.';
+
+  @override
+  String get termsAndGuidelines => 'Termos e diretrizes da comunidade';
+
+  @override
+  String get privacyPolicy => 'Política de privacidade';
+
+  @override
+  String get terms => 'Termos';
+
+  @override
+  String get guidelines => 'Diretrizes';
+
+  @override
+  String get agreeToTerms => 'Ao continuar, você aceita nossos';
 }

@@ -322,5 +322,10 @@
   "removeSticker": "Remover esta figurinha?",
   "addToMyStickers": "Adicionar às minhas figurinhas",
   "stickerAdded": "Adicionada às suas figurinhas.",
-  "errStickerInvalid": "Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB."
+  "errStickerInvalid": "Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB.",
+  "termsAndGuidelines": "Termos e diretrizes da comunidade",
+  "privacyPolicy": "Política de privacidade",
+  "terms": "Termos",
+  "guidelines": "Diretrizes",
+  "agreeToTerms": "Ao continuar, você aceita nossos"
 }

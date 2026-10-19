@@ -305,6 +305,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /v1/blobs/{id}", s.getBlob)
 	mux.HandleFunc("GET /v1/stream", s.stream)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
+	mux.HandleFunc("GET /terms", s.page("terms"))
+	mux.HandleFunc("GET /guidelines", s.page("guidelines"))
 	mux.HandleFunc("GET /delete-account", s.page("delete-account"))
 	mux.HandleFunc("GET /u/{username}", s.contactPage)
 	mux.HandleFunc("GET /g/{id}", s.page("g")) // GRP-16: the server can't tell which group

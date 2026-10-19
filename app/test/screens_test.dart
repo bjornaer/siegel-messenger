@@ -1726,6 +1726,33 @@ void main() {
     expect(importStickerPack(core, Uint8List.fromList([1, 2, 3]), fallbackName: 'junk'), 0, reason: 'not a zip');
   });
 
+  testWidgets('terms, guidelines and privacy open from sign-up and Settings (M7, DSA Art. 14)', (t) async {
+    final opened = <String>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (call) async {
+      if (call.method == 'open') opened.add(call.arguments as String);
+      return null;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+    await t.pumpWidget(wrap(Onboarding(core: FakeCore(), onDone: () {})));
+    await tapText(t, 'Continue');
+    expect(find.text('By continuing you accept our'), findsOneWidget);
+    await tapText(t, 'Terms');
+    await tapText(t, 'Guidelines');
+    await tapText(t, 'Privacy policy');
+    expect(opened, [
+      for (final p in ['/terms', '/guidelines', '/privacy']) 'https://siegel.schlk.in$p',
+    ]);
+
+    final core = FakeCore()
+      ..registered = true
+      ..user = 'ana';
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
+    await t.pumpAndSettle();
+    await t.scrollUntilVisible(find.text('Terms and community guidelines'), 100);
+    await tapText(t, 'Terms and community guidelines');
+    expect(opened.last, 'https://siegel.schlk.in/terms');
+  });
+
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();

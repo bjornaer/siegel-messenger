@@ -10,7 +10,8 @@ import (
 	"strings"
 )
 
-// Public pages the app stores require (CMP-07): privacy policy and account deletion.
+// Public pages the app stores require (CMP-07): privacy policy, account deletion, terms and
+// community guidelines (M7, DSA Art. 14).
 // Operator details come from config, so publishing them needs no code change.
 //
 //go:embed pages/*.html

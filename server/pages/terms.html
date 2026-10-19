@@ -1,0 +1,63 @@
+{{define "terms"}}{{template "head" "Terms of service"}}
+<h1>Siegel Messenger: Terms of service</h1>
+<p class="note">Draft under legal review. Last updated 19 October 2026.</p>
+
+<h2>Who we are</h2>
+<p>Siegel Messenger ("Siegel", "we") is operated by {{if .Operator}}{{.Operator}}{{else}}its developer, whose
+legal name and address will be published here before public launch{{end}}. Contact: {{template "contact" .}}.</p>
+
+<h2>Who may use Siegel</h2>
+<p>You must be at least 14 in Spain, and 16 or your country's age of digital consent elsewhere.</p>
+<!-- M7 part 2 adds the under-18 protections here and in the guidelines. -->
+
+<h2>Your account</h2>
+<ul>
+<li>One account per phone number. You must be able to receive SMS at that number.</li>
+<li>Your messages are stored only on your phone. We can't restore them if you lose it.</li>
+<li>Keep your phone secure. A Registration Lock PIN stops someone who takes your number from taking
+your account.</li>
+<li>Accounts with no device connected for 180 days are deleted.</li>
+</ul>
+
+<h2>What isn't allowed</h2>
+<p>Our <a href="/guidelines">community guidelines</a> explain each of these in plain words. In short,
+don't use Siegel to:</p>
+<ul>
+<li>share, request or produce sexual content involving anyone under 18, or contact a child for sexual
+purposes. We ban the account and report it to the authorities;</li>
+<li>harass, threaten or stalk anyone, or share intimate images of someone without their consent;</li>
+<li>attack people for who they are (hate), or promote violence or terrorism;</li>
+<li>send spam or run scams;</li>
+<li>pretend to be someone else, including public officials or Siegel's staff;</li>
+<li>break the law, spread malware, or attack or overload the service.</li>
+</ul>
+
+<h2>What we can see, and what we do</h2>
+<p>Messages are end-to-end encrypted: we can't read them, and we don't scan them, on our servers or
+on your phone. We act on what people report to us. A report contains the messages the reporter chose
+to send us, readable. We may also act on your @username, invite links and group names, which others
+can see.</p>
+<p>If you break these terms we may remove your @username or an invite link, suspend your account
+for a time, or ban it. A banned number can't register again. Each time, we tell you in the app what
+we did, why, and how to appeal. Appeal by writing to {{template "contact" .}}; a person reviews every
+appeal.</p>
+
+<h2>Reporting</h2>
+<p>Report a message, a person or a group to {{template "contact" .}}. In-app reporting is coming in an
+update. Reports about children are reviewed within 24 hours, other reports within 7 days.</p>
+
+<h2>Authorities</h2>
+<p>Our point of contact for authorities and for users is {{template "contact" .}}, in English or
+Spanish. We answer valid legal requests. Because of how Siegel is built we can only provide what our
+<a href="/privacy">privacy policy</a> lists: never message content, contacts or chat history.</p>
+
+<h2>The service</h2>
+<p>Siegel is free software (AGPL-3.0); its <a href="https://github.com/bjornaer/siegel-messenger">source
+code</a> is public. We work to keep it available and secure, but it is provided as is, without a
+guarantee that it will always be available. Nothing in these terms limits rights you have by law as
+a consumer.</p>
+
+<h2>Changes and law</h2>
+<p>We announce material changes in the app before they take effect. Spanish law applies; if you live
+elsewhere in the EU you keep the protection of your own country's consumer law.</p>
+{{template "foot"}}{{end}}

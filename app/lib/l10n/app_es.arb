@@ -322,5 +322,10 @@
   "removeSticker": "¿Quitar este sticker?",
   "addToMyStickers": "Añadir a mis stickers",
   "stickerAdded": "Añadido a tus stickers.",
-  "errStickerInvalid": "Eso no puede ser un sticker: WebP o PNG, hasta 1 MB."
+  "errStickerInvalid": "Eso no puede ser un sticker: WebP o PNG, hasta 1 MB.",
+  "termsAndGuidelines": "Términos y normas de la comunidad",
+  "privacyPolicy": "Política de privacidad",
+  "terms": "Términos",
+  "guidelines": "Normas",
+  "agreeToTerms": "Al continuar aceptas nuestros"
 }
