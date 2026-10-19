@@ -133,6 +133,11 @@ func (s *server) RequestOtp(ctx context.Context, req *connect.Request[siegelv1.R
 	if err != nil {
 		return nil, internal(err)
 	}
+	if b, err := s.banned(ctx, h); err != nil {
+		return nil, internal(err)
+	} else if b {
+		return nil, cerr(connect.CodePermissionDenied, "number_banned") // M7: no SMS for a banned number
+	}
 	// A resend of a still-valid code waits 30 s, then 60 s, 120 s... (ID-04). The wait is
 	// checked before the hourly and daily caps, so tapping early costs nothing.
 	var sends, attempts int
@@ -211,6 +216,11 @@ func (s *server) Verify(ctx context.Context, req *connect.Request[siegelv1.Verif
 	h, err := s.hmacPhone(ctx, m.PhoneE164)
 	if err != nil {
 		return nil, internal(err)
+	}
+	if b, err := s.banned(ctx, h); err != nil {
+		return nil, internal(err)
+	} else if b {
+		return nil, cerr(connect.CodePermissionDenied, "number_banned")
 	}
 
 	if err := s.checkOtp(ctx, h, m.Otp); err != nil {
@@ -372,6 +382,11 @@ func (s *server) ChangeNumber(ctx context.Context, req *connect.Request[siegelv1
 	h, err := s.hmacPhone(ctx, m.PhoneE164)
 	if err != nil {
 		return nil, internal(err)
+	}
+	if b, err := s.banned(ctx, h); err != nil {
+		return nil, internal(err)
+	} else if b {
+		return nil, cerr(connect.CodePermissionDenied, "number_banned")
 	}
 	if subtle.ConstantTimeCompare(current, h) == 1 {
 		return nil, cerr(connect.CodeInvalidArgument, "number_same")

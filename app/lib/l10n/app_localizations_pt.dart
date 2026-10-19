@@ -1270,4 +1270,29 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errReportInvalid => 'Não foi possível enviar a denúncia.';
+
+  @override
+  String get suspendedTitle => 'Sua conta está suspensa';
+
+  @override
+  String suspendedUntil(String date) {
+    return 'Você não pode enviar nem receber mensagens até $date.';
+  }
+
+  @override
+  String noticeRule(String rule) {
+    return 'Regra: $rule';
+  }
+
+  @override
+  String get appealHow =>
+      'Acha que é um erro? Escreva para o endereço na nossa página de Termos. Uma pessoa analisa cada recurso.';
+
+  @override
+  String get usernameRemoved =>
+      'Nossos moderadores removeram seu @usuário. Escolha um novo.';
+
+  @override
+  String get errNumberBanned =>
+      'Este número não pode usar o Siegel. Acha que é um erro? Escreva para o endereço na nossa página de Termos.';
 }

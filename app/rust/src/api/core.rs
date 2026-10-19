@@ -67,6 +67,14 @@ fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
+/// M7: what a moderator did, why (the rule: ReportCategory number), and until when.
+pub struct NoticeView {
+    pub suspended: bool,
+    pub rule: i32,
+    pub reason: String,
+    pub until_ms: i64,
+}
+
 pub struct StickerView {
     pub id: String,
     pub pack: String,
@@ -598,6 +606,8 @@ pub enum CoreEventKind {
     Deregistered,
     /// Another account took our number; tell the user to add one (change number).
     NumberRemoved,
+    /// M7: suspended or @username removed; `notice` says why.
+    Enforcement,
 }
 
 /// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
@@ -622,6 +632,16 @@ impl Core {
     /// M7: under 18, as the app worked out from the birth date it keeps.
     pub async fn set_minor(&self, minor: bool) -> Result<(), CoreError> {
         Ok(self.0.set_minor(minor).await?)
+    }
+
+    #[frb(sync)]
+    pub fn notice(&self) -> Option<NoticeView> {
+        self.0.notice().map(|n| NoticeView {
+            suspended: n.kind == 1,
+            rule: n.rule,
+            reason: n.reason,
+            until_ms: n.until_ms,
+        })
     }
 
     #[frb(sync)]
@@ -1040,6 +1060,7 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
         core_api::Event::ProfileUpdated { .. } => (CoreEventKind::ProfileUpdated, None, None),
         core_api::Event::Deregistered => (CoreEventKind::Deregistered, None, None),
         core_api::Event::NumberRemoved => (CoreEventKind::NumberRemoved, None, None),
+        core_api::Event::Enforcement => (CoreEventKind::Enforcement, None, None),
     };
     let _ = sink.add(CoreEvent {
         kind,

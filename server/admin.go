@@ -1,0 +1,203 @@
+package main
+
+import (
+	"context"
+	"encoding/hex"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
+)
+
+// siegel-admin (M7 part 4): moderator actions from a shell on the server, never over the API:
+//
+//	docker compose exec server /server admin <command> [flags] <target>
+//
+// Targets are @usernames or 32-hex account IDs. Every action needs --reason and is audited.
+const adminUsage = `usage: /server admin <command> [flags] <target>
+  suspend --days N --rule R --reason "…" <account>
+  unsuspend --reason "…" <account>
+  ban [--days N] --rule R --reason "…" <account>       (no --days: for good)
+  remove-username --rule R --reason "…" <name>
+  remove-link --reason "…" <link id, hex>
+  remove-blob --reason "…" <blob id, hex>
+  audit [--verify] [--last N]
+rules: spam harassment hate child_safety non_consensual violence impersonation other
+every action also takes --by <operator> (default: $SIEGEL_OPERATOR or "operator")`
+
+func adminMain(args []string, out io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(out, adminUsage)
+		return 2
+	}
+	cfg := loadConfig()
+	ctx := context.Background()
+	db, err := pgxpool.New(ctx, cfg.dbURL)
+	if err != nil {
+		fmt.Fprintln(out, "db:", err)
+		return 1
+	}
+	defer db.Close()
+	s := newServer(cfg, db)
+	s.blobs = cfg.s3
+	if err := s.admin(ctx, args, out); err != nil {
+		fmt.Fprintln(out, "error:", err)
+		return 1
+	}
+	return 0
+}
+
+func (s *server) admin(ctx context.Context, args []string, out io.Writer) error {
+	cmd, rest := args[0], args[1:]
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
+	fs.SetOutput(out)
+	days := fs.Int("days", 0, "length in days")
+	rule := fs.String("rule", "", "the guideline broken")
+	reason := fs.String("reason", "", "why, in words the person will read")
+	by := fs.String("by", envOr("SIEGEL_OPERATOR", "operator"), "who is acting")
+	verify := fs.Bool("verify", false, "check the audit chain")
+	last := fs.Int("last", 20, "audit rows to show")
+	if err := fs.Parse(rest); err != nil {
+		return err
+	}
+	target := fs.Arg(0)
+	a := act{operator: *by, reason: strings.TrimSpace(*reason)}
+	if *rule != "" {
+		v, ok := siegelv1.ReportCategory_value["REPORT_CATEGORY_"+strings.ToUpper(*rule)]
+		if !ok || v == 0 {
+			return fmt.Errorf("unknown rule %q", *rule)
+		}
+		a.rule = siegelv1.ReportCategory(v)
+	}
+	needs := func(rule bool) error {
+		if target == "" {
+			return errors.New("no target")
+		} else if a.reason == "" {
+			return errNoReason
+		} else if rule && a.rule == 0 {
+			return errors.New("--rule is required")
+		}
+		return nil
+	}
+	switch cmd {
+	case "suspend":
+		if err := needs(true); err != nil {
+			return err
+		} else if *days <= 0 {
+			return errors.New("--days is required")
+		}
+		acct, err := s.resolve(ctx, target)
+		if err != nil {
+			return err
+		}
+		until := time.Now().Add(time.Duration(*days) * 24 * time.Hour)
+		if err := s.suspend(ctx, acct, until, a); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "suspended %s until %s\n", target, until.UTC().Format(time.RFC3339))
+	case "unsuspend":
+		if err := needs(false); err != nil {
+			return err
+		}
+		acct, err := s.resolve(ctx, target)
+		if err != nil {
+			return err
+		}
+		return s.unsuspend(ctx, acct, a)
+	case "ban":
+		if err := needs(true); err != nil {
+			return err
+		}
+		acct, err := s.resolve(ctx, target)
+		if err != nil {
+			return err
+		}
+		var until *time.Time
+		if *days > 0 {
+			t := time.Now().Add(time.Duration(*days) * 24 * time.Hour)
+			until = &t
+		}
+		if err := s.ban(ctx, acct, until, a); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "banned", target)
+	case "remove-username":
+		if err := needs(true); err != nil {
+			return err
+		}
+		return s.removeUsername(ctx, strings.TrimPrefix(strings.ToLower(target), "@"), a)
+	case "remove-link", "remove-blob":
+		if err := needs(false); err != nil {
+			return err
+		}
+		id, err := hex.DecodeString(target)
+		if err != nil {
+			return errors.New("the ID is hex")
+		}
+		if cmd == "remove-link" {
+			return s.removeLink(ctx, id, a)
+		}
+		return s.removeBlob(ctx, id, a)
+	case "audit":
+		if *verify {
+			bad, err := s.auditVerify(ctx)
+			if err != nil {
+				return err
+			} else if bad != 0 {
+				return fmt.Errorf("audit chain broken at row %d", bad)
+			}
+			fmt.Fprintln(out, "audit chain intact")
+		}
+		rows, err := s.db.Query(ctx, `SELECT id, at, operator, action, target, reason FROM audit_log ORDER BY id DESC LIMIT $1`, *last)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id int64
+			var at time.Time
+			var op, action, tgt, why string
+			if err := rows.Scan(&id, &at, &op, &action, &tgt, &why); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "%d  %s  %s  %s  %s  %q\n", id, at.UTC().Format(time.RFC3339), op, action, tgt, why)
+		}
+		return rows.Err()
+	default:
+		fmt.Fprintln(out, adminUsage)
+		return fmt.Errorf("unknown command %q", cmd)
+	}
+	return nil
+}
+
+// resolve turns @username or a hex account ID into the account.
+func (s *server) resolve(ctx context.Context, target string) ([16]byte, error) {
+	var id [16]byte
+	if name, ok := strings.CutPrefix(strings.ToLower(target), "@"); ok {
+		err := s.db.QueryRow(ctx, `SELECT account_id FROM usernames WHERE name = $1 AND quarantined_until IS NULL`, name).Scan(&id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return id, errNotFound
+		}
+		return id, err
+	}
+	b, err := hex.DecodeString(strings.ReplaceAll(target, "-", ""))
+	if err != nil || len(b) != 16 {
+		return id, errors.New("target: @username or a 32-hex account ID")
+	}
+	return [16]byte(b), nil
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}

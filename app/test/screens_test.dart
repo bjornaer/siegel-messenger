@@ -26,6 +26,7 @@ import 'package:siegel/onboarding.dart';
 import 'package:siegel/push.dart' show notificationStrings;
 import 'package:siegel/report.dart';
 import 'package:siegel/stickers.dart';
+import 'package:siegel/suspended.dart';
 import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
 
@@ -152,6 +153,10 @@ class FakeCore implements Core {
     reports.add('$category ${messageIds.length} $note block=$block');
     if (block) await this.block(account: chatList.firstWhere((c) => listEquals(c.groupId, groupId)).peerAccount);
   }
+
+  NoticeView? notice_;
+  @override
+  NoticeView? notice() => notice_;
 
   bool isMinor = false;
   @override
@@ -1963,6 +1968,42 @@ void main() {
     await tapText(t, 'Send report');
     expect(core.reports.single, startsWith('4 1 '));
     expect(core.reports.single, endsWith('block=true'));
+  });
+
+  testWidgets('suspended: what, why, until when, how to appeal; deleting still works (M7)', (t) async {
+    final until = DateTime(2026, 11, 2, 9, 30);
+    var deleted = false;
+    await t.pumpWidget(
+      wrap(
+        SuspendedScreen(
+          notice: NoticeView(
+            suspended: true,
+            rule: 2,
+            reason: 'threats to another user',
+            untilMs: until.millisecondsSinceEpoch,
+          ),
+          onDelete: (_) async => deleted = true,
+        ),
+      ),
+    );
+    expect(find.text('Your account is suspended'), findsOneWidget);
+    expect(find.textContaining('until Nov 2, 2026'), findsOneWidget);
+    expect(find.text('Rule: Harassment or threats'), findsOneWidget);
+    expect(find.text('threats to another user'), findsOneWidget);
+    expect(find.textContaining('A person reviews every appeal'), findsOneWidget);
+    await tapText(t, 'Delete account');
+    expect(deleted, isTrue);
+  });
+
+  testWidgets('a removed @username: the reason, then a new one (M7)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..notice_ = const NoticeView(suspended: false, rule: 7, reason: 'looks like staff', untilMs: 0);
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () {})));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Your @username was removed by our moderators'), findsOneWidget);
+    expect(find.textContaining('Rule: Pretending to be someone else'), findsOneWidget);
+    expect(find.textContaining('looks like staff'), findsOneWidget);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

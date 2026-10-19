@@ -19,6 +19,7 @@ import 'media.dart';
 import 'number.dart';
 import 'onboarding.dart';
 import 'push.dart';
+import 'suspended.dart';
 import 'server_data.dart';
 import 'themes.dart';
 import 'src/rust/api/core.dart';
@@ -113,6 +114,11 @@ class _SiegelAppState extends State<SiegelApp> {
         final ctx = _navigator.currentContext;
         if (ctx != null && ctx.mounted) showNumberRemoved(ctx, c);
       },
+      // M7: suspended or username removed; the home below shows which.
+      onEnforcement: () {
+        _navigator.currentState?.popUntil((r) => r.isFirst);
+        if (mounted) setState(() {});
+      },
       // MSG-17: in the foreground the chat itself shows new messages.
       onMessage: (m) {
         if (!appVisible()) notifyMessage(c, m);
@@ -163,15 +169,21 @@ class _SiegelAppState extends State<SiegelApp> {
       home: ready
           ? AppLock(
               core: core,
-              child: BirthDateGate(
-                core: core,
-                onDelete: (ctx) => confirmDeleteAccount(ctx, core, _reset),
-                child: ChatListScreen(
-                  core: core,
-                  service: _service(),
-                  settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
+              child: switch (core.notice()) {
+                final n? when n.suspended => SuspendedScreen(
+                  notice: n,
+                  onDelete: (ctx) => confirmDeleteAccount(ctx, core, _reset),
                 ),
-              ),
+                _ => BirthDateGate(
+                  core: core,
+                  onDelete: (ctx) => confirmDeleteAccount(ctx, core, _reset),
+                  child: ChatListScreen(
+                    core: core,
+                    service: _service(),
+                    settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
+                  ),
+                ),
+              },
             )
           : Onboarding(
               core: core,

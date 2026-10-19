@@ -683,5 +683,25 @@
   "reportSent": "Thanks. Your report was sent.",
   "reportAndBlock": "Report and block",
   "errReportsUnavailable": "Reporting isn't available yet. Write to us at the address on the Terms page.",
-  "errReportInvalid": "That report couldn't be sent."
+  "errReportInvalid": "That report couldn't be sent.",
+  "suspendedTitle": "Your account is suspended",
+  "suspendedUntil": "You can't send or receive messages until {date}.",
+  "@suspendedUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeRule": "Rule: {rule}",
+  "@noticeRule": {
+    "placeholders": {
+      "rule": {
+        "type": "String"
+      }
+    }
+  },
+  "appealHow": "Think this is a mistake? Write to the address on our Terms page. A person reviews every appeal.",
+  "usernameRemoved": "Your @username was removed by our moderators. Choose a new one.",
+  "errNumberBanned": "This number can't use Siegel. Think this is a mistake? Write to the address on our Terms page."
 }

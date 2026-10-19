@@ -176,6 +176,9 @@ func fatal(msg string, args ...any) {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "admin" { // siegel-admin (M7): see admin.go
+		os.Exit(adminMain(os.Args[2:], os.Stdout))
+	}
 	cfg := loadConfig()
 	ctx := context.Background()
 	db, err := pgxpool.New(ctx, cfg.dbURL)

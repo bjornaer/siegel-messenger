@@ -358,5 +358,11 @@
   "reportSent": "Gracias. Tu denuncia se ha enviado.",
   "reportAndBlock": "Denunciar y bloquear",
   "errReportsUnavailable": "Las denuncias aún no están disponibles. Escríbenos a la dirección de la página de Términos.",
-  "errReportInvalid": "No se pudo enviar la denuncia."
+  "errReportInvalid": "No se pudo enviar la denuncia.",
+  "suspendedTitle": "Tu cuenta está suspendida",
+  "suspendedUntil": "No puedes enviar ni recibir mensajes hasta el {date}.",
+  "noticeRule": "Norma: {rule}",
+  "appealHow": "¿Crees que es un error? Escribe a la dirección de nuestra página de Términos. Una persona revisa cada recurso.",
+  "usernameRemoved": "Nuestros moderadores han quitado tu @usuario. Elige uno nuevo.",
+  "errNumberBanned": "Este número no puede usar Siegel. ¿Crees que es un error? Escribe a la dirección de nuestra página de Términos."
 }

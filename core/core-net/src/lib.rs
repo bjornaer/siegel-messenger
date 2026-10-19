@@ -591,6 +591,8 @@ pub enum Frame {
     Deregistered,
     /// Another account proved our number and took it; we keep the account (change number).
     NumberRemoved,
+    /// M7: a moderator acted on this account (pb::enforcement::Kind, the rule, why, until when).
+    Enforcement(pb::Enforcement),
 }
 
 impl Stream {
@@ -608,6 +610,7 @@ impl Stream {
                 }),
                 Some(pb::stream_frame::Kind::Deregistered(_)) => Some(Frame::Deregistered),
                 Some(pb::stream_frame::Kind::NumberRemoved(_)) => Some(Frame::NumberRemoved),
+                Some(pb::stream_frame::Kind::Enforcement(e)) => Some(Frame::Enforcement(e)),
                 None => continue,
             });
         }

@@ -175,7 +175,20 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	defer ping.Stop()
 	var last int64 // unacknowledged messages are resent on the next connection; clients dedupe (MSG-03)
 	var toldRemoved bool
+	var told *siegelv1.Enforcement // M7: each notice once per connection
 	for {
+		if e, err := s.enforcement(ctx, c.account); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return
+		} else if e != nil && (told == nil || told.Kind != e.Kind || told.Reason != e.Reason) {
+			told = e
+			if send(&siegelv1.StreamFrame{Kind: &siegelv1.StreamFrame_Enforcement{Enforcement: e}}) != nil {
+				return
+			}
+			if e.Kind == siegelv1.Enforcement_KIND_SUSPENDED {
+				ws.Close(websocket.StatusPolicyViolation, "suspended")
+				return
+			}
+		}
 		var removed bool
 		err := s.db.QueryRow(ctx, `SELECT a.number_removed FROM devices d JOIN accounts a ON a.id = d.account_id
 			WHERE d.account_id = $1 AND d.device_id = $2`, c.account, c.device).Scan(&removed)

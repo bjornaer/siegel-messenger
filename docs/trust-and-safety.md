@@ -139,6 +139,11 @@ confirm (OQ-014).
   - a blob is deleted.
 - **Statements of reason (DSA Art. 17):** every action sends its reason, the rule and the appeal
   address to the account.
+- **`siegel-admin`** (built here, so actions can be taken before the web console): suspend,
+  unsuspend, ban, remove-username/link/blob, audit, with the hash-chained audit log
+  (`docs/deploy.md`).
+- **Messages to a suspended account** wait in its queue (30 days) rather than bouncing: a bounce
+  would look like re-registration to the sender's app.
 - **Done when:**
   - server tests cover each state and takedown;
   - e2e: a suspended app gets the screen, and a banned number can't register again.

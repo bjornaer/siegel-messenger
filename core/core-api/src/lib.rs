@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use core_crypto::IdentityKey;
 use core_net::{Client, pb};
 use core_store::{SqlCipher, Store};
+use prost::Message as _;
 
 mod chat;
 mod contacts;
@@ -119,7 +120,7 @@ const IDENTITY: &str = "identity_secret";
 const ACCOUNT: &str = "account_id";
 const DEVICE: &str = "device_id";
 const TOKEN: &str = "device_token";
-const USERNAME: &str = "username";
+pub(crate) const USERNAME: &str = "username";
 const DISPLAY_NAME: &str = "display_name";
 const AS_PUBLIC: &str = "as_public_key";
 const SIGNER: &str = "mls_signer_public";
@@ -129,6 +130,8 @@ const REG_LOCK: &str = "registration_lock";
 const PHONE: &str = "phone_e164";
 const NUMBER_REMOVED: &str = "number_removed";
 const MINOR: &str = "minor";
+/// M7: the last moderators' notice (pb::Enforcement).
+pub(crate) const NOTICE: &str = "notice";
 /// The contact link changed while under 18: tell the server on the next connect.
 pub(crate) const MINOR_SYNC: &str = "minor_sync";
 
@@ -327,7 +330,19 @@ impl SiegelCore {
     }
 
     pub fn username(&self) -> Option<String> {
-        self.get_string(USERNAME)
+        self.get_string(USERNAME).filter(|u| !u.is_empty()) // empty: removed by a moderator (M7)
+    }
+
+    /// M7: the moderators' notice that still applies: a suspension until its end, or a removed
+    /// @username until we choose a new one.
+    pub fn notice(&self) -> Option<pb::Enforcement> {
+        let n = pb::Enforcement::decode(self.get(NOTICE).ok()??.as_slice()).ok()?;
+        let live = match n.kind() {
+            pb::enforcement::Kind::Suspended => n.until_ms > crate::chat::now_ms(),
+            pb::enforcement::Kind::UsernameRemoved => self.username().is_none(),
+            pb::enforcement::Kind::Unspecified => false,
+        };
+        live.then_some(n)
     }
 
     /// 1 to 64 characters. Stays on this device until encrypted profiles ship (M2).

@@ -29,12 +29,15 @@ import 'themes.dart';
 
 /// Keeps the message stream connected (SRV-03) and tells screens when something arrived.
 class ChatService extends ChangeNotifier {
-  ChatService(this.core, {required this.onDeregistered, this.onMessage, this.onNumberRemoved});
+  ChatService(this.core, {required this.onDeregistered, this.onMessage, this.onNumberRemoved, this.onEnforcement});
   final Core core;
   final VoidCallback onDeregistered;
 
   /// Another account took our number (docs/change-number.md).
   final VoidCallback? onNumberRemoved;
+
+  /// M7: suspended, or our @username was removed (`core.notice()`).
+  final VoidCallback? onEnforcement;
 
   /// Every new incoming message, e.g. to notify while the app is in the background.
   final void Function(MessageView)? onMessage;
@@ -139,6 +142,7 @@ class ChatService extends ChangeNotifier {
             return;
           }
           if (e.kind == CoreEventKind.numberRemoved) onNumberRemoved?.call();
+          if (e.kind == CoreEventKind.enforcement) onEnforcement?.call();
           if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
             _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
           }
@@ -153,6 +157,18 @@ class ChatService extends ChangeNotifier {
       );
       await done.future;
       if (_stopped) return;
+      // Suspended (M7): the server closes every stream, so wait for the end, not a backoff.
+      final n = core.notice();
+      if (n != null && n.suspended) {
+        final left = DateTime.fromMillisecondsSinceEpoch(n.untilMs).difference(DateTime.now());
+        final sleep = _waiting = Completer<void>();
+        final timer = Timer(left < const Duration(hours: 1) ? left : const Duration(hours: 1), () {
+          if (!sleep.isCompleted) sleep.complete();
+        });
+        await sleep.future;
+        timer.cancel();
+        continue;
+      }
       if (_woken || _paused) continue; // reconnect without backoff, or sleep until woken
       final sleep = _waiting = Completer<void>();
       final timer = Timer(backoff, () => sleep.isCompleted ? null : sleep.complete());

@@ -108,6 +108,8 @@ pub enum Event {
     /// Another account proved our number and took it. Everything else stays; the user should
     /// add a number so the account can be recovered (docs/change-number.md). Sent once.
     NumberRemoved,
+    /// M7: suspended, or our @username was removed; `SiegelCore::notice` says why.
+    Enforcement,
 }
 
 /// What processing one payload produced; a profile key also needs a network fetch afterwards.
@@ -912,6 +914,13 @@ impl SiegelCore {
                         self.put(crate::NUMBER_REMOVED, b"1")?;
                         on_event(Event::NumberRemoved);
                     }
+                }
+                Frame::Enforcement(e) => {
+                    if e.kind() == pb::enforcement::Kind::UsernameRemoved {
+                        self.put(crate::USERNAME, b"")?;
+                    }
+                    self.put(crate::NOTICE, &e.encode_to_vec())?;
+                    on_event(Event::Enforcement);
                 }
                 Frame::Deregistered => {
                     self.wipe()?;

@@ -143,6 +143,8 @@ abstract class Core implements RustOpaqueInterface {
   /// Our own number, if this device kept it (accounts from before build 13 may not have).
   String? myPhone();
 
+  NoticeView? notice();
+
   bool numberRemoved();
 
   static Core open({
@@ -563,6 +565,9 @@ enum CoreEventKind {
 
   /// Another account took our number; tell the user to add one (change number).
   numberRemoved,
+
+  /// M7: suspended or @username removed; `notice` says why.
+  enforcement,
 }
 
 enum DevicePlatform { ios, android }
@@ -839,6 +844,35 @@ class MessageView {
           event == other.event &&
           mentions == other.mentions &&
           attachment == other.attachment;
+}
+
+/// M7: what a moderator did, why (the rule: ReportCategory number), and until when.
+class NoticeView {
+  final bool suspended;
+  final int rule;
+  final String reason;
+  final PlatformInt64 untilMs;
+
+  const NoticeView({
+    required this.suspended,
+    required this.rule,
+    required this.reason,
+    required this.untilMs,
+  });
+
+  @override
+  int get hashCode =>
+      suspended.hashCode ^ rule.hashCode ^ reason.hashCode ^ untilMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NoticeView &&
+          runtimeType == other.runtimeType &&
+          suspended == other.suspended &&
+          rule == other.rule &&
+          reason == other.reason &&
+          untilMs == other.untilMs;
 }
 
 class Reaction {

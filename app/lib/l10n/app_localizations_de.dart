@@ -1280,4 +1280,29 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get errReportInvalid => 'Die Meldung konnte nicht gesendet werden.';
+
+  @override
+  String get suspendedTitle => 'Dein Konto ist gesperrt';
+
+  @override
+  String suspendedUntil(String date) {
+    return 'Du kannst bis $date keine Nachrichten senden oder empfangen.';
+  }
+
+  @override
+  String noticeRule(String rule) {
+    return 'Regel: $rule';
+  }
+
+  @override
+  String get appealHow =>
+      'Hältst du das für einen Fehler? Schreib an die Adresse auf unserer Seite mit den Bedingungen. Jeder Einspruch wird von einem Menschen geprüft.';
+
+  @override
+  String get usernameRemoved =>
+      'Unsere Moderation hat deinen @Benutzernamen entfernt. Wähle einen neuen.';
+
+  @override
+  String get errNumberBanned =>
+      'Diese Nummer kann Siegel nicht nutzen. Hältst du das für einen Fehler? Schreib an die Adresse auf unserer Seite mit den Bedingungen.';
 }

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package siegel.v1;
 
+import "siegel/v1/reports.proto";
+
 option go_package = "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1";
 
 // The Delivery Service (ARCH-04). Payloads are raw MLS messages (PrivateMessage, commit or
@@ -113,10 +115,26 @@ message StreamFrame {
     // Another account proved this account's number by SMS and took it. Sent on each connect
     // until the account has a number again.
     NumberRemoved number_removed = 3;
+    // M7: a moderator acted on this account. Sent on each connect while it applies; a suspended
+    // account's stream then closes.
+    Enforcement enforcement = 4;
   }
 }
 
 message NumberRemoved {}
+
+// The statement of reasons (DSA Art. 17) the app shows: what we did, which rule, until when.
+message Enforcement {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_SUSPENDED = 1; // nothing works until `until_ms`, except deleting the account
+    KIND_USERNAME_REMOVED = 2; // choose a new @username
+  }
+  Kind kind = 1;
+  ReportCategory rule = 2; // the guideline it broke
+  string reason = 3; // the moderator's words
+  int64 until_ms = 4; // suspensions: when it ends
+}
 
 message QueuedMessage {
   int64 id = 1;

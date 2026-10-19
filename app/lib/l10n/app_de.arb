@@ -358,5 +358,11 @@
   "reportSent": "Danke. Deine Meldung wurde gesendet.",
   "reportAndBlock": "Melden und blockieren",
   "errReportsUnavailable": "Melden ist noch nicht verfügbar. Schreib uns an die Adresse auf der Seite mit den Bedingungen.",
-  "errReportInvalid": "Die Meldung konnte nicht gesendet werden."
+  "errReportInvalid": "Die Meldung konnte nicht gesendet werden.",
+  "suspendedTitle": "Dein Konto ist gesperrt",
+  "suspendedUntil": "Du kannst bis {date} keine Nachrichten senden oder empfangen.",
+  "noticeRule": "Regel: {rule}",
+  "appealHow": "Hältst du das für einen Fehler? Schreib an die Adresse auf unserer Seite mit den Bedingungen. Jeder Einspruch wird von einem Menschen geprüft.",
+  "usernameRemoved": "Unsere Moderation hat deinen @Benutzernamen entfernt. Wähle einen neuen.",
+  "errNumberBanned": "Diese Nummer kann Siegel nicht nutzen. Hältst du das für einen Fehler? Schreib an die Adresse auf unserer Seite mit den Bedingungen."
 }

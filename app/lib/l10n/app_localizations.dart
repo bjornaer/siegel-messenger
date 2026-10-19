@@ -2255,6 +2255,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That report couldn\'t be sent.'**
   String get errReportInvalid;
+
+  /// No description provided for @suspendedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is suspended'**
+  String get suspendedTitle;
+
+  /// No description provided for @suspendedUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t send or receive messages until {date}.'**
+  String suspendedUntil(String date);
+
+  /// No description provided for @noticeRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule: {rule}'**
+  String noticeRule(String rule);
+
+  /// No description provided for @appealHow.
+  ///
+  /// In en, this message translates to:
+  /// **'Think this is a mistake? Write to the address on our Terms page. A person reviews every appeal.'**
+  String get appealHow;
+
+  /// No description provided for @usernameRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Your @username was removed by our moderators. Choose a new one.'**
+  String get usernameRemoved;
+
+  /// No description provided for @errNumberBanned.
+  ///
+  /// In en, this message translates to:
+  /// **'This number can\'t use Siegel. Think this is a mistake? Write to the address on our Terms page.'**
+  String get errNumberBanned;
 }
 
 class _AppLocalizationsDelegate

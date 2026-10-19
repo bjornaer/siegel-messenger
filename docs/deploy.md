@@ -152,6 +152,27 @@ Reports are sealed by the reporter's app to this key; only its private half open
 `core/core-api/tests/reports-test.key` is a test-only key for the e2e tests. Never set its public
 half in production.
 
+## Moderation: `siegel-admin` (M7)
+
+Moderator actions run from a shell on the server, never over the API. Each needs a reason, tells
+the account why in the app, and writes a row to the hash-chained audit log:
+
+```sh
+cd /opt/siegel
+A="docker compose exec server /server admin"
+$A suspend --days 7 --rule harassment --reason "threats to another user" --by max @someone
+$A unsuspend --reason "appeal accepted" --by max @someone
+$A ban --rule child_safety --reason "…" --by max @someone          # for good; --days N for a set time
+$A remove-username --rule impersonation --reason "looks like staff" --by max @siegel_help
+$A remove-link --reason "removal order 2026/123" --by max <link id hex>
+$A remove-blob --reason "removal order 2026/123" --by max <blob id hex>
+$A audit --verify --last 50
+```
+
+Rules: spam, harassment, hate, child_safety, non_consensual, violence, impersonation, other. A
+banned number can't register again; its @username stays taken for good. The web console (M7
+part 5) runs the same actions.
+
 ## Key rotation (SEC-05)
 
 | Key | Rotates | How |

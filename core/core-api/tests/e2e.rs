@@ -1602,3 +1602,93 @@ async fn reports_reach_the_server_sealed_to_the_moderators() {
     assert_eq!(r.reported_account, m.sender_account);
     assert_eq!(r.reported_name, format!("@{bob_name}"));
 }
+
+/// Runs siegel-admin in the local stack's server container.
+fn admin(args: &[&str]) -> String {
+    let out = std::process::Command::new("docker")
+        .args(["compose", "exec", "-T", "server", "/server", "admin"])
+        .args(args)
+        .output()
+        .expect("docker");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+#[tokio::test]
+async fn moderators_suspend_remove_usernames_and_ban() {
+    // M7 part 4, through the real siegel-admin.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    let (troll, name) = new_user(&url, "troll").await;
+    let mut te = listen(&troll);
+    let at = format!("@{name}");
+
+    let out = admin(&[
+        "remove-username",
+        "--rule",
+        "impersonation",
+        "--reason",
+        "looks like staff",
+        "--by",
+        "e2e",
+        &at,
+    ]);
+    assert!(out.is_empty(), "{out}");
+    until(&mut te, |e| matches!(e, Event::Enforcement)).await;
+    let n = troll.notice().expect("notice");
+    assert_eq!((n.kind, n.reason.as_str()), (2, "looks like staff"));
+    assert_eq!(troll.username(), None, "pick a new one");
+    let fresh = format!("{name}x");
+    troll.set_username(&fresh).await.unwrap();
+    assert!(troll.notice().is_none());
+
+    admin(&[
+        "suspend",
+        "--days",
+        "2",
+        "--rule",
+        "harassment",
+        "--reason",
+        "threats",
+        "--by",
+        "e2e",
+        &format!("@{fresh}"),
+    ]);
+    until(&mut te, |e| matches!(e, Event::Enforcement)).await;
+    assert_eq!(troll.notice().unwrap().kind, 1);
+    assert_eq!(
+        troll.lookup_username("nobody_here").await.unwrap_err().code,
+        "account_suspended"
+    );
+
+    admin(&[
+        "ban",
+        "--rule",
+        "harassment",
+        "--reason",
+        "repeat",
+        "--by",
+        "e2e",
+        &format!("@{fresh}"),
+    ]);
+    let again = SiegelCore::open(
+        std::env::temp_dir()
+            .join(format!("siegel-e2e-banned-{}.db", fresh_number()))
+            .to_str()
+            .unwrap(),
+        &[7; 32],
+        &url,
+    )
+    .unwrap();
+    let phone = troll.my_phone().unwrap();
+    assert_eq!(
+        again
+            .request_otp(&phone, "", core_api::Platform::Android)
+            .await
+            .unwrap_err()
+            .code,
+        "number_banned"
+    );
+    assert!(admin(&["audit", "--verify"]).contains("audit chain intact"));
+}

@@ -633,3 +633,86 @@ func TestReports(t *testing.T) { // CMP-03, M7 part 3
 	}
 	want(t, submit(sealed), "rate_limited")
 }
+
+func TestEnforcement(t *testing.T) { // M7 part 4
+	e := setup(t)
+	bad, _ := e.register("+34600000071", "")
+	want(t, e.setUsername(bad.DeviceToken, "troll"), "")
+	users, acct := e.clients(bad.DeviceToken)
+	var id [16]byte
+	copy(id[:], bad.AccountId)
+	mod := act{operator: "max", rule: siegelv1.ReportCategory_REPORT_CATEGORY_HARASSMENT, reason: "threats to another user"}
+
+	// Every action needs a reason.
+	want(t, errMsg(e.s.suspend(e.ctx, id, time.Now().Add(time.Hour), act{operator: "max"})), errNoReason.Error())
+
+	// Suspended: the stream says why and until when, then closes; only Delete still works.
+	conn, _, err := dial(e, bad.DeviceToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.suspend(e.ctx, id, time.Now().Add(48*time.Hour), mod); err != nil {
+		t.Fatal(err)
+	}
+	f := next(t, conn).GetEnforcement()
+	if f == nil || f.Kind != siegelv1.Enforcement_KIND_SUSPENDED || f.Reason != mod.reason || f.UntilMs < time.Now().Add(47*time.Hour).UnixMilli() {
+		t.Fatal("statement of reasons on the stream", f)
+	}
+	conn.CloseNow()
+	_, err = users.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "troll"}))
+	want(t, errMsg(err), "account_suspended")
+	if err := e.s.unsuspend(e.ctx, id, act{operator: "max", reason: "appeal accepted"}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = users.Lookup(e.ctx, connect.NewRequest(&siegelv1.UsernameServiceLookupRequest{Username: "troll"}))
+	want(t, errMsg(err), "")
+
+	// Username removed: a notice until they pick a new one; the old name is gone for good.
+	if err := e.s.removeUsername(e.ctx, "troll", mod); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := e.s.enforcement(e.ctx, id); n == nil || n.Kind != siegelv1.Enforcement_KIND_USERNAME_REMOVED {
+		t.Fatal("username notice", n)
+	}
+	want(t, e.setUsername(bad.DeviceToken, "troll"), "username_taken")
+	want(t, e.setUsername(bad.DeviceToken, "friendly"), "")
+	if n, _ := e.s.enforcement(e.ctx, id); n != nil {
+		t.Fatal("notice done once a new name is set", n)
+	}
+
+	// Ban: the account is gone and the number can't come back.
+	if err := e.s.ban(e.ctx, id, nil, mod); err != nil {
+		t.Fatal(err)
+	}
+	_, err = acct.Export(e.ctx, connect.NewRequest(&siegelv1.AccountServiceExportRequest{}))
+	want(t, errMsg(err), "unauthenticated")
+	want(t, errMsg(e.otp("+34600000071")), "number_banned")
+	other, _ := e.register("+34600000072", "")
+	want(t, e.setUsername(other.DeviceToken, "friendly"), "username_taken")
+
+	// The audit log has every action, chained; an edit breaks the chain.
+	var n int
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM audit_log`).Scan(&n)
+	if n != 4 {
+		t.Fatal("one row per action", n)
+	}
+	if bad, err := e.s.auditVerify(e.ctx); err != nil || bad != 0 {
+		t.Fatal("chain intact", bad, err)
+	}
+	e.s.db.Exec(e.ctx, `UPDATE audit_log SET reason = 'nothing to see' WHERE id = (SELECT min(id) + 1 FROM audit_log)`)
+	if bad, _ := e.s.auditVerify(e.ctx); bad == 0 {
+		t.Fatal("an edited row must break the chain")
+	}
+
+	// The CLI runs the same actions.
+	var out strings.Builder
+	if err := e.s.admin(e.ctx, []string{"suspend", "--days", "1", "--rule", "spam", "--reason", "mass messages", "--by", "max", "@nobody"}, &out); !errors.Is(err, errNotFound) {
+		t.Fatal("unknown target", err)
+	}
+	if err := e.s.admin(e.ctx, []string{"suspend", "--days", "1", "--rule", "spam", "--reason", "mass messages", "@friendly"}, &out); err == nil {
+		t.Fatal("banned account's old name no longer resolves")
+	}
+	if err := e.s.admin(e.ctx, []string{"remove-username", "--rule", "spam", "@x"}, &out); !errors.Is(err, errNoReason) {
+		t.Fatal("reason required", err)
+	}
+}

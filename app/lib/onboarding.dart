@@ -10,6 +10,7 @@ import 'avatar.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart' show openPage;
 import 'minors.dart';
+import 'suspended.dart' show ruleLabel;
 import 'src/rust/api/core.dart';
 import 'themes.dart';
 
@@ -30,6 +31,8 @@ void showError(BuildContext context, CoreError e) {
     'username_invalid' => t.errUsernameInvalid,
     'sticker_invalid' => t.errStickerInvalid,
     'reports_unavailable' => t.errReportsUnavailable,
+    'account_suspended' => t.suspendedTitle,
+    'number_banned' => t.errNumberBanned,
     'report_invalid' => t.errReportInvalid,
     'username_taken' => t.errUsernameTaken,
     'username_change_too_soon' => t.errUsernameTooSoon,
@@ -298,6 +301,16 @@ class _OnboardingState extends State<Onboarding> {
       _Step.profile => (
         t.profileTitle,
         [
+          // M7: a moderator removed our @username: say why, then ask for a new one.
+          if (core.notice() case final n? when !n.suspended)
+            Card.outlined(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  [t.usernameRemoved, t.noticeRule(ruleLabel(t, n.rule)), if (n.reason.isNotEmpty) n.reason].join('\n'),
+                ),
+              ),
+            ),
           Center(child: AvatarEditor(core: core)), // MED-15, optional
           // ID-09: a re-registered account keeps its @username; only the name is asked again
           // (the old profile key left with the old install).

@@ -23,8 +23,11 @@ import (
 
 type callerKey struct{}
 
-// caller is the authenticated account and device.
-type caller struct{ account, device [16]byte }
+// caller is the authenticated account and device; suspended accounts can only delete themselves (M7).
+type caller struct {
+	account, device [16]byte
+	suspended       bool
+}
 
 // authenticate resolves an "Authorization: Bearer <token>" header and bumps the coarse
 // last-seen day. found is false for a missing or unknown token.
@@ -34,8 +37,9 @@ func (s *server) authenticate(ctx context.Context, header string) (c caller, fou
 		return c, false, nil
 	}
 	h := sha256.Sum256([]byte(token))
-	err = s.db.QueryRow(ctx, `UPDATE devices SET last_seen_day = current_date
-		WHERE token_hash = $1 RETURNING account_id, device_id`, h[:]).Scan(&c.account, &c.device)
+	err = s.db.QueryRow(ctx, `UPDATE devices d SET last_seen_day = current_date FROM accounts a
+		WHERE d.token_hash = $1 AND a.id = d.account_id
+		RETURNING d.account_id, d.device_id, coalesce(a.suspended_until > now(), false)`, h[:]).Scan(&c.account, &c.device, &c.suspended)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return c, false, nil
 	}
@@ -54,6 +58,8 @@ func (s *server) authed() connect.Option {
 				return nil, internal(err)
 			} else if !found {
 				return nil, cerr(connect.CodeUnauthenticated, "unauthenticated")
+			} else if c.suspended && req.Spec().Procedure != siegelv1connect.AccountServiceDeleteProcedure {
+				return nil, cerr(connect.CodePermissionDenied, "account_suspended")
 			}
 			return next(context.WithValue(ctx, callerKey{}, c), req)
 		}
