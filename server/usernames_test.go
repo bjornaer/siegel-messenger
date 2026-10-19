@@ -28,3 +28,16 @@ func FuzzUsername(f *testing.F) {
 		}
 	})
 }
+
+func TestSuspiciousUsername(t *testing.T) { // M7 part 8
+	for _, n := range []string{"pthc.fan", "teen.nudes", "cp_trade", "anna13nude", "adm1n", "loli_x"} {
+		if suspiciousUsername(n) == "" {
+			t.Error("must be flagged:", n)
+		}
+	}
+	for _, n := range []string{"ana", "lollipop", "cpu_fan", "teenagewriter", "hotdog", "max1990", "kingston"} {
+		if why := suspiciousUsername(n); why != "" {
+			t.Error("must pass:", n, why)
+		}
+	}
+}

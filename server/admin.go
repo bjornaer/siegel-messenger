@@ -30,6 +30,8 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   remove-link --reason "…" <link id, hex>
   remove-blob --reason "…" <blob id, hex>
   signals <account>                                     (last 30 days)
+  flags                                                 (usernames the scan flagged, open ones)
+  scan-usernames                                        (run the scan now)
   audit [--verify] [--last N]
 rules: spam harassment hate child_safety non_consensual violence impersonation other
 every action also takes --by <operator> (default: $SIEGEL_OPERATOR or "operator")`
@@ -147,6 +149,27 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 			return s.removeLink(ctx, id, a)
 		}
 		return s.removeBlob(ctx, id, a)
+	case "scan-usernames":
+		n, err := s.scanUsernames(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "%d new\n", n)
+	case "flags":
+		rows, err := s.db.Query(ctx, `SELECT name, why, created_at FROM username_flags WHERE resolved_at IS NULL ORDER BY created_at`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var name, why string
+			var at time.Time
+			if err := rows.Scan(&name, &why, &at); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "@%s  %s  (%s)\n", name, why, at.UTC().Format("2006-01-02"))
+		}
+		return rows.Err()
 	case "signals":
 		if target == "" {
 			return errors.New("no target")

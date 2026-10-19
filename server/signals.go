@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log/slog"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // M7 part 6: abuse signals. What the server can see without content: chats started, the daily
@@ -38,4 +41,42 @@ func (s *server) signals(ctx context.Context, acct [16]byte) (accountSignals, er
 		coalesce((SELECT created_day::text FROM accounts WHERE id = $1), '')`, acct).Scan(
 		&a.NewChats, &a.NewChatLimit, &a.LookupLimit, &a.Reports, &a.ChildSafetyReports, &a.CreatedDay)
 	return a, err
+}
+
+// scanUsernames flags current @usernames that look abusive (M7 part 8). Idempotent; returns how
+// many new names it queued.
+func (s *server) scanUsernames(ctx context.Context) (int, error) {
+	rows, err := s.db.Query(ctx, `SELECT name, account_id FROM usernames WHERE quarantined_until IS NULL`)
+	if err != nil {
+		return 0, err
+	}
+	type row struct {
+		Name    string
+		Account [16]byte
+	}
+	all, err := pgx.CollectRows(rows, pgx.RowToStructByPos[row])
+	if err != nil {
+		return 0, err
+	}
+	var n int
+	for _, r := range all {
+		why := suspiciousUsername(r.Name)
+		if why == "" {
+			continue
+		}
+		tag, err := s.db.Exec(ctx, `INSERT INTO username_flags (name, account_id, why) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+			r.Name, r.Account, why)
+		if err != nil {
+			return n, err
+		}
+		n += int(tag.RowsAffected())
+	}
+	return n, nil
+}
+
+// due says whether a periodic job should run now, and records that it did.
+func (s *server) due(ctx context.Context, job string, every time.Duration) bool {
+	tag, err := s.db.Exec(ctx, `INSERT INTO jobs (name, last_run) VALUES ($1, now())
+		ON CONFLICT (name) DO UPDATE SET last_run = now() WHERE jobs.last_run < now() - $2::interval`, job, every.String())
+	return err == nil && tag.RowsAffected() == 1
 }

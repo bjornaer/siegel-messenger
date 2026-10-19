@@ -2,6 +2,8 @@ package main
 
 import (
 	_ "embed"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -11,14 +13,31 @@ var (
 	reservedTxt string
 	//go:embed usernames/offensive.txt
 	offensiveTxt string
+	//go:embed usernames/suspicious.txt
+	suspiciousTxt string
 
 	reserved       = map[string]bool{}
 	offensiveExact = map[string]bool{}
 	offensiveParts []string
-	lookalikes     = strings.NewReplacer("0", "o", "1", "i", "3", "e", "4", "a", "5", "s", "7", "t", "_", "", ".", "")
+	suspicious     struct {
+		parts, words []string
+		combos       [][]string
+	}
+	lookalikes = strings.NewReplacer("0", "o", "1", "i", "3", "e", "4", "a", "5", "s", "7", "t", "_", "", ".", "")
 )
 
 func init() {
+	for _, l := range strings.Split(suspiciousTxt, "\n") {
+		switch l = strings.TrimSpace(l); {
+		case l == "" || l[0] == '#':
+		case strings.HasPrefix(l, "="):
+			suspicious.words = append(suspicious.words, l[1:])
+		case strings.Contains(l, "+"):
+			suspicious.combos = append(suspicious.combos, strings.Split(l, "+"))
+		default:
+			suspicious.parts = append(suspicious.parts, l)
+		}
+	}
 	for _, l := range strings.Split(reservedTxt, "\n") {
 		if l = strings.TrimSpace(l); l != "" && l[0] != '#' {
 			reserved[l] = true
@@ -58,4 +77,42 @@ func blockedUsername(name string) bool {
 		}
 	}
 	return false
+}
+
+var sexualWords = []string{"nude", "sex", "nsfw", "xxx", "porn", "horny", "naked", "hot"}
+
+// suspiciousUsername says why a name deserves a look (M7 part 8), or "" for none. It also catches
+// names that the reserved and offensive lists, which may have grown since, would now refuse.
+func suspiciousUsername(name string) string {
+	if blockedUsername(name) {
+		return "on the reserved or offensive list"
+	}
+	n := lookalikes.Replace(strings.TrimRight(name, "0123456789_."))
+	for _, p := range suspicious.parts {
+		if strings.Contains(n, p) {
+			return "contains " + p
+		}
+	}
+	words := strings.FieldsFunc(name, func(r rune) bool { return r == '.' || r == '_' || (r >= '0' && r <= '9') })
+	for _, w := range words {
+		if slices.Contains(suspicious.words, w) {
+			return "the word " + w
+		}
+	}
+	for _, c := range suspicious.combos {
+		if all := !slices.ContainsFunc(c, func(p string) bool { return !strings.Contains(n, p) }); all {
+			return "contains " + strings.Join(c, " and ")
+		}
+	}
+	// An age from 9 to 15, written as digits, next to a sexual word.
+	for _, num := range strings.FieldsFunc(name, func(r rune) bool { return r < '0' || r > '9' }) {
+		if age, err := strconv.Atoi(num); err == nil && age >= 9 && age <= 15 {
+			for _, w := range sexualWords {
+				if strings.Contains(name, w) {
+					return "an age (" + num + ") and " + w
+				}
+			}
+		}
+	}
+	return ""
 }

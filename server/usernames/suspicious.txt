@@ -1,0 +1,41 @@
+# M7 part 8: usernames that hint at child sexual abuse or at sexual services aimed at minors.
+# A hit only opens a case for a person to review; it never acts by itself. Product owns this list.
+#   plain line   the folded name contains it (see usernames.go for folding)
+#   =word        a whole word of the name (split on '.', '_' and digits)
+#   a+b          the folded name contains all of the parts
+# Ages 9 to 15 next to a sexual word are flagged by code (usernames.go).
+
+# coded terms
+pthc
+jailbait
+lolicon
+shotacon
+preteen
+underage
+childporn
+kiddieporn
+kidporn
+=cp
+=loli
+=pedo
+=pedobear
+
+# a young person and a sexual word
+teen+nude
+teen+nudes
+teen+sex
+teen+nsfw
+teen+xxx
+teen+porn
+kid+sex
+kid+nude
+kids+nude
+child+sex
+child+nude
+young+nude
+young+sex
+minor+sex
+minor+nude
+school+nude
+schoolgirl+sex
+schoolboy+sex

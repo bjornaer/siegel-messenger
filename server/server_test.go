@@ -741,3 +741,27 @@ func TestSignals(t *testing.T) { // M7 part 6
 		t.Fatal(out.String(), err)
 	}
 }
+
+func TestUsernameScan(t *testing.T) { // M7 part 8
+	e := setup(t)
+	a, _ := e.register("+34600000091", "")
+	b, _ := e.register("+34600000092", "")
+	want(t, e.setUsername(a.DeviceToken, "friendly"), "")
+	// Names taken before the lists grew: put them in directly.
+	e.s.db.Exec(e.ctx, `INSERT INTO usernames (name, account_id) VALUES ('teen.nudes', $1)`, b.AccountId)
+	n, err := e.s.scanUsernames(e.ctx)
+	if err != nil || n != 1 {
+		t.Fatal("one flag", n, err)
+	}
+	if n, _ := e.s.scanUsernames(e.ctx); n != 0 {
+		t.Fatal("never queued twice", n)
+	}
+	if !e.s.due(e.ctx, "username_scan", 72*time.Hour) || e.s.due(e.ctx, "username_scan", 72*time.Hour) {
+		t.Fatal("due once per period")
+	}
+	var out strings.Builder
+	e.s.admin(e.ctx, []string{"flags"}, &out)
+	if !strings.Contains(out.String(), "@teen.nudes  contains teen and nude") {
+		t.Fatal(out.String())
+	}
+}

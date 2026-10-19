@@ -343,6 +343,13 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			}
 		}
 		s.expireBlobs(ctx)
+		if s.due(ctx, "username_scan", 72*time.Hour) { // M7 part 8: every 3 days
+			if n, err := s.scanUsernames(ctx); err != nil {
+				slog.Error("username scan", "err", err)
+			} else if n > 0 {
+				slog.Info("username scan", "flagged", n) // a count only, never names
+			}
+		}
 		s.checkOtpRate(ctx)
 		s.expireInactive(ctx)
 		if err := b.renew(ctx); err != nil {
