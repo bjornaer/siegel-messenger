@@ -32,6 +32,7 @@ dependencies:
   rust_lib_siegel:
     path: rust_builder
   emoji_picker_flutter: 4.5.4
+  archive: 4.5.2
 
 dev_dependencies:
   flutter_test:

@@ -154,6 +154,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ServerDevice> dco_decode_list_server_device(dynamic raw);
 
   @protected
+  List<StickerView> dco_decode_list_sticker_view(dynamic raw);
+
+  @protected
   MessageStatus dco_decode_message_status(dynamic raw);
 
   @protected
@@ -185,6 +188,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ServerDevice dco_decode_server_device(dynamic raw);
+
+  @protected
+  StickerView dco_decode_sticker_view(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -349,6 +355,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<StickerView> sse_decode_list_sticker_view(SseDeserializer deserializer);
+
+  @protected
   MessageStatus sse_decode_message_status(SseDeserializer deserializer);
 
   @protected
@@ -386,6 +395,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ServerDevice sse_decode_server_device(SseDeserializer deserializer);
+
+  @protected
+  StickerView sse_decode_sticker_view(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -601,6 +613,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sticker_view(
+    List<StickerView> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_message_status(MessageStatus self, SseSerializer serializer);
 
   @protected
@@ -644,6 +662,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_server_device(ServerDevice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sticker_view(StickerView self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

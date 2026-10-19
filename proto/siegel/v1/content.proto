@@ -87,6 +87,7 @@ message Attachment {
   bool voice_note = 11;   // MED-09: recorded in the app
   bytes waveform = 12;    // MED-09: voice note loudness, one byte (0-255) per bar
   bytes reply_to = 13;    // MSG-07, as in Text
+  bool sticker = 14;      // a WebP or PNG sticker: shown large, without a bubble (older apps show a photo)
 }
 
 message Text {

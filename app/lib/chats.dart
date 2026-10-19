@@ -20,6 +20,7 @@ import 'links.dart';
 import 'media.dart';
 import 'update.dart';
 import 'profile.dart';
+import 'stickers.dart';
 import 'push.dart' show appVisible, clearNotification;
 import 'safety.dart';
 import 'src/rust/api/core.dart';
@@ -792,6 +793,7 @@ class _ChatScreenState extends State<ChatScreen> {
         width: o.width,
         height: o.height,
         thumbnail: o.thumbnail,
+        sticker: o.sticker,
         replyTo: reply?.messageId,
       ),
     );
@@ -915,6 +917,19 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _saveSticker(MessageView m) => _run(() async {
+    final data = await core.attachmentData(messageId: m.messageId);
+    core.addSticker(data: data, mimeType: m.attachment!.mimeType, pack: '');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.stickerAdded)));
+    }
+  });
+
+  Future<void> _sticker() async {
+    final s = await pickSticker(context, core);
+    if (s != null) await _sendAttachment(outgoing(s.data, s.mime, width: 512, height: 512, sticker: true));
+  }
+
   /// Any emoji as a reaction. Recent picks aren't remembered: the picker would keep them
   /// outside the encrypted database.
   Future<void> _pickReaction(MessageView m) async {
@@ -1009,7 +1024,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   title: Text(t.forward),
                   onTap: () => act(() => _forward(m)),
                 ),
-              if (!m.deleted && m.attachment != null && !m.attachment!.voiceNote)
+              if (!m.deleted && m.attachment?.sticker == true)
+                ListTile(
+                  leading: const Icon(Icons.bookmark_add_outlined),
+                  title: Text(t.addToMyStickers),
+                  onTap: () => act(() => _saveSticker(m)),
+                ),
+              if (!m.deleted && m.attachment != null && !m.attachment!.voiceNote && !m.attachment!.sticker)
                 ListTile(
                   leading: const Icon(Icons.download),
                   title: Text(t.saveToDevice),
@@ -1219,7 +1240,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _bubble(BuildContext context, MessageView m, Map<String, MessageView> byId, ChatSummary c) {
     final t = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
-    final grad = m.outgoing ? Theme.of(context).extension<SiegelGradient>() : null; // gradient themes
+    final sticker = m.attachment?.sticker == true && !m.deleted; // large, no bubble
+    final grad = m.outgoing && !sticker ? Theme.of(context).extension<SiegelGradient>() : null; // gradient themes
     final small = Theme.of(context).textTheme.labelSmall?.copyWith(color: grad?.on);
     final id = base64Encode(m.messageId);
     final quoted = m.replyTo == null ? null : byId[base64Encode(m.replyTo!)];
@@ -1250,7 +1272,9 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
               decoration: BoxDecoration(
-                color: grad != null ? null : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
+                color: grad != null || sticker
+                    ? null
+                    : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
                 gradient: grad?.linear,
                 borderRadius: BorderRadius.circular(16),
                 // GRP-15: messages that @mention us stand out.
@@ -1516,6 +1540,12 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 if (_editing == null)
                   IconButton(tooltip: t.attach, icon: const Icon(Icons.attach_file), onPressed: _busy ? null : _attach),
+                if (_editing == null)
+                  IconButton(
+                    tooltip: t.stickers,
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                    onPressed: _busy ? null : _sticker,
+                  ),
                 Expanded(
                   child: TextField(
                     controller: _text,

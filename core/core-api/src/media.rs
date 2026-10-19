@@ -33,6 +33,7 @@ pub struct AttachmentInfo {
     pub height: u32,
     /// A small JPEG preview (images and video), at most 20 KB.
     pub thumbnail: Vec<u8>,
+    pub sticker: bool,
 }
 
 /// A file to send.
@@ -47,6 +48,7 @@ pub struct OutgoingAttachment {
     pub width: u32,
     pub height: u32,
     pub thumbnail: Vec<u8>,
+    pub sticker: bool,
 }
 
 /// Rejects attachment messages no honest client sends.
@@ -72,6 +74,7 @@ pub(crate) fn info(a: &pb::Attachment) -> AttachmentInfo {
         width: a.width,
         height: a.height,
         thumbnail: a.thumbnail.clone(),
+        sticker: a.sticker,
     }
 }
 
@@ -143,6 +146,7 @@ impl SiegelCore {
             width: a.width,
             height: a.height,
             thumbnail: a.thumbnail,
+            sticker: a.sticker,
             reply_to: reply_to.unwrap_or_default().to_vec(),
             ..uploaded
         }));
@@ -194,6 +198,7 @@ impl SiegelCore {
                     width: a.width,
                     height: a.height,
                     thumbnail: a.thumbnail,
+                    sticker: a.sticker,
                 };
                 self.send_attachment(to, out, None).await
             }

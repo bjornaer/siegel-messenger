@@ -605,5 +605,23 @@
     }
   },
   "leaveAndDeleteBody": "Members see that you left. The messages are deleted from this phone.",
-  "moreReactions": "More reactions"
+  "moreReactions": "More reactions",
+  "sticker": "Sticker",
+  "stickers": "Stickers",
+  "myStickers": "Mine",
+  "noStickers": "Make one from a photo, or long-press a sticker in a chat and add it here.",
+  "stickerFromPhoto": "From a photo",
+  "importStickerPack": "Import pack",
+  "removeStickerPack": "Remove the pack {pack}",
+  "@removeStickerPack": {
+    "placeholders": {
+      "pack": {
+        "type": "String"
+      }
+    }
+  },
+  "removeSticker": "Remove this sticker?",
+  "addToMyStickers": "Add to my stickers",
+  "stickerAdded": "Added to your stickers.",
+  "errStickerInvalid": "That can't be a sticker: WebP or PNG, up to 1 MB."
 }

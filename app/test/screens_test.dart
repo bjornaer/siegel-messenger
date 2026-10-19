@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:archive/archive.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +23,7 @@ import 'package:siegel/main.dart';
 import 'package:siegel/media.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/push.dart' show notificationStrings;
+import 'package:siegel/stickers.dart';
 import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
 
@@ -182,6 +184,26 @@ class FakeCore implements Core {
   String? setting({required String key}) => settings[key];
   @override
   void setSetting({required String key, required String value}) => settings[key] = value;
+
+  final stickerList = <StickerView>[];
+  final stickerBytes = <String, Uint8List>{};
+  @override
+  StickerView addSticker({required List<int> data, required String mimeType, required String pack}) {
+    if (!{'image/webp', 'image/png'}.contains(mimeType)) throw const CoreError(code: 'sticker_invalid');
+    final id = '${data.length}-${data.isEmpty ? 0 : data.first}';
+    final v = StickerView(id: id, pack: pack, mimeType: mimeType);
+    if (!stickerList.any((s) => s.id == id && s.pack == pack)) stickerList.add(v);
+    stickerBytes[id] = Uint8List.fromList(data);
+    return v;
+  }
+
+  @override
+  List<StickerView> stickers() => List.of(stickerList);
+  @override
+  Uint8List? stickerData({required String id}) => stickerBytes[id];
+  @override
+  void removeStickers({required String pack, required String id}) =>
+      stickerList.removeWhere((s) => s.pack == pack && (id.isEmpty || s.id == id));
   // Chats: one list of messages per chat, keyed by group ID.
   final chatList = <ChatSummary>[];
   final history = <String, List<MessageView>>{};
@@ -328,9 +350,10 @@ class FakeCore implements Core {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool sticker,
     Uint8List? replyTo,
   }) async {
-    calls.add('sendAttachment');
+    calls.add(sticker ? 'sendSticker' : 'sendAttachment');
     final m = msg(
       groupId,
       '',
@@ -346,6 +369,7 @@ class FakeCore implements Core {
         width: width,
         height: height,
         thumbnail: Uint8List.fromList(thumbnail),
+        sticker: sticker,
       ),
     );
     (history[base64Encode(groupId)] ??= []).add(m);
@@ -368,8 +392,13 @@ class FakeCore implements Core {
   @override
   Future<Uint8List> attachmentData({required List<int> messageId}) async {
     calls.add('attachmentData');
-    throw const CoreError(code: 'attachment_expired');
+    final d = blobs[base64Encode(messageId)];
+    if (d == null) throw const CoreError(code: 'attachment_expired');
+    return d;
   }
+
+  /// Attachments this fake can hand out, by message ID.
+  final blobs = <String, Uint8List>{};
 
   Uint8List? mine;
   final avatars = <String, Uint8List>{};
@@ -1014,6 +1043,7 @@ void main() {
         width: 0,
         height: 0,
         thumbnail: Uint8List(0),
+        sticker: false,
       ),
     );
     (core.history[base64Encode(id)] ??= []).add(voice);
@@ -1155,6 +1185,7 @@ void main() {
       width: 4,
       height: 3,
       thumbnail: png,
+      sticker: false,
     );
     (core.history[base64Encode(id)] ??= []).addAll([
       FakeCore.msg(id, '', outgoing: false, attachment: att('image/jpeg', '')),
@@ -1623,6 +1654,71 @@ void main() {
     await t.pumpAndSettle();
     final quick = find.ancestor(of: find.text('😀'), matching: find.byType(IconButton));
     expect(t.widget<IconButton>(quick.first).isSelected, isTrue, reason: 'ours, in the last quick slot');
+  });
+
+  testWidgets('stickers: send one from the Siegel pack; a sticker shows without a bubble; save one', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    );
+    final theirs = FakeCore.msg(
+      id,
+      '',
+      outgoing: false,
+      attachment: AttachmentView(
+        mimeType: 'image/webp',
+        fileName: '',
+        size: BigInt.from(png.length),
+        durationMs: 0,
+        voiceNote: false,
+        waveform: Uint8List(0),
+        width: 512,
+        height: 512,
+        thumbnail: Uint8List(0),
+        sticker: true,
+      ),
+    );
+    core.blobs[base64Encode(theirs.messageId)] = png;
+    (core.history[base64Encode(id)] ??= []).add(theirs);
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.byType(StickerMessage), findsOneWidget);
+
+    await t.longPress(find.byType(StickerMessage));
+    await t.pumpAndSettle();
+    expect(find.text('Save to device'), findsNothing, reason: 'stickers are saved to the collection instead');
+    await tapText(t, 'Add to my stickers');
+    expect(core.stickers().single.pack, '');
+    expect(find.text('Added to your stickers.'), findsOneWidget);
+    await t.pump(const Duration(seconds: 5)); // the snackbar covers the composer
+    await t.pumpAndSettle();
+
+    await t.tap(find.byTooltip('Stickers'));
+    await t.pumpAndSettle();
+    expect(find.text('Siegel'), findsOneWidget);
+    await t.runAsync(() async {
+      await t.tap(find.bySemanticsLabel('seal'));
+      await Future<void>.delayed(const Duration(milliseconds: 500)); // drawn to a PNG
+    });
+    await t.pumpAndSettle();
+    expect(core.calls, contains('sendSticker'));
+  });
+
+  test('a .wastickers pack imports its WebP stickers under its title', () {
+    final core = FakeCore();
+    final zip = ZipEncoder().encodeBytes(
+      Archive()
+        ..add(ArchiveFile.bytes('title.txt', utf8.encode('Alpine cats')))
+        ..add(ArchiveFile.bytes('tray.png', Uint8List.fromList([1, 2])))
+        ..add(ArchiveFile.bytes('1.webp', Uint8List.fromList([1, 1, 1])))
+        ..add(ArchiveFile.bytes('2.webp', Uint8List.fromList([2, 2]))),
+    );
+    expect(importStickerPack(core, zip, fallbackName: 'cats'), 2);
+    expect(core.stickers().map((s) => s.pack).toSet(), {'Alpine cats'});
+    expect(importStickerPack(core, Uint8List.fromList([1, 2, 3]), fallbackName: 'junk'), 0, reason: 'not a zip');
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

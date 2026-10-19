@@ -311,5 +311,16 @@
   "deleteChatBody": "Die Nachrichten werden von diesem Telefon gelöscht. Schreibt die Person wieder, kommt der Chat zurück.",
   "leaveAndDeleteTitle": "{name} verlassen und den Chat löschen?",
   "leaveAndDeleteBody": "Die Mitglieder sehen, dass du gegangen bist. Die Nachrichten werden von diesem Telefon gelöscht.",
-  "moreReactions": "Weitere Reaktionen"
+  "moreReactions": "Weitere Reaktionen",
+  "sticker": "Sticker",
+  "stickers": "Sticker",
+  "myStickers": "Meine",
+  "noStickers": "Mach einen aus einem Foto, oder halte einen Sticker im Chat gedrückt und füge ihn hier hinzu.",
+  "stickerFromPhoto": "Aus einem Foto",
+  "importStickerPack": "Paket importieren",
+  "removeStickerPack": "Paket {pack} entfernen",
+  "removeSticker": "Diesen Sticker entfernen?",
+  "addToMyStickers": "Zu meinen Stickern",
+  "stickerAdded": "Zu deinen Stickern hinzugefügt.",
+  "errStickerInvalid": "Das kann kein Sticker sein: WebP oder PNG, bis 1 MB."
 }

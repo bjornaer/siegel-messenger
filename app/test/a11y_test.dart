@@ -62,6 +62,7 @@ AttachmentView _att(String mime, String name, {bool voice = false}) => Attachmen
   width: 4,
   height: 3,
   thumbnail: base64Decode(_png),
+  sticker: false,
 );
 
 Future<Map<String, Widget>> screens() async {

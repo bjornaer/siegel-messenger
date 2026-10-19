@@ -311,5 +311,16 @@
   "deleteChatBody": "Sus mensajes se eliminan de este teléfono. Si te vuelve a escribir, el chat reaparece.",
   "leaveAndDeleteTitle": "¿Salir de {name} y eliminar el chat?",
   "leaveAndDeleteBody": "Los miembros verán que saliste. Los mensajes se eliminan de este teléfono.",
-  "moreReactions": "Más reacciones"
+  "moreReactions": "Más reacciones",
+  "sticker": "Sticker",
+  "stickers": "Stickers",
+  "myStickers": "Míos",
+  "noStickers": "Crea uno a partir de una foto, o mantén pulsado un sticker en un chat y añádelo aquí.",
+  "stickerFromPhoto": "De una foto",
+  "importStickerPack": "Importar paquete",
+  "removeStickerPack": "Quitar el paquete {pack}",
+  "removeSticker": "¿Quitar este sticker?",
+  "addToMyStickers": "Añadir a mis stickers",
+  "stickerAdded": "Añadido a tus stickers.",
+  "errStickerInvalid": "Eso no puede ser un sticker: WebP o PNG, hasta 1 MB."
 }

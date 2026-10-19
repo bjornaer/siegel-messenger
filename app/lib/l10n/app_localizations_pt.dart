@@ -1115,4 +1115,41 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get moreReactions => 'Mais reações';
+
+  @override
+  String get sticker => 'Figurinha';
+
+  @override
+  String get stickers => 'Figurinhas';
+
+  @override
+  String get myStickers => 'Minhas';
+
+  @override
+  String get noStickers =>
+      'Crie uma a partir de uma foto, ou toque e segure uma figurinha numa conversa para adicioná-la aqui.';
+
+  @override
+  String get stickerFromPhoto => 'De uma foto';
+
+  @override
+  String get importStickerPack => 'Importar pacote';
+
+  @override
+  String removeStickerPack(String pack) {
+    return 'Remover o pacote $pack';
+  }
+
+  @override
+  String get removeSticker => 'Remover esta figurinha?';
+
+  @override
+  String get addToMyStickers => 'Adicionar às minhas figurinhas';
+
+  @override
+  String get stickerAdded => 'Adicionada às suas figurinhas.';
+
+  @override
+  String get errStickerInvalid =>
+      'Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB.';
 }

@@ -1,0 +1,555 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:archive/archive.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
+
+import 'l10n/app_localizations.dart';
+import 'onboarding.dart' show showError;
+import 'src/rust/api/core.dart';
+
+/// A sticker ready to send.
+typedef StickerPick = ({Uint8List data, String mime});
+
+/// The sticker sheet: the built-in Siegel pack, my stickers, and imported packs. Returns the
+/// sticker to send, or null.
+Future<StickerPick?> pickSticker(BuildContext context, Core core) => showModalBottomSheet<StickerPick>(
+  context: context,
+  isScrollControlled: true,
+  builder: (_) => SafeArea(
+    child: SizedBox(height: 420, child: _StickerSheet(core: core)),
+  ),
+);
+
+class _StickerSheet extends StatefulWidget {
+  const _StickerSheet({required this.core});
+  final Core core;
+
+  @override
+  State<_StickerSheet> createState() => _StickerSheetState();
+}
+
+class _StickerSheetState extends State<_StickerSheet> {
+  Core get core => widget.core;
+
+  Future<void> _run(Future<void> Function() f) async {
+    try {
+      await f();
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// A photo becomes a sticker: the middle square, rounded, 512 px, WebP.
+  Future<void> _fromPhoto() => _run(() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (file == null) return;
+    final png = await squareSticker(await file.readAsBytes());
+    final webp = await FlutterImageCompress.compressWithList(png, format: CompressFormat.webp, quality: 80);
+    if (webp.isNotEmpty) {
+      core.addSticker(data: webp, mimeType: 'image/webp', pack: '');
+    } else {
+      core.addSticker(data: png, mimeType: 'image/png', pack: '');
+    }
+  });
+
+  /// A WhatsApp sticker pack (.wastickers): a zip with title.txt and WebP stickers.
+  Future<void> _import() => _run(() async {
+    final f = await FilePicker.pickFile(type: FileType.any);
+    if (f == null) return;
+    try {
+      if ((f.lengthSync() ?? 0) > 64 << 20) throw const CoreError(code: 'sticker_invalid');
+      final added = importStickerPack(
+        core,
+        await f.readAsBytes(),
+        fallbackName: f.name.replaceAll(RegExp(r'\.[^.]*$'), ''),
+      );
+      if (added == 0) throw const CoreError(code: 'sticker_invalid');
+    } finally {
+      unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
+    }
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final all = core.stickers();
+    final packs = {for (final s in all) s.pack}..remove('');
+    final mine = all.where((s) => s.pack.isEmpty).toList();
+    return DefaultTabController(
+      length: 2 + packs.length,
+      child: Column(
+        children: [
+          TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [
+              const Tab(text: 'Siegel'),
+              Tab(text: t.myStickers),
+              for (final p in packs) Tab(text: p),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _grid([
+                  for (final id in siegelStickers)
+                    _Cell(
+                      label: id,
+                      child: CustomPaint(painter: SiegelSticker(id)),
+                      onTap: () async {
+                        final png = await renderSiegelSticker(id);
+                        if (context.mounted) Navigator.pop(context, (data: png, mime: 'image/png'));
+                      },
+                    ),
+                ]),
+                mine.isEmpty ? Center(child: Text(t.noStickers, textAlign: TextAlign.center)) : _stored(mine, ''),
+                for (final p in packs) _stored(all.where((s) => s.pack == p).toList(), p),
+              ],
+            ),
+          ),
+          OverflowBar(
+            alignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(t.stickerFromPhoto),
+                onPressed: _fromPhoto,
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.download_outlined),
+                label: Text(t.importStickerPack),
+                onPressed: _import,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stored(List<StickerView> list, String pack) {
+    final t = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        Expanded(
+          child: _grid([
+            for (final s in list)
+              if (core.stickerData(id: s.id) case final d? when d.isNotEmpty)
+                _Cell(
+                  label: t.sticker,
+                  child: Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true),
+                  onTap: () => Navigator.pop(context, (data: d, mime: s.mimeType)),
+                  onLongPress: () => _remove(pack, s.id),
+                ),
+          ]),
+        ),
+        if (pack.isNotEmpty) TextButton(onPressed: () => _remove(pack, ''), child: Text(t.removeStickerPack(pack))),
+      ],
+    );
+  }
+
+  Future<void> _remove(String pack, String id) async {
+    final t = AppLocalizations.of(context)!;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(id.isEmpty ? t.removeStickerPack(pack) : t.removeSticker),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: Text(t.delete)),
+        ],
+      ),
+    );
+    if (ok == true) await _run(() async => core.removeStickers(pack: pack, id: id));
+  }
+
+  Widget _grid(List<Widget> cells) => GridView.count(
+    crossAxisCount: 4,
+    padding: const EdgeInsets.all(8),
+    mainAxisSpacing: 8,
+    crossAxisSpacing: 8,
+    children: cells,
+  );
+}
+
+class _Cell extends StatelessWidget {
+  const _Cell({required this.label, required this.child, required this.onTap, this.onLongPress});
+  final String label;
+  final Widget child;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(padding: const EdgeInsets.all(4), child: child),
+    ),
+  );
+}
+
+/// Adds every WebP sticker in a .wastickers zip as one pack; returns how many.
+int importStickerPack(Core core, Uint8List zip, {required String fallbackName}) {
+  final Archive files;
+  try {
+    files = ZipDecoder().decodeBytes(zip);
+  } on Object {
+    return 0;
+  }
+  String text(String name) {
+    final f = files.findFile(name);
+    return f == null ? '' : utf8.decode(f.content, allowMalformed: true).trim();
+  }
+
+  final title = text('title.txt');
+  final pack = (title.isEmpty ? fallbackName : title).characters.take(40).toString();
+  var added = 0;
+  for (final f in files.files.where((f) => f.isFile && f.name.toLowerCase().endsWith('.webp')).take(120)) {
+    try {
+      core.addSticker(data: f.content, mimeType: 'image/webp', pack: pack);
+      added++;
+    } on CoreError {
+      // too large or empty: skip it, keep the rest
+    }
+  }
+  return added;
+}
+
+/// The middle square of a photo, rounded, as a 512 px PNG with a transparent outside.
+Future<Uint8List> squareSticker(Uint8List photo) async {
+  final codec = await ui.instantiateImageCodec(photo);
+  final img = (await codec.getNextFrame()).image;
+  final side = math.min(img.width, img.height).toDouble();
+  final src = Rect.fromLTWH((img.width - side) / 2, (img.height - side) / 2, side, side);
+  final rec = ui.PictureRecorder();
+  final c = Canvas(rec);
+  c.clipRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(0, 0, 512, 512), const Radius.circular(64)));
+  c.drawImageRect(img, src, const Rect.fromLTWH(0, 0, 512, 512), Paint()..filterQuality = FilterQuality.high);
+  final out = await rec.endRecording().toImage(512, 512);
+  return (await out.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+}
+
+/// The built-in pack, drawn in code.
+const siegelStickers = [
+  'seal', 'hallo', 'danke', 'servus', 'ja', 'nein', //
+  'edelweiss', 'snowflake', 'crown', 'flame', 'horns', 'mountain',
+];
+
+Future<Uint8List> renderSiegelSticker(String id) async {
+  final rec = ui.PictureRecorder();
+  SiegelSticker(id).paint(Canvas(rec), const Size.square(512));
+  final img = await rec.endRecording().toImage(512, 512);
+  return (await img.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+}
+
+/// One sticker of the Siegel pack: a coloured shape with a white sticker edge and a soft
+/// shadow, designed on a 100-unit square.
+class SiegelSticker extends CustomPainter {
+  SiegelSticker(this.id);
+  final String id;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 100);
+    switch (id) {
+      case 'seal':
+        _seal(canvas);
+      case 'hallo':
+        _bubble(canvas, 'Hallo!', const Color(0xFF2F8F4E));
+      case 'danke':
+        _heart(canvas, 'Danke');
+      case 'servus':
+        _bubble(canvas, 'Servus!', const Color(0xFF1F6FB2));
+      case 'ja':
+        _badge(canvas, 'Ja!', const Color(0xFF2E9D4A), check: true);
+      case 'nein':
+        _badge(canvas, 'Nein', const Color(0xFFC62828), check: false);
+      case 'edelweiss':
+        _edelweiss(canvas);
+      case 'snowflake':
+        _snowflake(canvas);
+      case 'crown':
+        _crown(canvas);
+      case 'flame':
+        _flame(canvas);
+      case 'horns':
+        _horns(canvas);
+      case 'mountain':
+        _mountain(canvas);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(SiegelSticker old) => old.id != id;
+
+  /// White sticker edge and shadow behind [path], then the fill.
+  static void _shape(Canvas c, Path path, Paint fill) {
+    c.drawPath(
+      path.shift(const Offset(0, 2)),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+    c.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 7
+        ..strokeJoin = StrokeJoin.round,
+    );
+    c.drawPath(path, fill);
+  }
+
+  /// Centred bold text, shrunk to fit [maxWidth].
+  static void _text(
+    Canvas c,
+    String s,
+    Offset center,
+    double size, {
+    Color color = Colors.white,
+    double maxWidth = 72,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontFamily: 'Roboto', color: color, fontSize: size, fontWeight: FontWeight.w900),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final k = math.min(1.0, maxWidth / tp.width);
+    c.save();
+    c.translate(center.dx, center.dy);
+    c.scale(k);
+    tp.paint(c, Offset(-tp.width / 2, -tp.height / 2));
+    c.restore();
+  }
+
+  static Path _circle(Offset o, double r) => Path()..addOval(Rect.fromCircle(center: o, radius: r));
+
+  void _seal(Canvas c) {
+    final rim = Path();
+    for (var i = 0; i <= 96; i++) {
+      final a = i / 96 * 2 * math.pi;
+      final r = 40 + 3.5 * math.sin(a * 14);
+      final o = Offset(50 + r * math.cos(a), 50 + r * math.sin(a));
+      i == 0 ? rim.moveTo(o.dx, o.dy) : rim.lineTo(o.dx, o.dy);
+    }
+    _shape(c, rim..close(), Paint()..color = const Color(0xFFB3182F));
+    c.drawCircle(const Offset(50, 50), 29, Paint()..color = const Color(0xFF8E1024));
+    c.drawCircle(
+      const Offset(50, 50),
+      29,
+      Paint()
+        ..color = const Color(0xFFE8B04A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    _text(c, 'S', const Offset(50, 50), 36, color: const Color(0xFFE8B04A));
+  }
+
+  void _bubble(Canvas c, String word, Color color) {
+    final p = Path()
+      ..addRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(8, 18, 84, 52), const Radius.circular(20)))
+      ..moveTo(26, 66)
+      ..lineTo(20, 86)
+      ..lineTo(40, 68)
+      ..close();
+    _shape(c, p, Paint()..color = color);
+    _text(c, word, const Offset(50, 44), 19);
+  }
+
+  void _heart(Canvas c, String word) {
+    final p = Path()
+      ..moveTo(50, 88)
+      ..cubicTo(10, 62, 4, 36, 18, 22)
+      ..cubicTo(30, 10, 46, 16, 50, 30)
+      ..cubicTo(54, 16, 70, 10, 82, 22)
+      ..cubicTo(96, 36, 90, 62, 50, 88)
+      ..close();
+    _shape(c, p, Paint()..color = const Color(0xFFE91E63));
+    _text(c, word, const Offset(50, 46), 17);
+  }
+
+  void _badge(Canvas c, String word, Color color, {required bool check}) {
+    _shape(c, _circle(const Offset(50, 50), 40), Paint()..color = color);
+    final mark = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+    if (check) {
+      c.drawPath(
+        Path()
+          ..moveTo(32, 40)
+          ..lineTo(44, 52)
+          ..lineTo(68, 28),
+        mark,
+      );
+    } else {
+      c.drawLine(const Offset(36, 26), const Offset(64, 54), mark);
+      c.drawLine(const Offset(64, 26), const Offset(36, 54), mark);
+    }
+    _text(c, word, const Offset(50, 71), 16);
+  }
+
+  void _edelweiss(Canvas c) {
+    _shape(c, _circle(const Offset(50, 50), 44), Paint()..color = const Color(0xFF2F543B));
+    final petals = Path();
+    for (var i = 0; i < 9; i++) {
+      final a = i * 2 * math.pi / 9 - math.pi / 2;
+      Offset at(double r, double da) => Offset(50 + r * math.cos(a + da), 50 + r * math.sin(a + da));
+      final (l, tip, r) = (at(12, -0.5), at(40, 0), at(12, 0.5));
+      petals
+        ..moveTo(l.dx, l.dy)
+        ..quadraticBezierTo(at(30, -0.28).dx, at(30, -0.28).dy, tip.dx, tip.dy)
+        ..quadraticBezierTo(at(30, 0.28).dx, at(30, 0.28).dy, r.dx, r.dy)
+        ..close();
+    }
+    c.drawPath(petals, Paint()..color = const Color(0xFFF4F4EE));
+    c.drawPath(
+      petals,
+      Paint()
+        ..color = const Color(0xFFB9BDB0)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    for (final o in [
+      const Offset(45, 46), const Offset(55, 46), const Offset(50, 55), //
+      const Offset(50, 42), const Offset(44, 54), const Offset(56, 54),
+    ]) {
+      c.drawCircle(o, 4.5, Paint()..color = const Color(0xFFE3C55A));
+    }
+  }
+
+  void _snowflake(Canvas c) {
+    final p = Path();
+    for (var i = 0; i < 6; i++) {
+      final a = i * math.pi / 3;
+      Offset at(double r, double da) => Offset(50 + r * math.cos(a + da), 50 + r * math.sin(a + da));
+      p
+        ..moveTo(50, 50)
+        ..lineTo(at(42, 0).dx, at(42, 0).dy);
+      for (final r in [22.0, 32.0]) {
+        p
+          ..moveTo(at(r, 0).dx, at(r, 0).dy)
+          ..lineTo(at(r + 9, 0.32).dx, at(r + 9, 0.32).dy)
+          ..moveTo(at(r, 0).dx, at(r, 0).dy)
+          ..lineTo(at(r + 9, -0.32).dx, at(r + 9, -0.32).dy);
+      }
+    }
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    c.drawPath(
+      p,
+      stroke
+        ..color = Colors.white
+        ..strokeWidth = 13,
+    );
+    c.drawPath(
+      p,
+      Paint()
+        ..color = const Color(0xFF4FA3E0)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  void _crown(Canvas c) {
+    final p = Path()
+      ..moveTo(14, 74)
+      ..lineTo(10, 30)
+      ..lineTo(32, 48)
+      ..lineTo(50, 18)
+      ..lineTo(68, 48)
+      ..lineTo(90, 30)
+      ..lineTo(86, 74)
+      ..close();
+    _shape(c, p, Paint()..color = const Color(0xFFE8B04A));
+    c.drawRect(const Rect.fromLTWH(14, 66, 72, 8), Paint()..color = const Color(0xFFC8962E));
+    for (final (o, col) in [
+      (const Offset(50, 56), const Color(0xFFB3182F)),
+      (const Offset(32, 60), const Color(0xFF1F6FB2)),
+      (const Offset(68, 60), const Color(0xFF2E9D4A)),
+    ]) {
+      c.drawCircle(o, 5, Paint()..color = col);
+    }
+  }
+
+  void _flame(Canvas c) {
+    final outer = Path()
+      ..moveTo(50, 92)
+      ..cubicTo(20, 86, 14, 58, 30, 40)
+      ..cubicTo(34, 50, 40, 52, 42, 48)
+      ..cubicTo(38, 30, 50, 16, 58, 8)
+      ..cubicTo(60, 26, 84, 40, 80, 66)
+      ..cubicTo(78, 84, 64, 92, 50, 92)
+      ..close();
+    _shape(c, outer, Paint()..color = const Color(0xFFE8631E));
+    c.drawPath(
+      Path()
+        ..moveTo(52, 88)
+        ..cubicTo(36, 84, 34, 66, 46, 54)
+        ..cubicTo(48, 62, 54, 62, 56, 58)
+        ..cubicTo(68, 66, 68, 86, 52, 88)
+        ..close(),
+      Paint()..color = const Color(0xFFFFD54F),
+    );
+  }
+
+  void _horns(Canvas c) {
+    Path horn(double s) => Path()
+      ..moveTo(50 + 6 * s, 74)
+      ..cubicTo(50 + 14 * s, 44, 50 + 26 * s, 26, 50 + 44 * s, 10)
+      ..cubicTo(50 + 36 * s, 34, 50 + 32 * s, 56, 50 + 30 * s, 78)
+      ..close();
+    final both = Path()
+      ..addPath(horn(-1), Offset.zero)
+      ..addPath(horn(1), Offset.zero);
+    _shape(c, both, Paint()..color = const Color(0xFF5C1A12));
+    _shape(
+      c,
+      Path()..addRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(12, 70, 76, 16), const Radius.circular(8))),
+      Paint()..color = const Color(0xFFC2410C),
+    );
+  }
+
+  void _mountain(Canvas c) {
+    c.drawCircle(const Offset(74, 26), 12, Paint()..color = const Color(0xFFFFCA28));
+    final p = Path()
+      ..moveTo(6, 84)
+      ..lineTo(40, 24)
+      ..lineTo(56, 50)
+      ..lineTo(66, 38)
+      ..lineTo(94, 84)
+      ..close();
+    _shape(c, p, Paint()..color = const Color(0xFF35618E));
+    c.drawPath(
+      Path()
+        ..moveTo(31, 40)
+        ..lineTo(40, 24)
+        ..lineTo(49, 40)
+        ..lineTo(44, 36)
+        ..lineTo(40, 42)
+        ..lineTo(36, 36)
+        ..close(),
+      Paint()..color = Colors.white,
+    );
+  }
+}

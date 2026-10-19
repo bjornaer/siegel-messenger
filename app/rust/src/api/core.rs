@@ -64,6 +64,22 @@ fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
+pub struct StickerView {
+    pub id: String,
+    pub pack: String,
+    pub mime_type: String,
+}
+
+impl From<core_api::Sticker> for StickerView {
+    fn from(s: core_api::Sticker) -> Self {
+        Self {
+            id: s.id,
+            pack: s.pack,
+            mime_type: s.mime_type,
+        }
+    }
+}
+
 pub struct AppVersion {
     pub latest: u32,
     pub minimum: u32,
@@ -154,6 +170,33 @@ impl Core {
                 })
                 .collect(),
         })
+    }
+
+    /// Adds a WebP or PNG sticker to a pack ("" = my stickers).
+    #[frb(sync)]
+    pub fn add_sticker(
+        &self,
+        data: Vec<u8>,
+        mime_type: String,
+        pack: String,
+    ) -> Result<StickerView, CoreError> {
+        Ok(self.0.add_sticker(&data, &mime_type, &pack)?.into())
+    }
+
+    #[frb(sync)]
+    pub fn stickers(&self) -> Result<Vec<StickerView>, CoreError> {
+        Ok(self.0.stickers()?.into_iter().map(Into::into).collect())
+    }
+
+    #[frb(sync)]
+    pub fn sticker_data(&self, id: String) -> Result<Option<Vec<u8>>, CoreError> {
+        Ok(self.0.sticker_data(&id)?)
+    }
+
+    /// One sticker, or a whole pack when `id` is empty.
+    #[frb(sync)]
+    pub fn remove_stickers(&self, pack: String, id: String) -> Result<(), CoreError> {
+        Ok(self.0.remove_stickers(&pack, &id)?)
     }
 
     /// Deletes a 1:1 chat's messages; its next message brings it back.
@@ -443,6 +486,8 @@ pub struct AttachmentView {
     pub height: u32,
     /// A small JPEG preview to show before the download.
     pub thumbnail: Vec<u8>,
+    /// Shown large, without a bubble.
+    pub sticker: bool,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -489,6 +534,7 @@ impl From<core_api::ChatMessage> for MessageView {
                 width: a.width,
                 height: a.height,
                 thumbnail: a.thumbnail,
+                sticker: a.sticker,
             }),
             event: m.event.map(|e| {
                 use core_api::GroupEventKind as K;
@@ -772,6 +818,7 @@ impl Core {
         width: u32,
         height: u32,
         thumbnail: Vec<u8>,
+        sticker: bool,
         reply_to: Option<Vec<u8>>,
     ) -> Result<MessageView, CoreError> {
         let a = core_api::OutgoingAttachment {
@@ -784,6 +831,7 @@ impl Core {
             width,
             height,
             thumbnail,
+            sticker,
         };
         Ok(self
             .0

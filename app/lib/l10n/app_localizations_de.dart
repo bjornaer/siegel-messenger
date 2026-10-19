@@ -1124,4 +1124,41 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get moreReactions => 'Weitere Reaktionen';
+
+  @override
+  String get sticker => 'Sticker';
+
+  @override
+  String get stickers => 'Sticker';
+
+  @override
+  String get myStickers => 'Meine';
+
+  @override
+  String get noStickers =>
+      'Mach einen aus einem Foto, oder halte einen Sticker im Chat gedrückt und füge ihn hier hinzu.';
+
+  @override
+  String get stickerFromPhoto => 'Aus einem Foto';
+
+  @override
+  String get importStickerPack => 'Paket importieren';
+
+  @override
+  String removeStickerPack(String pack) {
+    return 'Paket $pack entfernen';
+  }
+
+  @override
+  String get removeSticker => 'Diesen Sticker entfernen?';
+
+  @override
+  String get addToMyStickers => 'Zu meinen Stickern';
+
+  @override
+  String get stickerAdded => 'Zu deinen Stickern hinzugefügt.';
+
+  @override
+  String get errStickerInvalid =>
+      'Das kann kein Sticker sein: WebP oder PNG, bis 1 MB.';
 }

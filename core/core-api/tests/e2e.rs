@@ -1472,3 +1472,39 @@ async fn a_deleted_chat_comes_back_with_the_next_message() {
     };
     assert_eq!((m.group_id, m.text.as_str()), (chat, "still there?"));
 }
+
+#[tokio::test]
+async fn stickers_arrive_as_stickers() {
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, OutgoingAttachment};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+    let webp = b"RIFF\x10\0\0\0WEBPVP8 fake".to_vec();
+    alice
+        .send_attachment(
+            &chat,
+            OutgoingAttachment {
+                data: webp.clone(),
+                mime_type: "image/webp".into(),
+                width: 512,
+                height: 512,
+                sticker: true,
+                ..Default::default()
+            },
+            None,
+        )
+        .await
+        .unwrap();
+    let Event::Message(m) = until(&mut be, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    assert!(m.attachment.as_ref().unwrap().sticker);
+    assert_eq!(bob.attachment_data(&m.message_id).await.unwrap(), webp);
+    let s = bob.add_sticker(&webp, "image/webp", "").unwrap();
+    assert_eq!(bob.sticker_data(&s.id).unwrap(), Some(webp));
+}

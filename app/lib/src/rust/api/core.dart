@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `hex`, `send_event`, `status_view`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
 abstract class Core implements RustOpaqueInterface {
@@ -18,6 +18,13 @@ abstract class Core implements RustOpaqueInterface {
   Future<void> addMembers({
     required List<int> groupId,
     required List<String> usernames,
+  });
+
+  /// Adds a WebP or PNG sticker to a pack ("" = my stickers).
+  StickerView addSticker({
+    required List<int> data,
+    required String mimeType,
+    required String pack,
   });
 
   /// Sends our current name and picture to every chat (after editing the profile).
@@ -164,6 +171,9 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> account,
   });
 
+  /// One sticker, or a whole pack when `id` is empty.
+  void removeStickers({required String pack, required String id});
+
   Future<void> renameGroup({required List<int> groupId, required String name});
 
   /// Returns the seconds until "Resend code" may be used (ID-04).
@@ -202,6 +212,7 @@ abstract class Core implements RustOpaqueInterface {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool sticker,
     Uint8List? replyTo,
   });
 
@@ -258,6 +269,10 @@ abstract class Core implements RustOpaqueInterface {
 
   /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
   Future<Uint8List> startChat({required String username});
+
+  Uint8List? stickerData({required String id});
+
+  List<StickerView> stickers();
 
   /// They become a contact again and get our profile key.
   Future<void> unblock({required List<int> account});
@@ -321,6 +336,9 @@ class AttachmentView {
   /// A small JPEG preview to show before the download.
   final Uint8List thumbnail;
 
+  /// Shown large, without a bubble.
+  final bool sticker;
+
   const AttachmentView({
     required this.mimeType,
     required this.fileName,
@@ -331,6 +349,7 @@ class AttachmentView {
     required this.width,
     required this.height,
     required this.thumbnail,
+    required this.sticker,
   });
 
   @override
@@ -343,7 +362,8 @@ class AttachmentView {
       waveform.hashCode ^
       width.hashCode ^
       height.hashCode ^
-      thumbnail.hashCode;
+      thumbnail.hashCode ^
+      sticker.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -358,7 +378,8 @@ class AttachmentView {
           waveform == other.waveform &&
           width == other.width &&
           height == other.height &&
-          thumbnail == other.thumbnail;
+          thumbnail == other.thumbnail &&
+          sticker == other.sticker;
 }
 
 class BlockedContact {
@@ -942,4 +963,28 @@ class ServerDevice {
           queued == other.queued &&
           keyPackages == other.keyPackages &&
           thisDevice == other.thisDevice;
+}
+
+class StickerView {
+  final String id;
+  final String pack;
+  final String mimeType;
+
+  const StickerView({
+    required this.id,
+    required this.pack,
+    required this.mimeType,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ pack.hashCode ^ mimeType.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StickerView &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          pack == other.pack &&
+          mimeType == other.mimeType;
 }

@@ -311,5 +311,16 @@
   "deleteChatBody": "As mensagens são apagadas deste telefone. Se a pessoa escrever de novo, a conversa volta.",
   "leaveAndDeleteTitle": "Sair de {name} e apagar a conversa?",
   "leaveAndDeleteBody": "Os membros verão que você saiu. As mensagens são apagadas deste telefone.",
-  "moreReactions": "Mais reações"
+  "moreReactions": "Mais reações",
+  "sticker": "Figurinha",
+  "stickers": "Figurinhas",
+  "myStickers": "Minhas",
+  "noStickers": "Crie uma a partir de uma foto, ou toque e segure uma figurinha numa conversa para adicioná-la aqui.",
+  "stickerFromPhoto": "De uma foto",
+  "importStickerPack": "Importar pacote",
+  "removeStickerPack": "Remover o pacote {pack}",
+  "removeSticker": "Remover esta figurinha?",
+  "addToMyStickers": "Adicionar às minhas figurinhas",
+  "stickerAdded": "Adicionada às suas figurinhas.",
+  "errStickerInvalid": "Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB."
 }

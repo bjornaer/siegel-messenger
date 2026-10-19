@@ -15,6 +15,7 @@ mod groups;
 mod links;
 mod media;
 mod messages;
+mod stickers;
 pub use chat::{ChatMessage, Event};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
 pub use core_store::{Contact, ContactState, Conversation, Status};
@@ -24,6 +25,7 @@ pub use groups::{
 };
 pub use media::{AttachmentInfo, OutgoingAttachment};
 pub use messages::{READ_RECEIPTS, TYPING};
+pub use stickers::Sticker;
 
 /// SEC-08: entry points for core/fuzz into parsers that take what other people send.
 #[cfg(feature = "fuzzing")]

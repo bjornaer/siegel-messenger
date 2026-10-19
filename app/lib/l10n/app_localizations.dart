@@ -1973,6 +1973,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More reactions'**
   String get moreReactions;
+
+  /// No description provided for @sticker.
+  ///
+  /// In en, this message translates to:
+  /// **'Sticker'**
+  String get sticker;
+
+  /// No description provided for @stickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Stickers'**
+  String get stickers;
+
+  /// No description provided for @myStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Mine'**
+  String get myStickers;
+
+  /// No description provided for @noStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Make one from a photo, or long-press a sticker in a chat and add it here.'**
+  String get noStickers;
+
+  /// No description provided for @stickerFromPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'From a photo'**
+  String get stickerFromPhoto;
+
+  /// No description provided for @importStickerPack.
+  ///
+  /// In en, this message translates to:
+  /// **'Import pack'**
+  String get importStickerPack;
+
+  /// No description provided for @removeStickerPack.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the pack {pack}'**
+  String removeStickerPack(String pack);
+
+  /// No description provided for @removeSticker.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this sticker?'**
+  String get removeSticker;
+
+  /// No description provided for @addToMyStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to my stickers'**
+  String get addToMyStickers;
+
+  /// No description provided for @stickerAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to your stickers.'**
+  String get stickerAdded;
+
+  /// No description provided for @errStickerInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That can\'t be a sticker: WebP or PNG, up to 1 MB.'**
+  String get errStickerInvalid;
 }
 
 class _AppLocalizationsDelegate

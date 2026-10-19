@@ -248,6 +248,7 @@ typedef Outgoing = ({
   Uint8List thumbnail,
   bool voice,
   Uint8List waveform,
+  bool sticker,
 });
 
 Outgoing outgoing(
@@ -260,6 +261,7 @@ Outgoing outgoing(
   Uint8List? thumbnail,
   bool voice = false,
   Uint8List? waveform,
+  bool sticker = false,
 }) => (
   data: data,
   mime: mime,
@@ -270,6 +272,7 @@ Outgoing outgoing(
   thumbnail: thumbnail ?? Uint8List(0),
   voice: voice,
   waveform: waveform ?? Uint8List(0),
+  sticker: sticker,
 );
 
 const maxAttachment = 100 << 20; // MED-06
@@ -460,6 +463,40 @@ mixin _Fetch<T extends StatefulWidget> on State<T> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+}
+
+/// A sticker: large, no bubble. Stickers are small, so they always download by themselves.
+class StickerMessage extends StatefulWidget {
+  const StickerMessage({super.key, required this.core, required this.message});
+  final Core core;
+  final MessageView message;
+
+  @override
+  State<StickerMessage> createState() => _StickerMessageState();
+}
+
+class _StickerMessageState extends State<StickerMessage> with _Fetch {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) fetch(widget.core, widget.message);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final d = data;
+    return SizedBox.square(
+      dimension: 160,
+      child: d == null
+          ? Center(
+              child: loading ? const CircularProgressIndicator() : Icon(Icons.image_outlined, semanticLabel: t.sticker),
+            )
+          : Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true, semanticLabel: t.sticker),
+    );
   }
 }
 
@@ -751,12 +788,14 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
 }
 
 /// Picks what goes in a bubble for an attachment.
-Widget attachmentView(Core core, MessageView m) => switch (kindOf(m.attachment!)) {
-  AttachmentKind.audio => AudioMessage(core: core, message: m),
-  AttachmentKind.image => ImageMessage(core: core, message: m),
-  AttachmentKind.video => VideoMessage(core: core, message: m),
-  AttachmentKind.file => FileMessage(core: core, message: m),
-};
+Widget attachmentView(Core core, MessageView m) => m.attachment!.sticker
+    ? StickerMessage(core: core, message: m)
+    : switch (kindOf(m.attachment!)) {
+        AttachmentKind.audio => AudioMessage(core: core, message: m),
+        AttachmentKind.image => ImageMessage(core: core, message: m),
+        AttachmentKind.video => VideoMessage(core: core, message: m),
+        AttachmentKind.file => FileMessage(core: core, message: m),
+      };
 
 /// MED-12 in Settings: per network, which kinds download by themselves.
 class AutoDownloadTile extends StatefulWidget {

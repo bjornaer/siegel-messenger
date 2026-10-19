@@ -28,6 +28,7 @@ void showError(BuildContext context, CoreError e) {
     'registration_lock_invalid' => t.errLockInvalid,
     'registration_lock_locked' => t.errLockLocked,
     'username_invalid' => t.errUsernameInvalid,
+    'sticker_invalid' => t.errStickerInvalid,
     'username_taken' => t.errUsernameTaken,
     'username_change_too_soon' => t.errUsernameTooSoon,
     'pin_invalid' => t.errPinInvalid,

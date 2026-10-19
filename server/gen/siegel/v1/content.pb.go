@@ -672,6 +672,7 @@ type Attachment struct {
 	VoiceNote     bool                   `protobuf:"varint,11,opt,name=voice_note,json=voiceNote,proto3" json:"voice_note,omitempty"`   // MED-09: recorded in the app
 	Waveform      []byte                 `protobuf:"bytes,12,opt,name=waveform,proto3" json:"waveform,omitempty"`                       // MED-09: voice note loudness, one byte (0-255) per bar
 	ReplyTo       []byte                 `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`          // MSG-07, as in Text
+	Sticker       bool                   `protobuf:"varint,14,opt,name=sticker,proto3" json:"sticker,omitempty"`                        // a WebP or PNG sticker: shown large, without a bubble (older apps show a photo)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -795,6 +796,13 @@ func (x *Attachment) GetReplyTo() []byte {
 		return x.ReplyTo
 	}
 	return nil
+}
+
+func (x *Attachment) GetSticker() bool {
+	if x != nil {
+		return x.Sticker
+	}
+	return false
 }
 
 type Text struct {
@@ -1151,7 +1159,7 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12-\n" +
 	"\x06avatar\x18\x03 \x01(\v2\x15.siegel.v1.AttachmentR\x06avatar\x12\x18\n" +
-	"\apadding\x18\x0f \x01(\fR\apadding\"\xe0\x02\n" +
+	"\apadding\x18\x0f \x01(\fR\apadding\"\xfa\x02\n" +
 	"\n" +
 	"Attachment\x12\x17\n" +
 	"\ablob_id\x18\x01 \x01(\fR\x06blobId\x12\x10\n" +
@@ -1169,7 +1177,8 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\n" +
 	"voice_note\x18\v \x01(\bR\tvoiceNote\x12\x1a\n" +
 	"\bwaveform\x18\f \x01(\fR\bwaveform\x12\x19\n" +
-	"\breply_to\x18\r \x01(\fR\areplyTo\"Q\n" +
+	"\breply_to\x18\r \x01(\fR\areplyTo\x12\x18\n" +
+	"\asticker\x18\x0e \x01(\bR\asticker\"Q\n" +
 	"\x04Text\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
 	"\breply_to\x18\x02 \x01(\fR\areplyTo\x12\x1a\n" +
