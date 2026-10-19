@@ -23,7 +23,7 @@ in place.
 | Feature | How it could be misused | In place | Remaining | Planned |
 | --- | --- | --- | --- | --- |
 | @username lookup (ID-06) | An adult finds a child by guessing a username and messages them (grooming). | Exact match only, with no browsing or suggestions; 1,000 lookups a day per account (ID-08); reserved names. A stranger's first message is a request (MSG-15): no read receipts, no profile, until accepted. | **H** for under-18s | Part 2: under-18s can't be found by username. |
-| Message requests | Unsolicited sexual images, and grooming openers. | Requests sit apart and can be declined or blocked; senders don't learn whether they were read. **Gap:** photos in a request download by themselves, and their preview shows before accepting. | **H** | Proposal: in requests, media stays blurred and isn't downloaded until accepted. Part 3: Report and block. |
+| Message requests | Unsolicited sexual images, and grooming openers. | Requests sit apart and can be declined or blocked; senders don't learn whether they were read. **Gap:** photos in a request download by themselves, and their preview shows before accepting. | **H** | Part 2 (decided): in requests, media stays blurred and isn't downloaded until accepted. Part 3: Report and block. |
 | Discovery by number (DISC-03) | Someone holding a child's number finds their account. | Off by default; opt-in; blinded queries, so the server never learns the numbers; rate limits (DISC-06). | M | Part 2: stays off by default for under-18s. |
 | Contact links and QR codes (DISC-08) | A link shared publicly lets anyone skip the request. | Off unless the user shares it; can be reset to cut everyone who had it. | L | Guidelines warn to share only with people you trust. |
 | Group invite links (GRP-16) | Abuse material shared in groups that anyone with the link can join. | Links expire after a week; admins revoke them; the server can delete a link. | M | Parts 4 and 5: link takedown and removal orders within 24 hours. |
@@ -46,5 +46,5 @@ reported exclude end-to-end encrypted content from detection. Our protection com
 ## Open actions
 
 1. M7 Part 2 (minors), Part 3 (reporting), Part 4 (bans) and Part 7 (reporting to the authorities).
-2. **To decide:** blur and hold media in message requests (the gap above).
+2. Blur and hold media in message requests: decided, M7 Part 2.
 3. Review this document when M7 is complete, then every year.

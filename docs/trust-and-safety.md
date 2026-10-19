@@ -73,6 +73,9 @@ confirm (OQ-014).
   - only contacts can add them to groups. Anyone else's add becomes an invite (GRP-11), and the
     setting is locked.
 - **Shown in "What Siegel knows about me":** "Under 18: yes".
+- **Media in message requests, for everyone** (gap from `docs/csa-risk-assessment.md`): photos,
+  videos and stickers from someone you haven't accepted aren't downloaded, and their preview is
+  blurred. You tap to see one; accepting the request lifts this.
 - **Age check, designed but not built:** a "verify with the EU age-verification app or EUDI wallet"
   step, kept ready for when the final CSAR makes age checks mandatory for messaging with a grooming
   risk. Spec in `docs/csa-regulation.md`.
@@ -139,20 +142,33 @@ confirm (OQ-014).
   - server tests cover each state and takedown;
   - e2e: a suspended app gets the screen, and a banned number can't register again.
 
-### Part 5: `siegel-admin`, the operator console
+### Part 5: Moderation console, a private web page plus `siegel-admin`
 
-- **A command-line tool run over SSH on the server.** It is never on the public API.
-- **Reports** are copied to the operator's laptop and decrypted there; the server never has the
-  moderators' private key.
-- **Commands:**
-  - `reports list|show|resolve`: the queue in D1 order;
-  - `suspend <account> --until --reason`, `unsuspend`, `ban --reason [--until]`;
-  - `remove username|link|blob <id> --order <ref>`: removal orders within 24 hours;
-  - `signals <account>`, `export <account>` (the CMP-06 data);
-  - `audit`.
+- **A web page served by the API server on a separate port, bound to 127.0.0.1.** It is never
+  public and never on the public API. You reach it through an SSH tunnel
+  (`ssh -L 9443:127.0.0.1:9443 root@<host>`), then log in with a passkey (WebAuthn).
+- **Reports decrypt in your browser:** you load the moderators' age key from your laptop, and an
+  age implementation in JavaScript decrypts in the page. The key never reaches the server.
+- **What the page shows:**
+  - the report queue in D1 order (child safety and threats first);
+  - each report with its messages and media;
+  - the reported account's signals (Part 6) and CMP-06 data;
+  - username-scan hits (Part 8);
+  - the audit log;
+  - transparency figures.
+- **Actions:**
+  - suspend, unsuspend, ban;
+  - remove a username, link or blob (removal orders within 24 hours);
+  - resolve a report;
+  - every action asks for a reason, and the page then shows the statement the user receives.
+- **`siegel-admin`**, a command-line tool run over SSH, offers the same actions for scripting and for
+  when the page is down.
 - **Audit log:** an append-only table; each row hashes the previous one, so an edit or deletion
   shows. No action without a reason.
-- **Done when:** every command has a test, and each action writes exactly one audit row.
+- **Done when:**
+  - the page loads only on localhost and only after login;
+  - a report decrypts in the browser with a test key;
+  - every action has a test and writes exactly one audit row.
 
 ### Part 6: Abuse signals
 
@@ -187,6 +203,21 @@ confirm (OQ-014).
 - **Done when:** both runbooks are written and the retention job is tested. The transparency page is
   generated from the audit log.
 
+### Part 8: Username scan
+
+- **What it scans:** a job inside the server, every 3 days, checks all @usernames against:
+  - the offensive and reserved lists (`server/usernames/`), which may have grown since a name was
+    taken;
+  - patterns that hint at child abuse or sexual services aimed at minors (coded terms, age plus
+    sexual words), kept in `server/usernames/suspicious.txt`.
+- **What it does with a hit:** it opens a case in the console queue (Part 5) for a person to decide.
+  It never acts by itself.
+- **What it can't scan:** group names, profile names and invite-link previews are end-to-end
+  encrypted, so the server can't read them. A group comes to us through a member's report, which
+  includes the group's name (Part 3).
+- **Done when:** a test seeds names, runs the job, and finds exactly the hits in the queue; the job
+  is idempotent, so the same name isn't queued twice unless it changes.
+
 ## Order and dependencies
 
 | Part | Can start | Blocked by |
@@ -198,6 +229,7 @@ confirm (OQ-014).
 | 5 | After 4 | — |
 | 6 | After 5 | — |
 | 7 | After 5 | O1, O3, O4 |
+| 8 | After 5 | — |
 
 Old app builds: reports, minors' settings and the suspended screen need build 16. Raise
 `SIEGEL_ANDROID_MIN_BUILD` once Parts 2 and 4 are live, so no account can skip them.
