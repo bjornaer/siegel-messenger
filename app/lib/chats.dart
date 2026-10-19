@@ -1212,23 +1212,25 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
             ],
           ),
-          body: Column(
-            children: [
-              Expanded(
-                child: ChatBackground(core: core, child: _messages(context, c)),
-              ),
-              SafeArea(
-                top: false,
-                child: c.left
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(t.leftGroup, textAlign: TextAlign.center),
-                      )
-                    : c.request
-                    ? (c.isGroup ? _inviteBar(t) : _requestBar(t, c))
-                    : _composer(t, c),
-              ),
-            ],
+          // The background runs behind the composer too; the message box is filled over it.
+          body: ChatBackground(
+            core: core,
+            child: Column(
+              children: [
+                Expanded(child: _messages(context, c)),
+                SafeArea(
+                  top: false,
+                  child: c.left
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(t.leftGroup, textAlign: TextAlign.center),
+                        )
+                      : c.request
+                      ? (c.isGroup ? _inviteBar(t) : _requestBar(t, c))
+                      : _composer(t, c),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1594,7 +1596,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     maxLines: 5,
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: _onChanged,
-                    decoration: InputDecoration(hintText: t.messageHint, border: const OutlineInputBorder()),
+                    decoration: InputDecoration(
+                      hintText: t.messageHint,
+                      border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+                      // Over the chat background: a light veil so the pattern or photo shows only faintly.
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+                    ),
                   ),
                 ),
                 ValueListenableBuilder(
