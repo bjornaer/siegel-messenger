@@ -1967,6 +1967,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Members see that you left. The messages are deleted from this phone.'**
   String get leaveAndDeleteBody;
+
+  /// No description provided for @moreReactions.
+  ///
+  /// In en, this message translates to:
+  /// **'More reactions'**
+  String get moreReactions;
 }
 
 class _AppLocalizationsDelegate

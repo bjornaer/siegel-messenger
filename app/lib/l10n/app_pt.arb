@@ -310,5 +310,6 @@
   "deleteChatTitle": "Apagar a conversa com {name}?",
   "deleteChatBody": "As mensagens são apagadas deste telefone. Se a pessoa escrever de novo, a conversa volta.",
   "leaveAndDeleteTitle": "Sair de {name} e apagar a conversa?",
-  "leaveAndDeleteBody": "Os membros verão que você saiu. As mensagens são apagadas deste telefone."
+  "leaveAndDeleteBody": "Os membros verão que você saiu. As mensagens são apagadas deste telefone.",
+  "moreReactions": "Mais reações"
 }

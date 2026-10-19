@@ -1112,4 +1112,7 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get leaveAndDeleteBody =>
       'Os membros verão que você saiu. As mensagens são apagadas deste telefone.';
+
+  @override
+  String get moreReactions => 'Mais reações';
 }

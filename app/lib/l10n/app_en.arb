@@ -604,5 +604,6 @@
       }
     }
   },
-  "leaveAndDeleteBody": "Members see that you left. The messages are deleted from this phone."
+  "leaveAndDeleteBody": "Members see that you left. The messages are deleted from this phone.",
+  "moreReactions": "More reactions"
 }

@@ -31,6 +31,7 @@ dependencies:
   video_player: 2.14.0
   rust_lib_siegel:
     path: rust_builder
+  emoji_picker_flutter: 4.5.4
 
 dev_dependencies:
   flutter_test:

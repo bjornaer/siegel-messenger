@@ -310,5 +310,6 @@
   "deleteChatTitle": "¿Eliminar el chat con {name}?",
   "deleteChatBody": "Sus mensajes se eliminan de este teléfono. Si te vuelve a escribir, el chat reaparece.",
   "leaveAndDeleteTitle": "¿Salir de {name} y eliminar el chat?",
-  "leaveAndDeleteBody": "Los miembros verán que saliste. Los mensajes se eliminan de este teléfono."
+  "leaveAndDeleteBody": "Los miembros verán que saliste. Los mensajes se eliminan de este teléfono.",
+  "moreReactions": "Más reacciones"
 }

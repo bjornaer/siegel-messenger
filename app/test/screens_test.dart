@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -1598,6 +1599,30 @@ void main() {
     }
     final bubble = siegelThemes.first.data(Brightness.light).colorScheme.surfaceContainerHighest;
     expect(memberColor([1, 2, 3], bubble), memberColor([1, 2, 3], bubble));
+  });
+
+  testWidgets('react with any emoji: + opens the full picker; a custom one shows in the quick row', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    core.receive(id, 'summit!');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.longPress(find.text('summit!'));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('More reactions'));
+    await t.pumpAndSettle();
+    expect(find.byType(EmojiPicker), findsOneWidget);
+    await t.tap(find.text('😀').first);
+    await t.pumpAndSettle();
+    expect(find.byType(EmojiPicker), findsNothing);
+    expect(find.text('😀'), findsOneWidget, reason: 'shown under the bubble');
+
+    await t.longPress(find.text('summit!'));
+    await t.pumpAndSettle();
+    final quick = find.ancestor(of: find.text('😀'), matching: find.byType(IconButton));
+    expect(t.widget<IconButton>(quick.first).isSelected, isTrue, reason: 'ours, in the last quick slot');
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

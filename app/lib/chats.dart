@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
@@ -914,6 +915,48 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// Any emoji as a reaction. Recent picks aren't remembered: the picker would keep them
+  /// outside the encrypted database.
+  Future<void> _pickReaction(MessageView m) async {
+    final colors = Theme.of(context).colorScheme;
+    final emoji = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (s) => SafeArea(
+        child: SizedBox(
+          height: 360,
+          child: EmojiPicker(
+            onEmojiSelected: (_, e) => Navigator.pop(s, e.emoji),
+            config: Config(
+              locale: Localizations.localeOf(context),
+              checkPlatformCompatibility: true,
+              emojiViewConfig: EmojiViewConfig(backgroundColor: colors.surface, emojiSizeMax: 28),
+              categoryViewConfig: CategoryViewConfig(
+                recentTabBehavior: RecentTabBehavior.NONE,
+                initCategory: Category.SMILEYS,
+                backgroundColor: colors.surface,
+                indicatorColor: colors.primary,
+                iconColorSelected: colors.primary,
+                iconColor: colors.onSurfaceVariant,
+              ),
+              bottomActionBarConfig: BottomActionBarConfig(
+                showBackspaceButton: false,
+                backgroundColor: colors.surfaceContainer,
+                buttonColor: colors.surfaceContainer,
+                buttonIconColor: colors.onSurfaceVariant,
+              ),
+              searchViewConfig: SearchViewConfig(
+                backgroundColor: colors.surface,
+                buttonIconColor: colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (emoji != null) await _run(() => core.react(groupId: _group, messageId: m.messageId, emoji: emoji));
+  }
+
   /// Long-press actions. Edit and delete-for-everyone only show inside their windows;
   /// the core checks the same rules (MSG-09, MSG-11).
   void _actions(MessageView m, ChatSummary c) {
@@ -940,7 +983,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    for (final e in _emojis)
+                    // A reaction from the full picker takes the last quick slot, selected.
+                    for (final e in mine == null || _emojis.contains(mine) ? _emojis : [..._emojis.take(5), mine])
                       IconButton(
                         isSelected: e == mine,
                         icon: Text(e, style: const TextStyle(fontSize: 24)),
@@ -950,6 +994,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                       ),
+                    IconButton(
+                      tooltip: t.moreReactions,
+                      icon: const Icon(Icons.add_reaction_outlined),
+                      onPressed: () => act(() => _pickReaction(m)),
+                    ),
                   ],
                 ),
               if (!m.deleted && !c.request)

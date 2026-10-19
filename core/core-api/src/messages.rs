@@ -14,8 +14,8 @@ pub(crate) const MAX_TEXT: usize = 64 * 1024;
 /// MSG-09 and MSG-11 windows, on the sender's clock (like `sent_at`).
 const EDIT_WINDOW_MS: i64 = 15 * 60 * 1000;
 const DELETE_WINDOW_MS: i64 = 48 * 60 * 60 * 1000;
-/// One emoji, including skin tone and ZWJ sequences, fits easily.
-const MAX_REACTION: usize = 32;
+/// One emoji, any picker can produce: the longest (a couple with two skin tones) is 35 bytes.
+const MAX_REACTION: usize = 64;
 /// A typing event that sat in the queue longer than this is stale.
 pub(crate) const TYPING_STALE_MS: i64 = 10_000;
 
