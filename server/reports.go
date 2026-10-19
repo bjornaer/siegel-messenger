@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -48,5 +49,13 @@ func (s reports) Submit(ctx context.Context, req *connect.Request[siegelv1.Repor
 		return nil, internal(err)
 	}
 	s.count(ctx, "reports_received")
+	if err := tally(ctx, s.db, "report:"+categoryName(int16(m.Category))); err != nil {
+		slog.Error("tally", "err", err)
+	}
+	// On call (M7 part 7): child safety and threats are reviewed within 24 hours. The alert says
+	// only that one arrived.
+	if m.Category == siegelv1.ReportCategory_REPORT_CATEGORY_CHILD_SAFETY || m.Category == siegelv1.ReportCategory_REPORT_CATEGORY_HARASSMENT {
+		go s.alert(context.WithoutCancel(ctx), fmt.Sprintf("Siegel: a new %s report is waiting (24-hour review).", categoryName(int16(m.Category))))
+	}
 	return connect.NewResponse(&siegelv1.ReportServiceSubmitResponse{}), nil
 }

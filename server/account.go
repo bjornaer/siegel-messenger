@@ -274,6 +274,17 @@ func (s *server) SetMinor(ctx context.Context, req *connect.Request[siegelv1.Set
 // "What Siegel knows about me" screen (RM-01).
 func (s *server) Export(ctx context.Context, _ *connect.Request[siegelv1.AccountServiceExportRequest]) (*connect.Response[siegelv1.AccountServiceExportResponse], error) {
 	c := who(ctx)
+	r, err := s.exportData(ctx, c.account, c.device)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(r), nil
+}
+
+// exportData is the CMP-06 export of an account; `device` marks "this device" (zero for none).
+// Lawful requests (M7) get exactly this, because it is all we hold.
+func (s *server) exportData(ctx context.Context, acct, device [16]byte) (*siegelv1.AccountServiceExportResponse, error) {
+	c := caller{account: acct, device: device}
 	r := &siegelv1.AccountServiceExportResponse{AccountId: c.account[:]}
 	err := s.db.QueryRow(ctx, `SELECT coalesce(phone_hmac, ''), created_day::text, coalesce(number_changed_at::date::text, ''),
 		identity_pub, reg_lock_hash IS NOT NULL, minor,
@@ -289,14 +300,14 @@ func (s *server) Export(ctx context.Context, _ *connect.Request[siegelv1.Account
 	).Scan(&r.PhoneHmac, &r.CreatedDay, &r.NumberChangedDay, &r.IdentityPub, &r.RegistrationLock, &r.Minor,
 		&r.Username, &r.UsernameClaimedDay, &r.ReleasedUsernames, &r.Discoverable, &r.Profile, &r.ProfilePicture, &r.NumbersChecked)
 	if err != nil {
-		return nil, internal(err)
+		return nil, err
 	}
 	rows, err := s.db.Query(ctx, `SELECT device_id, platform, last_seen_day::text, push_token IS NOT NULL,
 		(SELECT count(*) FROM queue q WHERE q.account_id = d.account_id AND q.device_id = d.device_id),
 		(SELECT count(*) FROM key_packages k WHERE k.account_id = d.account_id AND k.device_id = d.device_id)
 		FROM devices d WHERE account_id = $1 ORDER BY last_seen_day DESC`, c.account)
 	if err != nil {
-		return nil, internal(err)
+		return nil, err
 	}
 	r.Devices, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (*siegelv1.ExportedDevice, error) {
 		var d siegelv1.ExportedDevice
@@ -306,8 +317,5 @@ func (s *server) Export(ctx context.Context, _ *connect.Request[siegelv1.Account
 		d.DeviceId, d.Platform, d.ThisDevice = id[:], siegelv1.Platform(platform), id == c.device
 		return &d, err
 	})
-	if err != nil {
-		return nil, internal(err)
-	}
-	return connect.NewResponse(r), nil
+	return r, err
 }

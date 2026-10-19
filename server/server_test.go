@@ -851,3 +851,62 @@ func TestConsole(t *testing.T) { // M7 part 5
 		t.Fatal("told once", f)
 	}
 }
+
+func TestRetentionAndTransparency(t *testing.T) { // M7 part 7
+	e := setup(t)
+	a, _ := e.register("+34600000111", "")
+	b, _ := e.register("+34600000112", "")
+	want(t, e.setUsername(b.DeviceToken, "rude"), "")
+	var id [16]byte
+	copy(id[:], b.AccountId)
+
+	// Lawful request: the export is all we hold, as JSON; preserving keeps it 90 days.
+	var out strings.Builder
+	if err := e.s.admin(e.ctx, []string{"preserve", "--order", "JDO-7/2026", "--reason", "court order", "--by", "max", "@rude"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `"username":"rude"`) && !strings.Contains(out.String(), `"username": "rude"`) {
+		t.Fatal("export JSON", out.String())
+	}
+	var n int
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM preservations WHERE order_ref = 'JDO-7/2026' AND expires_at > now() + interval '89 days'`).Scan(&n)
+	want(t, fmt.Sprint(n), "1")
+	for _, args := range [][]string{
+		{"request-log", "--kind", "production", "--outcome", "answered", "--order", "JDO-7/2026", "--reason", "sent the export", "--by", "max", "Juzgado 3 Madrid"},
+		{"suspend", "--days", "3", "--rule", "harassment", "--reason", "threats", "--by", "max", "@rude"},
+		{"appeal", "--outcome", "upheld", "--reason", "evidence clear", "--by", "max", "@rude"},
+	} {
+		out.Reset()
+		if err := e.s.admin(e.ctx, args, &out); err != nil {
+			t.Fatal(args[0], err)
+		}
+	}
+
+	// Retention: old resolved reports go; a legal hold keeps one.
+	e.s.db.Exec(e.ctx, `INSERT INTO reports (reporter, reported, category, sealed, created_at, resolved_at) VALUES
+		($1, $2, 1, 'x', now() - interval '8 months', now() - interval '7 months'),
+		($1, $2, 1, 'x', now() - interval '8 months', now() - interval '7 months'),
+		($1, $2, 4, 'x', now() - interval '13 months', NULL),
+		($1, $2, 2, 'x', now(), NULL)`, a.AccountId, id)
+	var held int64
+	e.s.db.QueryRow(e.ctx, `SELECT min(id) FROM reports`).Scan(&held)
+	out.Reset()
+	if err := e.s.admin(e.ctx, []string{"hold", "--days", "30", "--reason", "court asked", "--by", "max", fmt.Sprint(held)}, &out); err != nil {
+		t.Fatal(err)
+	}
+	e.s.retain(e.ctx)
+	e.s.db.QueryRow(e.ctx, `SELECT count(*) FROM reports`).Scan(&n)
+	want(t, fmt.Sprint(n), "2") // the held one and the fresh one
+
+	tally(e.ctx, e.s.db, "report:child_safety")
+	res, _ := http.Get(e.url + "/transparency")
+	page, _ := io.ReadAll(res.Body)
+	for _, s := range []string{"child safety", "suspend", "upheld", "production, answered"} {
+		if !strings.Contains(string(page), s) {
+			t.Fatal("transparency page shows", s)
+		}
+	}
+	if strings.Contains(string(page), "rude") || strings.Contains(string(page), "Juzgado") {
+		t.Fatal("numbers only, never who")
+	}
+}

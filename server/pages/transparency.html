@@ -1,0 +1,24 @@
+{{define "transparency"}}{{template "head" "Transparency report"}}
+<h1>Siegel transparency report, {{.Year}}</h1>
+<p class="note">Counted as they happen; numbers only, never who. We can't read messages and don't scan
+them, so everything here starts with a report from a user, a username we flagged, or an order.
+{{if .Years}}Other years: {{range .Years}}<a href="/transparency?year={{.}}">{{.}}</a> {{end}}{{end}}</p>
+
+<h2>Reports from users</h2>
+{{if .Reports}}<table><tr><th>Reason</th><th>Reports</th></tr>{{range .Reports}}<tr><td>{{.Item}}</td><td>{{.Count}}</td></tr>{{end}}</table>
+{{else}}<p>None yet this year.</p>{{end}}
+
+<h2>What we did</h2>
+{{if .Actions}}<table><tr><th>Action</th><th>Times</th></tr>{{range .Actions}}<tr><td>{{.Item}}</td><td>{{.Count}}</td></tr>{{end}}</table>
+{{else}}<p>Nothing yet this year.</p>{{end}}
+
+<h2>Appeals</h2>
+{{if .Appeals}}<table><tr><th>Outcome</th><th>Appeals</th></tr>{{range .Appeals}}<tr><td>{{.Item}}</td><td>{{.Count}}</td></tr>{{end}}</table>
+{{else}}<p>None yet this year.</p>{{end}}
+
+<h2>Requests from authorities</h2>
+{{if .Legal}}<table><tr><th>Kind, outcome</th><th>Requests</th></tr>{{range .Legal}}<tr><td>{{.Item}}</td><td>{{.Count}}</td></tr>{{end}}</table>
+{{else}}<p>None yet this year.</p>{{end}}
+<p>What we can hand over is listed in our <a href="/privacy">privacy policy</a>: never message content,
+contacts or chat history, because we don't have them.</p>
+{{template "foot"}}{{end}}

@@ -325,6 +325,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /terms", s.page("terms"))
 	mux.HandleFunc("GET /guidelines", s.page("guidelines"))
+	mux.HandleFunc("GET /transparency", s.transparencyPage)
 	mux.HandleFunc("GET /delete-account", s.page("delete-account"))
 	mux.HandleFunc("GET /u/{username}", s.contactPage)
 	mux.HandleFunc("GET /g/{id}", s.page("g")) // GRP-16: the server can't tell which group
@@ -354,6 +355,7 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			}
 		}
 		s.expireBlobs(ctx)
+		s.retain(ctx)                                  // M7 part 7
 		if s.due(ctx, "username_scan", 72*time.Hour) { // M7 part 8: every 3 days
 			if n, err := s.scanUsernames(ctx); err != nil {
 				slog.Error("username scan", "err", err)

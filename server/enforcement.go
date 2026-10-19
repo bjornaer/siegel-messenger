@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -39,9 +40,31 @@ func audit(ctx context.Context, tx pgx.Tx, a act, action, target string) error {
 		return err
 	}
 	at := time.Now().UTC().Truncate(time.Microsecond)
-	_, err := tx.Exec(ctx, `INSERT INTO audit_log (at, operator, action, target, reason, prev_hash, hash) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		at, a.operator, action, target, a.reason, prev, auditHash(prev, at, a.operator, action, target, a.reason))
-	return err
+	if _, err := tx.Exec(ctx, `INSERT INTO audit_log (at, operator, action, target, reason, prev_hash, hash) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		at, a.operator, action, target, a.reason, prev, auditHash(prev, at, a.operator, action, target, a.reason)); err != nil {
+		return err
+	}
+	if item := tallyItem(action); item != "" {
+		return tally(ctx, tx, item) // the transparency report counts it (M7 part 7)
+	}
+	return nil
+}
+
+// tallyItem is the transparency count an audited action adds to, if any.
+func tallyItem(action string) string {
+	for _, p := range []struct{ prefix, item string }{
+		{"suspend", "action:suspend"}, {"ban", "action:ban"}, {"remove username", "action:remove_username"},
+		{"remove link", "action:remove_link"}, {"remove blob", "action:remove_blob"},
+		{"appeal: ", "appeal:"}, {"legal request: ", "request:"},
+	} {
+		if rest, ok := strings.CutPrefix(action, p.prefix); ok {
+			if strings.HasSuffix(p.item, ":") {
+				return p.item + strings.ReplaceAll(rest, " ", "_")
+			}
+			return p.item
+		}
+	}
+	return ""
 }
 
 func auditHash(prev []byte, at time.Time, fields ...string) []byte {

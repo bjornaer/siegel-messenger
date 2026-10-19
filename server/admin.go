@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
@@ -34,6 +36,13 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   scan-usernames                                        (run the scan now)
   audit [--verify] [--last N]
   console-enrol <operator name>                         (a single-use link to add a passkey)
+lawful requests and appeals (docs/law-enforcement.md):
+  export --order REF --reason "…" <account>             (prints what we hold, as JSON)
+  preserve --order REF --reason "…" <account>           (keeps that snapshot 90 days)
+  hold --days N --reason "…" <report id>                (a court asks to keep a report longer)
+  request-log --kind K --outcome O --order REF --reason "…" <authority>
+      kinds: production preservation emergency removal other; outcomes: answered nothing_held refused
+  appeal --outcome upheld|overturned --reason "…" <account>
 rules: spam harassment hate child_safety non_consensual violence impersonation other
 every action also takes --by <operator> (default: $SIEGEL_OPERATOR or "operator")`
 
@@ -69,6 +78,9 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 	by := fs.String("by", envOr("SIEGEL_OPERATOR", "operator"), "who is acting")
 	verify := fs.Bool("verify", false, "check the audit chain")
 	last := fs.Int("last", 20, "audit rows to show")
+	order := fs.String("order", "", "the order's reference")
+	kind := fs.String("kind", "", "kind of request")
+	outcome := fs.String("outcome", "", "what came of it")
 	if err := fs.Parse(rest); err != nil {
 		return err
 	}
@@ -150,6 +162,72 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 			return s.removeLink(ctx, id, a)
 		}
 		return s.removeBlob(ctx, id, a)
+	case "export", "preserve":
+		if err := needs(false); err != nil {
+			return err
+		} else if *order == "" {
+			return errors.New("--order is required")
+		}
+		acct, err := s.resolve(ctx, target)
+		if err != nil {
+			return err
+		}
+		data, err := s.exportData(ctx, acct, [16]byte{})
+		if err != nil {
+			return err
+		}
+		snapshot, err := protojson.Marshal(data)
+		if err != nil {
+			return err
+		}
+		if err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			if cmd == "preserve" {
+				if _, err := tx.Exec(ctx, `INSERT INTO preservations (account_id, order_ref, snapshot, expires_at) VALUES ($1, $2, $3, now() + interval '90 days')`,
+					acct, *order, snapshot); err != nil {
+					return err
+				}
+			}
+			return audit(ctx, tx, a, cmd+" for "+*order, hex.EncodeToString(acct[:]))
+		}); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, string(snapshot))
+	case "hold":
+		if err := needs(false); err != nil {
+			return err
+		} else if *days <= 0 {
+			return errors.New("--days is required")
+		}
+		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			tag, err := tx.Exec(ctx, `UPDATE reports SET hold_until = now() + $2 * interval '1 day' WHERE id = $1`, target, *days)
+			if err != nil {
+				return err
+			} else if tag.RowsAffected() == 0 {
+				return errNotFound
+			}
+			return audit(ctx, tx, a, fmt.Sprintf("legal hold %d days", *days), "report "+target)
+		})
+	case "request-log":
+		if err := needs(false); err != nil {
+			return err
+		}
+		kinds := []string{"production", "preservation", "emergency", "removal", "other"}
+		outcomes := []string{"answered", "nothing_held", "refused"}
+		if !slices.Contains(kinds, *kind) || !slices.Contains(outcomes, *outcome) || *order == "" {
+			return errors.New("--kind, --outcome and --order are required (see usage)")
+		}
+		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			return audit(ctx, tx, a, "legal request: "+*kind+":"+*outcome, target+" "+*order)
+		})
+	case "appeal":
+		if err := needs(false); err != nil {
+			return err
+		} else if *outcome != "upheld" && *outcome != "overturned" {
+			return errors.New("--outcome upheld|overturned")
+		}
+		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+			return audit(ctx, tx, a, "appeal: "+*outcome, target)
+		})
 	case "console-enrol":
 		link, err := s.enrolLink(ctx, target)
 		if err != nil {

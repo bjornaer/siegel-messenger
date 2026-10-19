@@ -183,7 +183,19 @@ loopback, so it is reached through SSH:
 4. On a report, load `siegel-reports.key`. It is read in the page and never uploaded; closing the
    tab forgets it.
 
-The browser needs to be from 2024 or newer, because older ones lack the WebAuthn JSON helpers. A
+The browser needs to be from 2024 or newer, because older ones lack the WebAuthn JSON helpers.
+
+### Alerts on your phone
+
+Child-safety and threat reports must be reviewed within 24 hours, so the server posts an alert to
+`SIEGEL_ALERT_WEBHOOK`. The alert carries only the report's category, never who or what. The
+simplest setup: install the ntfy app, subscribe to a long random topic name, and set
+`SIEGEL_ALERT_WEBHOOK=https://ntfy.sh/<that topic>` in `.env`. SMS-pumping alerts arrive there too.
+
+### Procedures
+
+`docs/child-safety.md` covers reports about children; `docs/law-enforcement.md` covers requests from
+authorities and appeals. A
 banned number can't register again; its @username stays taken for good. The web console (M7
 part 5) runs the same actions.
 
