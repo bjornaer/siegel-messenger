@@ -136,6 +136,9 @@ jobs:
           key: web-${{ hashFiles('app/rust/Cargo.lock') }}
       - run: flutter pub get
       - name: core for the browser
+        env:
+          # SQLite3 Multiple Ciphers is C: built for the same shared memory as the Rust around it.
+          CFLAGS_wasm32_unknown_unknown: -matomics -mbulk-memory
         run: >-
           dart run flutter_rust_bridge build-web --release --dart-root . --wasm-pack-rustflags='--cfg getrandom_backend="wasm_js"
           -C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-args=--shared-memory
