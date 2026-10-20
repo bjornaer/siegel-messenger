@@ -28,4 +28,4 @@ openmls_sqlite_storage = { path = "../../core/vendor/openmls_sqlite_storage" }
 
 # M8: the web build shares memory between threads; wasm-opt has to be told.
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-O", "--enable-threads", "--enable-bulk-memory", "--enable-mutable-globals"]
+wasm-opt = ["-O", "--all-features"] # accepts what rustc emitted; adds nothing
