@@ -9,6 +9,9 @@ ignore = [
   # Unmaintained, not vulnerable: a compile-time proc-macro helper (hax-lib-macros <- libcrux,
   # OpenMLS's crypto). No code from it ships in the app. Revisit when libcrux drops it.
   { id = "RUSTSEC-2026-0173", reason = "build-time only, unmaintained notice" },
+  # Unmaintained, not vulnerable: read at compile time by age's i18n proc-macros (basic-toml <-
+  # i18n-config <- i18n-embed-fl <- age, used for reports and device links). Nothing ships.
+  { id = "RUSTSEC-2026-0374", reason = "build-time only, unmaintained notice" },
 ]
 
 [licenses]
