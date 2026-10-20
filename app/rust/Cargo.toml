@@ -25,3 +25,7 @@ codegen-units = 1
 # openmls_sqlite_storage 0.3 wants rusqlite 0.37, which can't build for the browser (vendor/…/VENDORED.md).
 [patch.crates-io]
 openmls_sqlite_storage = { path = "../../core/vendor/openmls_sqlite_storage" }
+
+# M8: the web build shares memory between threads; wasm-opt has to be told.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-threads", "--enable-bulk-memory", "--enable-mutable-globals"]
