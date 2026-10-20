@@ -37,6 +37,19 @@ class ChatBackground extends StatelessWidget {
           excludeFromSemantics: true,
         ),
       ),
+      // The Siegel theme: our seal in white, repeated over its green.
+      _ when themeChoice.value.id == 'siegel' => DecoratedBox(
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF16291D) : const Color(0xFFD3E8D7),
+          image: DecorationImage(
+            image: const AssetImage('assets/seal_tile.png'),
+            repeat: ImageRepeat.repeat,
+            scale: 2.2,
+            opacity: dark ? 0.09 : 0.6,
+          ),
+        ),
+        child: const SizedBox.expand(),
+      ),
       _ => CustomPaint(
         painter: ThemePattern(themeChoice.value.id, theme.colorScheme.onSurface.withValues(alpha: dark ? 0.07 : 0.06)),
         child: const SizedBox.expand(),

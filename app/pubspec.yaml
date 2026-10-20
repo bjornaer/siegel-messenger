@@ -46,6 +46,7 @@ flutter:
   assets:
     - assets/logo.jpeg
     - assets/logo_dark.jpeg
+    - assets/seal_tile.png
 
 flutter_launcher_icons:
   image_path: assets/icon/icon.png
