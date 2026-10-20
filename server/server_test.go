@@ -994,3 +994,23 @@ func TestLinkedDevices(t *testing.T) { // M8 part 1
 	_, err = acct.RemoveDevice(e.ctx, connect.NewRequest(&siegelv1.RemoveDeviceRequest{DeviceId: a.DeviceId}))
 	want(t, errMsg(err), "device_not_found")
 }
+
+func TestIssueCode(t *testing.T) { // SMS didn't arrive: an operator issues the code
+	e := setup(t)
+	var out strings.Builder
+	if err := e.s.admin(e.ctx, []string{"issue-code", "--reason", "SMS not arriving, owner confirmed by call", "--by", "max", "+34600000131"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	code := strings.TrimSuffix(strings.Fields(out.String())[1], ",")
+	if _, _, err := e.verify("+34600000131", code, ""); err != nil {
+		t.Fatal("the issued code registers", err)
+	}
+	var action, target string
+	e.s.db.QueryRow(e.ctx, `SELECT action, target FROM audit_log ORDER BY id DESC LIMIT 1`).Scan(&action, &target)
+	if action != "issue sign-up code" || strings.Contains(target, "600000131") {
+		t.Fatal("audited, never with the number", action, target)
+	}
+	if err := e.s.admin(e.ctx, []string{"issue-code", "--by", "max", "+34600000131"}, &out); !errors.Is(err, errNoReason) {
+		t.Fatal("a reason is required", err)
+	}
+}

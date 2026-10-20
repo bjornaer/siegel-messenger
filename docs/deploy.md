@@ -167,7 +167,13 @@ $A remove-username --rule impersonation --reason "looks like staff" --by max @si
 $A remove-link --reason "removal order 2026/123" --by max <link id hex>
 $A remove-blob --reason "removal order 2026/123" --by max <blob id hex>
 $A audit --verify --last 50
+$A issue-code --reason "SMS not arriving; owner confirmed by phone call" --by max +34611223344
 ```
+
+`issue-code` is for when a sign-up SMS doesn't arrive. It prints a fresh 10-minute code. **Give it
+only to someone you've confirmed owns that number** (in person, or by calling that exact number):
+the code is what proves ownership, so whoever gets it can take over an account on that number that
+has no Registration Lock. It's audited under the number's hash, never the number.
 
 Rules: spam, harassment, hate, child_safety, non_consensual, violence, impersonation, other.
 

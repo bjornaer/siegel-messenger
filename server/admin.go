@@ -36,6 +36,8 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   scan-usernames                                        (run the scan now)
   audit [--verify] [--last N]
   console-enrol <operator name>                         (a single-use link to add a passkey)
+  issue-code --reason "…" <+E.164 number>               (a 10-minute sign-up code when SMS doesn't arrive;
+                                                         only after confirming the person owns the number)
 lawful requests and appeals (docs/law-enforcement.md):
   export --order REF --reason "…" <account>             (prints what we hold, as JSON)
   preserve --order REF --reason "…" <account>           (keeps that snapshot 90 days)
@@ -61,6 +63,8 @@ func adminMain(args []string, out io.Writer) int {
 	defer db.Close()
 	s := newServer(cfg, db)
 	s.blobs = cfg.s3
+	b := bao{addr: cfg.baoAddr, token: cfg.baoToken}
+	s.hmacPhone = b.hmacPhone // issue-code needs the number's hash (ID-05)
 	if err := s.admin(ctx, args, out); err != nil {
 		fmt.Fprintln(out, "error:", err)
 		return 1
@@ -228,6 +232,15 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 			return audit(ctx, tx, a, "appeal: "+*outcome, target)
 		})
+	case "issue-code":
+		if err := needs(false); err != nil {
+			return err
+		}
+		code, err := s.issueCode(ctx, target, a)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "Code %s, valid 10 minutes. Give it only to the person you confirmed owns the number.\n", code)
 	case "console-enrol":
 		link, err := s.enrolLink(ctx, target)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -437,4 +438,34 @@ func (s *server) AppVersion(_ context.Context, req *connect.Request[siegelv1.App
 		res.Latest, res.Minimum = uint32(s.cfg.androidLatest), uint32(s.cfg.androidMin)
 	}
 	return connect.NewResponse(res), nil
+}
+
+// issueCode is siegel-admin issue-code: when SMS doesn't arrive, an operator who has confirmed the
+// person owns the number creates their sign-up code by hand. It replaces any pending code and
+// resets guesses; Verify then works as usual (with the Registration Lock PIN if there is one).
+// Audited under the number's hash prefix, never the number.
+func (s *server) issueCode(ctx context.Context, phone string, a act) (string, error) {
+	if !e164.MatchString(phone) {
+		return "", errors.New("the number must be in E.164 form, like +34611223344")
+	}
+	h, err := s.hmacPhone(ctx, phone)
+	if err != nil {
+		return "", err
+	}
+	if b, err := s.banned(ctx, h); err != nil {
+		return "", err
+	} else if b {
+		return "", errors.New("that number is banned")
+	}
+	n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000))
+	code := fmt.Sprintf("%06d", n)
+	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO otps (phone_hmac, code, expires_at, sends, last_sent_at) VALUES ($1, $2, $3, 1, now())
+			ON CONFLICT (phone_hmac) DO UPDATE SET code = $2, expires_at = $3, attempts = 0, sends = 1, last_sent_at = now()`,
+			h, code, time.Now().Add(s.cfg.otpTTL)); err != nil {
+			return err
+		}
+		return audit(ctx, tx, a, "issue sign-up code", "number "+hex.EncodeToString(h[:4]))
+	})
+	return code, err
 }
