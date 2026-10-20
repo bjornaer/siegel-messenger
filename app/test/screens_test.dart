@@ -24,6 +24,7 @@ import 'package:siegel/main.dart';
 import 'package:siegel/media.dart';
 import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
+import 'package:siegel/phone_field.dart';
 import 'package:siegel/push.dart' show notificationStrings;
 import 'package:siegel/report.dart';
 import 'package:siegel/sticker_editor.dart';
@@ -2135,6 +2136,32 @@ void main() {
           .onPressed,
       isNull,
     );
+  });
+
+  testWidgets('phone numbers: the SIM country, national numbers with a trunk 0, the number the SMS goes to', (t) async {
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (call) async {
+      if (call.method == 'countries')
+        return {
+          'sim': 'BR',
+          'names': {'BR': 'Brasil', 'ES': 'España'},
+        };
+      return null;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+    String? got;
+    await t.pumpWidget(wrap(Scaffold(body: PhoneNumberField(onChanged: (p) => got = p?.international))));
+    await t.pumpAndSettle();
+    expect(find.text('🇧🇷 +55'), findsOneWidget, reason: "the SIM's country, not the phone's language");
+    // As dialled at home in Campinas: trunk 0, area 19.
+    await t.enterText(find.byType(TextField), '019 99876-5432');
+    await t.pump();
+    expect(got, '+5519998765432');
+    expect(find.textContaining("We'll text +55 19 99876-5432 (Brasil)."), findsOneWidget);
+    // A number typed with its + code wins, and the flag follows it.
+    await t.enterText(find.byType(TextField), '+34 611 22 33 44');
+    await t.pump();
+    expect(got, '+34611223344');
+    expect(find.text('🇪🇸 +34'), findsOneWidget);
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

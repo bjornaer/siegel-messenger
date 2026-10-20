@@ -1413,4 +1413,18 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errLinkExpired =>
       'Der Code ist abgelaufen. Zeig auf dem Gerät einen neuen an und scanne erneut.';
+
+  @override
+  String get searchCountry => 'Land oder Vorwahl suchen';
+
+  @override
+  String get chooseCountry => 'Wähle dein Land';
+
+  @override
+  String get phoneHintNational => 'Deine Nummer, wie du sie im Inland wählst';
+
+  @override
+  String smsGoesTo(String number, String country) {
+    return 'Wir senden die SMS an $number ($country).';
+  }
 }

@@ -770,5 +770,19 @@
   },
   "unlinkBody": "It stops receiving your messages at once and forgets everything on it.",
   "tooManyDevices": "You can link up to 4 devices. Unlink one first.",
-  "errLinkExpired": "That code has expired. Show a new one on the device and scan again."
+  "errLinkExpired": "That code has expired. Show a new one on the device and scan again.",
+  "searchCountry": "Search for a country or code",
+  "chooseCountry": "Choose your country",
+  "phoneHintNational": "Your number, as you'd dial it at home",
+  "smsGoesTo": "We'll text {number} ({country}).",
+  "@smsGoesTo": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      },
+      "country": {
+        "type": "String"
+      }
+    }
+  }
 }

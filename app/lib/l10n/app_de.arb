@@ -389,5 +389,9 @@
   "unlinkTitle": "{name} trennen?",
   "unlinkBody": "Es empfängt sofort keine Nachrichten mehr und vergisst alles.",
   "tooManyDevices": "Du kannst bis zu 4 Geräte verknüpfen. Trenne zuerst eines.",
-  "errLinkExpired": "Der Code ist abgelaufen. Zeig auf dem Gerät einen neuen an und scanne erneut."
+  "errLinkExpired": "Der Code ist abgelaufen. Zeig auf dem Gerät einen neuen an und scanne erneut.",
+  "searchCountry": "Land oder Vorwahl suchen",
+  "chooseCountry": "Wähle dein Land",
+  "phoneHintNational": "Deine Nummer, wie du sie im Inland wählst",
+  "smsGoesTo": "Wir senden die SMS an {number} ({country})."
 }

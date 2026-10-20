@@ -1399,4 +1399,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errLinkExpired =>
       'That code has expired. Show a new one on the device and scan again.';
+
+  @override
+  String get searchCountry => 'Search for a country or code';
+
+  @override
+  String get chooseCountry => 'Choose your country';
+
+  @override
+  String get phoneHintNational => 'Your number, as you\'d dial it at home';
+
+  @override
+  String smsGoesTo(String number, String country) {
+    return 'We\'ll text $number ($country).';
+  }
 }

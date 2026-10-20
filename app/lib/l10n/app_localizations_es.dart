@@ -1407,4 +1407,18 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errLinkExpired =>
       'Ese código ha caducado. Muestra uno nuevo en el dispositivo y escanéalo otra vez.';
+
+  @override
+  String get searchCountry => 'Busca un país o prefijo';
+
+  @override
+  String get chooseCountry => 'Elige tu país';
+
+  @override
+  String get phoneHintNational => 'Tu número, como lo marcarías en tu país';
+
+  @override
+  String smsGoesTo(String number, String country) {
+    return 'Enviaremos el SMS a $number ($country).';
+  }
 }

@@ -389,5 +389,9 @@
   "unlinkTitle": "¿Desvincular {name}?",
   "unlinkBody": "Deja de recibir tus mensajes al instante y olvida todo lo que tenía.",
   "tooManyDevices": "Puedes vincular hasta 4 dispositivos. Desvincula uno primero.",
-  "errLinkExpired": "Ese código ha caducado. Muestra uno nuevo en el dispositivo y escanéalo otra vez."
+  "errLinkExpired": "Ese código ha caducado. Muestra uno nuevo en el dispositivo y escanéalo otra vez.",
+  "searchCountry": "Busca un país o prefijo",
+  "chooseCountry": "Elige tu país",
+  "phoneHintNational": "Tu número, como lo marcarías en tu país",
+  "smsGoesTo": "Enviaremos el SMS a {number} ({country})."
 }

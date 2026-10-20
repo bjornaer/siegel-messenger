@@ -2441,6 +2441,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'That code has expired. Show a new one on the device and scan again.'**
   String get errLinkExpired;
+
+  /// No description provided for @searchCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a country or code'**
+  String get searchCountry;
+
+  /// No description provided for @chooseCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your country'**
+  String get chooseCountry;
+
+  /// No description provided for @phoneHintNational.
+  ///
+  /// In en, this message translates to:
+  /// **'Your number, as you\'d dial it at home'**
+  String get phoneHintNational;
+
+  /// No description provided for @smsGoesTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll text {number} ({country}).'**
+  String smsGoesTo(String number, String country);
 }
 
 class _AppLocalizationsDelegate

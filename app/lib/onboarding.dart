@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +9,7 @@ import 'avatar.dart';
 import 'l10n/app_localizations.dart';
 import 'links.dart' show openPage;
 import 'minors.dart';
+import 'phone_field.dart';
 import 'suspended.dart' show ruleLabel;
 import 'src/rust/api/core.dart';
 import 'themes.dart';
@@ -98,7 +98,6 @@ class Onboarding extends StatefulWidget {
 class _OnboardingState extends State<Onboarding> {
   // Resume at the profile step if the app was closed after verifying.
   late _Step step = widget.core.isRegistered() ? _Step.profile : _Step.welcome;
-  final _phone = TextEditingController();
   final _code = TextEditingController();
   final _pin = TextEditingController();
   final _username = TextEditingController();
@@ -148,17 +147,6 @@ class _OnboardingState extends State<Onboarding> {
       }
     } finally {
       if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  void _onPhoneChanged(String v) {
-    final region = PlatformDispatcher.instance.locale.countryCode;
-    final caller = IsoCode.values.where((c) => c.name == region).firstOrNull;
-    try {
-      final p = PhoneNumber.parse(v, callerCountry: caller);
-      setState(() => _parsed = p.isValid(type: PhoneNumberType.mobile) || p.isValid() ? p : null);
-    } on PhoneNumberException {
-      setState(() => _parsed = null);
     }
   }
 
@@ -233,13 +221,9 @@ class _OnboardingState extends State<Onboarding> {
       _Step.phone => (
         t.phoneTitle,
         [
-          TextField(
-            controller: _phone,
-            keyboardType: TextInputType.phone,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            decoration: InputDecoration(labelText: t.phoneTitle, hintText: t.phoneHint),
-            onChanged: _onPhoneChanged,
-          ),
+          // The country with its flag (the SIM's by default), then the number; the line under it
+          // shows the exact international number the SMS goes to.
+          PhoneNumberField(onChanged: (p) => setState(() => _parsed = p)),
           // Terms and privacy before the first SMS (DSA Art. 14, CMP-07).
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,

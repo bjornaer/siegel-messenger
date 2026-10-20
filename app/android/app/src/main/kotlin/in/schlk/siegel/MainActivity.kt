@@ -35,6 +35,16 @@ class MainActivity : FlutterFragmentActivity() {
                 // MED-12: auto-download settings differ on metered (mobile) networks.
                 "metered" -> result.success(
                     (getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager).isActiveNetworkMetered)
+                // Phone number entry: the SIM's country (no permission needed) and every country's
+                // name in the phone's language, for the country picker.
+                "countries" -> {
+                    val tm = getSystemService(TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+                    val sim = (tm.simCountryIso.takeIf { it.isNotEmpty() } ?: tm.networkCountryIso).uppercase()
+                    val names = java.util.Locale.getISOCountries().associateWith {
+                        java.util.Locale("", it).getDisplayCountry(java.util.Locale.getDefault())
+                    }
+                    result.success(mapOf("sim" to sim, "names" to names))
+                }
                 // Stickers shared to Siegel by another app, once: [[name, bytes], ...].
                 "takeShared" -> {
                     result.success(pendingShared)

@@ -389,5 +389,9 @@
   "unlinkTitle": "Desconectar {name}?",
   "unlinkBody": "Ele para de receber suas mensagens na hora e apaga tudo o que tinha.",
   "tooManyDevices": "Você pode conectar até 4 dispositivos. Desconecte um primeiro.",
-  "errLinkExpired": "Esse código expirou. Mostre um novo no dispositivo e escaneie de novo."
+  "errLinkExpired": "Esse código expirou. Mostre um novo no dispositivo e escaneie de novo.",
+  "searchCountry": "Procure um país ou código",
+  "chooseCountry": "Escolha seu país",
+  "phoneHintNational": "Seu número, como você discaria no seu país",
+  "smsGoesTo": "Enviaremos o SMS para {number} ({country})."
 }

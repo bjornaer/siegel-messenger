@@ -2,7 +2,8 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 
-import 'discovery.dart' show phoneRegion, toE164;
+import 'discovery.dart' show phoneRegion;
+import 'phone_field.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show attestationToken, showError;
 import 'src/rust/api/core.dart';
@@ -69,7 +70,7 @@ class ChangeNumberScreen extends StatefulWidget {
 }
 
 class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
-  final _phone = TextEditingController();
+  String? _number; // E.164, once valid
   final _code = TextEditingController();
   final _pin = TextEditingController();
   String? _e164; // set once the code was sent
@@ -87,7 +88,7 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
   }
 
   Future<void> _send() => _run(() async {
-    final e164 = toE164(_phone.text, phoneRegion(widget.core));
+    final e164 = _number;
     if (e164 == null) throw CoreError(code: 'phone_invalid');
     await widget.core.requestOtp(
       phoneE164: e164,
@@ -116,12 +117,11 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
         children: [
           Text(t.changeNumberHelp),
           const SizedBox(height: 16),
-          TextField(
-            controller: _phone,
+          PhoneNumberField(
+            label: t.newNumber,
             enabled: !sent,
-            autofocus: true,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(labelText: t.newNumber, hintText: t.phoneHint),
+            initialCountry: phoneRegion(widget.core),
+            onChanged: (p) => setState(() => _number = p?.international),
           ),
           if (!sent) ...[
             const SizedBox(height: 16),
