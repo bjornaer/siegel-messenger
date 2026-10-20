@@ -22,6 +22,7 @@ mod rt;
 mod stickers;
 mod sync;
 pub use chat::{ChatMessage, Event};
+pub use core_crypto::pin::{unwrap as unwrap_db_key, wrap as wrap_db_key};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
 pub use core_store::{Contact, ContactState, Conversation, Status};
 pub use devices::DeviceInfo;
@@ -32,6 +33,24 @@ pub use groups::{
 pub use media::{AttachmentInfo, OutgoingAttachment};
 pub use messages::{READ_RECEIPTS, TYPING};
 pub use stickers::Sticker;
+
+/// M8: in the browser, puts SQLite's files in IndexedDB; call once before `SiegelCore::open`.
+/// Nothing to do on phones.
+pub async fn prepare_storage() -> Result<(), CoreError> {
+    #[cfg(target_family = "wasm")]
+    core_store::web::install()
+        .await
+        .map_err(|_| CoreError::new("storage"))?;
+    Ok(())
+}
+
+/// M8: drops a browser's database that can't be opened any more (PIN forgotten, unused for 14
+/// days), so a fresh one can start. Phones wipe through `SiegelCore::wipe`.
+pub fn forget_storage(db_path: &str) {
+    #[cfg(target_family = "wasm")]
+    core_store::web::delete(std::path::Path::new(db_path));
+    let _ = db_path;
+}
 
 /// SEC-08: entry points for core/fuzz into parsers that take what other people send.
 #[cfg(feature = "fuzzing")]

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'l10n/app_localizations.dart';
 import 'src/rust/api/core.dart';
 
@@ -11,8 +13,15 @@ const appChannel = MethodChannel('siegel/app');
 const serverUrl = String.fromEnvironment('SIEGEL_SERVER', defaultValue: 'https://siegel.schlk.in');
 const sourceUrl = 'https://github.com/bjornaer/siegel-messenger';
 
+/// The Android app (not the web app, M8): `dart:io`'s Platform throws in a browser.
+bool get isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+bool get isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+/// A web page, in the browser (Android's own, or a new tab of the web app's).
+void openUrl(String url) => kIsWeb ? browser.openUrl(url) : appChannel.invokeMethod<void>('open', url);
+
 /// Our public pages: /terms, /guidelines, /privacy.
-void openPage(String path) => appChannel.invokeMethod<void>('open', '$serverUrl$path');
+void openPage(String path) => openUrl('$serverUrl$path');
 
 /// DISC-08: is this one of our contact links?
 bool isContactLink(String s) => s.contains('/u/') && s.contains('#');
@@ -77,7 +86,9 @@ Future<Uint8List?> joinGroupByLink(BuildContext context, Core core, String link)
   return core.joinGroupLink(link: link);
 }
 
-void shareText(String text) => appChannel.invokeMethod<void>('share', text);
+/// The share sheet; a browser has none, so there the text is copied instead.
+void shareText(String text) =>
+    kIsWeb ? Clipboard.setData(ClipboardData(text: text)) : appChannel.invokeMethod<void>('share', text);
 
 /// DISC-08, DISC-02: our own link as a QR code, to share, copy, reset or turn off. Shown in
 /// the profile area of Settings.

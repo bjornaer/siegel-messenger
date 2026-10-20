@@ -233,6 +233,14 @@ impl SiegelCore {
         Ok(())
     }
 
+    /// On a linked device: leaves the account and forgets everything here. The phone drops it
+    /// from conversations the next time it sends.
+    pub async fn unlink_this_device(&self) -> Result<(), CoreError> {
+        let device = self.get(crate::DEVICE)?.unwrap_or_default();
+        self.net.remove_device(&self.token()?, &device).await?;
+        self.wipe()
+    }
+
     /// KeyPackages of our other devices (M8), for a new chat or group; none when we have none.
     pub(crate) async fn own_other_key_packages(&self) -> Vec<Vec<u8>> {
         let (Ok(token), Ok(me)) = (self.token(), self.me()) else {

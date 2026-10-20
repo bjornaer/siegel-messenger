@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
@@ -171,7 +171,7 @@ class ChatService extends ChangeNotifier {
       // Suspended (M7): the server closes every stream, so wait for the end, not a backoff.
       final n = core.notice();
       if (n != null && n.suspended) {
-        final left = DateTime.fromMillisecondsSinceEpoch(n.untilMs).difference(DateTime.now());
+        final left = DateTime.fromMillisecondsSinceEpoch(asInt(n.untilMs)).difference(DateTime.now());
         final sleep = _waiting = Completer<void>();
         final timer = Timer(left < const Duration(hours: 1) ? left : const Duration(hours: 1), () {
           if (!sleep.isCompleted) sleep.complete();
@@ -251,7 +251,7 @@ Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSumma
           ),
     trailing: c.last == null
         ? null
-        : Text(_time(context, c.last!.sentAt), style: unread ? TextStyle(color: colors.primary) : null),
+        : Text(_time(context, asInt(c.last!.sentAt)), style: unread ? TextStyle(color: colors.primary) : null),
     onTap: () => Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChatScreen(core: core, service: service, groupId: c.groupId),
@@ -545,22 +545,25 @@ class _NewChatScreenState extends State<NewChatScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.qr_code_scanner),
-            label: Text(t.scanQr),
-            onPressed: _busy ? null : _scan,
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.contacts_outlined),
-            label: Text(t.findContacts),
-            onPressed: () => Navigator.of(context).pushReplacement(
-              MaterialPageRoute<void>(
-                builder: (_) => FindContactsScreen(core: widget.core, service: widget.service),
+          // M8: the browser has neither the camera scanner nor the phone's contacts.
+          if (!kIsWeb) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.qr_code_scanner),
+              label: Text(t.scanQr),
+              onPressed: _busy ? null : _scan,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.contacts_outlined),
+              label: Text(t.findContacts),
+              onPressed: () => Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => FindContactsScreen(core: widget.core, service: widget.service),
+                ),
               ),
             ),
-          ),
+          ],
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 16),
@@ -764,7 +767,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             for (final (i, icon, label) in [
               (0, Icons.photo_outlined, t.photo),
-              (1, Icons.videocam_outlined, t.video),
+              if (!kIsWeb) (1, Icons.videocam_outlined, t.video), // ponytail: video on the web in M8 part 6
               (2, Icons.insert_drive_file_outlined, t.file),
               (3, Icons.audio_file_outlined, t.attachAudio),
             ])
@@ -1016,7 +1019,7 @@ class _ChatScreenState extends State<ChatScreen> {
   /// the core checks the same rules (MSG-09, MSG-11).
   void _actions(MessageView m, ChatSummary c) {
     final t = AppLocalizations.of(context)!;
-    final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(m.sentAt));
+    final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(asInt(m.sentAt)));
     final me = c.isGroup ? myAccount(core, _group) : null;
     final mine = m.reactions
         .where((r) => c.isGroup ? listEquals(r.account, me) : !listEquals(r.account, c.peerAccount))
@@ -1403,7 +1406,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               onTap: () => _history(m),
                               child: Text('${t.edited} ', style: small),
                             ),
-                          Text(_time(context, m.sentAt), style: small),
+                          Text(_time(context, asInt(m.sentAt)), style: small),
                           if (m.outgoing) ...[
                             const SizedBox(width: 4),
                             _status(
@@ -1619,7 +1622,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 ValueListenableBuilder(
                   valueListenable: _text,
-                  builder: (context, v, _) => v.text.trim().isEmpty && _editing == null
+                  builder: (context, v, _) =>
+                      v.text.trim().isEmpty &&
+                          _editing == null &&
+                          !kIsWeb // voice: part 6
                       ? IconButton(
                           tooltip: t.recordVoice,
                           icon: const Icon(Icons.mic_none),

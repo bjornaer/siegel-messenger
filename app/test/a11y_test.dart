@@ -12,6 +12,7 @@ import 'package:siegel/discovery.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
+import 'package:siegel/web.dart' show PinScreen;
 import 'package:siegel/number.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/linked_devices.dart';
@@ -103,6 +104,8 @@ Future<Map<String, Widget>> screens() async {
       onDelete: (_) async {},
     ),
     'linked devices': LinkedDevicesScreen(core: core),
+    'web PIN': PinScreen.create(onPin: (_) async => true),
+    'web unlock': PinScreen.unlock(onPin: (_) async => false, triesLeft: () => 9, onForgot: () {}),
     'report': ReportScreen(core: core, chat: core.chats().firstWhere((c) => !c.isGroup)),
     'app lock': AppLock(core: FakeCore()..settings['app_lock'] = '60', child: const SizedBox()),
   };

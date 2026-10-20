@@ -784,5 +784,27 @@
         "type": "String"
       }
     }
-  }
+  },
+  "webPinCreateTitle": "Choose a PIN for this browser",
+  "webPinCreateBody": "Siegel asks for it each time you open it here. 4 to 6 digits. It stays in this browser; if you forget it, link the browser again.",
+  "webPinConfirm": "Enter it again",
+  "webPinMismatch": "The PINs don't match.",
+  "webPinEnterTitle": "Enter your PIN",
+  "webPinWrong": "Wrong PIN. {left} tries left before Siegel forgets this browser.",
+  "@webPinWrong": {
+    "placeholders": {
+      "left": {
+        "type": "int"
+      }
+    }
+  },
+  "webUnlock": "Unlock",
+  "webForgotPin": "Forgot the PIN? Link again",
+  "webLinkTitle": "Link this browser",
+  "webLinkBody": "On your phone, open Siegel → Settings → Linked devices → Link a device, and scan this code.",
+  "webLinkWaiting": "Waiting for your phone…",
+  "webExpired": "This browser wasn't used for 14 days, so it was unlinked. Link it again from your phone.",
+  "unlinkThisBrowser": "Unlink this browser",
+  "unlinkThisBrowserBody": "Siegel forgets your chats in this browser. Your phone and your account stay as they are.",
+  "webPinLabel": "PIN (4 to 6 digits)"
 }

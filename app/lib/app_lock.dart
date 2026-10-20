@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'links.dart' show isAndroid;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,7 +24,7 @@ bool shouldLock({required int? timeout, required DateTime? leftAt, required Date
 /// Android FLAG_SECURE (ID-15 "screen security"). No-op elsewhere.
 Future<void> setScreenSecurity(Core core, bool on) async {
   core.setSetting(key: 'screen_security', value: on ? '1' : '0');
-  if (Platform.isAndroid) await _window.invokeMethod('setSecure', on);
+  if (isAndroid) await _window.invokeMethod('setSecure', on);
 }
 
 /// True while a system auth prompt is up: it backgrounds the app on some phones, which must not count as leaving.
@@ -62,7 +62,7 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (Platform.isAndroid && widget.core.setting(key: 'screen_security') == '1') {
+    if (isAndroid && widget.core.setting(key: 'screen_security') == '1') {
       _window.invokeMethod('setSecure', true);
     }
     if (_locked) WidgetsBinding.instance.addPostFrameCallback((_) => _unlock());
@@ -179,7 +179,7 @@ class _AppLockSettingsState extends State<AppLockSettings> {
               onChanged: (s) => setState(() => core.setSetting(key: 'app_lock', value: '$s')),
             ),
           ),
-        if (Platform.isAndroid)
+        if (isAndroid)
           SwitchListTile(
             title: Text(t.screenSecurity),
             subtitle: Text(t.screenSecuritySubtitle),

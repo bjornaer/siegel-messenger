@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -25,6 +25,7 @@ import 'stickers.dart' show importStickerFiles;
 import 'suspended.dart';
 import 'server_data.dart';
 import 'themes.dart';
+import 'web.dart';
 import 'src/rust/api/core.dart';
 import 'src/rust/frb_generated.dart';
 
@@ -49,6 +50,10 @@ Future<Core> openCore() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
+  if (kIsWeb) {
+    await prepareStorage(); // M8: the database lives in IndexedDB
+    return runApp(const WebStart());
+  }
   runApp(SiegelApp(core: await openCore()));
 }
 
@@ -156,6 +161,7 @@ class _SiegelAppState extends State<SiegelApp> {
 
   /// Back to onboarding with a fresh, empty database (account deleted or device deregistered).
   Future<void> _reset() async {
+    if (kIsWeb) return forgetBrowser(); // back to the link screen
     _navigator.currentState?.popUntil((r) => r.isFirst);
     _chats?.dispose();
     _chats = null;
@@ -247,6 +253,29 @@ Future<void> confirmDeleteAccount(BuildContext context, Core core, Future<void> 
   }
 }
 
+/// M8: a linked browser leaves the account; the phone and the account stay.
+Future<void> confirmUnlinkThisDevice(BuildContext context, Core core, Future<void> Function() onDone) async {
+  final t = AppLocalizations.of(context)!;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text(t.unlinkThisBrowser),
+      content: Text(t.unlinkThisBrowserBody),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(t.cancel)),
+        TextButton(onPressed: () => Navigator.pop(c, true), child: Text(t.unlink)),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    await core.unlinkThisDevice();
+    await onDone();
+  } on CoreError catch (e) {
+    if (context.mounted) showError(context, e);
+  }
+}
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.core, required this.onDeleted});
   final Core core;
@@ -255,6 +284,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final linked = core.isLinkedDevice(); // M8: the phone keeps the account's own settings
     return Scaffold(
       appBar: SiegelBar(title: Text(t.settings)),
       body: ListView(
@@ -263,8 +293,7 @@ class SettingsScreen extends StatelessWidget {
         children: [
           _Profile(core: core),
           MyLinkTile(core: core),
-          DiscoverableTile(core: core),
-          ChangeNumberTile(core: core),
+          if (!linked) ...[DiscoverableTile(core: core), ChangeNumberTile(core: core)],
           const SizedBox(height: 24),
           Text(t.historyNotice), // ID-14: also stated in Settings
           ListTile(
@@ -282,15 +311,16 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.devices_outlined),
-            title: Text(t.linkedDevices),
-            subtitle: Text(t.linkedDevicesHint),
-            onTap: () =>
-                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LinkedDevicesScreen(core: core))),
-          ),
+          if (!linked)
+            ListTile(
+              leading: const Icon(Icons.devices_outlined),
+              title: Text(t.linkedDevices),
+              subtitle: Text(t.linkedDevicesHint),
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LinkedDevicesScreen(core: core))),
+            ),
           ChatBackgroundTile(core: core),
-          AppLockSettings(core: core),
+          if (!kIsWeb) AppLockSettings(core: core), // the browser has its PIN (W3)
           AutoDownloadTile(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
@@ -322,10 +352,18 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.code),
             title: Text(t.sourceCode),
             subtitle: Text(t.sourceCodeHelp),
-            onTap: () => appChannel.invokeMethod<void>('open', sourceUrl),
+            onTap: () => openUrl(sourceUrl),
           ),
           const SizedBox(height: 16),
-          OutlinedButton(onPressed: () => confirmDeleteAccount(context, core, onDeleted), child: Text(t.deleteAccount)),
+          linked
+              ? OutlinedButton(
+                  onPressed: () => confirmUnlinkThisDevice(context, core, onDeleted),
+                  child: Text(t.unlinkThisBrowser),
+                )
+              : OutlinedButton(
+                  onPressed: () => confirmDeleteAccount(context, core, onDeleted),
+                  child: Text(t.deleteAccount),
+                ),
         ],
       ),
     );

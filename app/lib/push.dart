@@ -3,7 +3,7 @@ import 'dart:ui' show IsolateNameServer, PlatformDispatcher;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -54,11 +54,15 @@ bool appVisible() => switch (WidgetsBinding.instance.lifecycleState) {
 int _notificationId(List<int> groupId) => Object.hashAll(groupId) & 0x7fffffff;
 
 /// The chat is on screen: its notification is stale.
-Future<void> clearNotification(List<int> groupId) => _notifications.cancel(id: _notificationId(groupId));
+Future<void> clearNotification(List<int> groupId) async {
+  if (kIsWeb) return; // M8: the browser gets notifications in part 6
+  await _notifications.cancel(id: _notificationId(groupId));
+}
 
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
 /// unless the user allows private content there (Android's "private" visibility).
 Future<void> notifyMessage(Core core, MessageView m) async {
+  if (kIsWeb) return;
   if (m.outgoing || m.event != null || isMutedAlways(core, m.groupId) || isArchived(core, m.groupId)) return;
   // GRP-15: an @mention gets through a timed mute.
   final me = myAccount(core, m.groupId);
@@ -117,6 +121,7 @@ Future<void> _onBackgroundPush(RemoteMessage _) async {
 /// waiting has arrived. Without Google Play services this fails quietly: messages still arrive
 /// while the app is open.
 Future<void> startPush(Core core, Future<void> Function() fetch) async {
+  if (kIsWeb) return; // web push is M8 part 6
   final port = ReceivePort()
     ..listen((reply) async {
       await fetch();

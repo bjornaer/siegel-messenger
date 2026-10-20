@@ -110,6 +110,45 @@ jobs:
         with:
           manifest-path: app/rust/Cargo.toml
 
+  # M8: the web app (web.siegel.schlk.in): the core through wasm-pack, then Flutter. The built
+  # site is kept as an artifact; part 5 serves it.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # flutter_rust_bridge's web build: nightly for build-std, threads through shared memory.
+      - run: rustup toolchain install nightly --profile minimal -c rust-src -t wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            app/rust/target
+          key: web-${{ hashFiles('app/rust/Cargo.lock') }}
+      - run: flutter pub get
+      - name: core for the browser
+        run: >-
+          dart run flutter_rust_bridge build-web --release --wasm-pack-rustflags='--cfg getrandom_backend="wasm_js"
+          -C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-args=--shared-memory
+          -C link-args=--max-memory=1073741824 -C link-args=--import-memory -C link-args=--export=__heap_base
+          -C link-args=--export=__wasm_init_tls -C link-args=--export=__tls_size -C link-args=--export=__tls_align
+          -C link-args=--export=__tls_base'
+      - run: flutter build web --release --no-web-resources-cdn
+      - run: ls -la build/web build/web/pkg && du -sh build/web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siegel-web
+          path: app/build/web
+
   e2e:
     # Headless Rust clients against the real stack (section 15 end-to-end tests, AC-01).
     runs-on: ubuntu-latest

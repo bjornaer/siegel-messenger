@@ -1,3 +1,5 @@
+import 'format.dart';
+
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/services.dart' show Uint8List;
 import 'package:flutter/material.dart';
@@ -248,7 +250,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       for (final l in links)
         ListTile(
           leading: const Icon(Icons.link),
-          title: Text(t.expiresOn(date.format(DateTime.fromMillisecondsSinceEpoch(l.expires * 1000)))),
+          title: Text(t.expiresOn(date.format(DateTime.fromMillisecondsSinceEpoch(asInt(l.expires) * 1000)))),
           onTap: () => showLinkDialog(context, t.inviteLinks, l.link, t.inviteLinkHelp),
           trailing: TextButton(
             onPressed: _busy ? null : () => _run(() => core.revokeGroupLink(groupId: widget.groupId, id: l.id)),

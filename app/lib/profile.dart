@@ -1,3 +1,5 @@
+import 'format.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -164,7 +166,7 @@ void showMessageInfo(BuildContext context, MessageView m, String peer) {
   final t = AppLocalizations.of(context)!;
   final when = DateFormat.yMMMd(Localizations.localeOf(context).toString())
       .add_Hm()
-      .format(DateTime.fromMillisecondsSinceEpoch(m.sentAt));
+      .format(DateTime.fromMillisecondsSinceEpoch(asInt(m.sentAt)));
   final state = switch (m.status) {
     MessageStatus.failed => t.notSentRetry,
     MessageStatus.sending => t.statusSending,

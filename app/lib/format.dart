@@ -55,3 +55,6 @@ int _closing(String s, int open) {
   }
   return -1;
 }
+
+/// A 64-bit number from the core: an int on phones, a BigInt in the browser (M8).
+int asInt(Object v) => v is BigInt ? v.toInt() : v as int;

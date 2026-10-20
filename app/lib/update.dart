@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'links.dart' show isAndroid;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,7 +44,7 @@ class _UpdateBannerState extends State<UpdateBanner> with WidgetsBindingObserver
   }
 
   Future<void> _check() async {
-    if (!Platform.isAndroid) return; // ponytail: iOS reads its build the same way once it ships
+    if (!isAndroid) return; // ponytail: iOS reads its build the same way once it ships
     try {
       final build = await _app.invokeMethod<int>('build') ?? 0;
       final v = await widget.core.appVersion(platform: DevicePlatform.android);

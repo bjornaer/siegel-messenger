@@ -1427,4 +1427,55 @@ class AppLocalizationsDe extends AppLocalizations {
   String smsGoesTo(String number, String country) {
     return 'Wir senden die SMS an $number ($country).';
   }
+
+  @override
+  String get webPinCreateTitle => 'Wähle eine PIN für diesen Browser';
+
+  @override
+  String get webPinCreateBody =>
+      'Siegel fragt danach, wann immer du es hier öffnest. 4 bis 6 Ziffern. Sie bleibt in diesem Browser; vergisst du sie, verknüpfe den Browser neu.';
+
+  @override
+  String get webPinConfirm => 'Gib sie noch einmal ein';
+
+  @override
+  String get webPinMismatch => 'Die PINs stimmen nicht überein.';
+
+  @override
+  String get webPinEnterTitle => 'Gib deine PIN ein';
+
+  @override
+  String webPinWrong(int left) {
+    return 'Falsche PIN. Noch $left Versuche, dann vergisst Siegel diesen Browser.';
+  }
+
+  @override
+  String get webUnlock => 'Entsperren';
+
+  @override
+  String get webForgotPin => 'PIN vergessen? Neu verknüpfen';
+
+  @override
+  String get webLinkTitle => 'Diesen Browser verknüpfen';
+
+  @override
+  String get webLinkBody =>
+      'Öffne auf deinem Handy Siegel → Einstellungen → Verknüpfte Geräte → Gerät verknüpfen und scanne diesen Code.';
+
+  @override
+  String get webLinkWaiting => 'Warte auf dein Handy …';
+
+  @override
+  String get webExpired =>
+      'Dieser Browser wurde 14 Tage nicht benutzt und ist getrennt. Verknüpfe ihn neu von deinem Handy aus.';
+
+  @override
+  String get unlinkThisBrowser => 'Diesen Browser trennen';
+
+  @override
+  String get unlinkThisBrowserBody =>
+      'Siegel vergisst deine Chats in diesem Browser. Dein Handy und dein Konto bleiben, wie sie sind.';
+
+  @override
+  String get webPinLabel => 'PIN (4 bis 6 Ziffern)';
 }

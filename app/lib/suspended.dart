@@ -1,3 +1,5 @@
+import 'format.dart';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -21,7 +23,7 @@ class SuspendedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final until = DateTime.fromMillisecondsSinceEpoch(notice.untilMs);
+    final until = DateTime.fromMillisecondsSinceEpoch(asInt(notice.untilMs));
     return Scaffold(
       appBar: SiegelBar(title: Text(t.suspendedTitle)),
       body: ListView(

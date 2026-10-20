@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 324672722;
+  int get rustContentHash => 1633421254;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -488,6 +488,8 @@ abstract class RustLibApi extends BaseApi {
     required List<int> deviceId,
   });
 
+  Future<void> crateApiCoreCoreUnlinkThisDevice({required Core that});
+
   String? crateApiCoreCoreUsername({required Core that});
 
   Future<bool> crateApiCoreCoreVerify({
@@ -509,7 +511,21 @@ abstract class RustLibApi extends BaseApi {
     required List<int> messageId,
   });
 
+  void crateApiCoreForgetStorage({required String dbPath});
+
   Future<void> crateApiCoreInitApp();
+
+  Future<void> crateApiCorePrepareStorage();
+
+  Future<Uint8List?> crateApiCoreUnwrapDbKey({
+    required String pin,
+    required List<int> wrapped,
+  });
+
+  Future<Uint8List> crateApiCoreWrapDbKey({
+    required String pin,
+    required List<int> key,
+  });
 
   RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Core;
 
@@ -3598,6 +3614,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiCoreCoreUnlinkThisDevice({required Core that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 88,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiCoreCoreUnlinkThisDeviceConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreCoreUnlinkThisDeviceConstMeta =>
+      const TaskConstMeta(
+        debugName: "Core_unlink_this_device",
+        argNames: ["that"],
+      );
+
+  @override
   String? crateApiCoreCoreUsername({required Core that}) {
     return handler.executeSync(
       SyncTask(
@@ -3607,7 +3657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 88)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 89)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -3646,7 +3696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 89,
+            funcId: 90,
             port: port_,
           );
         },
@@ -3682,7 +3732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_list_prim_u_8_loose(groupId, serializer);
           sse_encode_String(scanned, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 90)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 91)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -3715,7 +3765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_list_prim_u_8_loose(messageId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 91)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 92)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -3734,6 +3784,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  void crateApiCoreForgetStorage({required String dbPath}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dbPath, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 93)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreForgetStorageConstMeta,
+        argValues: [dbPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreForgetStorageConstMeta =>
+      const TaskConstMeta(debugName: "forget_storage", argNames: ["dbPath"]);
+
+  @override
   Future<void> crateApiCoreInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -3742,7 +3815,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 92,
+            funcId: 94,
             port: port_,
           );
         },
@@ -3759,6 +3832,99 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCoreInitAppConstMeta =>
       const TaskConstMeta(debugName: "init_app", argNames: []);
+
+  @override
+  Future<void> crateApiCorePrepareStorage() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 95,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_core_error,
+        ),
+        constMeta: kCrateApiCorePrepareStorageConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCorePrepareStorageConstMeta =>
+      const TaskConstMeta(debugName: "prepare_storage", argNames: []);
+
+  @override
+  Future<Uint8List?> crateApiCoreUnwrapDbKey({
+    required String pin,
+    required List<int> wrapped,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(pin, serializer);
+          sse_encode_list_prim_u_8_loose(wrapped, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 96,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_list_prim_u_8_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreUnwrapDbKeyConstMeta,
+        argValues: [pin, wrapped],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreUnwrapDbKeyConstMeta => const TaskConstMeta(
+    debugName: "unwrap_db_key",
+    argNames: ["pin", "wrapped"],
+  );
+
+  @override
+  Future<Uint8List> crateApiCoreWrapDbKey({
+    required String pin,
+    required List<int> key,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(pin, serializer);
+          sse_encode_list_prim_u_8_loose(key, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 97,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCoreWrapDbKeyConstMeta,
+        argValues: [pin, key],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCoreWrapDbKeyConstMeta =>
+      const TaskConstMeta(debugName: "wrap_db_key", argNames: ["pin", "key"]);
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_Core => wire
@@ -6279,6 +6445,10 @@ class CoreImpl extends RustOpaque implements Core {
       .instance
       .api
       .crateApiCoreCoreUnlinkDevice(that: this, deviceId: deviceId);
+
+  /// M8: on a linked device, unlinks it and wipes it.
+  Future<void> unlinkThisDevice() =>
+      RustLib.instance.api.crateApiCoreCoreUnlinkThisDevice(that: this);
 
   String? username() =>
       RustLib.instance.api.crateApiCoreCoreUsername(that: this);

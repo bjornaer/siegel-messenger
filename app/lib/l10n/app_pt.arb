@@ -393,5 +393,20 @@
   "searchCountry": "Procure um país ou código",
   "chooseCountry": "Escolha seu país",
   "phoneHintNational": "Seu número, como você discaria no seu país",
-  "smsGoesTo": "Enviaremos o SMS para {number} ({country})."
+  "smsGoesTo": "Enviaremos o SMS para {number} ({country}).",
+  "webPinCreateTitle": "Escolha um PIN para este navegador",
+  "webPinCreateBody": "O Siegel pede o PIN toda vez que você abrir aqui. De 4 a 6 dígitos. Ele fica neste navegador; se você esquecer, conecte o navegador de novo.",
+  "webPinConfirm": "Digite de novo",
+  "webPinMismatch": "Os PINs não são iguais.",
+  "webPinEnterTitle": "Digite seu PIN",
+  "webPinWrong": "PIN errado. Restam {left} tentativas antes de o Siegel esquecer este navegador.",
+  "webUnlock": "Desbloquear",
+  "webForgotPin": "Esqueceu o PIN? Conectar de novo",
+  "webLinkTitle": "Conecte este navegador",
+  "webLinkBody": "No celular, abra o Siegel → Configurações → Dispositivos conectados → Conectar um dispositivo e escaneie este código.",
+  "webLinkWaiting": "Esperando seu celular…",
+  "webExpired": "Este navegador ficou 14 dias sem uso e foi desconectado. Conecte de novo pelo celular.",
+  "unlinkThisBrowser": "Desconectar este navegador",
+  "unlinkThisBrowserBody": "O Siegel esquece suas conversas neste navegador. Seu celular e sua conta continuam como estão.",
+  "webPinLabel": "PIN (de 4 a 6 dígitos)"
 }

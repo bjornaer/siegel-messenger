@@ -211,6 +211,9 @@ func (s *server) SetRegistrationLock(ctx context.Context, req *connect.Request[s
 
 // Delete removes the account synchronously, well inside the 24-hour bound of ID-16.
 func (s *server) Delete(ctx context.Context, _ *connect.Request[siegelv1.AccountServiceDeleteRequest]) (*connect.Response[siegelv1.AccountServiceDeleteResponse], error) {
+	if err := s.primary(ctx); err != nil { // a linked browser can't delete the account (M8)
+		return nil, err
+	}
 	if err := s.deleteAccount(ctx, account(ctx)); err != nil {
 		return nil, internal(err)
 	}

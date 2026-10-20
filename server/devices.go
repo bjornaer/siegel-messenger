@@ -78,12 +78,14 @@ func (s *server) AddDevice(ctx context.Context, req *connect.Request[siegelv1.Ad
 }
 
 func (s *server) RemoveDevice(ctx context.Context, req *connect.Request[siegelv1.RemoveDeviceRequest]) (*connect.Response[siegelv1.RemoveDeviceResponse], error) {
-	if err := s.primary(ctx); err != nil {
-		return nil, err
-	}
 	id, ok := uuid(req.Msg.DeviceId)
 	if !ok {
 		return nil, cerr(connect.CodeInvalidArgument, "device_invalid")
+	}
+	if id != who(ctx).device { // a linked device may unlink itself; only the phone unlinks others
+		if err := s.primary(ctx); err != nil {
+			return nil, err
+		}
 	}
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		// Its open stream notices the device is gone and tells it it was deregistered (ID-12).

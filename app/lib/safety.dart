@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Uint8List;
 import 'package:flutter_zxing/flutter_zxing.dart';
@@ -61,7 +61,8 @@ class _SafetyNumberScreenState extends State<SafetyNumberScreen> {
                 else
                   Text(t.safetyNumberHelp(widget.name)),
                 const SizedBox(height: 16),
-                FilledButton.icon(onPressed: _scan, icon: const Icon(Icons.qr_code_scanner), label: Text(t.scanCode)),
+                if (!kIsWeb) // compare the numbers by eye in a browser
+                  FilledButton.icon(onPressed: _scan, icon: const Icon(Icons.qr_code_scanner), label: Text(t.scanCode)),
               ],
             ),
     );

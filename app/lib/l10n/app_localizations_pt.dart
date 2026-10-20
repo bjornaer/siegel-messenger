@@ -1416,4 +1416,55 @@ class AppLocalizationsPt extends AppLocalizations {
   String smsGoesTo(String number, String country) {
     return 'Enviaremos o SMS para $number ($country).';
   }
+
+  @override
+  String get webPinCreateTitle => 'Escolha um PIN para este navegador';
+
+  @override
+  String get webPinCreateBody =>
+      'O Siegel pede o PIN toda vez que você abrir aqui. De 4 a 6 dígitos. Ele fica neste navegador; se você esquecer, conecte o navegador de novo.';
+
+  @override
+  String get webPinConfirm => 'Digite de novo';
+
+  @override
+  String get webPinMismatch => 'Os PINs não são iguais.';
+
+  @override
+  String get webPinEnterTitle => 'Digite seu PIN';
+
+  @override
+  String webPinWrong(int left) {
+    return 'PIN errado. Restam $left tentativas antes de o Siegel esquecer este navegador.';
+  }
+
+  @override
+  String get webUnlock => 'Desbloquear';
+
+  @override
+  String get webForgotPin => 'Esqueceu o PIN? Conectar de novo';
+
+  @override
+  String get webLinkTitle => 'Conecte este navegador';
+
+  @override
+  String get webLinkBody =>
+      'No celular, abra o Siegel → Configurações → Dispositivos conectados → Conectar um dispositivo e escaneie este código.';
+
+  @override
+  String get webLinkWaiting => 'Esperando seu celular…';
+
+  @override
+  String get webExpired =>
+      'Este navegador ficou 14 dias sem uso e foi desconectado. Conecte de novo pelo celular.';
+
+  @override
+  String get unlinkThisBrowser => 'Desconectar este navegador';
+
+  @override
+  String get unlinkThisBrowserBody =>
+      'O Siegel esquece suas conversas neste navegador. Seu celular e sua conta continuam como estão.';
+
+  @override
+  String get webPinLabel => 'PIN (de 4 a 6 dígitos)';
 }

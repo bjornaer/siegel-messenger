@@ -2,6 +2,7 @@
 //! announced inside MLS. The blob is kept here as ciphertext (its key lives only in the
 //! encrypted database); the app gets plaintext in memory, never as a file.
 
+#[cfg(not(target_family = "wasm"))]
 use std::path::PathBuf;
 
 use core_net::pb;
@@ -83,6 +84,7 @@ pub(crate) fn info(a: &pb::Attachment) -> AttachmentInfo {
 }
 
 impl SiegelCore {
+    #[cfg(not(target_family = "wasm"))]
     fn media_path(&self, message_id: &[u8]) -> PathBuf {
         self.media_dir.join(hex(message_id))
     }

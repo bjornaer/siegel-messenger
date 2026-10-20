@@ -958,12 +958,17 @@ func TestLinkedDevices(t *testing.T) { // M8 part 1
 	}
 	_, err = linkedAcct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "x"}))
 	want(t, errMsg(err), "primary_only")
+	_, err = linkedAcct.Delete(e.ctx, connect.NewRequest(&siegelv1.AccountServiceDeleteRequest{}))
+	want(t, errMsg(err), "primary_only") // a browser can't delete the account
 
 	// At most 4 linked.
+	var tab *siegelv1.AddDeviceResponse
 	for range 3 {
-		if _, err := acct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "tab"})); err != nil {
+		r, err := acct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "tab"}))
+		if err != nil {
 			t.Fatal(err)
 		}
+		tab = r.Msg
 	}
 	_, err = acct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "fifth"}))
 	want(t, errMsg(err), "too_many_devices")
@@ -984,6 +989,14 @@ func TestLinkedDevices(t *testing.T) { // M8 part 1
 		}
 	}
 	want(t, fmt.Sprint(len(claimed.Msg.KeyPackages)), "4")
+
+	// A linked device may unlink itself, not the others.
+	_, tabAcct := e.clients(tab.DeviceToken)
+	_, err = tabAcct.RemoveDevice(e.ctx, connect.NewRequest(&siegelv1.RemoveDeviceRequest{DeviceId: added.Msg.DeviceId}))
+	want(t, errMsg(err), "primary_only")
+	if _, err := tabAcct.RemoveDevice(e.ctx, connect.NewRequest(&siegelv1.RemoveDeviceRequest{DeviceId: tab.DeviceId})); err != nil {
+		t.Fatal("unlink itself", err)
+	}
 
 	// Unlinking: the device is gone; the primary can't be removed this way.
 	if _, err := acct.RemoveDevice(e.ctx, connect.NewRequest(&siegelv1.RemoveDeviceRequest{DeviceId: added.Msg.DeviceId})); err != nil {

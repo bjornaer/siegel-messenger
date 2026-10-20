@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'links.dart' show isIOS;
 
 import 'package:flutter/material.dart';
 
@@ -93,7 +93,7 @@ class _ChangeNumberScreenState extends State<ChangeNumberScreen> {
     await widget.core.requestOtp(
       phoneE164: e164,
       attestationToken: await attestationToken(e164),
-      platform: Platform.isIOS ? DevicePlatform.ios : DevicePlatform.android,
+      platform: isIOS ? DevicePlatform.ios : DevicePlatform.android,
     );
     setState(() => _e164 = e164);
   });

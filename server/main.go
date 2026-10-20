@@ -351,6 +351,8 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			`DELETE FROM queue WHERE enqueued_at < now() - interval '30 days'`, // MSG-06
 			`DELETE FROM group_invites WHERE expires_at < now()`,               // GRP-16
 			`DELETE FROM device_links WHERE expires_at < now()`,                // M8
+			// M8 (W3): a linked browser unused for 14 days is unlinked; the phone drops it from chats.
+			`DELETE FROM devices WHERE linked AND last_seen_day < current_date - 14`,
 			// MED-15: a deleted account's picture expires with it.
 			`UPDATE attachments SET expires_at = now() WHERE expires_at = 'infinity'
 				AND blob_id NOT IN (SELECT avatar_blob FROM profiles WHERE avatar_blob IS NOT NULL)`,

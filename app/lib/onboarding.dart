@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +6,7 @@ import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 import 'avatar.dart';
 import 'l10n/app_localizations.dart';
-import 'links.dart' show openPage;
+import 'links.dart' show isAndroid, isIOS, openPage;
 import 'minors.dart';
 import 'phone_field.dart';
 import 'suspended.dart' show ruleLabel;
@@ -71,12 +70,12 @@ void showError(BuildContext context, CoreError e) {
 
 enum _Step { welcome, phone, code, pin, profile, lock }
 
-DevicePlatform get _platform => Platform.isIOS ? DevicePlatform.ios : DevicePlatform.android;
+DevicePlatform get _platform => isIOS ? DevicePlatform.ios : DevicePlatform.android;
 
 /// ID-02: proof that this is a genuine app on a genuine device, bound to the number. Empty when
 /// unavailable (no Play services, iOS until App Attest); the server then refuses to send an SMS.
 Future<String> attestationToken(String phone) async {
-  if (!Platform.isAndroid) return '';
+  if (!isAndroid) return '';
   try {
     return await const MethodChannel('siegel/attest').invokeMethod<String>('token', phone) ?? '';
   } on PlatformException {

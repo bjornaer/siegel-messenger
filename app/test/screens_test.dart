@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:siegel/app_lock.dart';
 import 'package:siegel/discovery.dart';
 import 'package:siegel/linked_devices.dart';
@@ -21,6 +22,7 @@ import 'package:siegel/chats.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
+import 'package:siegel/web.dart';
 import 'package:siegel/media.dart';
 import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
@@ -35,6 +37,7 @@ import 'package:siegel/src/rust/api/core.dart';
 
 class FakeCore implements Core {
   bool registered = false;
+  bool linked = false;
   String? name;
   String? user;
   final settings = <String, String>{};
@@ -179,9 +182,12 @@ class FakeCore implements Core {
   @override
   Future<String> linkBegin({required String deviceName}) async => 'siegel-link:x.age1y.$deviceName';
   @override
-  Future<bool> linkWait() async => false;
+  Future<bool> linkWait() async => linkApproved;
+  bool linkApproved = false;
   @override
-  bool isLinkedDevice() => false;
+  Future<void> unlinkThisDevice() async => calls.add('unlinkThisDevice');
+  @override
+  bool isLinkedDevice() => linked;
 
   NoticeView? notice_;
   @override
@@ -824,6 +830,14 @@ Future<void> toCodeScreen(WidgetTester t, FakeCore core) async {
 }
 
 void main() {
+  // Widget tests run as Android: Play Integrity answers with a stand-in token (ID-02).
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('siegel/attest'),
+      (_) async => 'test-attestation',
+    );
+  });
+
   testWidgets('onboarding happy path: welcome, phone, code, profile, PIN', (t) async {
     final core = FakeCore();
     var done = false;
@@ -2146,6 +2160,74 @@ void main() {
           .onPressed,
       isNull,
     );
+  });
+
+  testWidgets('a linked browser: no account settings, unlinks itself instead of deleting the account (M8)', (t) async {
+    final core = FakeCore()
+      ..registered = true
+      ..linked = true
+      ..user = 'ana.b';
+    var done = false;
+    await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async => done = true)));
+    await t.scrollUntilVisible(find.text('Unlink this browser'), 200);
+    expect(find.text('Delete account'), findsNothing);
+    expect(find.text('Linked devices'), findsNothing, reason: 'only the phone links');
+    expect(find.text('Change number'), findsNothing);
+    await t.ensureVisible(find.text('Unlink this browser'));
+    await t.pumpAndSettle();
+    await tapText(t, 'Unlink this browser');
+    await t.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Unlink')));
+    await t.pumpAndSettle();
+    expect(core.calls.last, 'unlinkThisDevice');
+    expect(done, isTrue);
+  });
+
+  testWidgets('web PIN: chosen twice, must match; a wrong one says how many tries are left (W3)', (t) async {
+    String? chosen;
+    await t.pumpWidget(
+      wrap(
+        PinScreen.create(
+          onPin: (p) async {
+            chosen = p;
+            return true;
+          },
+        ),
+      ),
+    );
+    final go = find.widgetWithText(FilledButton, 'Continue');
+    await enter(t, 'PIN (4 to 6 digits)', '12');
+    expect(t.widget<FilledButton>(go).onPressed, isNull, reason: '4 to 6 digits');
+    await enter(t, 'PIN (4 to 6 digits)', '4821');
+    await enter(t, 'Enter it again', '4822');
+    await tapText(t, 'Continue');
+    expect(find.text("The PINs don't match."), findsOneWidget);
+    expect(chosen, isNull);
+    await enter(t, 'Enter it again', '4821');
+    await tapText(t, 'Continue');
+    expect(chosen, '4821');
+
+    var forgot = false;
+    await t.pumpWidget(
+      wrap(PinScreen.unlock(onPin: (p) async => p == '1234', triesLeft: () => 9, onForgot: () => forgot = true)),
+    );
+    await enter(t, 'PIN (4 to 6 digits)', '0000');
+    await tapText(t, 'Unlock');
+    expect(find.text('Wrong PIN. 9 tries left before Siegel forgets this browser.'), findsOneWidget);
+    await tapText(t, 'Forgot the PIN? Link again');
+    expect(forgot, isTrue);
+  });
+
+  testWidgets('web link screen: a QR code for the phone, done once the phone approves (M8)', (t) async {
+    final core = FakeCore();
+    var linked = false;
+    await t.pumpWidget(wrap(LinkScreen(core: core, onLinked: () => linked = true)));
+    await t.pump();
+    expect(find.byType(QrImageView), findsOneWidget);
+    expect(find.textContaining('Settings → Linked devices'), findsOneWidget);
+    core.linkApproved = true;
+    await t.pump(const Duration(seconds: 3));
+    expect(linked, isTrue);
+    await t.pumpWidget(const SizedBox()); // stops the polling
   });
 
   testWidgets('phone numbers: the SIM country, national numbers with a trunk 0, the number the SMS goes to', (t) async {

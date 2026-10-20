@@ -10,6 +10,24 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `hex`, `send_event`, `status_view`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
 
+/// M8, the browser: puts the database in IndexedDB. Await once before `Core.open`.
+Future<void> prepareStorage() =>
+    RustLib.instance.api.crateApiCorePrepareStorage();
+
+/// M8, the browser: drops a database that can't be opened any more.
+void forgetStorage({required String dbPath}) =>
+    RustLib.instance.api.crateApiCoreForgetStorage(dbPath: dbPath);
+
+/// M8 (W3): the browser's database key sealed under its PIN.
+Future<Uint8List> wrapDbKey({required String pin, required List<int> key}) =>
+    RustLib.instance.api.crateApiCoreWrapDbKey(pin: pin, key: key);
+
+/// The key, or null for a wrong PIN.
+Future<Uint8List?> unwrapDbKey({
+  required String pin,
+  required List<int> wrapped,
+}) => RustLib.instance.api.crateApiCoreUnwrapDbKey(pin: pin, wrapped: wrapped);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
 abstract class Core implements RustOpaqueInterface {
   /// Accepts a message request: they get our profile key and we can reply (MSG-15).
@@ -322,6 +340,9 @@ abstract class Core implements RustOpaqueInterface {
   Future<void> unblock({required List<int> account});
 
   Future<void> unlinkDevice({required List<int> deviceId});
+
+  /// M8: on a linked device, unlinks it and wipes it.
+  Future<void> unlinkThisDevice();
 
   String? username();
 

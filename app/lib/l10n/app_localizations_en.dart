@@ -1413,4 +1413,55 @@ class AppLocalizationsEn extends AppLocalizations {
   String smsGoesTo(String number, String country) {
     return 'We\'ll text $number ($country).';
   }
+
+  @override
+  String get webPinCreateTitle => 'Choose a PIN for this browser';
+
+  @override
+  String get webPinCreateBody =>
+      'Siegel asks for it each time you open it here. 4 to 6 digits. It stays in this browser; if you forget it, link the browser again.';
+
+  @override
+  String get webPinConfirm => 'Enter it again';
+
+  @override
+  String get webPinMismatch => 'The PINs don\'t match.';
+
+  @override
+  String get webPinEnterTitle => 'Enter your PIN';
+
+  @override
+  String webPinWrong(int left) {
+    return 'Wrong PIN. $left tries left before Siegel forgets this browser.';
+  }
+
+  @override
+  String get webUnlock => 'Unlock';
+
+  @override
+  String get webForgotPin => 'Forgot the PIN? Link again';
+
+  @override
+  String get webLinkTitle => 'Link this browser';
+
+  @override
+  String get webLinkBody =>
+      'On your phone, open Siegel → Settings → Linked devices → Link a device, and scan this code.';
+
+  @override
+  String get webLinkWaiting => 'Waiting for your phone…';
+
+  @override
+  String get webExpired =>
+      'This browser wasn\'t used for 14 days, so it was unlinked. Link it again from your phone.';
+
+  @override
+  String get unlinkThisBrowser => 'Unlink this browser';
+
+  @override
+  String get unlinkThisBrowserBody =>
+      'Siegel forgets your chats in this browser. Your phone and your account stay as they are.';
+
+  @override
+  String get webPinLabel => 'PIN (4 to 6 digits)';
 }

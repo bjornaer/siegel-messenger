@@ -49,3 +49,6 @@ app.*.map.json
 
 # Rust bridge build output
 /rust/target/
+
+# M8: the core built for the browser (flutter_rust_bridge build-web)
+web/pkg/

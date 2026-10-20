@@ -686,6 +686,11 @@ impl Core {
         Ok(self.0.link_begin(&device_name).await?)
     }
 
+    /// M8: on a linked device, unlinks it and wipes it.
+    pub async fn unlink_this_device(&self) -> Result<(), CoreError> {
+        Ok(self.0.unlink_this_device().await?)
+    }
+
     pub async fn link_wait(&self) -> Result<bool, CoreError> {
         Ok(self.0.link_wait().await?)
     }
@@ -1135,6 +1140,27 @@ fn send_event(sink: &StreamSink<CoreEvent>, e: core_api::Event) {
         message,
         account,
     });
+}
+
+/// M8, the browser: puts the database in IndexedDB. Await once before `Core.open`.
+pub async fn prepare_storage() -> Result<(), CoreError> {
+    Ok(core_api::prepare_storage().await?)
+}
+
+/// M8, the browser: drops a database that can't be opened any more.
+#[frb(sync)]
+pub fn forget_storage(db_path: String) {
+    core_api::forget_storage(&db_path)
+}
+
+/// M8 (W3): the browser's database key sealed under its PIN.
+pub async fn wrap_db_key(pin: String, key: Vec<u8>) -> Vec<u8> {
+    core_api::wrap_db_key(&pin, &key)
+}
+
+/// The key, or null for a wrong PIN.
+pub async fn unwrap_db_key(pin: String, wrapped: Vec<u8>) -> Option<Vec<u8>> {
+    core_api::unwrap_db_key(&pin, &wrapped)
 }
 
 #[frb(init)]

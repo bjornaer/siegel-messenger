@@ -2465,6 +2465,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'We\'ll text {number} ({country}).'**
   String smsGoesTo(String number, String country);
+
+  /// No description provided for @webPinCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a PIN for this browser'**
+  String get webPinCreateTitle;
+
+  /// No description provided for @webPinCreateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel asks for it each time you open it here. 4 to 6 digits. It stays in this browser; if you forget it, link the browser again.'**
+  String get webPinCreateBody;
+
+  /// No description provided for @webPinConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter it again'**
+  String get webPinConfirm;
+
+  /// No description provided for @webPinMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The PINs don\'t match.'**
+  String get webPinMismatch;
+
+  /// No description provided for @webPinEnterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your PIN'**
+  String get webPinEnterTitle;
+
+  /// No description provided for @webPinWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong PIN. {left} tries left before Siegel forgets this browser.'**
+  String webPinWrong(int left);
+
+  /// No description provided for @webUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get webUnlock;
+
+  /// No description provided for @webForgotPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot the PIN? Link again'**
+  String get webForgotPin;
+
+  /// No description provided for @webLinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Link this browser'**
+  String get webLinkTitle;
+
+  /// No description provided for @webLinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'On your phone, open Siegel → Settings → Linked devices → Link a device, and scan this code.'**
+  String get webLinkBody;
+
+  /// No description provided for @webLinkWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for your phone…'**
+  String get webLinkWaiting;
+
+  /// No description provided for @webExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This browser wasn\'t used for 14 days, so it was unlinked. Link it again from your phone.'**
+  String get webExpired;
+
+  /// No description provided for @unlinkThisBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink this browser'**
+  String get unlinkThisBrowser;
+
+  /// No description provided for @unlinkThisBrowserBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Siegel forgets your chats in this browser. Your phone and your account stay as they are.'**
+  String get unlinkThisBrowserBody;
+
+  /// No description provided for @webPinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN (4 to 6 digits)'**
+  String get webPinLabel;
 }
 
 class _AppLocalizationsDelegate

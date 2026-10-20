@@ -611,7 +611,7 @@ pub mod web {
         Ok(())
     }
 
-    pub(crate) fn delete(path: &Path) {
+    pub fn delete(path: &Path) {
         UTIL.with(|u| {
             if let Some(util) = u.borrow().as_ref() {
                 for suffix in ["", "-wal", "-journal"] {

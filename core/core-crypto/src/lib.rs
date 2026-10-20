@@ -3,6 +3,7 @@
 pub mod discovery;
 pub mod groups;
 pub mod mls;
+pub mod pin;
 pub mod profile;
 pub mod reports;
 
