@@ -13,9 +13,8 @@ class _Countries {
   final IsoCode? sim;
   final Map<String, String> names;
 
-  static Future<_Countries>? _loading;
-
-  static Future<_Countries> load() => _loading ??= () async {
+  /// One small call per number field; no answer (no platform side) means no names.
+  static Future<_Countries> load() async {
     try {
       final r = await appChannel.invokeMapMethod<String, Object?>('countries');
       final sim = r?['sim'] as String? ?? '';
@@ -26,7 +25,7 @@ class _Countries {
     } on Object {
       return _Countries(null, const {});
     }
-  }();
+  }
 }
 
 String flagOf(IsoCode c) =>

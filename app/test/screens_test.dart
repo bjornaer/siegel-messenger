@@ -2140,12 +2140,12 @@ void main() {
 
   testWidgets('phone numbers: the SIM country, national numbers with a trunk 0, the number the SMS goes to', (t) async {
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (call) async {
-      if (call.method == 'countries')
-        return {
-          'sim': 'BR',
-          'names': {'BR': 'Brasil', 'ES': 'España'},
-        };
-      return null;
+      return call.method == 'countries'
+          ? {
+              'sim': 'BR',
+              'names': {'BR': 'Brasil', 'ES': 'España'},
+            }
+          : null;
     });
     addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
     String? got;
