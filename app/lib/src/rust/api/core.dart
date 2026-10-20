@@ -86,6 +86,9 @@ abstract class Core implements RustOpaqueInterface {
 
   void deleteForMe({required List<int> messageId});
 
+  /// M8: the account's devices (Settings → Linked devices).
+  Future<List<DeviceView>> devices();
+
   Future<bool> discoverable();
 
   String? displayName();
@@ -118,6 +121,8 @@ abstract class Core implements RustOpaqueInterface {
   /// The account already has a Registration Lock PIN (ID-10).
   bool hasRegistrationLock();
 
+  bool isLinkedDevice();
+
   bool isRegistered();
 
   /// Joins the group behind a link; returns its chat.
@@ -125,6 +130,14 @@ abstract class Core implements RustOpaqueInterface {
 
   /// GRP-10: leave; the chat stays, read-only.
   Future<void> leaveGroup({required List<int> groupId});
+
+  /// M8: the side being linked: the QR code's text, then poll `link_wait` until true.
+  Future<String> linkBegin({required String deviceName});
+
+  /// M8: links the device whose QR code was scanned (the phone's side).
+  Future<void> linkDevice({required String qr});
+
+  Future<bool> linkWait();
 
   Future<void> markRead({required List<int> groupId});
 
@@ -300,6 +313,8 @@ abstract class Core implements RustOpaqueInterface {
 
   /// They become a contact again and get our profile key.
   Future<void> unblock({required List<int> account});
+
+  Future<void> unlinkDevice({required List<int> deviceId});
 
   String? username();
 
@@ -576,6 +591,42 @@ enum CoreEventKind {
 }
 
 enum DevicePlatform { ios, android }
+
+/// M8: one of the account's devices.
+class DeviceView {
+  final Uint8List id;
+  final String name;
+  final bool linked;
+  final String lastSeenDay;
+  final bool thisDevice;
+
+  const DeviceView({
+    required this.id,
+    required this.name,
+    required this.linked,
+    required this.lastSeenDay,
+    required this.thisDevice,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      linked.hashCode ^
+      lastSeenDay.hashCode ^
+      thisDevice.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeviceView &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          linked == other.linked &&
+          lastSeenDay == other.lastSeenDay &&
+          thisDevice == other.thisDevice;
+}
 
 class FoundContact {
   final String phone;

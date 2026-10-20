@@ -217,6 +217,78 @@ impl Client {
         .await
     }
 
+    /// M8: the account's devices.
+    pub async fn list_devices(&self, token: &str) -> Result<Vec<pb::ExportedDevice>, Error> {
+        let r: pb::ListDevicesResponse = self
+            .call(
+                "AccountService/ListDevices",
+                &pb::ListDevicesRequest {},
+                Some(token),
+            )
+            .await?;
+        Ok(r.devices)
+    }
+
+    /// M8: a new linked device; returns its ID and token.
+    pub async fn add_device(
+        &self,
+        token: &str,
+        name: &str,
+        platform: pb::Platform,
+    ) -> Result<(Vec<u8>, String), Error> {
+        let req = pb::AddDeviceRequest {
+            name: name.into(),
+            platform: platform as i32,
+        };
+        let r: pb::AddDeviceResponse = self
+            .call("AccountService/AddDevice", &req, Some(token))
+            .await?;
+        Ok((r.device_id, r.device_token))
+    }
+
+    pub async fn remove_device(&self, token: &str, device_id: &[u8]) -> Result<(), Error> {
+        let req = pb::RemoveDeviceRequest {
+            device_id: device_id.into(),
+        };
+        self.call::<pb::RemoveDeviceResponse>("AccountService/RemoveDevice", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
+    /// M8: a link ID for the QR code of a device being linked (no token yet).
+    pub async fn link_begin(&self, age_recipient: &str) -> Result<Vec<u8>, Error> {
+        let req = pb::LinkServiceBeginRequest {
+            age_recipient: age_recipient.into(),
+        };
+        let r: pb::LinkServiceBeginResponse = self.call("LinkService/Begin", &req, None).await?;
+        Ok(r.link_id)
+    }
+
+    pub async fn link_complete(
+        &self,
+        token: &str,
+        link_id: &[u8],
+        sealed: Vec<u8>,
+    ) -> Result<(), Error> {
+        let req = pb::LinkServiceCompleteRequest {
+            link_id: link_id.into(),
+            sealed,
+        };
+        self.call::<pb::LinkServiceCompleteResponse>("LinkService/Complete", &req, Some(token))
+            .await
+            .map(|_| ())
+    }
+
+    /// The sealed bundle once the phone approved; empty while it hasn't.
+    pub async fn link_collect(&self, link_id: &[u8]) -> Result<Vec<u8>, Error> {
+        let req = pb::LinkServiceCollectRequest {
+            link_id: link_id.into(),
+        };
+        let r: pb::LinkServiceCollectResponse =
+            self.call("LinkService/Collect", &req, None).await?;
+        Ok(r.sealed)
+    }
+
     /// CMP-03: the moderators' age public key; empty while reporting isn't set up.
     pub async fn report_key(&self, token: &str) -> Result<String, Error> {
         let r: pb::ReportServiceKeyResponse = self

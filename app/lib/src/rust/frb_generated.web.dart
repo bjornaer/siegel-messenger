@@ -93,6 +93,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DevicePlatform dco_decode_device_platform(dynamic raw);
 
   @protected
+  DeviceView dco_decode_device_view(dynamic raw);
+
+  @protected
   FoundContact dco_decode_found_contact(dynamic raw);
 
   @protected
@@ -127,6 +130,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatSummary> dco_decode_list_chat_summary(dynamic raw);
+
+  @protected
+  List<DeviceView> dco_decode_list_device_view(dynamic raw);
 
   @protected
   List<FoundContact> dco_decode_list_found_contact(dynamic raw);
@@ -291,6 +297,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DevicePlatform sse_decode_device_platform(SseDeserializer deserializer);
 
   @protected
+  DeviceView sse_decode_device_view(SseDeserializer deserializer);
+
+  @protected
   FoundContact sse_decode_found_contact(SseDeserializer deserializer);
 
   @protected
@@ -327,6 +336,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ChatSummary> sse_decode_list_chat_summary(SseDeserializer deserializer);
+
+  @protected
+  List<DeviceView> sse_decode_list_device_view(SseDeserializer deserializer);
 
   @protected
   List<FoundContact> sse_decode_list_found_contact(
@@ -533,6 +545,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_device_view(DeviceView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_found_contact(FoundContact self, SseSerializer serializer);
 
   @protected
@@ -583,6 +598,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_chat_summary(
     List<ChatSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_device_view(
+    List<DeviceView> self,
     SseSerializer serializer,
   );
 

@@ -1345,4 +1345,66 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get linkedDevices => 'Dispositivos vinculados';
+
+  @override
+  String get linkedDevicesHint => 'Usa Siegel en un navegador';
+
+  @override
+  String get linkedDevicesHelp =>
+      'Usa Siegel en hasta 4 dispositivos más, como un navegador en web.siegel.schlk.in. Reciben los mensajes nuevos desde que los vinculas, no tu historial.';
+
+  @override
+  String get thisIsLinked =>
+      'Este es un dispositivo vinculado. Vincula o desvincula dispositivos desde tu teléfono.';
+
+  @override
+  String get mainPhone => 'Teléfono';
+
+  @override
+  String get thisDevice => 'Este dispositivo';
+
+  @override
+  String lastActive(String day) {
+    return 'Activo por última vez el $day';
+  }
+
+  @override
+  String get linkDevice => 'Vincular un dispositivo';
+
+  @override
+  String linkDeviceTitle(String name) {
+    return '¿Vincular $name?';
+  }
+
+  @override
+  String get linkDeviceBody =>
+      'Podrá leer y enviar tus mensajes desde ahora hasta que lo desvincules. Vincula solo dispositivos de confianza.';
+
+  @override
+  String deviceLinked(String name) {
+    return '$name está vinculado.';
+  }
+
+  @override
+  String get unlink => 'Desvincular';
+
+  @override
+  String unlinkTitle(String name) {
+    return '¿Desvincular $name?';
+  }
+
+  @override
+  String get unlinkBody =>
+      'Deja de recibir tus mensajes al instante y olvida todo lo que tenía.';
+
+  @override
+  String get tooManyDevices =>
+      'Puedes vincular hasta 4 dispositivos. Desvincula uno primero.';
+
+  @override
+  String get errLinkExpired =>
+      'Ese código ha caducado. Muestra uno nuevo en el dispositivo y escanéalo otra vez.';
 }

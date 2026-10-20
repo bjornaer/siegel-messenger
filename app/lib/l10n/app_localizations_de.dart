@@ -1351,4 +1351,66 @@ class AppLocalizationsDe extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get linkedDevices => 'Verknüpfte Geräte';
+
+  @override
+  String get linkedDevicesHint => 'Siegel im Browser nutzen';
+
+  @override
+  String get linkedDevicesHelp =>
+      'Nutze Siegel auf bis zu 4 weiteren Geräten, etwa im Browser unter web.siegel.schlk.in. Sie erhalten neue Nachrichten ab dem Verknüpfen, nicht deinen Verlauf.';
+
+  @override
+  String get thisIsLinked =>
+      'Dies ist ein verknüpftes Gerät. Verknüpfe oder trenne Geräte auf deinem Telefon.';
+
+  @override
+  String get mainPhone => 'Telefon';
+
+  @override
+  String get thisDevice => 'Dieses Gerät';
+
+  @override
+  String lastActive(String day) {
+    return 'Zuletzt aktiv am $day';
+  }
+
+  @override
+  String get linkDevice => 'Gerät verknüpfen';
+
+  @override
+  String linkDeviceTitle(String name) {
+    return '$name verknüpfen?';
+  }
+
+  @override
+  String get linkDeviceBody =>
+      'Es kann ab jetzt deine Nachrichten lesen und senden, bis du es trennst. Verknüpfe nur Geräte, denen du vertraust.';
+
+  @override
+  String deviceLinked(String name) {
+    return '$name ist verknüpft.';
+  }
+
+  @override
+  String get unlink => 'Trennen';
+
+  @override
+  String unlinkTitle(String name) {
+    return '$name trennen?';
+  }
+
+  @override
+  String get unlinkBody =>
+      'Es empfängt sofort keine Nachrichten mehr und vergisst alles.';
+
+  @override
+  String get tooManyDevices =>
+      'Du kannst bis zu 4 Geräte verknüpfen. Trenne zuerst eines.';
+
+  @override
+  String get errLinkExpired =>
+      'Der Code ist abgelaufen. Zeig auf dem Gerät einen neuen an und scanne erneut.';
 }

@@ -2345,6 +2345,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{We reviewed your report. Thank you for telling us.} other{We reviewed {count} of your reports. Thank you for telling us.}}'**
   String reportsReviewed(int count);
+
+  /// No description provided for @linkedDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked devices'**
+  String get linkedDevices;
+
+  /// No description provided for @linkedDevicesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Siegel in a browser'**
+  String get linkedDevicesHint;
+
+  /// No description provided for @linkedDevicesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Siegel on up to 4 other devices, like a browser at web.siegel.schlk.in. They get new messages from the moment you link them, not your history.'**
+  String get linkedDevicesHelp;
+
+  /// No description provided for @thisIsLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a linked device. Link or unlink devices from your phone.'**
+  String get thisIsLinked;
+
+  /// No description provided for @mainPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get mainPhone;
+
+  /// No description provided for @thisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This device'**
+  String get thisDevice;
+
+  /// No description provided for @lastActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Last active {day}'**
+  String lastActive(String day);
+
+  /// No description provided for @linkDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Link a device'**
+  String get linkDevice;
+
+  /// No description provided for @linkDeviceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Link {name}?'**
+  String linkDeviceTitle(String name);
+
+  /// No description provided for @linkDeviceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It will be able to read and send your messages from now on, until you unlink it. Only link devices you trust.'**
+  String get linkDeviceBody;
+
+  /// No description provided for @deviceLinked.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is linked.'**
+  String deviceLinked(String name);
+
+  /// No description provided for @unlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink'**
+  String get unlink;
+
+  /// No description provided for @unlinkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink {name}?'**
+  String unlinkTitle(String name);
+
+  /// No description provided for @unlinkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It stops receiving your messages at once and forgets everything on it.'**
+  String get unlinkBody;
+
+  /// No description provided for @tooManyDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'You can link up to 4 devices. Unlink one first.'**
+  String get tooManyDevices;
+
+  /// No description provided for @errLinkExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'That code has expired. Show a new one on the device and scan again.'**
+  String get errLinkExpired;
 }
 
 class _AppLocalizationsDelegate

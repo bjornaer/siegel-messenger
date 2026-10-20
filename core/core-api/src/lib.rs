@@ -10,7 +10,8 @@ use core_store::{SqlCipher, Store};
 use prost::Message as _;
 
 mod chat;
-mod contacts;
+pub(crate) mod contacts;
+mod devices;
 mod discovery;
 mod groups;
 mod links;
@@ -21,6 +22,7 @@ mod stickers;
 pub use chat::{ChatMessage, Event};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
 pub use core_store::{Contact, ContactState, Conversation, Status};
+pub use devices::DeviceInfo;
 pub use discovery::Found;
 pub use groups::{
     GROUP_ADDS, GroupEvent, GroupEventKind, GroupInfo, GroupLink, GroupMember, GroupPreview,
@@ -116,18 +118,18 @@ impl From<Platform> for pb::Platform {
     }
 }
 
-const IDENTITY: &str = "identity_secret";
-const ACCOUNT: &str = "account_id";
-const DEVICE: &str = "device_id";
-const TOKEN: &str = "device_token";
+pub(crate) const IDENTITY: &str = "identity_secret";
+pub(crate) const ACCOUNT: &str = "account_id";
+pub(crate) const DEVICE: &str = "device_id";
+pub(crate) const TOKEN: &str = "device_token";
 pub(crate) const USERNAME: &str = "username";
-const DISPLAY_NAME: &str = "display_name";
-const AS_PUBLIC: &str = "as_public_key";
-const SIGNER: &str = "mls_signer_public";
-const CREDENTIAL: &str = "mls_credential";
+pub(crate) const DISPLAY_NAME: &str = "display_name";
+pub(crate) const AS_PUBLIC: &str = "as_public_key";
+pub(crate) const SIGNER: &str = "mls_signer_public";
+pub(crate) const CREDENTIAL: &str = "mls_credential";
 const REG_LOCK: &str = "registration_lock";
 /// Our own E.164 number, kept for discovery (DISC-03) and to read local contact numbers.
-const PHONE: &str = "phone_e164";
+pub(crate) const PHONE: &str = "phone_e164";
 const NUMBER_REMOVED: &str = "number_removed";
 const MINOR: &str = "minor";
 /// M7: the last moderators' notice (pb::Enforcement).

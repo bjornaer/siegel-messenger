@@ -1692,3 +1692,98 @@ async fn moderators_suspend_remove_usernames_and_ban() {
     );
     assert!(admin(&["audit", "--verify"]).contains("audit chain intact"));
 }
+
+#[tokio::test]
+async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
+    // M8 part 1: link a second client (a browser) to Alice's account.
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::Event;
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+
+    let dir = std::env::temp_dir().join(format!("siegel-e2e-web-{}", fresh_number()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let web = std::sync::Arc::new(
+        SiegelCore::open(dir.join("web.db").to_str().unwrap(), &[9; 32], &url).unwrap(),
+    );
+    let qr = web.link_begin("Test browser").await.unwrap();
+    assert!(qr.starts_with("siegel-link:"));
+    let w = web.clone();
+    let waiting = tokio::spawn(async move {
+        while !w.link_wait().await.unwrap() {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+    });
+    alice.link_device(&qr).await.unwrap();
+    waiting.await.unwrap();
+    assert!(web.is_linked_device());
+    assert_eq!(web.username(), alice.username());
+    let devices = alice.devices().await.unwrap();
+    assert_eq!(devices.len(), 2);
+    let linked = devices.iter().find(|d| d.linked).unwrap();
+    assert_eq!(linked.name, "Test browser");
+    let mut we = listen(&web);
+
+    // Bob writes: both of Alice's devices get it.
+    let bob_chat = bob.conversations().unwrap()[0].group_id.clone();
+    bob.send_text(&bob_chat, "hi both", None).await.unwrap();
+    until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "hi both"),
+    )
+    .await;
+    let Event::Message(m) = until(
+        &mut we,
+        |e| matches!(e, Event::Message(m) if m.text == "hi both"),
+    )
+    .await
+    else {
+        unreachable!()
+    };
+    assert!(!m.outgoing);
+    let web_chat = m.group_id.clone();
+    assert_eq!(
+        web.contact(&m.sender_account).unwrap().state,
+        core_api::ContactState::Accepted,
+        "the phone's chat is already accepted here"
+    );
+
+    // The browser answers: Bob gets it, and Alice's phone shows it as hers.
+    web.send_text(&web_chat, "from the browser", None)
+        .await
+        .unwrap();
+    until(
+        &mut be,
+        |e| matches!(e, Event::Message(m) if m.text == "from the browser"),
+    )
+    .await;
+    let Event::Message(mine) = until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "from the browser"),
+    )
+    .await
+    else {
+        unreachable!()
+    };
+    assert!(mine.outgoing);
+
+    // A new group from Bob reaches the browser too.
+    bob.create_group("Hikers", &[alice.username().unwrap()])
+        .await
+        .unwrap();
+    eventually(|| web.conversations().unwrap().iter().any(|c| c.is_group)).await;
+
+    // Unlinked: the browser is told, and the phone carries on.
+    alice.unlink_device(&linked.id).await.unwrap();
+    until(&mut we, |e| matches!(e, Event::Deregistered)).await;
+    bob.send_text(&bob_chat, "still you?", None).await.unwrap();
+    until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "still you?"),
+    )
+    .await;
+}

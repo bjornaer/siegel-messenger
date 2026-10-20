@@ -726,5 +726,49 @@
         "type": "int"
       }
     }
-  }
+  },
+  "linkedDevices": "Linked devices",
+  "linkedDevicesHint": "Use Siegel in a browser",
+  "linkedDevicesHelp": "Use Siegel on up to 4 other devices, like a browser at web.siegel.schlk.in. They get new messages from the moment you link them, not your history.",
+  "thisIsLinked": "This is a linked device. Link or unlink devices from your phone.",
+  "mainPhone": "Phone",
+  "thisDevice": "This device",
+  "lastActive": "Last active {day}",
+  "@lastActive": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "linkDevice": "Link a device",
+  "linkDeviceTitle": "Link {name}?",
+  "@linkDeviceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "linkDeviceBody": "It will be able to read and send your messages from now on, until you unlink it. Only link devices you trust.",
+  "deviceLinked": "{name} is linked.",
+  "@deviceLinked": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "unlink": "Unlink",
+  "unlinkTitle": "Unlink {name}?",
+  "@unlinkTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "unlinkBody": "It stops receiving your messages at once and forgets everything on it.",
+  "tooManyDevices": "You can link up to 4 devices. Unlink one first.",
+  "errLinkExpired": "That code has expired. Show a new one on the device and scan again."
 }

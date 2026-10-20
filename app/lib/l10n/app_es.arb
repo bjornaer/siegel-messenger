@@ -373,5 +373,21 @@
   "removeText": "Quitar texto",
   "importStickers": "Importar",
   "stickersAdded": "{count, plural, =0{No se encontraron stickers.} =1{1 sticker añadido.} other{{count} stickers añadidos.}}",
-  "reportsReviewed": "{count, plural, =1{Hemos revisado tu denuncia. Gracias por avisarnos.} other{Hemos revisado {count} de tus denuncias. Gracias por avisarnos.}}"
+  "reportsReviewed": "{count, plural, =1{Hemos revisado tu denuncia. Gracias por avisarnos.} other{Hemos revisado {count} de tus denuncias. Gracias por avisarnos.}}",
+  "linkedDevices": "Dispositivos vinculados",
+  "linkedDevicesHint": "Usa Siegel en un navegador",
+  "linkedDevicesHelp": "Usa Siegel en hasta 4 dispositivos más, como un navegador en web.siegel.schlk.in. Reciben los mensajes nuevos desde que los vinculas, no tu historial.",
+  "thisIsLinked": "Este es un dispositivo vinculado. Vincula o desvincula dispositivos desde tu teléfono.",
+  "mainPhone": "Teléfono",
+  "thisDevice": "Este dispositivo",
+  "lastActive": "Activo por última vez el {day}",
+  "linkDevice": "Vincular un dispositivo",
+  "linkDeviceTitle": "¿Vincular {name}?",
+  "linkDeviceBody": "Podrá leer y enviar tus mensajes desde ahora hasta que lo desvincules. Vincula solo dispositivos de confianza.",
+  "deviceLinked": "{name} está vinculado.",
+  "unlink": "Desvincular",
+  "unlinkTitle": "¿Desvincular {name}?",
+  "unlinkBody": "Deja de recibir tus mensajes al instante y olvida todo lo que tenía.",
+  "tooManyDevices": "Puedes vincular hasta 4 dispositivos. Desvincula uno primero.",
+  "errLinkExpired": "Ese código ha caducado. Muestra uno nuevo en el dispositivo y escanéalo otra vez."
 }

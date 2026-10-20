@@ -419,6 +419,19 @@ impl<P: OpenMlsProvider> Mls<P> {
         remove: &[Account],
         edit: Option<GroupState>,
     ) -> Result<Outgoing, Error> {
+        self.commit_dropping(group_id, adds, remove, &[], edit)
+    }
+
+    /// `commit`, also removing single devices (M8: an unlinked device of ours). Their account
+    /// stays a member through its other devices.
+    pub fn commit_dropping(
+        &self,
+        group_id: &[u8],
+        adds: &[Vec<u8>],
+        remove: &[Account],
+        drop_devices: &[[u8; 16]],
+        edit: Option<GroupState>,
+    ) -> Result<Outgoing, Error> {
         let mut g = self.group(group_id)?;
         let epoch = g.epoch().as_u64();
         let commit_to = self.others(group_id)?;
@@ -442,7 +455,8 @@ impl<P: OpenMlsProvider> Mls<P> {
         }
         let mut leaves = Vec::new();
         for m in g.members() {
-            if remove.contains(&member(&m.credential, &m.signature_key, &self.as_pub)?.account_id) {
+            let who = member(&m.credential, &m.signature_key, &self.as_pub)?;
+            if remove.contains(&who.account_id) || drop_devices.contains(&who.device_id) {
                 leaves.push(m.index);
             }
         }

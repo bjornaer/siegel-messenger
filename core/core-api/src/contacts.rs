@@ -10,7 +10,7 @@ use prost::Message as _;
 use crate::chat::note_identity;
 use crate::{ACCOUNT, CoreError, IDENTITY, SiegelCore, storage};
 
-const PROFILE_KEY: &str = "profile_key";
+pub(crate) const PROFILE_KEY: &str = "profile_key";
 /// Profiles are padded to this bucket so name length stays hidden.
 const PROFILE_BUCKET: usize = 256;
 /// MED-15: our picture (plaintext) and its uploaded reference (an encoded pb::Attachment).

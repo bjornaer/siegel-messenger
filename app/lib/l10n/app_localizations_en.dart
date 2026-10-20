@@ -1337,4 +1337,66 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get linkedDevices => 'Linked devices';
+
+  @override
+  String get linkedDevicesHint => 'Use Siegel in a browser';
+
+  @override
+  String get linkedDevicesHelp =>
+      'Use Siegel on up to 4 other devices, like a browser at web.siegel.schlk.in. They get new messages from the moment you link them, not your history.';
+
+  @override
+  String get thisIsLinked =>
+      'This is a linked device. Link or unlink devices from your phone.';
+
+  @override
+  String get mainPhone => 'Phone';
+
+  @override
+  String get thisDevice => 'This device';
+
+  @override
+  String lastActive(String day) {
+    return 'Last active $day';
+  }
+
+  @override
+  String get linkDevice => 'Link a device';
+
+  @override
+  String linkDeviceTitle(String name) {
+    return 'Link $name?';
+  }
+
+  @override
+  String get linkDeviceBody =>
+      'It will be able to read and send your messages from now on, until you unlink it. Only link devices you trust.';
+
+  @override
+  String deviceLinked(String name) {
+    return '$name is linked.';
+  }
+
+  @override
+  String get unlink => 'Unlink';
+
+  @override
+  String unlinkTitle(String name) {
+    return 'Unlink $name?';
+  }
+
+  @override
+  String get unlinkBody =>
+      'It stops receiving your messages at once and forgets everything on it.';
+
+  @override
+  String get tooManyDevices =>
+      'You can link up to 4 devices. Unlink one first.';
+
+  @override
+  String get errLinkExpired =>
+      'That code has expired. Show a new one on the device and scan again.';
 }

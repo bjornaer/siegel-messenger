@@ -15,6 +15,30 @@ pub fn seal(recipient: &str, plaintext: &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// M8: a fresh age key pair for a device being linked: (secret, recipient). The phone seals the
+/// link bundle to the recipient.
+pub fn new_identity() -> (String, String) {
+    use age::secrecy::ExposeSecret as _;
+    let id = age::x25519::Identity::generate();
+    (
+        id.to_string().expose_secret().to_string(),
+        id.to_public().to_string(),
+    )
+}
+
+/// Opens what `seal` sealed to this identity's recipient.
+pub fn open(identity: &str, sealed: &[u8]) -> Option<Vec<u8>> {
+    use std::io::Read as _;
+    let id = age::x25519::Identity::from_str(identity).ok()?;
+    let dec = age::Decryptor::new(sealed).ok()?;
+    let mut out = Vec::new();
+    dec.decrypt(std::iter::once(&id as &dyn age::Identity))
+        .ok()?
+        .read_to_end(&mut out)
+        .ok()?;
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Read as _;
@@ -33,5 +57,12 @@ mod tests {
             .unwrap();
         assert_eq!(out, b"report");
         assert!(super::seal("AGE-SECRET-KEY-1NOPE", b"x").is_none());
+        let (secret, recipient) = super::new_identity();
+        let sealed = super::seal(&recipient, b"bundle").unwrap();
+        assert_eq!(
+            super::open(&secret, &sealed).as_deref(),
+            Some(b"bundle".as_slice())
+        );
+        assert!(super::open(&super::new_identity().0, &sealed).is_none());
     }
 }

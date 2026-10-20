@@ -324,13 +324,14 @@ impl SiegelCore {
     /// the peer's Account Identity Key from their credentials.
     async fn new_group(&self, peer: &[u8]) -> Result<(Vec<u8>, Vec<u8>), CoreError> {
         let token = self.token()?;
-        let kps: Vec<Vec<u8>> = self
+        let mut kps: Vec<Vec<u8>> = self
             .net
             .claim_key_packages(&token, peer)
             .await?
             .into_iter()
             .map(|k| k.key_package)
             .collect();
+        kps.extend(self.own_other_key_packages().await);
         let out = self.with_mls(|m, _| m.create_group(&kps, None).map_err(mls_err))?;
         let req = pb::GroupsServiceCommitRequest {
             group_id: out.group_id.clone(),
@@ -347,7 +348,11 @@ impl SiegelCore {
         let identity = self.with_mls(|m, _| {
             m.confirm(&out.group_id).map_err(mls_err)?;
             let others = m.others(&out.group_id).map_err(mls_err)?;
-            Ok(others.first().ok_or(CoreError::new("mls"))?.identity_pub)
+            Ok(others
+                .iter()
+                .find(|o| o.account_id.as_slice() == peer)
+                .ok_or(CoreError::new("mls"))?
+                .identity_pub)
         })?;
         Ok((out.group_id, identity.to_vec()))
     }
@@ -563,8 +568,18 @@ impl SiegelCore {
                     .await?,
             );
         }
+        // M8: one of our own devices gone (unlinked) isn't a re-registration: drop just it.
+        let me = self.me()?;
+        let own: Vec<[u8; 16]> = revoked
+            .iter()
+            .filter(|d| d.account_id == me)
+            .filter_map(|d| d.device_id.as_slice().try_into().ok())
+            .collect();
+        if !own.is_empty() {
+            let _ = Box::pin(self.commit_full(group_id, vec![], &[], &own, |s| s, false)).await;
+        }
         let mut accounts: Vec<[u8; 16]> = Vec::new();
-        for d in &revoked {
+        for d in revoked.iter().filter(|d| d.account_id != me) {
             if let Ok(a) = <[u8; 16]>::try_from(d.account_id.as_slice())
                 && !accounts.contains(&a)
             {
@@ -592,22 +607,39 @@ impl SiegelCore {
                     .map(|(group_id, invite)| Handled::GroupJoined { group_id, invite }),
             ),
             Received::Joined {
-                group_id, members, ..
+                group_id,
+                members,
+                adder,
+                ..
             } => {
-                let first = members.first().ok_or(CoreError::new("mls"))?;
+                // M8: the peer is the other account; our own other devices are members too.
+                let first = members
+                    .iter()
+                    .find(|x| x.account_id.as_slice() != me.as_slice())
+                    .ok_or(CoreError::new("mls"))?;
                 let (peer, identity) = (first.account_id.to_vec(), first.identity_pub);
                 let contact = storage(s.contact(&peer))?;
                 if matches!(&contact, Some(c) if c.state == ContactState::Blocked) {
                     m.forget(&group_id).map_err(mls_err)?; // MSG-16: blocked users can't start chats
                     return Ok(None);
                 }
-                let state = contact.as_ref().map_or(ContactState::Request, |c| c.state);
-                if contact.is_none() {
-                    storage(s.save_contact(&Contact {
+                // A chat our own phone added this linked device to is one we already accepted.
+                let by_me = adder.is_some_and(|a| a.account_id.as_slice() == me.as_slice());
+                let state = match &contact {
+                    Some(c) if !(by_me && c.state == ContactState::Request) => c.state,
+                    _ if by_me => ContactState::Accepted,
+                    _ => ContactState::Request,
+                };
+                match &contact {
+                    None => storage(s.save_contact(&Contact {
                         account_id: peer.clone(),
                         state,
                         ..Default::default()
-                    }))?;
+                    }))?,
+                    Some(c) if c.state != state => {
+                        storage(s.save_contact(&Contact { state, ..c.clone() }))?
+                    }
+                    _ => {}
                 }
                 let existing = storage(s.conversations())?
                     .into_iter()
@@ -659,6 +691,22 @@ impl SiegelCore {
                 {
                     return Ok(None);
                 }
+                // M8: from another of our own devices. What we sent shows as ours; their typing,
+                // profile-key shares and receipts aren't for us (receipt sync: part 2).
+                let mine = from.as_slice() == me.as_slice();
+                if mine
+                    && matches!(
+                        c.body,
+                        Some(
+                            pb::content::Body::ProfileKeyUpdate(_)
+                                | pb::content::Body::Typing(_)
+                                | pb::content::Body::Receipt(_)
+                                | pb::content::Body::ContactLink(_)
+                        )
+                    )
+                {
+                    return Ok(None);
+                }
                 match c.body {
                     Some(pb::content::Body::ProfileKeyUpdate(u)) if u.profile_key.len() == 32 => {
                         let mut contact = storage(s.contact(&from))?.unwrap_or(Contact {
@@ -676,8 +724,12 @@ impl SiegelCore {
                             sender_account: from,
                             sent_at: c.sent_at,
                             body: plaintext,
-                            outgoing: false,
-                            status: Status::Delivered,
+                            outgoing: mine,
+                            status: if mine {
+                                Status::Sent
+                            } else {
+                                Status::Delivered
+                            },
                             edited: false,
                             deleted: false,
                         };
@@ -796,6 +848,7 @@ impl SiegelCore {
             let _ = self.set_minor(self.minor()).await;
         }
         let _ = self.ensure_key_packages().await;
+        let _ = self.ensure_own_devices().await; // M8: our linked devices in every conversation
         let _ = self.publish_profile().await;
         let _ = self.self_updates().await;
         for c in self.conversations()? {

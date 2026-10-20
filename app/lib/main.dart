@@ -14,6 +14,7 @@ import 'avatar.dart';
 import 'chats.dart';
 import 'discovery.dart';
 import 'l10n/app_localizations.dart';
+import 'linked_devices.dart';
 import 'links.dart';
 import 'minors.dart';
 import 'media.dart';
@@ -280,6 +281,13 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.devices_outlined),
+            title: Text(t.linkedDevices),
+            subtitle: Text(t.linkedDevicesHint),
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LinkedDevicesScreen(core: core))),
           ),
           ChatBackgroundTile(core: core),
           AppLockSettings(core: core),

@@ -13,6 +13,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:siegel/app_lock.dart';
 import 'package:siegel/discovery.dart';
+import 'package:siegel/linked_devices.dart';
 import 'package:siegel/links.dart' show appChannel;
 import 'package:siegel/avatar.dart';
 import 'package:siegel/backgrounds.dart';
@@ -157,6 +158,26 @@ class FakeCore implements Core {
 
   @override
   int takeReportsReviewed() => 0;
+
+  final deviceList = <DeviceView>[
+    DeviceView(id: Uint8List.fromList([1]), name: '', linked: false, lastSeenDay: '2026-10-20', thisDevice: true),
+  ];
+  @override
+  Future<List<DeviceView>> devices() async => List.of(deviceList);
+  @override
+  Future<void> linkDevice({required String qr}) async => calls.add('linkDevice');
+  @override
+  Future<void> unlinkDevice({required List<int> deviceId}) async {
+    calls.add('unlinkDevice');
+    deviceList.removeWhere((d) => listEquals(d.id, deviceId));
+  }
+
+  @override
+  Future<String> linkBegin({required String deviceName}) async => 'siegel-link:x.age1y.$deviceName';
+  @override
+  Future<bool> linkWait() async => false;
+  @override
+  bool isLinkedDevice() => false;
 
   NoticeView? notice_;
   @override
@@ -2069,6 +2090,51 @@ void main() {
     await t.pumpAndSettle();
     expect(saved, isNotNull);
     expect(saved!.sublist(1, 4), 'PNG'.codeUnits);
+  });
+
+  test('a link QR code carries the device name', () {
+    final name = base64Url.encode(utf8.encode('Firefox on Linux')).replaceAll('=', '');
+    expect(linkName('siegel-link:abc.age1xyz.$name'), 'Firefox on Linux');
+    expect(linkName('https://siegel.schlk.in/u/ana#x.y'), isNull);
+  });
+
+  testWidgets('linked devices: listed, unlinked after confirming, at most 4 (M8)', (t) async {
+    final core = FakeCore()..registered = true;
+    core.deviceList.add(
+      DeviceView(
+        id: Uint8List.fromList([2]),
+        name: 'Firefox on Linux',
+        linked: true,
+        lastSeenDay: '2026-10-19',
+        thisDevice: false,
+      ),
+    );
+    await t.pumpWidget(wrap(LinkedDevicesScreen(core: core)));
+    await t.pumpAndSettle();
+    expect(find.text('Phone'), findsOneWidget);
+    expect(find.textContaining('This device'), findsOneWidget);
+    expect(find.text('Firefox on Linux'), findsOneWidget);
+    await tapText(t, 'Unlink');
+    expect(find.text('Unlink Firefox on Linux?'), findsOneWidget);
+    await t.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Unlink')));
+    await t.pumpAndSettle();
+    expect(core.calls, contains('unlinkDevice'));
+    expect(find.text('Firefox on Linux'), findsNothing);
+
+    for (var i = 0; i < 4; i++) {
+      core.deviceList.add(
+        DeviceView(id: Uint8List.fromList([10 + i]), name: 'tab $i', linked: true, lastSeenDay: '', thisDevice: false),
+      );
+    }
+    await t.pumpWidget(wrap(LinkedDevicesScreen(key: UniqueKey(), core: core)));
+    await t.pumpAndSettle();
+    expect(find.text('You can link up to 4 devices. Unlink one first.'), findsOneWidget);
+    expect(
+      t
+          .widget<FilledButton>(find.ancestor(of: find.text('Link a device'), matching: find.byType(FilledButton)))
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets('group invite links: admins create, show and revoke them (GRP-16)', (t) async {

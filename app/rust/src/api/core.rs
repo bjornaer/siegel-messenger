@@ -75,6 +75,15 @@ pub struct NoticeView {
     pub until_ms: i64,
 }
 
+/// M8: one of the account's devices.
+pub struct DeviceView {
+    pub id: Vec<u8>,
+    pub name: String,
+    pub linked: bool,
+    pub last_seen_day: String,
+    pub this_device: bool,
+}
+
 pub struct StickerView {
     pub id: String,
     pub pack: String,
@@ -634,6 +643,46 @@ impl Core {
     /// M7: under 18, as the app worked out from the birth date it keeps.
     pub async fn set_minor(&self, minor: bool) -> Result<(), CoreError> {
         Ok(self.0.set_minor(minor).await?)
+    }
+
+    /// M8: the account's devices (Settings → Linked devices).
+    pub async fn devices(&self) -> Result<Vec<DeviceView>, CoreError> {
+        Ok(self
+            .0
+            .devices()
+            .await?
+            .into_iter()
+            .map(|d| DeviceView {
+                id: d.id,
+                name: d.name,
+                linked: d.linked,
+                last_seen_day: d.last_seen_day,
+                this_device: d.this_device,
+            })
+            .collect())
+    }
+
+    /// M8: links the device whose QR code was scanned (the phone's side).
+    pub async fn link_device(&self, qr: String) -> Result<(), CoreError> {
+        Ok(self.0.link_device(&qr).await?)
+    }
+
+    pub async fn unlink_device(&self, device_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.unlink_device(&device_id).await?)
+    }
+
+    /// M8: the side being linked: the QR code's text, then poll `link_wait` until true.
+    pub async fn link_begin(&self, device_name: String) -> Result<String, CoreError> {
+        Ok(self.0.link_begin(&device_name).await?)
+    }
+
+    pub async fn link_wait(&self) -> Result<bool, CoreError> {
+        Ok(self.0.link_wait().await?)
+    }
+
+    #[frb(sync)]
+    pub fn is_linked_device(&self) -> bool {
+        self.0.is_linked_device()
     }
 
     #[frb(sync)]

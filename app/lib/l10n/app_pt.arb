@@ -373,5 +373,21 @@
   "removeText": "Remover texto",
   "importStickers": "Importar",
   "stickersAdded": "{count, plural, =0{Nenhuma figurinha encontrada.} =1{1 figurinha adicionada.} other{{count} figurinhas adicionadas.}}",
-  "reportsReviewed": "{count, plural, =1{Analisamos sua denúncia. Obrigado por nos avisar.} other{Analisamos {count} das suas denúncias. Obrigado por nos avisar.}}"
+  "reportsReviewed": "{count, plural, =1{Analisamos sua denúncia. Obrigado por nos avisar.} other{Analisamos {count} das suas denúncias. Obrigado por nos avisar.}}",
+  "linkedDevices": "Dispositivos conectados",
+  "linkedDevicesHint": "Use o Siegel num navegador",
+  "linkedDevicesHelp": "Use o Siegel em até 4 outros dispositivos, como um navegador em web.siegel.schlk.in. Eles recebem as mensagens novas a partir da conexão, não o seu histórico.",
+  "thisIsLinked": "Este é um dispositivo conectado. Conecte ou desconecte dispositivos pelo seu telefone.",
+  "mainPhone": "Telefone",
+  "thisDevice": "Este dispositivo",
+  "lastActive": "Ativo pela última vez em {day}",
+  "linkDevice": "Conectar um dispositivo",
+  "linkDeviceTitle": "Conectar {name}?",
+  "linkDeviceBody": "Ele poderá ler e enviar suas mensagens a partir de agora, até você desconectá-lo. Conecte só dispositivos de confiança.",
+  "deviceLinked": "{name} está conectado.",
+  "unlink": "Desconectar",
+  "unlinkTitle": "Desconectar {name}?",
+  "unlinkBody": "Ele para de receber suas mensagens na hora e apaga tudo o que tinha.",
+  "tooManyDevices": "Você pode conectar até 4 dispositivos. Desconecte um primeiro.",
+  "errLinkExpired": "Esse código expirou. Mostre um novo no dispositivo e escaneie de novo."
 }

@@ -14,6 +14,7 @@ import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/number.dart';
 import 'package:siegel/onboarding.dart';
+import 'package:siegel/linked_devices.dart';
 import 'package:siegel/profile.dart';
 import 'package:siegel/report.dart';
 import 'package:siegel/server_data.dart';
@@ -101,6 +102,7 @@ Future<Map<String, Widget>> screens() async {
       ),
       onDelete: (_) async {},
     ),
+    'linked devices': LinkedDevicesScreen(core: core),
     'report': ReportScreen(core: core, chat: core.chats().firstWhere((c) => !c.isGroup)),
     'app lock': AppLock(core: FakeCore()..settings['app_lock'] = '60', child: const SizedBox()),
   };
@@ -108,7 +110,15 @@ Future<Map<String, Widget>> screens() async {
 
 const _names = [
   'onboarding', 'chat list', 'chat', 'media chat', 'group chat', 'group info', 'contact profile', 'settings', //
-  'themes', 'find contacts', 'server data', 'change number', 'blocked', 'app lock', 'report', 'suspended',
+  'themes',
+  'find contacts',
+  'server data',
+  'change number',
+  'blocked',
+  'app lock',
+  'report',
+  'suspended',
+  'linked devices',
 ];
 
 void main() {

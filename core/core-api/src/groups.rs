@@ -187,10 +187,14 @@ pub(crate) fn joined_group(
     let known = storage(s.conversations())?
         .into_iter()
         .find(|c| c.group_id == group_id);
+    // M8: our own phone adding this linked device is never an invite.
+    let me = storage(s.get(crate::ACCOUNT))?.unwrap_or_default();
+    let by_me = adder.is_some_and(|a| a.account_id.as_slice() == me.as_slice());
     let invite = match &known {
         Some(c) => c.invite,
         None => {
-            !everyone_may_add
+            !by_me
+                && !everyone_may_add
                 && !matches!(&adder_contact, Some(c) if c.state == ContactState::Accepted)
         }
     };
@@ -299,7 +303,9 @@ impl SiegelCore {
         if accounts.len() + 1 > MAX_MEMBERS {
             return Err(CoreError::new("group_too_large"));
         }
-        let kps = self.claim_all(&accounts).await?;
+        let mut kps = self.claim_all(&accounts).await?;
+        // M8: our own other devices are members too (the server skips this one).
+        kps.extend(self.own_other_key_packages().await);
         let init = GroupState {
             name: name.into(),
             admins_only_info: true, // GRP-06 defaults
@@ -409,12 +415,42 @@ impl SiegelCore {
             return Err(CoreError::new("group_left"));
         }
         let kps = self.claim_all(add).await?;
+        self.commit_with(conv, kps, remove, edit, on_stream).await
+    }
+
+    /// One commit with these KeyPackages added, in a group or a 1:1 chat (M8: our own new
+    /// devices join every conversation this way).
+    pub(crate) async fn commit_with(
+        &self,
+        conv: &[u8],
+        kps: Vec<Vec<u8>>,
+        remove: &[Account],
+        edit: impl Fn(GroupState) -> GroupState,
+        on_stream: bool,
+    ) -> Result<(), CoreError> {
+        self.commit_full(conv, kps, remove, &[], edit, on_stream)
+            .await
+    }
+
+    /// The commit itself: add these KeyPackages, remove these accounts and single devices.
+    pub(crate) async fn commit_full(
+        &self,
+        conv: &[u8],
+        kps: Vec<Vec<u8>>,
+        remove: &[Account],
+        drop_devices: &[[u8; 16]],
+        edit: impl Fn(GroupState) -> GroupState,
+        on_stream: bool,
+    ) -> Result<(), CoreError> {
         let token = self.token()?;
         for _ in 0..3 {
             let g = self.conversation(conv)?.mls_group;
             let before = self.with_mls(|m, _| m.state(&g).map_err(mls_err))?;
             let edited = before.clone().map(&edit);
-            let out = self.with_mls(|m, _| m.commit(&g, &kps, remove, edited).map_err(mls_err))?;
+            let out = self.with_mls(|m, _| {
+                m.commit_dropping(&g, &kps, remove, drop_devices, edited)
+                    .map_err(mls_err)
+            })?;
             let req = pb::GroupsServiceCommitRequest {
                 group_id: g.clone(),
                 epoch: out.epoch + self.skew(&g),
