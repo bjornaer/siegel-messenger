@@ -307,6 +307,8 @@ func (s *server) routes() http.Handler {
 	mux.Handle(siegelv1connect.NewRegistrationServiceHandler(s, small))
 	mux.Handle(siegelv1connect.NewUsernameServiceHandler(s, s.authed(), small))
 	mux.Handle(siegelv1connect.NewAccountServiceHandler(s, s.authed(), small))
+	// M8: Begin and Collect are unauthenticated (a new device has no token yet); Complete checks its caller.
+	mux.Handle(siegelv1connect.NewLinkServiceHandler(links{s}, s.authed(), connect.WithReadMaxBytes(1<<20)))
 	mux.Handle(siegelv1connect.NewProfileServiceHandler(profiles{s}, s.authed(), small))
 	payload := connect.WithReadMaxBytes(256 << 10) // MLS messages: 64 KiB text (MSG-05) plus padding and overhead
 	mux.Handle(siegelv1connect.NewKeysServiceHandler(s, s.authed(), payload))
@@ -346,6 +348,7 @@ func (s *server) janitor(ctx context.Context, b bao) {
 			`DELETE FROM signals WHERE day < current_date - 30`,                // M7 part 6
 			`DELETE FROM queue WHERE enqueued_at < now() - interval '30 days'`, // MSG-06
 			`DELETE FROM group_invites WHERE expires_at < now()`,               // GRP-16
+			`DELETE FROM device_links WHERE expires_at < now()`,                // M8
 			// MED-15: a deleted account's picture expires with it.
 			`UPDATE attachments SET expires_at = now() WHERE expires_at = 'infinity'
 				AND blob_id NOT IN (SELECT avatar_blob FROM profiles WHERE avatar_blob IS NOT NULL)`,

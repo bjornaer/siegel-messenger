@@ -79,7 +79,11 @@ func (s *server) Claim(ctx context.Context, req *connect.Request[siegelv1.KeysSe
 		return nil, internal(err)
 	}
 	res := &siegelv1.KeysServiceClaimResponse{}
+	me := who(ctx)
 	for _, d := range devices {
+		if target == me.account && d == me.device {
+			continue // M8: claiming our own account's keys is for our other devices
+		}
 		var data []byte
 		err := s.db.QueryRow(ctx, `DELETE FROM key_packages WHERE id = (
 			SELECT id FROM key_packages WHERE account_id = $1 AND device_id = $2 AND NOT last_resort

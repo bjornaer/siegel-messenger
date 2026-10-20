@@ -50,8 +50,11 @@ func (s *server) authenticate(ctx context.Context, header string) (c caller, fou
 func (s *server) authed() connect.Option {
 	return connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			if req.Spec().Procedure == siegelv1connect.MessagesServiceSendSealedProcedure {
-				return next(ctx, req) // sealed sender: deliberately anonymous (MSG-10)
+			switch req.Spec().Procedure {
+			case siegelv1connect.MessagesServiceSendSealedProcedure: // sealed sender: deliberately anonymous (MSG-10)
+				return next(ctx, req)
+			case siegelv1connect.LinkServiceBeginProcedure, siegelv1connect.LinkServiceCollectProcedure:
+				return next(ctx, req) // M8: the new device has no token yet
 			}
 			c, found, err := s.authenticate(ctx, req.Header().Get("Authorization"))
 			if err != nil {
@@ -302,10 +305,10 @@ func (s *server) exportData(ctx context.Context, acct, device [16]byte) (*siegel
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.Query(ctx, `SELECT device_id, platform, last_seen_day::text, push_token IS NOT NULL,
+	rows, err := s.db.Query(ctx, `SELECT device_id, platform, last_seen_day::text, push_token IS NOT NULL, name, linked,
 		(SELECT count(*) FROM queue q WHERE q.account_id = d.account_id AND q.device_id = d.device_id),
 		(SELECT count(*) FROM key_packages k WHERE k.account_id = d.account_id AND k.device_id = d.device_id)
-		FROM devices d WHERE account_id = $1 ORDER BY last_seen_day DESC`, c.account)
+		FROM devices d WHERE account_id = $1 ORDER BY linked, last_seen_day DESC`, c.account)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +316,7 @@ func (s *server) exportData(ctx context.Context, acct, device [16]byte) (*siegel
 		var d siegelv1.ExportedDevice
 		var id [16]byte
 		var platform int16
-		err := row.Scan(&id, &platform, &d.LastSeenDay, &d.PushToken, &d.Queued, &d.KeyPackages)
+		err := row.Scan(&id, &platform, &d.LastSeenDay, &d.PushToken, &d.Name, &d.Linked, &d.Queued, &d.KeyPackages)
 		d.DeviceId, d.Platform, d.ThisDevice = id[:], siegelv1.Platform(platform), id == c.device
 		return &d, err
 	})

@@ -910,3 +910,87 @@ func TestRetentionAndTransparency(t *testing.T) { // M7 part 7
 		t.Fatal("numbers only, never who")
 	}
 }
+
+func TestLinkedDevices(t *testing.T) { // M8 part 1
+	e := setup(t)
+	a, _ := e.register("+34600000121", "")
+	_, acct := e.clients(a.DeviceToken)
+	linker := func(token string) siegelv1connect.LinkServiceClient {
+		return siegelv1connect.NewLinkServiceClient(http.DefaultClient, e.url, connect.WithInterceptors(
+			connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+				return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+					if token != "" {
+						r.Header().Set("Authorization", "Bearer "+token)
+					}
+					return next(ctx, r)
+				}
+			})))
+	}
+	web, phone := linker(""), linker(a.DeviceToken)
+
+	// The new device starts a link; nothing to collect until the phone completes it.
+	begun, err := web.Begin(e.ctx, connect.NewRequest(&siegelv1.LinkServiceBeginRequest{AgeRecipient: "age1web"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := begun.Msg.LinkId
+	got, _ := web.Collect(e.ctx, connect.NewRequest(&siegelv1.LinkServiceCollectRequest{LinkId: id}))
+	if len(got.Msg.Sealed) != 0 {
+		t.Fatal("nothing yet")
+	}
+	added, err := acct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "Firefox on Linux", Platform: siegelv1.Platform_PLATFORM_WEB}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := phone.Complete(e.ctx, connect.NewRequest(&siegelv1.LinkServiceCompleteRequest{LinkId: id, Sealed: []byte("sealed bundle")})); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = web.Collect(e.ctx, connect.NewRequest(&siegelv1.LinkServiceCollectRequest{LinkId: id}))
+	want(t, string(got.Msg.Sealed), "sealed bundle")
+	_, err = web.Collect(e.ctx, connect.NewRequest(&siegelv1.LinkServiceCollectRequest{LinkId: id}))
+	want(t, errMsg(err), "link_expired") // collected once
+
+	// The linked device works with its token, but can't link or unlink others.
+	_, linkedAcct := e.clients(added.Msg.DeviceToken)
+	list, err := linkedAcct.ListDevices(e.ctx, connect.NewRequest(&siegelv1.ListDevicesRequest{}))
+	if err != nil || len(list.Msg.Devices) != 2 || !list.Msg.Devices[1].Linked || list.Msg.Devices[1].Name != "Firefox on Linux" {
+		t.Fatal("two devices, the linked one named", list, err)
+	}
+	_, err = linkedAcct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "x"}))
+	want(t, errMsg(err), "primary_only")
+
+	// At most 4 linked.
+	for range 3 {
+		if _, err := acct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "tab"})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = acct.AddDevice(e.ctx, connect.NewRequest(&siegelv1.AddDeviceRequest{Name: "fifth"}))
+	want(t, errMsg(err), "too_many_devices")
+
+	// Claiming our own account's keys skips the device asking.
+	keys := siegelv1connect.NewKeysServiceClient(http.DefaultClient, e.url, connect.WithInterceptors(
+		connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+				r.Header().Set("Authorization", "Bearer "+a.DeviceToken)
+				return next(ctx, r)
+			}
+		})))
+	e.s.db.Exec(e.ctx, `INSERT INTO key_packages (account_id, device_id, data) SELECT account_id, device_id, '\x00' FROM devices WHERE account_id = $1`, a.AccountId)
+	claimed, _ := keys.Claim(e.ctx, connect.NewRequest(&siegelv1.KeysServiceClaimRequest{AccountId: a.AccountId}))
+	for _, k := range claimed.Msg.KeyPackages {
+		if string(k.DeviceId) == string(a.DeviceId) {
+			t.Fatal("never our own device")
+		}
+	}
+	want(t, fmt.Sprint(len(claimed.Msg.KeyPackages)), "4")
+
+	// Unlinking: the device is gone; the primary can't be removed this way.
+	if _, err := acct.RemoveDevice(e.ctx, connect.NewRequest(&siegelv1.RemoveDeviceRequest{DeviceId: added.Msg.DeviceId})); err != nil {
+		t.Fatal(err)
+	}
+	_, err = linkedAcct.ListDevices(e.ctx, connect.NewRequest(&siegelv1.ListDevicesRequest{}))
+	want(t, errMsg(err), "unauthenticated")
+	_, err = acct.RemoveDevice(e.ctx, connect.NewRequest(&siegelv1.RemoveDeviceRequest{DeviceId: a.DeviceId}))
+	want(t, errMsg(err), "device_not_found")
+}

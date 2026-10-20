@@ -27,6 +27,8 @@ const (
 	UsernameServiceName = "siegel.v1.UsernameService"
 	// AccountServiceName is the fully-qualified name of the AccountService service.
 	AccountServiceName = "siegel.v1.AccountService"
+	// LinkServiceName is the fully-qualified name of the LinkService service.
+	LinkServiceName = "siegel.v1.LinkService"
 	// ProfileServiceName is the fully-qualified name of the ProfileService service.
 	ProfileServiceName = "siegel.v1.ProfileService"
 	// DiscoveryServiceName is the fully-qualified name of the DiscoveryService service.
@@ -69,6 +71,21 @@ const (
 	AccountServiceExportProcedure = "/siegel.v1.AccountService/Export"
 	// AccountServiceSetMinorProcedure is the fully-qualified name of the AccountService's SetMinor RPC.
 	AccountServiceSetMinorProcedure = "/siegel.v1.AccountService/SetMinor"
+	// AccountServiceListDevicesProcedure is the fully-qualified name of the AccountService's
+	// ListDevices RPC.
+	AccountServiceListDevicesProcedure = "/siegel.v1.AccountService/ListDevices"
+	// AccountServiceAddDeviceProcedure is the fully-qualified name of the AccountService's AddDevice
+	// RPC.
+	AccountServiceAddDeviceProcedure = "/siegel.v1.AccountService/AddDevice"
+	// AccountServiceRemoveDeviceProcedure is the fully-qualified name of the AccountService's
+	// RemoveDevice RPC.
+	AccountServiceRemoveDeviceProcedure = "/siegel.v1.AccountService/RemoveDevice"
+	// LinkServiceBeginProcedure is the fully-qualified name of the LinkService's Begin RPC.
+	LinkServiceBeginProcedure = "/siegel.v1.LinkService/Begin"
+	// LinkServiceCompleteProcedure is the fully-qualified name of the LinkService's Complete RPC.
+	LinkServiceCompleteProcedure = "/siegel.v1.LinkService/Complete"
+	// LinkServiceCollectProcedure is the fully-qualified name of the LinkService's Collect RPC.
+	LinkServiceCollectProcedure = "/siegel.v1.LinkService/Collect"
 	// ProfileServiceSetProcedure is the fully-qualified name of the ProfileService's Set RPC.
 	ProfileServiceSetProcedure = "/siegel.v1.ProfileService/Set"
 	// ProfileServiceGetProcedure is the fully-qualified name of the ProfileService's Get RPC.
@@ -336,6 +353,13 @@ type AccountServiceClient interface {
 	// M7: the account belongs to someone under 18 (the app knows the birth date; we only learn
 	// this flag). Hides the account from @username search. Auth: device.
 	SetMinor(context.Context, *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error)
+	// M8: the account's devices. Auth: device.
+	ListDevices(context.Context, *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error)
+	// M8: a new linked device (at most 4), for a link the phone is approving; returns its ID and
+	// token, which the phone seals to the new device. Only the primary device may. Auth: device.
+	AddDevice(context.Context, *connect.Request[v1.AddDeviceRequest]) (*connect.Response[v1.AddDeviceResponse], error)
+	// M8: unlinks a linked device; its streams are told it was deregistered. Primary only.
+	RemoveDevice(context.Context, *connect.Request[v1.RemoveDeviceRequest]) (*connect.Response[v1.RemoveDeviceResponse], error)
 }
 
 // NewAccountServiceClient constructs a client for the siegel.v1.AccountService service. By default,
@@ -385,6 +409,24 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("SetMinor")),
 			connect.WithClientOptions(opts...),
 		),
+		listDevices: connect.NewClient[v1.ListDevicesRequest, v1.ListDevicesResponse](
+			httpClient,
+			baseURL+AccountServiceListDevicesProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("ListDevices")),
+			connect.WithClientOptions(opts...),
+		),
+		addDevice: connect.NewClient[v1.AddDeviceRequest, v1.AddDeviceResponse](
+			httpClient,
+			baseURL+AccountServiceAddDeviceProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("AddDevice")),
+			connect.WithClientOptions(opts...),
+		),
+		removeDevice: connect.NewClient[v1.RemoveDeviceRequest, v1.RemoveDeviceResponse](
+			httpClient,
+			baseURL+AccountServiceRemoveDeviceProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("RemoveDevice")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -396,6 +438,9 @@ type accountServiceClient struct {
 	changeNumber        *connect.Client[v1.ChangeNumberRequest, v1.ChangeNumberResponse]
 	export              *connect.Client[v1.AccountServiceExportRequest, v1.AccountServiceExportResponse]
 	setMinor            *connect.Client[v1.SetMinorRequest, v1.SetMinorResponse]
+	listDevices         *connect.Client[v1.ListDevicesRequest, v1.ListDevicesResponse]
+	addDevice           *connect.Client[v1.AddDeviceRequest, v1.AddDeviceResponse]
+	removeDevice        *connect.Client[v1.RemoveDeviceRequest, v1.RemoveDeviceResponse]
 }
 
 // SetRegistrationLock calls siegel.v1.AccountService.SetRegistrationLock.
@@ -428,6 +473,21 @@ func (c *accountServiceClient) SetMinor(ctx context.Context, req *connect.Reques
 	return c.setMinor.CallUnary(ctx, req)
 }
 
+// ListDevices calls siegel.v1.AccountService.ListDevices.
+func (c *accountServiceClient) ListDevices(ctx context.Context, req *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error) {
+	return c.listDevices.CallUnary(ctx, req)
+}
+
+// AddDevice calls siegel.v1.AccountService.AddDevice.
+func (c *accountServiceClient) AddDevice(ctx context.Context, req *connect.Request[v1.AddDeviceRequest]) (*connect.Response[v1.AddDeviceResponse], error) {
+	return c.addDevice.CallUnary(ctx, req)
+}
+
+// RemoveDevice calls siegel.v1.AccountService.RemoveDevice.
+func (c *accountServiceClient) RemoveDevice(ctx context.Context, req *connect.Request[v1.RemoveDeviceRequest]) (*connect.Response[v1.RemoveDeviceResponse], error) {
+	return c.removeDevice.CallUnary(ctx, req)
+}
+
 // AccountServiceHandler is an implementation of the siegel.v1.AccountService service.
 type AccountServiceHandler interface {
 	// Set (4-digit PIN) or, with an empty pin, remove the Registration Lock (ID-10). Auth: device.
@@ -445,6 +505,13 @@ type AccountServiceHandler interface {
 	// M7: the account belongs to someone under 18 (the app knows the birth date; we only learn
 	// this flag). Hides the account from @username search. Auth: device.
 	SetMinor(context.Context, *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error)
+	// M8: the account's devices. Auth: device.
+	ListDevices(context.Context, *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error)
+	// M8: a new linked device (at most 4), for a link the phone is approving; returns its ID and
+	// token, which the phone seals to the new device. Only the primary device may. Auth: device.
+	AddDevice(context.Context, *connect.Request[v1.AddDeviceRequest]) (*connect.Response[v1.AddDeviceResponse], error)
+	// M8: unlinks a linked device; its streams are told it was deregistered. Primary only.
+	RemoveDevice(context.Context, *connect.Request[v1.RemoveDeviceRequest]) (*connect.Response[v1.RemoveDeviceResponse], error)
 }
 
 // NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -490,6 +557,24 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("SetMinor")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceListDevicesHandler := connect.NewUnaryHandler(
+		AccountServiceListDevicesProcedure,
+		svc.ListDevices,
+		connect.WithSchema(accountServiceMethods.ByName("ListDevices")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountServiceAddDeviceHandler := connect.NewUnaryHandler(
+		AccountServiceAddDeviceProcedure,
+		svc.AddDevice,
+		connect.WithSchema(accountServiceMethods.ByName("AddDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountServiceRemoveDeviceHandler := connect.NewUnaryHandler(
+		AccountServiceRemoveDeviceProcedure,
+		svc.RemoveDevice,
+		connect.WithSchema(accountServiceMethods.ByName("RemoveDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/siegel.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountServiceSetRegistrationLockProcedure:
@@ -504,6 +589,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceExportHandler.ServeHTTP(w, r)
 		case AccountServiceSetMinorProcedure:
 			accountServiceSetMinorHandler.ServeHTTP(w, r)
+		case AccountServiceListDevicesProcedure:
+			accountServiceListDevicesHandler.ServeHTTP(w, r)
+		case AccountServiceAddDeviceProcedure:
+			accountServiceAddDeviceHandler.ServeHTTP(w, r)
+		case AccountServiceRemoveDeviceProcedure:
+			accountServiceRemoveDeviceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -535,6 +626,148 @@ func (UnimplementedAccountServiceHandler) Export(context.Context, *connect.Reque
 
 func (UnimplementedAccountServiceHandler) SetMinor(context.Context, *connect.Request[v1.SetMinorRequest]) (*connect.Response[v1.SetMinorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.SetMinor is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) ListDevices(context.Context, *connect.Request[v1.ListDevicesRequest]) (*connect.Response[v1.ListDevicesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.ListDevices is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) AddDevice(context.Context, *connect.Request[v1.AddDeviceRequest]) (*connect.Response[v1.AddDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.AddDevice is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) RemoveDevice(context.Context, *connect.Request[v1.RemoveDeviceRequest]) (*connect.Response[v1.RemoveDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.AccountService.RemoveDevice is not implemented"))
+}
+
+// LinkServiceClient is a client for the siegel.v1.LinkService service.
+type LinkServiceClient interface {
+	// The new device asks for a link ID (valid 5 minutes). No auth; rate-limited per IP.
+	Begin(context.Context, *connect.Request[v1.LinkServiceBeginRequest]) (*connect.Response[v1.LinkServiceBeginResponse], error)
+	// The phone leaves the sealed bundle for the link. Auth: device (primary).
+	Complete(context.Context, *connect.Request[v1.LinkServiceCompleteRequest]) (*connect.Response[v1.LinkServiceCompleteResponse], error)
+	// The new device collects the bundle once; empty until the phone completes. No auth: the link
+	// ID is the secret, and the bundle is sealed to the new device's key.
+	Collect(context.Context, *connect.Request[v1.LinkServiceCollectRequest]) (*connect.Response[v1.LinkServiceCollectResponse], error)
+}
+
+// NewLinkServiceClient constructs a client for the siegel.v1.LinkService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewLinkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) LinkServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	linkServiceMethods := v1.File_siegel_v1_identity_proto.Services().ByName("LinkService").Methods()
+	return &linkServiceClient{
+		begin: connect.NewClient[v1.LinkServiceBeginRequest, v1.LinkServiceBeginResponse](
+			httpClient,
+			baseURL+LinkServiceBeginProcedure,
+			connect.WithSchema(linkServiceMethods.ByName("Begin")),
+			connect.WithClientOptions(opts...),
+		),
+		complete: connect.NewClient[v1.LinkServiceCompleteRequest, v1.LinkServiceCompleteResponse](
+			httpClient,
+			baseURL+LinkServiceCompleteProcedure,
+			connect.WithSchema(linkServiceMethods.ByName("Complete")),
+			connect.WithClientOptions(opts...),
+		),
+		collect: connect.NewClient[v1.LinkServiceCollectRequest, v1.LinkServiceCollectResponse](
+			httpClient,
+			baseURL+LinkServiceCollectProcedure,
+			connect.WithSchema(linkServiceMethods.ByName("Collect")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// linkServiceClient implements LinkServiceClient.
+type linkServiceClient struct {
+	begin    *connect.Client[v1.LinkServiceBeginRequest, v1.LinkServiceBeginResponse]
+	complete *connect.Client[v1.LinkServiceCompleteRequest, v1.LinkServiceCompleteResponse]
+	collect  *connect.Client[v1.LinkServiceCollectRequest, v1.LinkServiceCollectResponse]
+}
+
+// Begin calls siegel.v1.LinkService.Begin.
+func (c *linkServiceClient) Begin(ctx context.Context, req *connect.Request[v1.LinkServiceBeginRequest]) (*connect.Response[v1.LinkServiceBeginResponse], error) {
+	return c.begin.CallUnary(ctx, req)
+}
+
+// Complete calls siegel.v1.LinkService.Complete.
+func (c *linkServiceClient) Complete(ctx context.Context, req *connect.Request[v1.LinkServiceCompleteRequest]) (*connect.Response[v1.LinkServiceCompleteResponse], error) {
+	return c.complete.CallUnary(ctx, req)
+}
+
+// Collect calls siegel.v1.LinkService.Collect.
+func (c *linkServiceClient) Collect(ctx context.Context, req *connect.Request[v1.LinkServiceCollectRequest]) (*connect.Response[v1.LinkServiceCollectResponse], error) {
+	return c.collect.CallUnary(ctx, req)
+}
+
+// LinkServiceHandler is an implementation of the siegel.v1.LinkService service.
+type LinkServiceHandler interface {
+	// The new device asks for a link ID (valid 5 minutes). No auth; rate-limited per IP.
+	Begin(context.Context, *connect.Request[v1.LinkServiceBeginRequest]) (*connect.Response[v1.LinkServiceBeginResponse], error)
+	// The phone leaves the sealed bundle for the link. Auth: device (primary).
+	Complete(context.Context, *connect.Request[v1.LinkServiceCompleteRequest]) (*connect.Response[v1.LinkServiceCompleteResponse], error)
+	// The new device collects the bundle once; empty until the phone completes. No auth: the link
+	// ID is the secret, and the bundle is sealed to the new device's key.
+	Collect(context.Context, *connect.Request[v1.LinkServiceCollectRequest]) (*connect.Response[v1.LinkServiceCollectResponse], error)
+}
+
+// NewLinkServiceHandler builds an HTTP handler from the service implementation. It returns the path
+// on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewLinkServiceHandler(svc LinkServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	linkServiceMethods := v1.File_siegel_v1_identity_proto.Services().ByName("LinkService").Methods()
+	linkServiceBeginHandler := connect.NewUnaryHandler(
+		LinkServiceBeginProcedure,
+		svc.Begin,
+		connect.WithSchema(linkServiceMethods.ByName("Begin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	linkServiceCompleteHandler := connect.NewUnaryHandler(
+		LinkServiceCompleteProcedure,
+		svc.Complete,
+		connect.WithSchema(linkServiceMethods.ByName("Complete")),
+		connect.WithHandlerOptions(opts...),
+	)
+	linkServiceCollectHandler := connect.NewUnaryHandler(
+		LinkServiceCollectProcedure,
+		svc.Collect,
+		connect.WithSchema(linkServiceMethods.ByName("Collect")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/siegel.v1.LinkService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case LinkServiceBeginProcedure:
+			linkServiceBeginHandler.ServeHTTP(w, r)
+		case LinkServiceCompleteProcedure:
+			linkServiceCompleteHandler.ServeHTTP(w, r)
+		case LinkServiceCollectProcedure:
+			linkServiceCollectHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedLinkServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedLinkServiceHandler struct{}
+
+func (UnimplementedLinkServiceHandler) Begin(context.Context, *connect.Request[v1.LinkServiceBeginRequest]) (*connect.Response[v1.LinkServiceBeginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.LinkService.Begin is not implemented"))
+}
+
+func (UnimplementedLinkServiceHandler) Complete(context.Context, *connect.Request[v1.LinkServiceCompleteRequest]) (*connect.Response[v1.LinkServiceCompleteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.LinkService.Complete is not implemented"))
+}
+
+func (UnimplementedLinkServiceHandler) Collect(context.Context, *connect.Request[v1.LinkServiceCollectRequest]) (*connect.Response[v1.LinkServiceCollectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("siegel.v1.LinkService.Collect is not implemented"))
 }
 
 // ProfileServiceClient is a client for the siegel.v1.ProfileService service.

@@ -44,6 +44,7 @@ enum Platform {
   PLATFORM_UNSPECIFIED = 0;
   PLATFORM_IOS = 1;
   PLATFORM_ANDROID = 2;
+  PLATFORM_WEB = 3; // M8: a linked browser
 }
 
 message VerifyResponse {
@@ -109,6 +110,96 @@ service AccountService {
   // M7: the account belongs to someone under 18 (the app knows the birth date; we only learn
   // this flag). Hides the account from @username search. Auth: device.
   rpc SetMinor(SetMinorRequest) returns (SetMinorResponse);
+  // M8: the account's devices. Auth: device.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  // M8: a new linked device (at most 4), for a link the phone is approving; returns its ID and
+  // token, which the phone seals to the new device. Only the primary device may. Auth: device.
+  rpc AddDevice(AddDeviceRequest) returns (AddDeviceResponse);
+  // M8: unlinks a linked device; its streams are told it was deregistered. Primary only.
+  rpc RemoveDevice(RemoveDeviceRequest) returns (RemoveDeviceResponse);
+}
+
+message ListDevicesRequest {}
+
+message ListDevicesResponse {
+  repeated ExportedDevice devices = 1;
+}
+
+message AddDeviceRequest {
+  string name = 1;
+  Platform platform = 2;
+}
+
+message AddDeviceResponse {
+  bytes device_id = 1;
+  string device_token = 2;
+}
+
+message RemoveDeviceRequest {
+  bytes device_id = 1;
+}
+
+message RemoveDeviceResponse {}
+
+// M8: linking a device. The new device shows a QR code with a link ID and an age recipient; the
+// phone approves and leaves a LinkBundle sealed to that recipient, which the new device collects.
+// The server only relays ciphertext.
+service LinkService {
+  // The new device asks for a link ID (valid 5 minutes). No auth; rate-limited per IP.
+  rpc Begin(LinkServiceBeginRequest) returns (LinkServiceBeginResponse);
+  // The phone leaves the sealed bundle for the link. Auth: device (primary).
+  rpc Complete(LinkServiceCompleteRequest) returns (LinkServiceCompleteResponse);
+  // The new device collects the bundle once; empty until the phone completes. No auth: the link
+  // ID is the secret, and the bundle is sealed to the new device's key.
+  rpc Collect(LinkServiceCollectRequest) returns (LinkServiceCollectResponse);
+}
+
+message LinkServiceBeginRequest {
+  string age_recipient = 1;
+}
+
+message LinkServiceBeginResponse {
+  bytes link_id = 1;
+}
+
+message LinkServiceCompleteRequest {
+  bytes link_id = 1;
+  bytes sealed = 2;
+}
+
+message LinkServiceCompleteResponse {}
+
+message LinkServiceCollectRequest {
+  bytes link_id = 1;
+}
+
+message LinkServiceCollectResponse {
+  bytes sealed = 1;
+}
+
+// What the phone hands a new linked device (sealed): everything to act as the same account.
+message LinkBundle {
+  bytes account_id = 1;
+  bytes device_id = 2;
+  string device_token = 3;
+  bytes identity_secret = 4; // the Account Identity Key: linked devices sign their own credentials
+  bytes as_public_key = 5;
+  bytes as_signature = 6;
+  string phone_e164 = 7;
+  string username = 8;
+  string display_name = 9;
+  bytes profile_key = 10;
+  repeated LinkedContact contacts = 11;
+}
+
+message LinkedContact {
+  bytes account_id = 1;
+  int32 state = 2; // 0 request, 1 accepted, 2 blocked
+  bytes profile_key = 3;
+  string display_name = 4;
+  string username = 5;
+  bytes identity_key = 6;
+  bool verified = 7;
 }
 
 message SetMinorRequest {
@@ -149,6 +240,8 @@ message ExportedDevice {
   int32 queued = 5; // encrypted messages waiting for it
   int32 key_packages = 6;
   bool this_device = 7;
+  string name = 8; // M8: linked devices are named when linked
+  bool linked = 9;
 }
 
 message ChangeNumberRequest {
