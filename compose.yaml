@@ -62,6 +62,8 @@ services:
       SIEGEL_REPORTS_AGE_RECIPIENT: ${SIEGEL_REPORTS_AGE_RECIPIENT:-}
       # M7: the moderation console, published on the host's loopback only (ssh -L 9443:127.0.0.1:9443).
       SIEGEL_CONSOLE_ADDR: ":9443"
+      # M8: the web app's origin (https://web.siegel.schlk.in) for CORS and the stream; empty = off.
+      SIEGEL_WEB_ORIGIN: ${SIEGEL_WEB_ORIGIN:-}
       SIEGEL_ANDROID_LATEST_BUILD: ${SIEGEL_ANDROID_LATEST_BUILD:-0}
       SIEGEL_ANDROID_MIN_BUILD: ${SIEGEL_ANDROID_MIN_BUILD:-0}
       SIEGEL_ANDROID_CERT_SHA256: ${SIEGEL_ANDROID_CERT_SHA256:-}

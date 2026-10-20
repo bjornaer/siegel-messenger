@@ -103,7 +103,8 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	auth := r.Header.Get("Authorization")
 	opts := &websocket.AcceptOptions{}
 	if s.cfg.webOrigin != "" {
-		opts.OriginPatterns = []string{s.cfg.webOrigin}
+		_, host, _ := strings.Cut(s.cfg.webOrigin, "://")
+		opts.OriginPatterns = []string{host}
 	}
 	if auth == "" { // a browser can't set headers on a WebSocket: "siegel.v1, bearer.<token>" (M8)
 		for _, p := range strings.Split(r.Header.Get("Sec-WebSocket-Protocol"), ",") {

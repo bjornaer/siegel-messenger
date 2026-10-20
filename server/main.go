@@ -67,7 +67,7 @@ type config struct {
 	contactEmail  string   // shown on the public privacy and deletion pages
 	reportsKey    string   // CMP-03: the moderators' age public key; empty = reporting off
 	consoleAddr   string   // M7: the moderation console's listen address; empty = off
-	webOrigin     string   // M8: the web app's host (web.siegel.schlk.in); empty = no web app
+	webOrigin     string   // M8: the web app's origin (https://web.siegel.schlk.in); empty = no web app
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -334,7 +334,29 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /u/{username}", s.contactPage)
 	mux.HandleFunc("GET /g/{id}", s.page("g")) // GRP-16: the server can't tell which group
 	mux.HandleFunc("GET /.well-known/assetlinks.json", s.assetLinks)
-	return mux
+	return s.cors(mux)
+}
+
+// cors lets the web app (M8) call the API from its own origin, and no other. No cookies are
+// involved: calls carry the device token.
+func (s *server) cors(h http.Handler) http.Handler {
+	if s.cfg.webOrigin == "" {
+		return h
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Origin") == s.cfg.webOrigin {
+			w.Header().Set("Access-Control-Allow-Origin", s.cfg.webOrigin)
+			w.Header().Add("Vary", "Origin")
+			if r.Method == http.MethodOptions {
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms")
+				w.Header().Set("Access-Control-Max-Age", "7200")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // janitor enforces the retention table in section 10 and keeps the OpenBao token alive.
