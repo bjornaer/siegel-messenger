@@ -165,6 +165,12 @@ impl SqlCipher {
     /// `key` is 32 random bytes held in the iOS Keychain / Android Keystore by the app (CRY-15).
     pub fn open(path: &Path, key: &[u8; 32]) -> Result<Self> {
         let conn = rusqlite::Connection::open(path)?;
+        // The browser's SQLite3 Multiple Ciphers writes the SQLCipher 4 format when asked.
+        #[cfg(target_family = "wasm")]
+        {
+            conn.pragma_update(None, "cipher", "sqlcipher")?;
+            conn.pragma_update(None, "legacy", 4)?;
+        }
         // Raw key syntax: SQLCipher skips its passphrase KDF since the key is already random.
         let hex: String = key.iter().map(|b| format!("{b:02x}")).collect();
         conn.pragma_update(None, "key", format!("x'{hex}'"))?;
@@ -209,8 +215,8 @@ impl SqlCipher {
              CREATE TABLE receipts (message_id BLOB NOT NULL, account BLOB NOT NULL,
                status INTEGER NOT NULL, PRIMARY KEY (message_id, account));",
         ];
-        let version: usize = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        for (i, m) in MIGRATIONS.iter().enumerate().skip(version) {
+        let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        for (i, m) in MIGRATIONS.iter().enumerate().skip(version as usize) {
             conn.execute_batch(&format!(
                 "BEGIN; {m} PRAGMA user_version = {}; COMMIT;",
                 i + 1
@@ -572,10 +578,47 @@ impl Store for SqlCipher {
     fn wipe(self: Box<Self>) -> Result<()> {
         let path = self.path.clone();
         drop(self.conn);
+        #[cfg(target_family = "wasm")]
+        web::delete(&path);
+        #[cfg(not(target_family = "wasm"))]
         for suffix in ["", "-wal", "-shm", "-journal"] {
             let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
         }
         Ok(())
+    }
+}
+
+/// The browser (M8): the database lives in IndexedDB, through a SQLite VFS that has to be
+/// installed (async) before the first `SqlCipher::open`.
+#[cfg(target_family = "wasm")]
+pub mod web {
+    use std::cell::RefCell;
+    use std::path::Path;
+
+    use sqlite_wasm_vfs::relaxed_idb::{self, RelaxedIdbCfgBuilder, RelaxedIdbUtil};
+
+    thread_local! {
+        static UTIL: RefCell<Option<RelaxedIdbUtil>> = const { RefCell::new(None) };
+    }
+
+    /// Makes IndexedDB the default place SQLite keeps files. Call once before opening.
+    pub async fn install() -> Result<(), String> {
+        let cfg = RelaxedIdbCfgBuilder::new().vfs_name("siegel").build();
+        let util = relaxed_idb::install::<sqlite_wasm_rs::WasmOsCallback>(&cfg, true)
+            .await
+            .map_err(|e| e.to_string())?;
+        UTIL.with(|u| *u.borrow_mut() = Some(util));
+        Ok(())
+    }
+
+    pub(crate) fn delete(path: &Path) {
+        UTIL.with(|u| {
+            if let Some(util) = u.borrow().as_ref() {
+                for suffix in ["", "-wal", "-journal"] {
+                    let _ = util.delete_db(&format!("{}{suffix}", path.display()));
+                }
+            }
+        });
     }
 }
 

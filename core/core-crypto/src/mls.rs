@@ -856,8 +856,8 @@ impl<P: OpenMlsProvider> Mls<P> {
                 if c.add_proposals().next().is_some() || others_removed {
                     return Ok(rejected("join_does_more"));
                 }
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
+                let now = web_time::SystemTime::now()
+                    .duration_since(web_time::UNIX_EPOCH)
                     .map_or(0, |d| d.as_secs());
                 if let Err(r) = old.check_join(&joiner.account_id, &proof, epoch, now) {
                     return Ok(rejected(r.0));

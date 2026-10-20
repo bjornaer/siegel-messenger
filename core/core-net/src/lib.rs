@@ -1,11 +1,15 @@
 //! Server API client: Connect protocol, unary calls, protobuf bodies (SRV-02).
 
+#[cfg(not(target_family = "wasm"))]
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use prost::Message;
+#[cfg(not(target_family = "wasm"))]
 use rustls::pki_types::{CertificateDer, ServerName, pem::PemObject};
+#[cfg(not(target_family = "wasm"))]
 use tokio::io::{AsyncRead, AsyncWrite};
+#[cfg(not(target_family = "wasm"))]
 use tokio_tungstenite::{WebSocketStream, tungstenite};
 
 pub mod pb {
@@ -28,6 +32,7 @@ impl Error {
 pub struct Client {
     http: reqwest::Client,
     base: String,
+    #[cfg(not(target_family = "wasm"))]
     tls: Option<Arc<rustls::ClientConfig>>,
 }
 
@@ -35,6 +40,7 @@ pub struct Client {
 /// every renewal, so we pin the CA roots instead. X1 and X2 chain today's certificates; YE and
 /// YR are the next-generation roots, kept so the app survives when the cross-signs expire.
 /// No other CA is trusted, which blocks rogue-CA and interception-proxy certificates.
+#[cfg(not(target_family = "wasm"))]
 const PINNED_ROOTS: [&[u8]; 4] = [
     include_bytes!("../certs/isrg-root-x1.pem"),
     include_bytes!("../certs/isrg-root-x2.pem"),
@@ -42,6 +48,7 @@ const PINNED_ROOTS: [&[u8]; 4] = [
     include_bytes!("../certs/isrg-root-yr.pem"),
 ];
 
+#[cfg(not(target_family = "wasm"))]
 fn pinned_tls() -> rustls::ClientConfig {
     let mut roots = rustls::RootCertStore::empty();
     for pem in PINNED_ROOTS {
@@ -58,6 +65,7 @@ fn pinned_tls() -> rustls::ClientConfig {
 
 impl Client {
     /// `https` bases get the pinned TLS config; `http` is for the local dev server only.
+    #[cfg(not(target_family = "wasm"))]
     pub fn new(base: &str) -> Self {
         let mut b = reqwest::Client::builder();
         let tls = base.starts_with("https://").then(|| Arc::new(pinned_tls()));
@@ -68,6 +76,15 @@ impl Client {
             http: b.build().expect("http client"),
             base: base.trim_end_matches('/').into(),
             tls,
+        }
+    }
+
+    /// In the browser, fetch and the browser's TLS: nothing to pin here (see m8-wasm-spike.md).
+    #[cfg(target_family = "wasm")]
+    pub fn new(base: &str) -> Self {
+        Self {
+            http: reqwest::Client::new(),
+            base: base.trim_end_matches('/').into(),
         }
     }
 
@@ -601,6 +618,7 @@ impl Client {
     }
 
     /// Opens WS /v1/stream (SRV-03), over the same pinned TLS as every other call.
+    #[cfg(not(target_family = "wasm"))]
     pub async fn stream(&self, token: &str) -> Result<Stream, Error> {
         let url = reqwest::Url::parse(&format!("{}/v1/stream", self.base)).map_err(net)?;
         let host = url.host_str().ok_or(Error::new("network"))?.to_string();
@@ -639,19 +657,37 @@ impl Client {
             })?;
         Ok(Stream { ws })
     }
+
+    /// The browser's WebSocket can't carry headers: the token goes as a subprotocol.
+    #[cfg(target_family = "wasm")]
+    pub async fn stream(&self, token: &str) -> Result<Stream, Error> {
+        let url = format!("{}/v1/stream", self.base.replacen("http", "ws", 1));
+        let bearer = format!("bearer.{token}");
+        let ws = gloo_net::websocket::futures::WebSocket::open_with_protocols(
+            &url,
+            &["siegel.v1", &bearer],
+        )
+        .map_err(net)?;
+        Ok(Stream { ws })
+    }
 }
 
 fn net<E>(_: E) -> Error {
     Error::new("network")
 }
 
+#[cfg(not(target_family = "wasm"))]
 trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
+#[cfg(not(target_family = "wasm"))]
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Io for T {}
 
 /// One device's message stream. Queued messages arrive in order; acknowledge them to delete
 /// them from the server. Unacknowledged ones come again on the next connection.
 pub struct Stream {
+    #[cfg(not(target_family = "wasm"))]
     ws: WebSocketStream<Box<dyn Io>>,
+    #[cfg(target_family = "wasm")]
+    ws: gloo_net::websocket::futures::WebSocket,
 }
 
 pub enum Frame {
@@ -673,10 +709,16 @@ impl Stream {
     /// The next frame, or None when the server closed the stream.
     pub async fn next(&mut self) -> Result<Option<Frame>, Error> {
         while let Some(msg) = self.ws.next().await {
+            #[cfg(not(target_family = "wasm"))]
             let tungstenite::Message::Binary(b) = msg.map_err(|_| Error::new("network"))? else {
                 continue; // pings are answered by tungstenite
             };
-            let f = pb::StreamFrame::decode(b).map_err(|_| Error::new("bad_response"))?;
+            #[cfg(target_family = "wasm")]
+            let gloo_net::websocket::Message::Bytes(b) = msg.map_err(|_| Error::new("network"))?
+            else {
+                continue;
+            };
+            let f = pb::StreamFrame::decode(b.as_ref()).map_err(|_| Error::new("bad_response"))?;
             return Ok(match f.kind {
                 Some(pb::stream_frame::Kind::Message(m)) => Some(Frame::Message {
                     id: m.id,
@@ -696,14 +738,15 @@ impl Stream {
 
     pub async fn ack(&mut self, ids: Vec<i64>) -> Result<(), Error> {
         let b = pb::StreamAck { ids }.encode_to_vec();
-        self.ws
-            .send(tungstenite::Message::Binary(b.into()))
-            .await
-            .map_err(|_| Error::new("network"))
+        #[cfg(not(target_family = "wasm"))]
+        let b = tungstenite::Message::Binary(b.into());
+        #[cfg(target_family = "wasm")]
+        let b = gloo_net::websocket::Message::Bytes(b);
+        self.ws.send(b).await.map_err(|_| Error::new("network"))
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_family = "wasm")))]
 mod tests {
     use super::*;
 

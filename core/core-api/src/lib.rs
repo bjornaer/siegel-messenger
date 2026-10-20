@@ -18,6 +18,7 @@ mod links;
 mod media;
 mod messages;
 mod reports;
+mod rt;
 mod stickers;
 mod sync;
 pub use chat::{ChatMessage, Event};

@@ -12,6 +12,10 @@ use sha2::{Digest, Sha256};
 use crate::chat::{ChatMessage, chat_message};
 use crate::{CoreError, SiegelCore, storage};
 
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 /// MED-06.
 pub(crate) const MAX_ATTACHMENT: usize = 100 << 20;
 /// MED-04.
@@ -80,13 +84,37 @@ pub(crate) fn info(a: &pb::Attachment) -> AttachmentInfo {
 
 impl SiegelCore {
     fn media_path(&self, message_id: &[u8]) -> PathBuf {
-        let name: String = message_id.iter().map(|b| format!("{b:02x}")).collect();
-        self.media_dir.join(name)
+        self.media_dir.join(hex(message_id))
+    }
+
+    /// The kept ciphertext of a message's attachment. A file on phones; in the browser, which
+    /// has no files, a row in the encrypted database (M8).
+    fn media_read(&self, message_id: &[u8]) -> Option<Vec<u8>> {
+        #[cfg(not(target_family = "wasm"))]
+        return std::fs::read(self.media_path(message_id)).ok();
+        #[cfg(target_family = "wasm")]
+        return self
+            .get(&format!("media/{}", hex(message_id)))
+            .ok()
+            .flatten();
+    }
+
+    fn media_write(&self, message_id: &[u8], blob: &[u8]) -> Result<(), CoreError> {
+        #[cfg(not(target_family = "wasm"))]
+        {
+            std::fs::create_dir_all(&self.media_dir).map_err(|_| CoreError::new("storage"))?;
+            std::fs::write(self.media_path(message_id), blob).map_err(|_| CoreError::new("storage"))
+        }
+        #[cfg(target_family = "wasm")]
+        self.put(&format!("media/{}", hex(message_id)), blob)
     }
 
     /// Drops a message's blob from this device (MSG-11, MSG-12).
     pub(crate) fn forget_media(&self, message_id: &[u8]) {
+        #[cfg(not(target_family = "wasm"))]
         let _ = std::fs::remove_file(self.media_path(message_id));
+        #[cfg(target_family = "wasm")]
+        let _ = self.put(&format!("media/{}", hex(message_id)), b"");
     }
 
     /// MED-01..03: encrypts and uploads; returns the reference to put in a message or profile
@@ -150,9 +178,7 @@ impl SiegelCore {
             reply_to: reply_to.unwrap_or_default().to_vec(),
             ..uploaded
         }));
-        std::fs::create_dir_all(&self.media_dir).map_err(|_| CoreError::new("storage"))?;
-        std::fs::write(self.media_path(&content.message_id), &blob)
-            .map_err(|_| CoreError::new("storage"))?;
+        self.media_write(&content.message_id, &blob)?;
         let mut msg = Message {
             message_id: content.message_id.clone(),
             group_id: group_id.to_vec(),
@@ -171,7 +197,10 @@ impl SiegelCore {
 
     /// Whether the attachment is on this device already (sent, or downloaded before).
     pub fn attachment_downloaded(&self, message_id: &[u8]) -> bool {
-        self.media_path(message_id).exists()
+        #[cfg(not(target_family = "wasm"))]
+        return self.media_path(message_id).exists();
+        #[cfg(target_family = "wasm")]
+        return self.media_read(message_id).is_some_and(|b| !b.is_empty());
     }
 
     /// MED-14: sends a message on to another chat. An attachment is encrypted again with a
@@ -219,13 +248,11 @@ impl SiegelCore {
         else {
             return Err(CoreError::new("not_found"));
         };
-        let path = self.media_path(message_id);
-        let blob = match std::fs::read(&path) {
-            Ok(b) => b,
-            Err(_) => {
+        let blob = match self.media_read(message_id).filter(|b| !b.is_empty()) {
+            Some(b) => b,
+            None => {
                 let b = self.download(&a).await?;
-                std::fs::create_dir_all(&self.media_dir).map_err(|_| CoreError::new("storage"))?;
-                std::fs::write(&path, &b).map_err(|_| CoreError::new("storage"))?;
+                self.media_write(message_id, &b)?;
                 b
             }
         };

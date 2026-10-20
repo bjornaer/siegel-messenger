@@ -209,7 +209,7 @@ impl SiegelCore {
             if self.ensure_own_devices().await? {
                 return Ok(());
             }
-            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            crate::rt::sleep(std::time::Duration::from_secs(2)).await;
         }
         Ok(()) // upkeep finishes the job on the next connect
     }

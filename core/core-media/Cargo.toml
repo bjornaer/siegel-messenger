@@ -8,3 +8,6 @@ publish.workspace = true
 [dependencies]
 aes-gcm = { version = "0.10", features = ["stream"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }

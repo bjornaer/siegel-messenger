@@ -7,14 +7,21 @@ publish.workspace = true
 
 [dependencies]
 prost = "0.14"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-manual-roots"] }
-rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+reqwest = { version = "0.12", default-features = false }
 serde = { version = "1", features = ["derive"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+serde_json = "1"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-manual-roots"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 tokio = { version = "1", features = ["net"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
 tokio-tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
-serde_json = "1"
+
+# The browser (M8): fetch and the browser's WebSocket; the browser does TLS, so no pinning.
+[target.'cfg(target_family = "wasm")'.dependencies]
+gloo-net = { version = "0.6", default-features = false, features = ["websocket"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

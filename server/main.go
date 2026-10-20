@@ -67,6 +67,7 @@ type config struct {
 	contactEmail  string   // shown on the public privacy and deletion pages
 	reportsKey    string   // CMP-03: the moderators' age public key; empty = reporting off
 	consoleAddr   string   // M7: the moderation console's listen address; empty = off
+	webOrigin     string   // M8: the web app's host (web.siegel.schlk.in); empty = no web app
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -121,6 +122,7 @@ func loadConfig() config {
 		contactEmail:  os.Getenv("SIEGEL_CONTACT_EMAIL"),
 		reportsKey:    os.Getenv("SIEGEL_REPORTS_AGE_RECIPIENT"),
 		consoleAddr:   os.Getenv("SIEGEL_CONSOLE_ADDR"),
+		webOrigin:     os.Getenv("SIEGEL_WEB_ORIGIN"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",

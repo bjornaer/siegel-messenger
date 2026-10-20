@@ -21,3 +21,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 strip = true
 lto = true
 codegen-units = 1
+
+# openmls_sqlite_storage 0.3 wants rusqlite 0.37, which can't build for the browser (vendor/…/VENDORED.md).
+[patch.crates-io]
+openmls_sqlite_storage = { path = "../../core/vendor/openmls_sqlite_storage" }

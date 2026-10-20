@@ -1,6 +1,6 @@
 //! 1:1 messaging over MLS (M2): KeyPackages, chat creation, sending, and the receive stream.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::rt::{SystemTime, UNIX_EPOCH};
 
 use core_crypto::mls::{DeviceCredential, Member, Mls, Received};
 use core_net::{Frame, pb};
@@ -858,7 +858,7 @@ impl SiegelCore {
     pub async fn drain(&self, on_event: impl Fn(Event) + Send) -> Result<(), CoreError> {
         let idle = std::time::Duration::from_secs(3);
         let all = std::time::Duration::from_secs(20);
-        tokio::time::timeout(all, self.stream_until(on_event, Some(idle)))
+        crate::rt::timeout(all, self.stream_until(on_event, Some(idle)))
             .await
             .unwrap_or(Ok(()))
     }
@@ -901,21 +901,21 @@ impl SiegelCore {
         // The first tick also does the upkeep, after what was queued: messages come first. A
         // drain after a push skips it; the app does it when it is opened.
         let tick = std::time::Duration::from_secs(5);
-        let mut last_tick = std::time::Instant::now();
+        let mut last_tick = crate::rt::Instant::now();
         let mut upkeep = idle.is_none();
         loop {
             if idle.is_none() && last_tick.elapsed() >= tick {
-                last_tick = std::time::Instant::now();
+                last_tick = crate::rt::Instant::now();
                 if std::mem::take(&mut upkeep) {
                     self.upkeep().await?;
                 }
                 let _ = self.commit_due_proposals().await;
             }
             let wait = idle.unwrap_or(tick);
-            let frame = match tokio::time::timeout(wait, stream.next()).await {
-                Ok(f) => f?,
-                Err(_) if idle.is_some() => return Ok(()), // drained
-                Err(_) => continue,
+            let frame = match crate::rt::timeout(wait, stream.next()).await {
+                Some(f) => f?,
+                None if idle.is_some() => return Ok(()), // drained
+                None => continue,
             };
             let Some(frame) = frame else { break };
             match frame {

@@ -169,6 +169,16 @@ func TestStream(t *testing.T) { // SRV-03, MSG-06, ID-12, ID-13
 	if _, res, _ := dial(e, ""); res == nil || res.StatusCode != http.StatusUnauthorized {
 		t.Fatal("stream without token must be 401")
 	}
+	// A browser can't set headers: its token comes as a subprotocol (M8).
+	web, _, err := websocket.Dial(e.ctx, "ws"+strings.TrimPrefix(e.url, "http")+"/v1/stream",
+		&websocket.DialOptions{Subprotocols: []string{"siegel.v1", "bearer." + b.DeviceToken}})
+	if err != nil {
+		t.Fatal("subprotocol token", err)
+	}
+	want(t, web.Subprotocol(), "siegel.v1")
+	want(t, string(next(t, web).GetMessage().GetPayload()), "queued while offline")
+	web.CloseNow()
+
 	ws, _, err := dial(e, b.DeviceToken)
 	if err != nil {
 		t.Fatal(err)

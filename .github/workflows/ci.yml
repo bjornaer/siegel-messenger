@@ -68,6 +68,26 @@ jobs:
         with:
           manifest-path: core/Cargo.toml
 
+  # M8: the same core, built for the browser (docs/m8-wasm-spike.md). Needs a wasm-capable clang
+  # for SQLite3 Multiple Ciphers, which the runner has.
+  core-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    env:
+      RUSTFLAGS: --cfg getrandom_backend="wasm_js"
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install stable --profile minimal -c clippy -t wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            core/target
+          key: core-web-${{ hashFiles('core/Cargo.lock') }}
+      - run: cargo clippy -p core-api --target wasm32-unknown-unknown -- -D warnings
+
   app:
     runs-on: ubuntu-latest
     defaults:
@@ -119,7 +139,7 @@ jobs:
 
   # Deploys main to Hetzner once CI is green. Inert until the DEPLOY_HOST variable is set (docs/deploy.md).
   deploy:
-    needs: [server, core, app, e2e]
+    needs: [server, core, core-web, app, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
     runs-on: ubuntu-latest
     concurrency: deploy

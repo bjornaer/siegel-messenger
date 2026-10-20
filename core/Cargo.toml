@@ -1,9 +1,13 @@
 [workspace]
 resolver = "3"
 members = ["core-crypto", "core-media", "core-net", "core-store", "core-api"]
-exclude = ["fuzz"] # nightly-only, its own workspace (SEC-08)
+exclude = ["fuzz", "vendor"] # fuzz: nightly-only, its own workspace (SEC-08)
 
 [workspace.package]
 edition = "2024"
 license = "AGPL-3.0-only"
 publish = false
+
+# openmls_sqlite_storage 0.3 wants rusqlite 0.37, which can't build for the browser (vendor/…/VENDORED.md).
+[patch.crates-io]
+openmls_sqlite_storage = { path = "vendor/openmls_sqlite_storage" }

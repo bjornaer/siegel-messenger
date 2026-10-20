@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -99,13 +100,26 @@ func (s *server) listen(ctx context.Context) {
 
 // stream serves WS /v1/stream: queued messages out, acknowledgements in (SRV-03).
 func (s *server) stream(w http.ResponseWriter, r *http.Request) {
-	c, found, err := s.authenticate(r.Context(), r.Header.Get("Authorization"))
+	auth := r.Header.Get("Authorization")
+	opts := &websocket.AcceptOptions{}
+	if s.cfg.webOrigin != "" {
+		opts.OriginPatterns = []string{s.cfg.webOrigin}
+	}
+	if auth == "" { // a browser can't set headers on a WebSocket: "siegel.v1, bearer.<token>" (M8)
+		for _, p := range strings.Split(r.Header.Get("Sec-WebSocket-Protocol"), ",") {
+			if t, ok := strings.CutPrefix(strings.TrimSpace(p), "bearer."); ok {
+				auth = "Bearer " + t
+				opts.Subprotocols = []string{"siegel.v1"}
+			}
+		}
+	}
+	c, found, err := s.authenticate(r.Context(), auth)
 	if err != nil {
 		slog.Error("stream auth", "err", err)
 		http.Error(w, "internal", http.StatusInternalServerError)
 		return
 	}
-	if !found && r.Header.Get("Authorization") == "" {
+	if !found && auth == "" {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
@@ -113,7 +127,7 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	rc := http.NewResponseController(w)
 	_ = rc.SetReadDeadline(time.Time{})
 	_ = rc.SetWriteDeadline(time.Time{})
-	ws, err := websocket.Accept(w, r, nil)
+	ws, err := websocket.Accept(w, r, opts)
 	if err != nil {
 		return
 	}

@@ -514,7 +514,7 @@ impl SiegelCore {
                     let epoch = self.with_mls(|m, _| m.epoch(&g).map_err(mls_err))?;
                     // The winning commit comes in on the stream; give it a moment.
                     for _ in 0..50 {
-                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                        crate::rt::sleep(std::time::Duration::from_millis(200)).await;
                         if self.with_mls(|m, _| m.epoch(&g).map_err(mls_err))? > epoch {
                             break;
                         }
@@ -854,8 +854,8 @@ pub struct GroupPreview {
 }
 
 fn now_secs() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    crate::rt::SystemTime::now()
+        .duration_since(crate::rt::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
 }
 
