@@ -137,7 +137,7 @@ jobs:
       - run: flutter pub get
       - name: core for the browser
         run: >-
-          dart run flutter_rust_bridge build-web --release --wasm-pack-rustflags='--cfg getrandom_backend="wasm_js"
+          dart run flutter_rust_bridge build-web --release --dart-root . --wasm-pack-rustflags='--cfg getrandom_backend="wasm_js"
           -C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-args=--shared-memory
           -C link-args=--max-memory=1073741824 -C link-args=--import-memory -C link-args=--export=__heap_base
           -C link-args=--export=__wasm_init_tls -C link-args=--export=__tls_size -C link-args=--export=__tls_align

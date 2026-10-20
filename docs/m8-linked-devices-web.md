@@ -1,6 +1,6 @@
 # M8: Linked devices and Siegel Web, plan
 
-Status: planned 2026-10-20. Built in parts; AAB and web release at the end.
+Status: parts 1–4 built (2026-10-20). AAB and web release at the end.
 
 ## Decided
 
@@ -70,6 +70,27 @@ Output: a report on what works, the bundle size, and any blocker, before Part 4 
   photo picker details) are hidden or replaced.
 - The browser's link screen with the QR code, then the PIN set-up and the PIN lock.
 - Unlinked after 14 days unused (W3). The server expires the device; the page forgets everything.
+
+**Built (part 4):**
+- The core builds for the browser:
+  - SQLite3 Multiple Ciphers in the SQLCipher format, kept in IndexedDB (relaxed-idb);
+  - fetch;
+  - the browser's WebSocket, with the token sent as a subprotocol;
+  - clocks and timers that work in the browser;
+  - attachments kept in the encrypted database.
+  `openmls_sqlite_storage` is vendored with rusqlite 0.39 until upstream releases its bump.
+- The web start: choose a PIN, show the link QR, then the usual app.
+  - The database key is wrapped by the PIN (argon2id 19 MiB × 2, AES-256-GCM) in localStorage.
+  - Ten wrong PINs, or 14 days unused, and the browser forgets everything. The server also drops
+    linked devices unseen for 14 days.
+- A linked device:
+  - can't delete the account (server enforced);
+  - can unlink itself;
+  - its Settings hide number, discovery and linking.
+- Hidden in the browser until part 6: camera scanning, phone contacts, sending and playing video,
+  voice notes, notifications.
+- CI job `web` builds the site (`flutter_rust_bridge build-web`, then `flutter build web`) and keeps
+  it as an artifact.
 
 ### Part 5: Hosting `web.siegel.schlk.in`
 
