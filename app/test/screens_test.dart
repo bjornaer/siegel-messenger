@@ -1620,6 +1620,12 @@ void main() {
     }
 
     await openChat();
+    bool seal(Widget w) =>
+        w is DecoratedBox && (w.decoration as BoxDecoration?)?.image?.image == const AssetImage('assets/seal_tile.png');
+    expect(find.byWidgetPredicate(seal), findsOneWidget, reason: 'the Siegel theme: our seal over green');
+    themeChoice.value = themeById('kraehe');
+    addTearDown(() => themeChoice.value = siegelThemes.first);
+    await openChat();
     expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is ThemePattern), findsOneWidget);
 
     await t.pumpWidget(wrap(SettingsScreen(core: core, onDeleted: () async {})));
