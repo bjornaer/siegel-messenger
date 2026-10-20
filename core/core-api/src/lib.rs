@@ -19,6 +19,7 @@ mod media;
 mod messages;
 mod reports;
 mod stickers;
+mod sync;
 pub use chat::{ChatMessage, Event};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
 pub use core_store::{Contact, ContactState, Conversation, Status};

@@ -159,6 +159,9 @@ class FakeCore implements Core {
 
   @override
   int takeReportsReviewed() => 0;
+  @override
+  Future<void> shareChatSetting({required List<int> groupId, required String name, required String value}) async =>
+      calls.add('share $name=$value');
 
   final deviceList = <DeviceView>[
     DeviceView(id: Uint8List.fromList([1]), name: '', linked: false, lastSeenDay: '2026-10-20', thisDevice: true),
@@ -1662,6 +1665,7 @@ void main() {
     await t.longPress(find.text('@bob'));
     await t.pumpAndSettle();
     await tapText(t, 'Archive');
+    expect(core.calls, contains('share archive=1'), reason: 'M8: our other devices archive it too');
     expect(find.text('@bob'), findsNothing);
     expect(find.text('Archived'), findsOneWidget);
     expect(find.text('1'), findsWidgets, reason: 'archived chats with unread messages');
@@ -1681,7 +1685,7 @@ void main() {
     await tapText(t, 'Delete chat');
     expect(find.text('Delete the chat with @bob?'), findsOneWidget);
     await tapText(t, 'Delete');
-    expect(core.calls, contains('clearChat'));
+    expect(core.calls, containsAll(['clearChat', 'share hidden=1']));
     expect(find.text('@bob'), findsNothing);
     core.receive(bob, 'back again');
     service.refresh();

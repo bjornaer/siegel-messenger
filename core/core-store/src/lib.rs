@@ -136,6 +136,8 @@ pub trait Store: Send {
     ) -> Result<()>;
     /// Marks incoming messages read and returns their IDs.
     fn mark_read(&self, group_id: &[u8]) -> Result<Vec<Vec<u8>>>;
+    /// M8: marks read what was sent up to this time (read on another of our devices).
+    fn mark_read_until(&self, group_id: &[u8], sent_at: i64) -> Result<()>;
     /// Incoming messages not yet read (what `mark_read` would mark).
     fn unread(&self, group_id: &[u8]) -> Result<u32>;
     /// MSG-09: keeps a superseded body.
@@ -465,6 +467,14 @@ impl Store for SqlCipher {
              RETURNING message_id",
         )?;
         q.query_map([group_id], |r| r.get(0))?.collect()
+    }
+
+    fn mark_read_until(&self, group_id: &[u8], sent_at: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE messages SET status = 4 WHERE group_id = ?1 AND outgoing = 0 AND status < 4 AND sent_at <= ?2",
+            (group_id, sent_at),
+        )?;
+        Ok(())
     }
 
     fn unread(&self, group_id: &[u8]) -> Result<u32> {

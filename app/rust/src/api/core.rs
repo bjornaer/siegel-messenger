@@ -662,6 +662,16 @@ impl Core {
             .collect())
     }
 
+    /// M8: tells our other devices about a per-chat setting (archive, mute, hidden).
+    pub async fn share_chat_setting(
+        &self,
+        group_id: Vec<u8>,
+        name: String,
+        value: String,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.share_chat_setting(&group_id, &name, &value).await?)
+    }
+
     /// M8: links the device whose QR code was scanned (the phone's side).
     pub async fn link_device(&self, qr: String) -> Result<(), CoreError> {
         Ok(self.0.link_device(&qr).await?)

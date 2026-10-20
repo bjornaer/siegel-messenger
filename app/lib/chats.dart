@@ -318,6 +318,7 @@ Future<bool> deleteChat(BuildContext context, Core core, ChatService service, Ch
     } else {
       core.clearChat(groupId: c.groupId);
       core.setSetting(key: hiddenKey(c.groupId), value: '1');
+      shareChatSetting(core, c.groupId, 'hidden', '1'); // M8: deleted on our other devices too
     }
     setArchived(core, c.groupId, false);
   } on CoreError catch (e) {

@@ -274,6 +274,12 @@ impl SiegelCore {
     /// still a request (MSG-13, MSG-15).
     pub async fn mark_read(&self, group_id: &[u8]) -> Result<(), CoreError> {
         let ids = self.with_store(|s| storage(s.mark_read(group_id)))?;
+        if !ids.is_empty() {
+            // M8: read here, read on our other devices too.
+            let up_to = crate::chat::now_ms();
+            self.sync(group_id, pb::sync::Kind::Read(pb::SyncRead { up_to }))
+                .await;
+        }
         if ids.is_empty() || !self.enabled(READ_RECEIPTS) || self.is_request(group_id)? {
             return Ok(());
         }

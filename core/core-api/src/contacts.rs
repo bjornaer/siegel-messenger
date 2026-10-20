@@ -41,6 +41,9 @@ impl SiegelCore {
     /// Encrypts our name and @username under the profile key and uploads it with the
     /// delivery-token verifier (MSG-10). The server stores only ciphertext.
     pub async fn publish_profile(&self) -> Result<(), CoreError> {
+        if self.is_linked_device() {
+            return Ok(()); // M8: the phone owns our profile; linked devices read it back
+        }
         let token = self.token()?;
         let key = self.profile_key()?;
         let avatar = self
@@ -117,7 +120,8 @@ impl SiegelCore {
                     .group_info(&conv.group_id)?
                     .members
                     .into_iter()
-                    .filter(|m| !m.me && Some(m.account.as_slice()) != except)
+                    // Our own account too: our linked devices need the new key (M8).
+                    .filter(|m| Some(m.account.as_slice()) != except)
                     .filter_map(|m| m.account.try_into().ok())
                     .collect();
                 self.share_profile_key_with(&conv.group_id, &others).await?;
@@ -140,6 +144,22 @@ impl SiegelCore {
         };
         self.send_content(group_id, pb::content::Body::ProfileKeyUpdate(update))
             .await?;
+        Ok(())
+    }
+
+    /// M8: a linked device reads our own profile back (name, @username), as the phone set it.
+    pub(crate) async fn refresh_own_profile(&self) -> Result<(), CoreError> {
+        let me = self.me()?;
+        let encrypted = self.net.get_profile(&self.token()?, &me).await?;
+        let p = self
+            .profile_key()?
+            .decrypt(&encrypted)
+            .and_then(|b| pb::Profile::decode(b.as_slice()).ok())
+            .ok_or(CoreError::new("profile_invalid"))?;
+        self.put(crate::DISPLAY_NAME, p.display_name.as_bytes())?;
+        if !p.username.is_empty() {
+            self.put(crate::USERNAME, p.username.as_bytes())?;
+        }
         Ok(())
     }
 
@@ -230,7 +250,13 @@ impl SiegelCore {
         let mut c = self.peer_contact(group_id)?;
         c.state = ContactState::Accepted;
         self.with_store(|s| storage(s.save_contact(&c)))?;
-        self.share_profile_key(group_id).await
+        self.share_profile_key(group_id).await?;
+        self.sync(
+            group_id,
+            pb::sync::Kind::Contact(pb::SyncContact { state: 1 }),
+        )
+        .await; // M8
+        Ok(())
     }
 
     /// Deletes every message of a chat from this device but keeps the chat's keys, so the next
@@ -276,6 +302,20 @@ impl SiegelCore {
             .ok_or(CoreError::new("unknown_contact"))?;
         c.state = ContactState::Blocked;
         self.with_store(|s| storage(s.save_contact(&c)))?;
+        if let Some(chat) = self.chat_with(account) {
+            // M8: our other devices block them too; the phone rotates the key either way.
+            self.sync(&chat, pb::sync::Kind::Contact(pb::SyncContact { state: 2 }))
+                .await;
+        }
+        if self.is_linked_device() {
+            return Ok(()); // the phone rotates our profile key when the sync reaches it
+        }
+        self.rotate_after_block(account).await
+    }
+
+    /// MSG-16: a new profile key, so the blocked account's delivery token stops working; every
+    /// remaining contact (and our own other devices) get it.
+    pub(crate) async fn rotate_after_block(&self, account: &[u8]) -> Result<(), CoreError> {
         self.put(PROFILE_KEY, &ProfileKey::generate().0)?;
         self.publish_profile().await?;
         self.share_profile_key_everywhere(Some(account)).await
@@ -302,6 +342,11 @@ impl SiegelCore {
         for conv in self.conversations()? {
             if conv.peer_account == account {
                 self.share_profile_key(&conv.group_id).await?;
+                self.sync(
+                    &conv.group_id,
+                    pb::sync::Kind::Contact(pb::SyncContact { state: 1 }),
+                )
+                .await; // M8
             }
         }
         Ok(())

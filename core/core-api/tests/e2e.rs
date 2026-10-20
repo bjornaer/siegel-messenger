@@ -1777,6 +1777,53 @@ async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
         .unwrap();
     eventually(|| web.conversations().unwrap().iter().any(|c| c.is_group)).await;
 
+    // M8 part 2: what the phone does, the browser follows.
+    let phone_chat = alice
+        .conversations()
+        .unwrap()
+        .iter()
+        .find(|c| !c.is_group)
+        .unwrap()
+        .group_id
+        .clone();
+    bob.send_text(&bob_chat, "read me", None).await.unwrap();
+    until(
+        &mut we,
+        |e| matches!(e, Event::Message(m) if m.text == "read me"),
+    )
+    .await;
+    until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "read me"),
+    )
+    .await;
+    alice.mark_read(&phone_chat).await.unwrap();
+    settle(&mut we, || {
+        web.messages(&web_chat, 50)
+            .unwrap()
+            .iter()
+            .filter(|m| !m.outgoing)
+            .all(|m| m.status == core_api::Status::Read)
+    })
+    .await;
+    alice
+        .share_chat_setting(&phone_chat, "archive", "1")
+        .await
+        .unwrap();
+    use base64::Engine as _;
+    let key = format!(
+        "archive.{}",
+        base64::engine::general_purpose::STANDARD.encode(&web_chat)
+    );
+    settle(&mut we, || web.setting(&key).as_deref() == Some("1")).await;
+    let bob_id = m.sender_account.clone();
+    alice.block(&bob_id).await.unwrap();
+    settle(&mut we, || {
+        web.contact(&bob_id).map(|c| c.state) == Some(core_api::ContactState::Blocked)
+    })
+    .await;
+    alice.unblock(&bob_id).await.unwrap();
+
     // Unlinked: the browser is told, and the phone carries on.
     alice.unlink_device(&linked.id).await.unwrap();
     until(&mut we, |e| matches!(e, Event::Deregistered)).await;

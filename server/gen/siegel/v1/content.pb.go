@@ -88,7 +88,7 @@ func (x GroupEvent_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GroupEvent_Kind.Descriptor instead.
 func (GroupEvent_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{2, 0}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{6, 0}
 }
 
 type Receipt_Kind int32
@@ -137,7 +137,7 @@ func (x Receipt_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Receipt_Kind.Descriptor instead.
 func (Receipt_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{11, 0}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{15, 0}
 }
 
 // MSG-01: the plaintext inside every MLS application message. Only clients see it; the
@@ -160,6 +160,7 @@ type Content struct {
 	//	*Content_GroupEvent
 	//	*Content_ContactLink
 	//	*Content_Attachment
+	//	*Content_Sync
 	Body          isContent_Body `protobuf_oneof:"body"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -315,6 +316,15 @@ func (x *Content) GetAttachment() *Attachment {
 	return nil
 }
 
+func (x *Content) GetSync() *Sync {
+	if x != nil {
+		if x, ok := x.Body.(*Content_Sync); ok {
+			return x.Sync
+		}
+	}
+	return nil
+}
+
 type isContent_Body interface {
 	isContent_Body()
 }
@@ -363,6 +373,10 @@ type Content_Attachment struct {
 	Attachment *Attachment `protobuf:"bytes,18,opt,name=attachment,proto3,oneof"`
 }
 
+type Content_Sync struct {
+	Sync *Sync `protobuf:"bytes,19,opt,name=sync,proto3,oneof"` // M8: only to our own other devices, never to anyone else
+}
+
 func (*Content_Text) isContent_Body() {}
 
 func (*Content_ProfileKeyUpdate) isContent_Body() {}
@@ -385,6 +399,251 @@ func (*Content_ContactLink) isContent_Body() {}
 
 func (*Content_Attachment) isContent_Body() {}
 
+func (*Content_Sync) isContent_Body() {}
+
+// M8 part 2: keeps our own devices in step. Sent in the conversation it's about, addressed to our
+// own account only; anyone else's devices never receive it.
+type Sync struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*Sync_Read
+	//	*Sync_Contact
+	//	*Sync_Setting
+	Kind          isSync_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Sync) Reset() {
+	*x = Sync{}
+	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Sync) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sync) ProtoMessage() {}
+
+func (x *Sync) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sync.ProtoReflect.Descriptor instead.
+func (*Sync) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Sync) GetKind() isSync_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *Sync) GetRead() *SyncRead {
+	if x != nil {
+		if x, ok := x.Kind.(*Sync_Read); ok {
+			return x.Read
+		}
+	}
+	return nil
+}
+
+func (x *Sync) GetContact() *SyncContact {
+	if x != nil {
+		if x, ok := x.Kind.(*Sync_Contact); ok {
+			return x.Contact
+		}
+	}
+	return nil
+}
+
+func (x *Sync) GetSetting() *SyncSetting {
+	if x != nil {
+		if x, ok := x.Kind.(*Sync_Setting); ok {
+			return x.Setting
+		}
+	}
+	return nil
+}
+
+type isSync_Kind interface {
+	isSync_Kind()
+}
+
+type Sync_Read struct {
+	Read *SyncRead `protobuf:"bytes,1,opt,name=read,proto3,oneof"`
+}
+
+type Sync_Contact struct {
+	Contact *SyncContact `protobuf:"bytes,2,opt,name=contact,proto3,oneof"`
+}
+
+type Sync_Setting struct {
+	Setting *SyncSetting `protobuf:"bytes,3,opt,name=setting,proto3,oneof"`
+}
+
+func (*Sync_Read) isSync_Kind() {}
+
+func (*Sync_Contact) isSync_Kind() {}
+
+func (*Sync_Setting) isSync_Kind() {}
+
+// Read on another device, up to and including this send time.
+type SyncRead struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UpTo          int64                  `protobuf:"varint,1,opt,name=up_to,json=upTo,proto3" json:"up_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncRead) Reset() {
+	*x = SyncRead{}
+	mi := &file_siegel_v1_content_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncRead) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncRead) ProtoMessage() {}
+
+func (x *SyncRead) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncRead.ProtoReflect.Descriptor instead.
+func (*SyncRead) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SyncRead) GetUpTo() int64 {
+	if x != nil {
+		return x.UpTo
+	}
+	return 0
+}
+
+// The other person in this 1:1 chat: 0 request, 1 accepted, 2 blocked.
+type SyncContact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         int32                  `protobuf:"varint,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncContact) Reset() {
+	*x = SyncContact{}
+	mi := &file_siegel_v1_content_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncContact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncContact) ProtoMessage() {}
+
+func (x *SyncContact) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncContact.ProtoReflect.Descriptor instead.
+func (*SyncContact) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SyncContact) GetState() int32 {
+	if x != nil {
+		return x.State
+	}
+	return 0
+}
+
+// A per-chat setting the app keeps under "<name>.<chat ID>" (archive, mute, hidden).
+type SyncSetting struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncSetting) Reset() {
+	*x = SyncSetting{}
+	mi := &file_siegel_v1_content_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncSetting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncSetting) ProtoMessage() {}
+
+func (x *SyncSetting) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncSetting.ProtoReflect.Descriptor instead.
+func (*SyncSetting) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SyncSetting) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SyncSetting) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
 // DISC-08: sent by whoever opened someone's contact link, in the chat it started. The secret
 // came from the link's fragment, which only the link's owner handed out; their app then skips
 // the message request.
@@ -397,7 +656,7 @@ type ContactLinkProof struct {
 
 func (x *ContactLinkProof) Reset() {
 	*x = ContactLinkProof{}
-	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	mi := &file_siegel_v1_content_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +668,7 @@ func (x *ContactLinkProof) String() string {
 func (*ContactLinkProof) ProtoMessage() {}
 
 func (x *ContactLinkProof) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[1]
+	mi := &file_siegel_v1_content_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +681,7 @@ func (x *ContactLinkProof) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContactLinkProof.ProtoReflect.Descriptor instead.
 func (*ContactLinkProof) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{1}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ContactLinkProof) GetSecret() []byte {
@@ -446,7 +705,7 @@ type GroupEvent struct {
 
 func (x *GroupEvent) Reset() {
 	*x = GroupEvent{}
-	mi := &file_siegel_v1_content_proto_msgTypes[2]
+	mi := &file_siegel_v1_content_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -458,7 +717,7 @@ func (x *GroupEvent) String() string {
 func (*GroupEvent) ProtoMessage() {}
 
 func (x *GroupEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[2]
+	mi := &file_siegel_v1_content_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -471,7 +730,7 @@ func (x *GroupEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroupEvent.ProtoReflect.Descriptor instead.
 func (*GroupEvent) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{2}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GroupEvent) GetKind() GroupEvent_Kind {
@@ -512,7 +771,7 @@ type KeyChange struct {
 
 func (x *KeyChange) Reset() {
 	*x = KeyChange{}
-	mi := &file_siegel_v1_content_proto_msgTypes[3]
+	mi := &file_siegel_v1_content_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +783,7 @@ func (x *KeyChange) String() string {
 func (*KeyChange) ProtoMessage() {}
 
 func (x *KeyChange) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[3]
+	mi := &file_siegel_v1_content_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +796,7 @@ func (x *KeyChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeyChange.ProtoReflect.Descriptor instead.
 func (*KeyChange) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{3}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{7}
 }
 
 // MSG-02 profile_key_update: shares the sender's profile key with the group, which lets
@@ -551,7 +810,7 @@ type ProfileKeyUpdate struct {
 
 func (x *ProfileKeyUpdate) Reset() {
 	*x = ProfileKeyUpdate{}
-	mi := &file_siegel_v1_content_proto_msgTypes[4]
+	mi := &file_siegel_v1_content_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +822,7 @@ func (x *ProfileKeyUpdate) String() string {
 func (*ProfileKeyUpdate) ProtoMessage() {}
 
 func (x *ProfileKeyUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[4]
+	mi := &file_siegel_v1_content_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +835,7 @@ func (x *ProfileKeyUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileKeyUpdate.ProtoReflect.Descriptor instead.
 func (*ProfileKeyUpdate) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{4}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProfileKeyUpdate) GetProfileKey() []byte {
@@ -599,7 +858,7 @@ type Profile struct {
 
 func (x *Profile) Reset() {
 	*x = Profile{}
-	mi := &file_siegel_v1_content_proto_msgTypes[5]
+	mi := &file_siegel_v1_content_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +870,7 @@ func (x *Profile) String() string {
 func (*Profile) ProtoMessage() {}
 
 func (x *Profile) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[5]
+	mi := &file_siegel_v1_content_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +883,7 @@ func (x *Profile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Profile.ProtoReflect.Descriptor instead.
 func (*Profile) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{5}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Profile) GetDisplayName() string {
@@ -679,7 +938,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_siegel_v1_content_proto_msgTypes[6]
+	mi := &file_siegel_v1_content_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +950,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[6]
+	mi := &file_siegel_v1_content_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +963,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{6}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Attachment) GetBlobId() []byte {
@@ -816,7 +1075,7 @@ type Text struct {
 
 func (x *Text) Reset() {
 	*x = Text{}
-	mi := &file_siegel_v1_content_proto_msgTypes[7]
+	mi := &file_siegel_v1_content_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -828,7 +1087,7 @@ func (x *Text) String() string {
 func (*Text) ProtoMessage() {}
 
 func (x *Text) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[7]
+	mi := &file_siegel_v1_content_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -841,7 +1100,7 @@ func (x *Text) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Text.ProtoReflect.Descriptor instead.
 func (*Text) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{7}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Text) GetBody() string {
@@ -876,7 +1135,7 @@ type Reaction struct {
 
 func (x *Reaction) Reset() {
 	*x = Reaction{}
-	mi := &file_siegel_v1_content_proto_msgTypes[8]
+	mi := &file_siegel_v1_content_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +1147,7 @@ func (x *Reaction) String() string {
 func (*Reaction) ProtoMessage() {}
 
 func (x *Reaction) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[8]
+	mi := &file_siegel_v1_content_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +1160,7 @@ func (x *Reaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reaction.ProtoReflect.Descriptor instead.
 func (*Reaction) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{8}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Reaction) GetMessageId() []byte {
@@ -929,7 +1188,7 @@ type Edit struct {
 
 func (x *Edit) Reset() {
 	*x = Edit{}
-	mi := &file_siegel_v1_content_proto_msgTypes[9]
+	mi := &file_siegel_v1_content_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1200,7 @@ func (x *Edit) String() string {
 func (*Edit) ProtoMessage() {}
 
 func (x *Edit) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[9]
+	mi := &file_siegel_v1_content_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1213,7 @@ func (x *Edit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Edit.ProtoReflect.Descriptor instead.
 func (*Edit) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{9}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Edit) GetMessageId() []byte {
@@ -981,7 +1240,7 @@ type Delete struct {
 
 func (x *Delete) Reset() {
 	*x = Delete{}
-	mi := &file_siegel_v1_content_proto_msgTypes[10]
+	mi := &file_siegel_v1_content_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -993,7 +1252,7 @@ func (x *Delete) String() string {
 func (*Delete) ProtoMessage() {}
 
 func (x *Delete) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[10]
+	mi := &file_siegel_v1_content_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1006,7 +1265,7 @@ func (x *Delete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Delete.ProtoReflect.Descriptor instead.
 func (*Delete) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{10}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Delete) GetMessageId() []byte {
@@ -1027,7 +1286,7 @@ type Receipt struct {
 
 func (x *Receipt) Reset() {
 	*x = Receipt{}
-	mi := &file_siegel_v1_content_proto_msgTypes[11]
+	mi := &file_siegel_v1_content_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1298,7 @@ func (x *Receipt) String() string {
 func (*Receipt) ProtoMessage() {}
 
 func (x *Receipt) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[11]
+	mi := &file_siegel_v1_content_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +1311,7 @@ func (x *Receipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Receipt.ProtoReflect.Descriptor instead.
 func (*Receipt) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{11}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Receipt) GetKind() Receipt_Kind {
@@ -1078,7 +1337,7 @@ type Typing struct {
 
 func (x *Typing) Reset() {
 	*x = Typing{}
-	mi := &file_siegel_v1_content_proto_msgTypes[12]
+	mi := &file_siegel_v1_content_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1090,7 +1349,7 @@ func (x *Typing) String() string {
 func (*Typing) ProtoMessage() {}
 
 func (x *Typing) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[12]
+	mi := &file_siegel_v1_content_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1103,14 +1362,14 @@ func (x *Typing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Typing.ProtoReflect.Descriptor instead.
 func (*Typing) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{12}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{16}
 }
 
 var File_siegel_v1_content_proto protoreflect.FileDescriptor
 
 const file_siegel_v1_content_proto_rawDesc = "" +
 	"\n" +
-	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\x8d\x05\n" +
+	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\xb4\x05\n" +
 	"\aContent\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x17\n" +
@@ -1129,8 +1388,21 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\fcontact_link\x18\x11 \x01(\v2\x1b.siegel.v1.ContactLinkProofH\x00R\vcontactLink\x127\n" +
 	"\n" +
 	"attachment\x18\x12 \x01(\v2\x15.siegel.v1.AttachmentH\x00R\n" +
-	"attachmentB\x06\n" +
-	"\x04body\"*\n" +
+	"attachment\x12%\n" +
+	"\x04sync\x18\x13 \x01(\v2\x0f.siegel.v1.SyncH\x00R\x04syncB\x06\n" +
+	"\x04body\"\xa1\x01\n" +
+	"\x04Sync\x12)\n" +
+	"\x04read\x18\x01 \x01(\v2\x13.siegel.v1.SyncReadH\x00R\x04read\x122\n" +
+	"\acontact\x18\x02 \x01(\v2\x16.siegel.v1.SyncContactH\x00R\acontact\x122\n" +
+	"\asetting\x18\x03 \x01(\v2\x16.siegel.v1.SyncSettingH\x00R\asettingB\x06\n" +
+	"\x04kind\"\x1f\n" +
+	"\bSyncRead\x12\x13\n" +
+	"\x05up_to\x18\x01 \x01(\x03R\x04upTo\"#\n" +
+	"\vSyncContact\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\x05R\x05state\"7\n" +
+	"\vSyncSetting\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"*\n" +
 	"\x10ContactLinkProof\x12\x16\n" +
 	"\x06secret\x18\x01 \x01(\fR\x06secret\"\xc6\x02\n" +
 	"\n" +
@@ -1217,44 +1489,52 @@ func file_siegel_v1_content_proto_rawDescGZIP() []byte {
 }
 
 var file_siegel_v1_content_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_siegel_v1_content_proto_goTypes = []any{
 	(GroupEvent_Kind)(0),     // 0: siegel.v1.GroupEvent.Kind
 	(Receipt_Kind)(0),        // 1: siegel.v1.Receipt.Kind
 	(*Content)(nil),          // 2: siegel.v1.Content
-	(*ContactLinkProof)(nil), // 3: siegel.v1.ContactLinkProof
-	(*GroupEvent)(nil),       // 4: siegel.v1.GroupEvent
-	(*KeyChange)(nil),        // 5: siegel.v1.KeyChange
-	(*ProfileKeyUpdate)(nil), // 6: siegel.v1.ProfileKeyUpdate
-	(*Profile)(nil),          // 7: siegel.v1.Profile
-	(*Attachment)(nil),       // 8: siegel.v1.Attachment
-	(*Text)(nil),             // 9: siegel.v1.Text
-	(*Reaction)(nil),         // 10: siegel.v1.Reaction
-	(*Edit)(nil),             // 11: siegel.v1.Edit
-	(*Delete)(nil),           // 12: siegel.v1.Delete
-	(*Receipt)(nil),          // 13: siegel.v1.Receipt
-	(*Typing)(nil),           // 14: siegel.v1.Typing
+	(*Sync)(nil),             // 3: siegel.v1.Sync
+	(*SyncRead)(nil),         // 4: siegel.v1.SyncRead
+	(*SyncContact)(nil),      // 5: siegel.v1.SyncContact
+	(*SyncSetting)(nil),      // 6: siegel.v1.SyncSetting
+	(*ContactLinkProof)(nil), // 7: siegel.v1.ContactLinkProof
+	(*GroupEvent)(nil),       // 8: siegel.v1.GroupEvent
+	(*KeyChange)(nil),        // 9: siegel.v1.KeyChange
+	(*ProfileKeyUpdate)(nil), // 10: siegel.v1.ProfileKeyUpdate
+	(*Profile)(nil),          // 11: siegel.v1.Profile
+	(*Attachment)(nil),       // 12: siegel.v1.Attachment
+	(*Text)(nil),             // 13: siegel.v1.Text
+	(*Reaction)(nil),         // 14: siegel.v1.Reaction
+	(*Edit)(nil),             // 15: siegel.v1.Edit
+	(*Delete)(nil),           // 16: siegel.v1.Delete
+	(*Receipt)(nil),          // 17: siegel.v1.Receipt
+	(*Typing)(nil),           // 18: siegel.v1.Typing
 }
 var file_siegel_v1_content_proto_depIdxs = []int32{
-	9,  // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
-	6,  // 1: siegel.v1.Content.profile_key_update:type_name -> siegel.v1.ProfileKeyUpdate
-	10, // 2: siegel.v1.Content.reaction:type_name -> siegel.v1.Reaction
-	11, // 3: siegel.v1.Content.edit:type_name -> siegel.v1.Edit
-	12, // 4: siegel.v1.Content.delete:type_name -> siegel.v1.Delete
-	13, // 5: siegel.v1.Content.receipt:type_name -> siegel.v1.Receipt
-	14, // 6: siegel.v1.Content.typing:type_name -> siegel.v1.Typing
-	5,  // 7: siegel.v1.Content.key_change:type_name -> siegel.v1.KeyChange
-	4,  // 8: siegel.v1.Content.group_event:type_name -> siegel.v1.GroupEvent
-	3,  // 9: siegel.v1.Content.contact_link:type_name -> siegel.v1.ContactLinkProof
-	8,  // 10: siegel.v1.Content.attachment:type_name -> siegel.v1.Attachment
-	0,  // 11: siegel.v1.GroupEvent.kind:type_name -> siegel.v1.GroupEvent.Kind
-	8,  // 12: siegel.v1.Profile.avatar:type_name -> siegel.v1.Attachment
-	1,  // 13: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	13, // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
+	10, // 1: siegel.v1.Content.profile_key_update:type_name -> siegel.v1.ProfileKeyUpdate
+	14, // 2: siegel.v1.Content.reaction:type_name -> siegel.v1.Reaction
+	15, // 3: siegel.v1.Content.edit:type_name -> siegel.v1.Edit
+	16, // 4: siegel.v1.Content.delete:type_name -> siegel.v1.Delete
+	17, // 5: siegel.v1.Content.receipt:type_name -> siegel.v1.Receipt
+	18, // 6: siegel.v1.Content.typing:type_name -> siegel.v1.Typing
+	9,  // 7: siegel.v1.Content.key_change:type_name -> siegel.v1.KeyChange
+	8,  // 8: siegel.v1.Content.group_event:type_name -> siegel.v1.GroupEvent
+	7,  // 9: siegel.v1.Content.contact_link:type_name -> siegel.v1.ContactLinkProof
+	12, // 10: siegel.v1.Content.attachment:type_name -> siegel.v1.Attachment
+	3,  // 11: siegel.v1.Content.sync:type_name -> siegel.v1.Sync
+	4,  // 12: siegel.v1.Sync.read:type_name -> siegel.v1.SyncRead
+	5,  // 13: siegel.v1.Sync.contact:type_name -> siegel.v1.SyncContact
+	6,  // 14: siegel.v1.Sync.setting:type_name -> siegel.v1.SyncSetting
+	0,  // 15: siegel.v1.GroupEvent.kind:type_name -> siegel.v1.GroupEvent.Kind
+	12, // 16: siegel.v1.Profile.avatar:type_name -> siegel.v1.Attachment
+	1,  // 17: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_content_proto_init() }
@@ -1274,6 +1554,12 @@ func file_siegel_v1_content_proto_init() {
 		(*Content_GroupEvent)(nil),
 		(*Content_ContactLink)(nil),
 		(*Content_Attachment)(nil),
+		(*Content_Sync)(nil),
+	}
+	file_siegel_v1_content_proto_msgTypes[1].OneofWrappers = []any{
+		(*Sync_Read)(nil),
+		(*Sync_Contact)(nil),
+		(*Sync_Setting)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1281,7 +1567,7 @@ func file_siegel_v1_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_content_proto_rawDesc), len(file_siegel_v1_content_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

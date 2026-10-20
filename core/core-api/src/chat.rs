@@ -120,6 +120,8 @@ enum Handled {
     /// The peer's new device joined us in a new MLS group (ID-09): share our profile key again.
     Rejoined(Vec<u8>),
     ProfileKey(Vec<u8>),
+    /// M8: blocked on a linked device; the phone rotates our profile key too (MSG-16).
+    SyncBlock(Vec<u8>, Vec<u8>),
     /// A new text: shown, and acknowledged with a delivery receipt (MSG-13).
     Text(Box<ChatMessage>),
     /// We are in a new group (GRP-09); an invite (GRP-11) gets nothing back until accepted.
@@ -694,18 +696,39 @@ impl SiegelCore {
                 // M8: from another of our own devices. What we sent shows as ours; their typing,
                 // profile-key shares and receipts aren't for us (receipt sync: part 2).
                 let mine = from.as_slice() == me.as_slice();
-                if mine
-                    && matches!(
-                        c.body,
-                        Some(
-                            pb::content::Body::ProfileKeyUpdate(_)
-                                | pb::content::Body::Typing(_)
-                                | pb::content::Body::Receipt(_)
-                                | pb::content::Body::ContactLink(_)
-                        )
-                    )
-                {
-                    return Ok(None);
+                match &c.body {
+                    // M8: the phone's new profile key (after a block) reaches us like a contact's.
+                    Some(pb::content::Body::ProfileKeyUpdate(u))
+                        if mine && u.profile_key.len() == 32 =>
+                    {
+                        storage(s.put(crate::contacts::PROFILE_KEY, &u.profile_key))?;
+                        return Ok(None);
+                    }
+                    Some(pb::content::Body::Sync(_)) if !mine => return Ok(None), // never for anyone else
+                    Some(pb::content::Body::Sync(x)) => {
+                        let linked = storage(s.get("linked"))?.as_deref() == Some(b"1");
+                        return Ok(Some(
+                            match crate::sync::apply(
+                                s,
+                                &group_id,
+                                &conv.peer_account,
+                                linked,
+                                x.clone(),
+                            )? {
+                                crate::sync::Applied::Block(a) => Handled::SyncBlock(group_id, a),
+                                crate::sync::Applied::Done => {
+                                    Handled::Event(Event::Updated { group_id })
+                                }
+                            },
+                        ));
+                    }
+                    Some(
+                        pb::content::Body::Typing(_)
+                        | pb::content::Body::Receipt(_)
+                        | pb::content::Body::ContactLink(_)
+                        | pb::content::Body::ProfileKeyUpdate(_),
+                    ) if mine => return Ok(None),
+                    _ => {}
                 }
                 match c.body {
                     Some(pb::content::Body::ProfileKeyUpdate(u)) if u.profile_key.len() == 32 => {
@@ -849,6 +872,9 @@ impl SiegelCore {
         }
         let _ = self.ensure_key_packages().await;
         let _ = self.ensure_own_devices().await; // M8: our linked devices in every conversation
+        if self.is_linked_device() {
+            let _ = self.refresh_own_profile().await; // M8: name changes made on the phone
+        }
         let _ = self.publish_profile().await;
         let _ = self.self_updates().await;
         for c in self.conversations()? {
@@ -952,6 +978,10 @@ impl SiegelCore {
                             if !self.is_request(&group_id).unwrap_or(true) {
                                 let _ = self.share_profile_key_with(&group_id, &accounts).await;
                             }
+                            on_event(Event::Updated { group_id });
+                        }
+                        Ok(Some(Handled::SyncBlock(group_id, account))) => {
+                            let _ = self.rotate_after_block(&account).await;
                             on_event(Event::Updated { group_id });
                         }
                         Ok(Some(Handled::ProfileKey(account))) => {

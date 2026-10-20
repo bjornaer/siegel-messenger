@@ -297,6 +297,13 @@ abstract class Core implements RustOpaqueInterface {
 
   String? setting({required String key});
 
+  /// M8: tells our other devices about a per-chat setting (archive, mute, hidden).
+  Future<void> shareChatSetting({
+    required List<int> groupId,
+    required String name,
+    required String value,
+  });
+
   Future<Uint8List> startChat({required String username});
 
   /// Starts (or reopens) a 1:1 chat with @username; returns its ID.

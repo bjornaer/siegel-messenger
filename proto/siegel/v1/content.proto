@@ -22,7 +22,34 @@ message Content {
     GroupEvent group_event = 16;
     ContactLinkProof contact_link = 17;
     Attachment attachment = 18;
+    Sync sync = 19; // M8: only to our own other devices, never to anyone else
   }
+}
+
+// M8 part 2: keeps our own devices in step. Sent in the conversation it's about, addressed to our
+// own account only; anyone else's devices never receive it.
+message Sync {
+  oneof kind {
+    SyncRead read = 1;
+    SyncContact contact = 2;
+    SyncSetting setting = 3;
+  }
+}
+
+// Read on another device, up to and including this send time.
+message SyncRead {
+  int64 up_to = 1;
+}
+
+// The other person in this 1:1 chat: 0 request, 1 accepted, 2 blocked.
+message SyncContact {
+  int32 state = 1;
+}
+
+// A per-chat setting the app keeps under "<name>.<chat ID>" (archive, mute, hidden).
+message SyncSetting {
+  string name = 1;
+  string value = 2;
 }
 
 // DISC-08: sent by whoever opened someone's contact link, in the chat it started. The secret

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -26,8 +27,14 @@ bool isMuted(Core core, List<int> groupId) {
 /// Archived chats leave the list and stay silent, even when new messages arrive.
 String archiveKey(List<int> groupId) => 'archive.${base64Encode(groupId)}';
 bool isArchived(Core core, List<int> groupId) => core.setting(key: archiveKey(groupId)) == '1';
-void setArchived(Core core, List<int> groupId, bool on) =>
-    core.setSetting(key: archiveKey(groupId), value: on ? '1' : '');
+void setArchived(Core core, List<int> groupId, bool on) {
+  core.setSetting(key: archiveKey(groupId), value: on ? '1' : '');
+  shareChatSetting(core, groupId, 'archive', on ? '1' : '');
+}
+
+/// M8: our other devices follow per-chat settings (archive, mute, hidden). Best effort.
+void shareChatSetting(Core core, List<int> groupId, String name, String value) =>
+    unawaited(core.shareChatSetting(groupId: groupId, name: name, value: value).catchError((Object _) {}));
 
 /// A deleted 1:1 chat stays hidden until its next message.
 String hiddenKey(List<int> groupId) => 'hidden.${base64Encode(groupId)}';
@@ -47,7 +54,10 @@ class MuteTile extends StatefulWidget {
 }
 
 class _MuteTileState extends State<MuteTile> {
-  void _set(String value) => setState(() => widget.core.setSetting(key: muteKey(widget.groupId), value: value));
+  void _set(String value) {
+    setState(() => widget.core.setSetting(key: muteKey(widget.groupId), value: value));
+    shareChatSetting(widget.core, widget.groupId, 'mute', value);
+  }
 
   String _until(int ms) =>
       DateFormat.yMMMd(Localizations.localeOf(context).toString())
