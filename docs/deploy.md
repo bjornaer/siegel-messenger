@@ -129,6 +129,12 @@ To turn it on, once:
 
 Until both are done the API serves no site, and the browser can't call it (no CORS).
 
+3. Notifications for closed tabs (Web Push), optional: on the server, run
+   `docker compose exec server /server admin vapid-keygen` and put the line it prints
+   (`SIEGEL_VAPID_KEY=…`) in `/opt/siegel/.env`, then `docker compose up -d server`. Keep it:
+   a new key silently ends every browser's subscription. The pushes carry nothing, and go only
+   to the browsers' own push services (Google, Mozilla, Apple, Microsoft).
+
 **Checking the served code.** Each release's `.well-known/siegel-web-manifest.txt` lists every
 file's SHA-256, and GitHub attests the manifest (Sigstore: which commit, which workflow).
 `scripts/verify-web.sh` checks the attestation and every served file; `/transparency` shows the

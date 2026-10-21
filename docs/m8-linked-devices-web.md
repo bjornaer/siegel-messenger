@@ -1,6 +1,6 @@
 # M8: Linked devices and Siegel Web, plan
 
-Status: parts 1–5 built (2026-10-21). AAB and web release at the end.
+Status: all six parts built (2026-10-21). AAB and web release at the end.
 
 ## Decided
 
@@ -134,6 +134,24 @@ Output: a report on what works, the bundle size, and any blocker, before Part 4 
 - Web Push (VAPID) for new messages while the tab is closed. Content-free, like the phone's pushes.
 - Desktop layout: the chat list beside the open chat.
 - Privacy policy and terms updates for linked devices.
+
+**Built (part 6):**
+- Web Push:
+  - a push-only service worker (`web/siegel_push_sw.js`: no cache, no fetch handler) shows a
+    content-free "New message" when the tab is closed;
+  - an open but hidden tab shows the message itself, like the phone;
+  - the server signs with VAPID (`SIEGEL_VAPID_KEY`) and only calls the browsers' push services.
+- Wide windows (840 px and up): the chat list beside the open chat, in its own navigator.
+- In the browser:
+  - videos go as they are (no compression);
+  - voice notes record as AAC, or Opus/WebM where the browser can't record AAC;
+  - videos play from a blob: URL.
+- CSP:
+  - `media-src 'self' blob: data:`;
+  - `worker-src 'self'` (no blob: any more);
+  - the site may use the microphone.
+- Privacy policy and terms cover linked devices, the browser's PIN-wrapped key, push services and
+  the served-code risk.
 
 ## Risks
 
