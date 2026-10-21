@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Uint8List;
 import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
+import 'links.dart' show SharpQr;
 import 'l10n/app_localizations.dart';
 import 'src/rust/api/core.dart';
 import 'themes.dart';
@@ -43,10 +43,7 @@ class _SafetyNumberScreenState extends State<SafetyNumberScreen> {
               padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + MediaQuery.paddingOf(context).bottom),
               children: [
                 Center(
-                  child: ColoredBox(
-                    color: Colors.white, // scanners need dark-on-light, also in dark mode
-                    child: QrImageView(data: number, size: 220, semanticsLabel: t.safetyNumber),
-                  ),
+                  child: SharpQr(data: number, size: 220, label: t.safetyNumber),
                 ),
                 const SizedBox(height: 24),
                 // 12 groups of 5 digits, the way people read them out to each other.
@@ -83,10 +80,16 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: SiegelBar(title: Text(AppLocalizations.of(context)!.scanCode)),
+    // Tuned for codes on screens (a laptop showing Siegel Web): 1080p and most of the frame, so
+    // the code needn't sit in the square; extra effort and light-on-dark codes too.
     body: ReaderWidget(
       codeFormat: Format.qrCode,
       showGallery: false,
       showToggleCamera: false,
+      resolution: ResolutionPreset.veryHigh,
+      cropPercent: 0.8,
+      tryHarder: true,
+      tryInverted: true,
       onScan: (code) {
         if (_done || !code.isValid || code.text == null) return;
         _done = true;

@@ -7,6 +7,31 @@ import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser
 import 'l10n/app_localizations.dart';
 import 'src/rust/api/core.dart';
 
+/// A QR code on a white quiet zone, its squares on whole screen pixels: blurred seams between
+/// them are what a camera trips on, most of all reading a laptop screen.
+class SharpQr extends StatelessWidget {
+  const SharpQr({super.key, required this.data, required this.size, required this.label});
+  final String data;
+  final double size;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    const quiet = 16.0; // 4 modules or more of white around it, as scanners expect
+    final n = QrValidator.validate(data: data).qrCode?.moduleCount ?? 0;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final inner = size - 2 * quiet;
+    final drawn = n == 0 ? inner : (inner * dpr / n).floorToDouble() / dpr * n;
+    return ColoredBox(
+      color: Colors.white, // dark on light, also in dark mode
+      child: Padding(
+        padding: EdgeInsets.all(quiet + (inner - drawn) / 2),
+        child: QrImageView(data: data, size: drawn, padding: EdgeInsets.zero, semanticsLabel: label),
+      ),
+    );
+  }
+}
+
 /// Talks to the Android side: the link the app was opened with, and the share sheet.
 const appChannel = MethodChannel('siegel/app');
 
@@ -42,10 +67,7 @@ void showLinkDialog(BuildContext context, String title, String link, String help
           // A fixed size: dialogs measure their content, which the QR widget can't report.
           SizedBox.square(
             dimension: 220,
-            child: ColoredBox(
-              color: Colors.white, // scanners need dark on light, also in dark mode
-              child: QrImageView(data: link, size: 220, semanticsLabel: title),
-            ),
+            child: SharpQr(data: link, size: 220, label: title),
           ),
           const SizedBox(height: 12),
           Text(help),

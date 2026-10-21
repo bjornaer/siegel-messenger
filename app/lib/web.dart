@@ -5,11 +5,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'l10n/app_localizations.dart';
-import 'links.dart' show serverUrl;
+import 'links.dart' show SharpQr, serverUrl;
 import 'main.dart' show SiegelApp;
 import 'onboarding.dart' show showError;
 import 'src/rust/api/core.dart';
@@ -308,13 +307,11 @@ class _LinkScreenState extends State<LinkScreen> {
                 if (qr == null)
                   const CircularProgressIndicator()
                 else
-                  // Dark on white whatever the theme: scanners need the contrast.
-                  ColoredBox(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: QrImageView(data: qr, size: 260, semanticsLabel: t.webLinkTitle),
-                    ),
+                  // As big as fits: a phone reads a laptop screen from a distance.
+                  SharpQr(
+                    data: qr,
+                    size: (MediaQuery.sizeOf(context).width - 48).clamp(240.0, 380.0),
+                    label: t.webLinkTitle,
                   ),
                 const SizedBox(height: 16),
                 Text(t.webLinkWaiting),
