@@ -42,7 +42,7 @@ func (s *server) webCSP() string {
 		"connect-src 'self' " + api + " " + ws,
 		"worker-src 'self' blob:", // flutter_rust_bridge's worker pool
 		"manifest-src 'self'",
-		"base-uri 'none'",
+		"base-uri 'self'", // Flutter's <base href="/">
 		"form-action 'none'",
 		"frame-ancestors 'none'",
 	}, "; ")

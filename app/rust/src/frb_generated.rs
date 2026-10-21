@@ -29,7 +29,7 @@
 
 use crate::api::core::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -5121,16 +5121,15 @@ fn wire__crate__api__core__forget_storage_impl(
     )
 }
 fn wire__crate__api__core__init_app_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "init_app",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -5143,14 +5142,12 @@ fn wire__crate__api__core__init_app_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let output_ok = Ok::<_, ()>({
-                        crate::api::core::init_app();
-                    })?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>({
+                    crate::api::core::init_app();
+                })?;
+                std::result::Result::Ok(output_ok)
+            })())
         },
     )
 }
@@ -6133,7 +6130,6 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__core__Core_unlink_this_device_impl(port, ptr, rust_vec_len, data_len)
         }
         90 => wire__crate__api__core__Core_verify_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__core__init_app_impl(port, ptr, rust_vec_len, data_len),
         95 => wire__crate__api__core__prepare_storage_impl(port, ptr, rust_vec_len, data_len),
         96 => wire__crate__api__core__unwrap_db_key_impl(port, ptr, rust_vec_len, data_len),
         97 => wire__crate__api__core__wrap_db_key_impl(port, ptr, rust_vec_len, data_len),
@@ -6189,6 +6185,7 @@ fn pde_ffi_dispatcher_sync_impl(
         91 => wire__crate__api__core__Core_verify_safety_number_impl(ptr, rust_vec_len, data_len),
         92 => wire__crate__api__core__Core_versions_impl(ptr, rust_vec_len, data_len),
         93 => wire__crate__api__core__forget_storage_impl(ptr, rust_vec_len, data_len),
+        94 => wire__crate__api__core__init_app_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -7378,7 +7375,7 @@ mod io {
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
@@ -7417,7 +7414,7 @@ mod web {
     };
     use flutter_rust_bridge::for_generated::wasm_bindgen;
     use flutter_rust_bridge::for_generated::wasm_bindgen::prelude::*;
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate

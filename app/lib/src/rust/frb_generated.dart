@@ -58,7 +58,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   @override
   Future<void> executeRustInitializers() async {
-    await api.crateApiCoreInitApp();
+    api.crateApiCoreInitApp();
   }
 
   @override
@@ -513,7 +513,7 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiCoreForgetStorage({required String dbPath});
 
-  Future<void> crateApiCoreInitApp();
+  void crateApiCoreInitApp();
 
   Future<void> crateApiCorePrepareStorage();
 
@@ -3807,17 +3807,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "forget_storage", argNames: ["dbPath"]);
 
   @override
-  Future<void> crateApiCoreInitApp() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
+  void crateApiCoreInitApp() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 94,
-            port: port_,
-          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 94)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,

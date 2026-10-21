@@ -1163,7 +1163,9 @@ pub async fn unwrap_db_key(pin: String, wrapped: Vec<u8>) -> Option<Vec<u8>> {
     core_api::unwrap_db_key(&pin, &wrapped)
 }
 
-#[frb(init)]
+// Sync: on the web the thread pool would start workers by finding its script with eval, which
+// the page's CSP forbids (M8 part 5). Nothing here uses that pool.
+#[frb(init, sync)]
 pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
     // The default logger sends every crate's trace output (MLS internals included) to the
