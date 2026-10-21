@@ -165,7 +165,17 @@ class _PinScreenState extends State<PinScreen> {
       _busy = true;
       _error = null;
     });
-    final ok = await widget.onPin(_pin.text); // about a second: argon2id
+    bool ok;
+    try {
+      ok = await widget.onPin(_pin.text); // about a second: argon2id
+    } on CoreError catch (e) {
+      debugPrint('web start: ${e.code}');
+      if (mounted) {
+        setState(() => _busy = false);
+        showError(context, e);
+      }
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;

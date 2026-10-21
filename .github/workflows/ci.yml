@@ -87,6 +87,15 @@ jobs:
             core/target
           key: core-web-${{ hashFiles('core/Cargo.lock') }}
       - run: cargo clippy -p core-api --target wasm32-unknown-unknown -- -D warnings
+      # The encrypted database in a real browser (headless Chrome): IndexedDB under SQLite3 Multiple Ciphers.
+      - name: core-store in Chrome
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+          CHROMEDRIVER: ${{ env.CHROMEWEBDRIVER }}/chromedriver
+        run: |
+          v=$(cargo metadata --format-version 1 --filter-platform wasm32-unknown-unknown | jq -r '.packages[] | select(.name=="wasm-bindgen") | .version')
+          cargo install -q wasm-bindgen-cli --version "$v" --locked
+          cargo test -p core-store --target wasm32-unknown-unknown
 
   app:
     runs-on: ubuntu-latest

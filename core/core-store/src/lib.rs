@@ -601,12 +601,20 @@ pub mod web {
         static UTIL: RefCell<Option<RelaxedIdbUtil>> = const { RefCell::new(None) };
     }
 
-    /// Makes IndexedDB the default place SQLite keeps files. Call once before opening.
+    /// Makes IndexedDB, under SQLite3 Multiple Ciphers' encryption, the default place SQLite
+    /// keeps files. Call once before opening.
     pub async fn install() -> Result<(), String> {
         let cfg = RelaxedIdbCfgBuilder::new().vfs_name("siegel").build();
-        let util = relaxed_idb::install::<sqlite_wasm_rs::WasmOsCallback>(&cfg, true)
+        let util = relaxed_idb::install::<sqlite_wasm_rs::WasmOsCallback>(&cfg, false)
             .await
             .map_err(|e| e.to_string())?;
+        // The cipher layer wraps the VFS that was default when it started (memory); this puts
+        // it over IndexedDB instead, or `PRAGMA key` would be refused.
+        // SAFETY: a NUL-terminated name of a registered VFS; SQLite copies what it keeps.
+        let rc = unsafe { sqlite_wasm_rs::sqlite3mc_vfs_create(c"siegel".as_ptr(), 1) };
+        if rc != sqlite_wasm_rs::SQLITE_OK {
+            return Err(format!("sqlite3mc_vfs_create: {rc}"));
+        }
         UTIL.with(|u| *u.borrow_mut() = Some(util));
         Ok(())
     }
@@ -622,7 +630,34 @@ pub mod web {
     }
 }
 
-#[cfg(test)]
+/// The browser build, in a real browser (CI: wasm-bindgen-test with headless Chrome).
+#[cfg(all(test, target_family = "wasm"))]
+mod web_tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn encrypted_in_indexeddb() {
+        web::install().await.unwrap();
+        let path = Path::new("web-test.db");
+        let s = SqlCipher::open(path, &[1; 32]).unwrap();
+        s.put("token", b"canary").unwrap();
+        drop(s);
+        assert!(
+            SqlCipher::open(path, &[2; 32]).is_err(),
+            "a wrong key can't read it"
+        );
+        let s = SqlCipher::open(path, &[1; 32]).unwrap();
+        assert_eq!(s.get("token").unwrap().as_deref(), Some(&b"canary"[..]));
+        let cipher: String = s.conn.query_row("PRAGMA cipher", [], |r| r.get(0)).unwrap();
+        assert_eq!(cipher, "sqlcipher");
+        Box::new(s).wipe().unwrap();
+    }
+}
+
+#[cfg(all(test, not(target_family = "wasm")))]
 mod tests {
     use super::*;
 
