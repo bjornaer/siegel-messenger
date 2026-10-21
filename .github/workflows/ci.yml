@@ -91,8 +91,8 @@ jobs:
       - name: core-store in Chrome
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
-          CHROMEDRIVER: ${{ env.CHROMEWEBDRIVER }}/chromedriver
         run: |
+          export CHROMEDRIVER="$CHROMEWEBDRIVER/chromedriver" # the runner's own
           v=$(cargo metadata --format-version 1 --filter-platform wasm32-unknown-unknown | jq -r '.packages[] | select(.name=="wasm-bindgen") | .version')
           cargo install -q wasm-bindgen-cli --version "$v" --locked
           cargo test -p core-store --target wasm32-unknown-unknown
