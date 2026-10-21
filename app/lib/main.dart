@@ -210,7 +210,7 @@ class _SiegelAppState extends State<SiegelApp> {
                 _ => BirthDateGate(
                   core: core,
                   onDelete: (ctx) => confirmDeleteAccount(ctx, core, _reset),
-                  child: ChatListScreen(
+                  child: ChatsHome(
                     core: core,
                     service: _service(),
                     settings: (_) => SettingsScreen(core: core, onDeleted: _reset),
@@ -322,6 +322,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ChatBackgroundTile(core: core),
           if (!kIsWeb) AppLockSettings(core: core), // the browser has its PIN (W3)
+          if (kIsWeb) WebPushTile(core: core),
           AutoDownloadTile(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),

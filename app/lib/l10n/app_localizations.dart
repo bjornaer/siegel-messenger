@@ -2567,6 +2567,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Most used'**
   String get mostUsedStickers;
+
+  /// No description provided for @webNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications in this browser'**
+  String get webNotifications;
+
+  /// No description provided for @webNotificationsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'When the tab is closed, a notice says a message is waiting. It can\'t say who or what: our server doesn\'t know.'**
+  String get webNotificationsHelp;
+
+  /// No description provided for @webNotificationsBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'The browser didn\'t allow notifications for Siegel. Allow them in the site\'s settings, then try again.'**
+  String get webNotificationsBlocked;
+
+  /// No description provided for @noChatOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a chat on the left.'**
+  String get noChatOpen;
 }
 
 class _AppLocalizationsDelegate

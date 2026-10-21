@@ -808,5 +808,9 @@
   "unlinkThisBrowserBody": "Siegel forgets your chats in this browser. Your phone and your account stay as they are.",
   "webPinLabel": "PIN (4 to 6 digits)",
   "errVideoCompress": "This video couldn't be made smaller, and it's over 100 MB. Trim it first, or send a shorter one.",
-  "mostUsedStickers": "Most used"
+  "mostUsedStickers": "Most used",
+  "webNotifications": "Notifications in this browser",
+  "webNotificationsHelp": "When the tab is closed, a notice says a message is waiting. It can't say who or what: our server doesn't know.",
+  "webNotificationsBlocked": "The browser didn't allow notifications for Siegel. Allow them in the site's settings, then try again.",
+  "noChatOpen": "Choose a chat on the left."
 }

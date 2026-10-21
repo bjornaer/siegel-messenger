@@ -410,5 +410,9 @@
   "unlinkThisBrowserBody": "O Siegel esquece suas conversas neste navegador. Seu celular e sua conta continuam como estão.",
   "webPinLabel": "PIN (de 4 a 6 dígitos)",
   "errVideoCompress": "Não deu para diminuir este vídeo, e ele tem mais de 100 MB. Corte-o antes ou envie um mais curto.",
-  "mostUsedStickers": "Mais usados"
+  "mostUsedStickers": "Mais usados",
+  "webNotifications": "Notificações neste navegador",
+  "webNotificationsHelp": "Com a aba fechada, um aviso diz que há uma mensagem esperando. Ele não diz de quem nem o quê: nosso servidor não sabe.",
+  "webNotificationsBlocked": "O navegador não permitiu notificações do Siegel. Permita nas configurações do site e tente de novo.",
+  "noChatOpen": "Escolha uma conversa à esquerda."
 }

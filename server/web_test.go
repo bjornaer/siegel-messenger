@@ -40,7 +40,7 @@ func TestWebSite(t *testing.T) { // M8 part 5
 		want(t, page.Header().Get(k), v)
 	}
 	csp := page.Header().Get("Content-Security-Policy")
-	for _, part := range []string{"script-src 'self' 'wasm-unsafe-eval'", "connect-src 'self' https://siegel.schlk.in wss://siegel.schlk.in", "frame-ancestors 'none'"} {
+	for _, part := range []string{"script-src 'self' 'wasm-unsafe-eval'", "connect-src 'self' https://siegel.schlk.in wss://siegel.schlk.in", "frame-ancestors 'none'", "worker-src 'self';", "media-src 'self' blob: data:"} {
 		if !strings.Contains(csp, part) {
 			t.Fatal("CSP lacks", part, csp)
 		}

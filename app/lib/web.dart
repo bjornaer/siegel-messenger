@@ -327,3 +327,58 @@ class _LinkScreenState extends State<LinkScreen> {
     );
   }
 }
+
+/// Settings, in the browser: a content-free notice when a message waits and the tab is closed
+/// (M8 part 6). Off until the person turns it on, which is when the browser asks permission.
+class WebPushTile extends StatefulWidget {
+  const WebPushTile({super.key, required this.core});
+  final Core core;
+
+  @override
+  State<WebPushTile> createState() => _WebPushTileState();
+}
+
+class _WebPushTileState extends State<WebPushTile> {
+  bool? _on;
+
+  @override
+  void initState() {
+    super.initState();
+    browser.pushEnabled().then((on) => mounted ? setState(() => _on = on) : null);
+  }
+
+  Future<void> _set(bool on) async {
+    final t = AppLocalizations.of(context)!;
+    setState(() => _on = null);
+    try {
+      if (on) {
+        final sub = await browser.pushSubscribe(serverUrl);
+        if (sub == null) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.webNotificationsBlocked)));
+        } else {
+          await widget.core.setPushToken(pushToken: sub);
+        }
+      } else {
+        await browser.pushUnsubscribe();
+        await widget.core.setPushToken(pushToken: '');
+      }
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    }
+    final now = await browser.pushEnabled();
+    if (mounted) setState(() => _on = now);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    if (!browser.pushSupported) return const SizedBox.shrink();
+    return SwitchListTile(
+      secondary: const Icon(Icons.notifications_outlined),
+      title: Text(t.webNotifications),
+      subtitle: Text(t.webNotificationsHelp),
+      value: _on ?? false,
+      onChanged: _on == null ? null : _set,
+    );
+  }
+}

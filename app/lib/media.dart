@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -16,6 +16,7 @@ import 'package:record/record.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
 
+import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'links.dart' show isAndroid;
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
@@ -74,15 +75,25 @@ class VoiceRecorder {
     }
   }
 
+  /// What the recording is: AAC in M4A, or in a browser without AAC recording, Opus in WebM.
+  String mime = 'audio/mp4';
+
   /// False when the microphone permission was refused.
   Future<bool> start() async {
     if (!await _rec.hasPermission()) return false;
     unawaited(_keepOn(true));
-    final dir = await getTemporaryDirectory();
-    await _rec.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
-      path: '${dir.path}/voice-${DateTime.now().microsecondsSinceEpoch}.m4a',
-    );
+    if (kIsWeb) {
+      // The browser keeps it in memory; stop() hands back a blob: URL (M8 part 6).
+      final aac = await _rec.isEncoderSupported(AudioEncoder.aacLc);
+      mime = aac ? 'audio/mp4' : 'audio/webm';
+      await _rec.start(RecordConfig(encoder: aac ? AudioEncoder.aacLc : AudioEncoder.opus), path: '');
+    } else {
+      final dir = await getTemporaryDirectory();
+      await _rec.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: '${dir.path}/voice-${DateTime.now().microsecondsSinceEpoch}.m4a',
+      );
+    }
     _sub = _rec.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((a) => _levels.add(a.current));
     _watch
       ..reset()
@@ -97,6 +108,16 @@ class VoiceRecorder {
     await _sub?.cancel();
     final path = await _rec.stop();
     if (path == null) return null;
+    if (kIsWeb) {
+      try {
+        return keep
+            ? (data: await browser.fetchBytes(path), ms: _watch.elapsedMilliseconds, waveform: waveform(_levels))
+            : null;
+      } finally {
+        _levels.clear();
+        browser.revokeUrl(path);
+      }
+    }
     final f = File(path);
     try {
       return keep ? (data: await f.readAsBytes(), ms: _watch.elapsedMilliseconds, waveform: waveform(_levels)) : null;
@@ -358,6 +379,11 @@ Future<Outgoing?> pickPhoto() async {
 Future<Outgoing?> pickVideo(Future<bool?> Function(bool mustCompress) askCompress) async {
   final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
   if (f == null) return null;
+  if (kIsWeb) {
+    // A browser can't compress it: it goes as it is, when it fits (M8 part 6).
+    if (await f.length() > maxAttachment) throw TooLarge();
+    return outgoing(await f.readAsBytes(), mimeFor(f.name).startsWith('video/') ? mimeFor(f.name) : 'video/mp4');
+  }
   final compress = await askCompress(await f.length() > maxAttachment);
   if (compress == null) return null;
   // Length and size from the original: the compressed copy may lack them. The plugin fails on
@@ -778,17 +804,24 @@ class _VideoScreen extends StatefulWidget {
 
 class _VideoScreenState extends State<_VideoScreen> {
   File? _file;
+  String? _url; // the browser's blob: URL
   VideoPlayerController? _player;
 
   @override
   void initState() {
     super.initState();
     () async {
-      final dir = await getTemporaryDirectory();
-      final f = File('${dir.path}/play-${DateTime.now().microsecondsSinceEpoch}');
-      await f.writeAsBytes(widget.data, flush: true);
-      _file = f;
-      final p = VideoPlayerController.file(f);
+      final VideoPlayerController p;
+      if (kIsWeb) {
+        _url = browser.objectUrl(widget.data, widget.message.attachment!.mimeType);
+        p = VideoPlayerController.networkUrl(Uri.parse(_url!));
+      } else {
+        final dir = await getTemporaryDirectory();
+        final f = File('${dir.path}/play-${DateTime.now().microsecondsSinceEpoch}');
+        await f.writeAsBytes(widget.data, flush: true);
+        _file = f;
+        p = VideoPlayerController.file(f);
+      }
       await p.initialize();
       if (!mounted) return p.dispose();
       setState(() => _player = p);
@@ -800,6 +833,7 @@ class _VideoScreenState extends State<_VideoScreen> {
   void dispose() {
     _player?.dispose();
     _file?.delete().ignore();
+    if (_url != null) browser.revokeUrl(_url!);
     super.dispose();
   }
 

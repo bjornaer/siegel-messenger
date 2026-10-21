@@ -1474,4 +1474,18 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get mostUsedStickers => 'Mais usados';
+
+  @override
+  String get webNotifications => 'Notificações neste navegador';
+
+  @override
+  String get webNotificationsHelp =>
+      'Com a aba fechada, um aviso diz que há uma mensagem esperando. Ele não diz de quem nem o quê: nosso servidor não sabe.';
+
+  @override
+  String get webNotificationsBlocked =>
+      'O navegador não permitiu notificações do Siegel. Permita nas configurações do site e tente de novo.';
+
+  @override
+  String get noChatOpen => 'Escolha uma conversa à esquerda.';
 }

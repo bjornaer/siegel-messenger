@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'chats.dart' show chatTitle;
 import 'groups.dart' show memberName, myAccount;
 import 'l10n/app_localizations.dart';
@@ -62,19 +63,22 @@ Future<void> clearNotification(List<int> groupId) async {
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
 /// unless the user allows private content there (Android's "private" visibility).
 Future<void> notifyMessage(Core core, MessageView m) async {
-  if (kIsWeb) return;
   if (m.outgoing || m.event != null || isMutedAlways(core, m.groupId) || isArchived(core, m.groupId)) return;
   // GRP-15: an @mention gets through a timed mute.
   final me = myAccount(core, m.groupId);
   if (isMuted(core, m.groupId) && !m.mentions.any((a) => listEquals(a, me))) return;
   final t = notificationStrings(PlatformDispatcher.instance.locale);
   final chat = core.chats().where((c) => listEquals(c.groupId, m.groupId)).firstOrNull;
+  final title = chat == null ? null : chatTitle(t, chat);
+  final body = chat != null && chat.isGroup
+      ? '${memberName(t, core, m.senderAccount)}: ${messageText(t, m)}'
+      : messageText(t, m);
+  // M8: a hidden browser tab shows it itself; a closed one only gets the content-free push.
+  if (kIsWeb) return browser.notify(title ?? 'Siegel', body, '${_notificationId(m.groupId)}');
   await _notifications.show(
     id: _notificationId(m.groupId),
-    title: chat == null ? null : chatTitle(t, chat),
-    body: chat != null && chat.isGroup
-        ? '${memberName(t, core, m.senderAccount)}: ${messageText(t, m)}'
-        : messageText(t, m),
+    title: title,
+    body: body,
     notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'messages',

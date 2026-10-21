@@ -252,11 +252,7 @@ Widget _chatTile(BuildContext context, Core core, ChatService service, ChatSumma
     trailing: c.last == null
         ? null
         : Text(_time(context, asInt(c.last!.sentAt)), style: unread ? TextStyle(color: colors.primary) : null),
-    onTap: () => Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(core: core, service: service, groupId: c.groupId),
-      ),
-    ),
+    onTap: () => openChat(context, core, service, c.groupId),
     onLongPress: c.request ? null : () => _chatActions(context, core, service, c),
   );
 }
@@ -356,6 +352,72 @@ class ArchivedScreen extends StatelessWidget {
           return ListView(children: [for (final c in chats) _chatTile(context, core, service, c)]);
         },
       ),
+    );
+  }
+}
+
+/// Opens a chat: beside the list on a wide window, over it otherwise.
+void openChat(BuildContext context, Core core, ChatService service, Uint8List groupId) {
+  final wide = context.getInheritedWidgetOfExactType<_WideChats>();
+  final route = MaterialPageRoute<void>(
+    builder: (_) => ChatScreen(core: core, service: service, groupId: groupId),
+  );
+  if (wide == null) {
+    Navigator.of(context).push(route);
+  } else {
+    wide.pane.currentState?.pushAndRemoveUntil(route, (r) => r.isFirst);
+  }
+}
+
+class _WideChats extends InheritedWidget {
+  const _WideChats({required this.pane, required super.child});
+  final GlobalKey<NavigatorState> pane;
+
+  @override
+  bool updateShouldNotify(_WideChats old) => false;
+}
+
+/// M8 part 6: the home screen. On a wide window (a browser, a tablet) the open chat sits
+/// beside the list, in its own navigator: a chat that closes itself leaves the placeholder.
+class ChatsHome extends StatefulWidget {
+  const ChatsHome({super.key, required this.core, required this.service, required this.settings});
+  final Core core;
+  final ChatService service;
+  final WidgetBuilder settings;
+
+  static const wideFrom = 840.0;
+
+  @override
+  State<ChatsHome> createState() => _ChatsHomeState();
+}
+
+class _ChatsHomeState extends State<ChatsHome> {
+  final _pane = GlobalKey<NavigatorState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final list = ChatListScreen(core: widget.core, service: widget.service, settings: widget.settings);
+    return LayoutBuilder(
+      builder: (context, box) => box.maxWidth < ChatsHome.wideFrom
+          ? list
+          : _WideChats(
+              pane: _pane,
+              child: Row(
+                children: [
+                  SizedBox(width: 360, child: list),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: Navigator(
+                      key: _pane,
+                      onGenerateRoute: (_) => MaterialPageRoute<void>(
+                        builder: (context) =>
+                            Scaffold(body: Center(child: Text(AppLocalizations.of(context)!.noChatOpen))),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -753,7 +815,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final rec = await r.stop(keep: send);
     r.dispose();
     if (rec == null || rec.ms < 500) return; // a slip of the finger, not a message
-    await _sendAttachment(outgoing(rec.data, 'audio/mp4', ms: rec.ms, voice: true, waveform: rec.waveform));
+    await _sendAttachment(outgoing(rec.data, r.mime, ms: rec.ms, voice: true, waveform: rec.waveform));
   }
 
   /// MED-07..10: what to attach.
@@ -767,7 +829,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             for (final (i, icon, label) in [
               (0, Icons.photo_outlined, t.photo),
-              if (!kIsWeb) (1, Icons.videocam_outlined, t.video), // ponytail: video on the web in M8 part 6
+              (1, Icons.videocam_outlined, t.video),
               (2, Icons.insert_drive_file_outlined, t.file),
               (3, Icons.audio_file_outlined, t.attachAudio),
             ])
@@ -1635,10 +1697,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 ValueListenableBuilder(
                   valueListenable: _text,
-                  builder: (context, v, _) =>
-                      v.text.trim().isEmpty &&
-                          _editing == null &&
-                          !kIsWeb // voice: part 6
+                  builder: (context, v, _) => v.text.trim().isEmpty && _editing == null
                       ? IconButton(
                           tooltip: t.recordVoice,
                           icon: const Icon(Icons.mic_none),

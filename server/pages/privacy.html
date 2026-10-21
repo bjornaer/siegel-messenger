@@ -1,6 +1,6 @@
 {{define "privacy"}}{{template "head" "Privacy policy"}}
 <h1>Siegel Messenger: Privacy policy</h1>
-<p class="note">Draft under legal review. Last updated 15 October 2026. It describes what the
+<p class="note">Draft under legal review. Last updated 21 October 2026. It describes what the
 app and server do today; we update it whenever that changes.</p>
 
 <h2>Who we are</h2>
@@ -10,7 +10,7 @@ write to {{template "contact" .}}.</p>
 
 <h2>The short version</h2>
 <p>Your messages, your profile name and your contacts' names are end-to-end encrypted. We cannot
-read them, and they are stored only on your phone. We hold the minimum needed to deliver messages:
+read them, and they are stored only on your phone (and on devices you link to it). We hold the minimum needed to deliver messages:
 a keyed hash of your phone number, your @username, public encryption keys, and messages waiting
 for delivery, which we can't read either.</p>
 
@@ -25,8 +25,8 @@ for delivery, which we can't read either.</p>
 <tr><td>Messages waiting for delivery</td><td>Encrypted payloads for your device. When a contact writes to you we don't learn who sent it.</td><td>Deliver messages while you're offline.</td><td>Contract (1b)</td><td>Deleted when your device confirms receipt, or after 30 days.</td></tr>
 <tr><td>Attachments (voice messages, files, profile photo)</td><td>Encrypted on your phone before upload; we store only the encrypted file, padded so its exact size is hidden. We can't open it and don't record who sent it or who it is for.</td><td>Let recipients download what you send.</td><td>Contract (1b)</td><td>Deleted 30 days after upload. Your profile photo stays (encrypted, readable only by people you chat with) until you change or remove it, or your account is deleted.</td></tr>
 <tr><td>Registration Lock PIN (optional)</td><td>A one-way hash (Argon2id).</td><td>Stop someone who takes over your number from taking over your account.</td><td>Contract (1b)</td><td>Until you remove it, or it lapses after 7 days without any of your devices connecting.</td></tr>
-<tr><td>Device activity</td><td>The day each of your devices last connected, and the name you gave each linked device (for example a browser). While a device is being linked, the server relays an encrypted bundle from your phone to it for up to 5 minutes and can't read it.</td><td>Registration Lock lapse; deleting accounts unused for 180 days.</td><td>Legitimate interest (1f)</td><td>Until your account is deleted.</td></tr>
-<tr><td>Push token</td><td>The token Google gives your app for wake-up notifications.</td><td>Wake your phone when a message is waiting. The notification itself carries no content and no sender.</td><td>Contract (1b)</td><td>Until replaced or your account is deleted.</td></tr>
+<tr><td>Device activity</td><td>The day each of your devices last connected, and the name you gave each linked device (for example a browser). While a device is being linked, the server relays an encrypted bundle from your phone to it for up to 5 minutes and can't read it.</td><td>Registration Lock lapse; deleting accounts unused for 180 days; removing linked devices unused for 14 days.</td><td>Legitimate interest (1f)</td><td>Until your account is deleted. A linked device's entry goes when you unlink it, or after 14 days without it connecting.</td></tr>
+<tr><td>Push token</td><td>The token Google gives your app for wake-up notifications. For Siegel Web, if you turn its notifications on, the push subscription your browser gives (an address at your browser maker's push service).</td><td>Wake your phone when a message is waiting. The notification itself carries no content and no sender.</td><td>Contract (1b)</td><td>Until replaced or your account is deleted.</td></tr>
 <tr><td>Reports you send (optional)</td><td>The reason, your note, and the messages you chose, with their photos or files, readable. Your app encrypts them for our moderators before sending, so the server stores only ciphertext. In clear we keep the reason, the time, your account and the reported account, to order the review queue.</td><td>Act on abuse and protect people, especially children.</td><td>Legitimate interest (1f); legal obligation (1c) for reports of child abuse</td><td>6 months after we resolve it; reports about children at most 12 months, unless a court asks for longer.</td></tr>
 <tr><td>IP address</td><td>In memory only, for rate limits. Never written to logs or disk.</td><td>Abuse prevention.</td><td>Legitimate interest (1f)</td><td>At most 24 hours.</td></tr>
 <tr><td>Usage statistics</td><td>Aggregate counters only (for example "codes sent today"), never per person.</td><td>Run and protect the service.</td><td>Legitimate interest (1f)</td><td>30 days.</td></tr>
@@ -34,16 +34,22 @@ for delivery, which we can't read either.</p>
 <p>We don't use analytics, advertising or tracking SDKs, and we don't sell or rent data. Server logs
 never contain phone numbers, message data or IP addresses, and are deleted after 7 days.</p>
 
-<h2>What stays on your phone</h2>
+<h2>What stays on your devices</h2>
 <p>Your message history, contacts, your contacts' names and your settings are stored only on your
 device, in an encrypted database. We have no copy and no backup of them. If you lose your phone,
 reset it or delete the app, that history is gone.</p>
+<p>A device you link (for example a browser with Siegel Web) gets your contacts and keys from your
+phone, end-to-end encrypted, and from then on its own copy of new messages, never your earlier
+history. In a browser the database is encrypted with a key that is itself encrypted with the PIN you
+choose there; both stay in that browser's storage. Clearing the browser's data for the site, ten
+wrong PINs, or 14 days without opening it erases that copy.</p>
 
 <h2>Who else processes data</h2>
 <ul>
 <li><strong>Hosting:</strong> Hetzner Online GmbH, Germany, servers in the EU.</li>
 <li><strong>SMS delivery:</strong> GatewayAPI (OnlineCity ApS), Denmark, and seven.io, Germany, when the first is unavailable. They receive your phone number and code to send the SMS.</li>
 <li><strong>Google:</strong> Firebase Cloud Messaging delivers the content-free wake-up notifications, and the Play Integrity API confirms that a registration comes from a genuine copy of the app before we send an SMS. Google sees that these happen, never your messages.</li>
+<li><strong>Your browser maker's push service</strong> (Google, Mozilla, Apple or Microsoft), only if you turn on notifications in Siegel Web: it carries the same content-free wake-ups to your browser.</li>
 </ul>
 <p>These companies process data only on our behalf, under data processing agreements.</p>
 
@@ -63,8 +69,10 @@ whether your account is under 18, so strangers can't find it by @username. If it
 contact link is on, we also store a one-way hash of the link's secret so the link keeps working.</p>
 
 <h2>Security</h2>
-<p>Messages use the MLS protocol (RFC 9420) and are encrypted end to end. Connections use TLS 1.3
-with certificate pinning. The keys that protect phone-number hashes are held in a separate key
+<p>Messages use the MLS protocol (RFC 9420) and are encrypted end to end. Connections use TLS 1.3,
+with certificate pinning in the app; in a browser, the browser checks certificates. Siegel Web is code
+our server sends your browser; each release's file hashes are published and attested so anyone can
+check it (see <a href="/transparency">transparency</a>). The keys that protect phone-number hashes are held in a separate key
 store, not in the database. Our source code is public at
 <a href="https://github.com/bjornaer/siegel-messenger">github.com/bjornaer/siegel-messenger</a>.</p>
 

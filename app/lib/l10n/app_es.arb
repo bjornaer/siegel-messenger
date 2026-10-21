@@ -410,5 +410,9 @@
   "unlinkThisBrowserBody": "Siegel olvida tus chats en este navegador. Tu móvil y tu cuenta siguen igual.",
   "webPinLabel": "PIN (de 4 a 6 dígitos)",
   "errVideoCompress": "No se pudo reducir este vídeo y pesa más de 100 MB. Recórtalo primero o envía uno más corto.",
-  "mostUsedStickers": "Más usados"
+  "mostUsedStickers": "Más usados",
+  "webNotifications": "Notificaciones en este navegador",
+  "webNotificationsHelp": "Con la pestaña cerrada, un aviso dice que hay un mensaje esperando. No puede decir de quién ni qué: nuestro servidor no lo sabe.",
+  "webNotificationsBlocked": "El navegador no permitió las notificaciones de Siegel. Permítelas en la configuración del sitio y vuelve a intentarlo.",
+  "noChatOpen": "Elige un chat a la izquierda."
 }

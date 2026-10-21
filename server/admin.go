@@ -38,6 +38,7 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   console-enrol <operator name>                         (a single-use link to add a passkey)
   issue-code --reason "…" <+E.164 number>               (a 10-minute sign-up code when SMS doesn't arrive;
                                                          only after confirming the person owns the number)
+  vapid-keygen                                          (once: the Web Push key line for /opt/siegel/.env)
 lawful requests and appeals (docs/law-enforcement.md):
   export --order REF --reason "…" <account>             (prints what we hold, as JSON)
   preserve --order REF --reason "…" <account>           (keeps that snapshot 90 days)
@@ -232,6 +233,12 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 			return audit(ctx, tx, a, "appeal: "+*outcome, target)
 		})
+	case "vapid-keygen": // M8 part 6: once; the line goes in /opt/siegel/.env
+		k, err := vapidKeygen()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "SIEGEL_VAPID_KEY=%s\n", k)
 	case "issue-code":
 		if err := needs(false); err != nil {
 			return err

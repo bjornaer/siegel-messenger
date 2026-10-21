@@ -33,6 +33,7 @@ type server struct {
 	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
 	hub       *hub
 	sendPush  func(ctx context.Context, platform siegelv1.Platform, token string) error
+	vapid     *vapid // M8 part 6: Web Push; nil without SIEGEL_VAPID_KEY
 	pushes    pushes
 	blobs     blobStore
 	disc      discKeys

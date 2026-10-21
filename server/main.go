@@ -69,6 +69,7 @@ type config struct {
 	consoleAddr   string   // M7: the moderation console's listen address; empty = off
 	webOrigin     string   // M8: the web app's origin (https://web.siegel.schlk.in); empty = no web app
 	webDir        string   // M8 part 5: where deploy.sh puts the built site (current -> a release)
+	vapidKey      string   // M8 part 6: Web Push signing key (siegel-admin vapid-keygen); empty = no web push
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -125,6 +126,7 @@ func loadConfig() config {
 		consoleAddr:   os.Getenv("SIEGEL_CONSOLE_ADDR"),
 		webOrigin:     os.Getenv("SIEGEL_WEB_ORIGIN"),
 		webDir:        os.Getenv("SIEGEL_WEB_DIR"),
+		vapidKey:      os.Getenv("SIEGEL_VAPID_KEY"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
@@ -243,6 +245,16 @@ func main() {
 	default:
 		fatal("SIEGEL_FCM_CREDENTIALS required outside dev mode")
 	}
+	if cfg.vapidKey != "" {
+		subject := "https://" + cfg.domain
+		if cfg.contactEmail != "" {
+			subject = "mailto:" + cfg.contactEmail
+		}
+		if s.vapid, err = newVapid(cfg.vapidKey, subject); err != nil {
+			fatal("SIEGEL_VAPID_KEY", "err", err)
+		}
+		s.sendPush = s.vapid.webPushOr(s.sendPush)
+	}
 	switch {
 	case cfg.dev:
 		s.attest = func(context.Context, siegelv1.Platform, string, string) error { return nil }
@@ -328,6 +340,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("PUT /v1/blobs/{id}", s.putBlob)
 	mux.HandleFunc("GET /v1/blobs/{id}", s.getBlob)
 	mux.HandleFunc("GET /v1/stream", s.stream)
+	mux.HandleFunc("GET /v1/push/vapid", s.vapidKey)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /terms", s.page("terms"))
 	mux.HandleFunc("GET /guidelines", s.page("guidelines"))

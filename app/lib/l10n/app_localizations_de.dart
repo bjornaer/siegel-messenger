@@ -1485,4 +1485,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get mostUsedStickers => 'Am häufigsten';
+
+  @override
+  String get webNotifications => 'Mitteilungen in diesem Browser';
+
+  @override
+  String get webNotificationsHelp =>
+      'Ist der Tab geschlossen, meldet ein Hinweis, dass eine Nachricht wartet. Wer oder was, steht nicht darin: Unser Server weiß es nicht.';
+
+  @override
+  String get webNotificationsBlocked =>
+      'Der Browser hat Mitteilungen für Siegel nicht erlaubt. Erlaube sie in den Website-Einstellungen und versuch es erneut.';
+
+  @override
+  String get noChatOpen => 'Wähle links einen Chat.';
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -84,6 +85,11 @@ func (s *server) SetPushToken(ctx context.Context, req *connect.Request[siegelv1
 	t := req.Msg.PushToken
 	if len(t) > 4096 {
 		return nil, cerr(connect.CodeInvalidArgument, "push_token_invalid")
+	}
+	if strings.HasPrefix(t, "{") { // a browser's subscription (M8): only the push services' hosts
+		if _, err := webPushEndpoint(t); err != nil {
+			return nil, cerr(connect.CodeInvalidArgument, "push_token_invalid")
+		}
 	}
 	c := who(ctx)
 	if _, err := s.db.Exec(ctx, `UPDATE devices SET push_token = NULLIF($3, '') WHERE account_id = $1 AND device_id = $2`,

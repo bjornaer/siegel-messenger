@@ -40,7 +40,8 @@ func (s *server) webCSP() string {
 		"img-src 'self' data: blob:",
 		"font-src 'self'",
 		"connect-src 'self' " + api + " " + ws,
-		"worker-src 'self' blob:", // flutter_rust_bridge's worker pool
+		"media-src 'self' blob: data:", // videos and voice notes, decrypted in memory
+		"worker-src 'self'",            // the push service worker only
 		"manifest-src 'self'",
 		"base-uri 'self'", // Flutter's <base href="/">
 		"form-action 'none'",
@@ -66,7 +67,7 @@ func (s *server) webSite() http.Handler {
 		h.Set("Strict-Transport-Security", "max-age=31536000")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
-		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
+		h.Set("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=(), usb=()") // voice notes
 		// Always ask: a new release is picked up on the next load, never a stale mix of files.
 		h.Set("Cache-Control", "no-cache")
 		p := path.Clean("/" + r.URL.Path)

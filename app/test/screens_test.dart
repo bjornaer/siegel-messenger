@@ -2181,6 +2181,33 @@ void main() {
     );
   });
 
+  testWidgets('a wide window shows the open chat beside the list; narrow, over it (M8)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await core.startChat(username: 'bob');
+    t.view.physicalSize = const Size(1280, 800);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(wrap(ChatsHome(core: core, service: service, settings: (_) => const SizedBox())));
+    await t.pumpAndSettle();
+    expect(find.text('Choose a chat on the left.'), findsOneWidget);
+    await t.tap(find.text('@bob').first);
+    await t.pumpAndSettle();
+    expect(find.byType(ChatScreen), findsOneWidget);
+    expect(find.byType(ChatListScreen), findsOneWidget, reason: 'the list stays');
+
+    t.view.physicalSize = const Size(400, 800);
+    await t.pumpWidget(
+      wrap(ChatsHome(key: UniqueKey(), core: core, service: service, settings: (_) => const SizedBox())),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.text('@bob').first);
+    await t.pumpAndSettle();
+    expect(find.byType(ChatScreen), findsOneWidget);
+    expect(find.byType(ChatListScreen).hitTestable(), findsNothing, reason: 'over the list on a phone');
+  });
+
   testWidgets('a linked browser: no account settings, unlinks itself instead of deleting the account (M8)', (t) async {
     final core = FakeCore()
       ..registered = true
