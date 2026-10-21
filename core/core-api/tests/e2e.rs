@@ -1910,13 +1910,18 @@ async fn view_once_photos_open_once_and_tell_the_sender() {
     let after = find(&bob, &m.group_id, &m.message_id);
     assert!(after.attachment.unwrap().gone && after.status == core_api::Status::Opened);
 
-    until(&mut alice_events, |e| {
-        matches!(e, core_api::Event::Updated { .. })
-    })
-    .await;
-    let theirs = find(&alice, &chat, &sent.message_id);
+    // The delivery receipt comes first; the opening follows.
+    for _ in 0..5 {
+        if find(&alice, &chat, &sent.message_id).status == core_api::Status::Opened {
+            break;
+        }
+        until(&mut alice_events, |e| {
+            matches!(e, core_api::Event::Updated { .. })
+        })
+        .await;
+    }
     assert_eq!(
-        theirs.status,
+        find(&alice, &chat, &sent.message_id).status,
         core_api::Status::Opened,
         "the sender learns it was opened"
     );
