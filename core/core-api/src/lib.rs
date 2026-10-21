@@ -21,6 +21,7 @@ mod reports;
 mod rt;
 mod stickers;
 mod sync;
+mod view_once;
 pub use chat::{ChatMessage, Event};
 pub use core_crypto::pin::{unwrap as unwrap_db_key, wrap as wrap_db_key};
 pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};

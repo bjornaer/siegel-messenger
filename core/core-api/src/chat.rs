@@ -779,6 +779,7 @@ impl SiegelCore {
                         let status = match r.kind() {
                             pb::receipt::Kind::Delivered => Status::Delivered,
                             pb::receipt::Kind::Read if read_receipts => Status::Read,
+                            pb::receipt::Kind::Opened if read_receipts => Status::Opened,
                             _ => return Ok(None), // MSG-13: ours off hides theirs
                         };
                         if conv.is_group {
@@ -871,6 +872,7 @@ impl SiegelCore {
             let _ = self.set_minor(self.minor()).await;
         }
         let _ = self.ensure_key_packages().await;
+        let _ = self.expire_view_once(); // M9: unopened for 14 days
         let _ = self.ensure_own_devices().await; // M8: our linked devices in every conversation
         if self.is_linked_device() {
             let _ = self.refresh_own_profile().await; // M8: name changes made on the phone
@@ -944,7 +946,20 @@ impl SiegelCore {
                             }
                             on_event(Event::Updated { group_id });
                         }
-                        Ok(Some(Handled::Text(m))) => {
+                        Ok(Some(Handled::Text(mut m))) => {
+                            // M9: a view-once photo. Ours (sent from another of our devices) is
+                            // never shown again; theirs waits for its one opening, 14 days at most.
+                            if let Some(a) =
+                                m.attachment.as_mut().filter(|a| a.view_once && !a.gone)
+                            {
+                                let erased = if m.outgoing || self.is_linked_device() {
+                                    self.erase_view_once(&m.message_id, None).is_ok()
+                                } else {
+                                    let _ = self.view_once_arrived(&m.message_id);
+                                    false
+                                };
+                                a.gone = erased;
+                            }
                             // ponytail: one receipt per message; batch per frame burst if chatty.
                             let _ = self
                                 .send_receipt(

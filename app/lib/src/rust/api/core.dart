@@ -191,6 +191,10 @@ abstract class Core implements RustOpaqueInterface {
   /// Opens someone's contact link; returns the chat (already accepted on their side).
   Future<Uint8List> openContactLink({required String link});
 
+  /// M9: a view-once photo's bytes, this once; then it is gone here. "view_once_gone",
+  /// or "view_once_phone_only" on a linked device.
+  Future<Uint8List> openViewOnce({required List<int> messageId});
+
   /// Name and size of the group a link leads to, before joining.
   Future<GroupPreviewView> previewGroupLink({required String link});
 
@@ -258,6 +262,7 @@ abstract class Core implements RustOpaqueInterface {
     required int height,
     required List<int> thumbnail,
     required bool sticker,
+    required bool viewOnce,
     Uint8List? replyTo,
   });
 
@@ -406,6 +411,12 @@ class AttachmentView {
   /// Shown large, without a bubble.
   final bool sticker;
 
+  /// M9: opens once, on the recipient's phone (`open_view_once`).
+  final bool viewOnce;
+
+  /// M9: a view-once photo opened or expired here: the placeholder only.
+  final bool gone;
+
   const AttachmentView({
     required this.mimeType,
     required this.fileName,
@@ -417,6 +428,8 @@ class AttachmentView {
     required this.height,
     required this.thumbnail,
     required this.sticker,
+    required this.viewOnce,
+    required this.gone,
   });
 
   @override
@@ -430,7 +443,9 @@ class AttachmentView {
       width.hashCode ^
       height.hashCode ^
       thumbnail.hashCode ^
-      sticker.hashCode;
+      sticker.hashCode ^
+      viewOnce.hashCode ^
+      gone.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -446,7 +461,9 @@ class AttachmentView {
           width == other.width &&
           height == other.height &&
           thumbnail == other.thumbnail &&
-          sticker == other.sticker;
+          sticker == other.sticker &&
+          viewOnce == other.viewOnce &&
+          gone == other.gone;
 }
 
 class BlockedContact {
@@ -839,7 +856,16 @@ class GroupPreviewView {
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
-enum MessageStatus { failed, sending, sent, delivered, read }
+enum MessageStatus {
+  failed,
+  sending,
+  sent,
+  delivered,
+  read,
+
+  /// M9: a view-once photo was opened.
+  opened,
+}
 
 class MessageView {
   final Uint8List groupId;

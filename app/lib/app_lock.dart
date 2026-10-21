@@ -27,6 +27,12 @@ Future<void> setScreenSecurity(Core core, bool on) async {
   if (isAndroid) await _window.invokeMethod('setSecure', on);
 }
 
+/// M9: blocks screenshots for a moment (a view-once photo), then back to the user's setting.
+Future<void> secureWhile(Core core, bool on) async {
+  if (!isAndroid) return;
+  await _window.invokeMethod('setSecure', on || core.setting(key: 'screen_security') == '1');
+}
+
 /// True while a system auth prompt is up: it backgrounds the app on some phones, which must not count as leaving.
 bool _authenticating = false;
 

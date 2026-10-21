@@ -1834,3 +1834,90 @@ async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn view_once_photos_open_once_and_tell_the_sender() {
+    // M9: through the real server. The sender keeps a placeholder only; the recipient opens it
+    // once, then it is gone there too; the sender sees "Opened".
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let mut alice_events = listen(&alice);
+    let mut bob_events = listen(&bob);
+    befriend(&alice, &mut alice_events, &bob, &bob_name, &mut bob_events).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+
+    let photo: Vec<u8> = (0..50_000u32).map(|i| (i * 13 % 251) as u8).collect();
+    let sent = alice
+        .send_attachment(
+            &chat,
+            core_api::OutgoingAttachment {
+                data: photo.clone(),
+                mime_type: "image/jpeg".into(),
+                thumbnail: vec![1, 2, 3],
+                view_once: true,
+                ..Default::default()
+            },
+            None,
+        )
+        .await
+        .unwrap();
+    let mine = sent.attachment.clone().unwrap();
+    assert!(
+        mine.view_once && mine.gone,
+        "the sender keeps the placeholder only"
+    );
+    assert_eq!(
+        alice
+            .attachment_data(&sent.message_id)
+            .await
+            .unwrap_err()
+            .code,
+        "view_once"
+    );
+
+    let got = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await;
+    let core_api::Event::Message(m) = got else {
+        unreachable!()
+    };
+    let info = m.attachment.clone().unwrap();
+    assert!(
+        info.view_once && !info.gone && info.thumbnail.is_empty(),
+        "no preview"
+    );
+    assert_eq!(
+        bob.attachment_data(&m.message_id).await.unwrap_err().code,
+        "view_once",
+        "not through the normal path, nor forwarded"
+    );
+    assert_eq!(bob.open_view_once(&m.message_id).await.unwrap(), photo);
+    assert_eq!(
+        bob.open_view_once(&m.message_id).await.unwrap_err().code,
+        "view_once_gone"
+    );
+    let find = |c: &core_api::SiegelCore, g: &[u8], id: &[u8]| {
+        c.messages(g, 50)
+            .unwrap()
+            .into_iter()
+            .find(|x| x.message_id == id)
+            .unwrap()
+    };
+    let after = find(&bob, &m.group_id, &m.message_id);
+    assert!(after.attachment.unwrap().gone && after.status == core_api::Status::Opened);
+
+    until(&mut alice_events, |e| {
+        matches!(e, core_api::Event::Updated { .. })
+    })
+    .await;
+    let theirs = find(&alice, &chat, &sent.message_id);
+    assert_eq!(
+        theirs.status,
+        core_api::Status::Opened,
+        "the sender learns it was opened"
+    );
+}

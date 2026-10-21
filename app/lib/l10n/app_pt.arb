@@ -414,5 +414,14 @@
   "webNotifications": "Notificações neste navegador",
   "webNotificationsHelp": "Com a aba fechada, um aviso diz que há uma mensagem esperando. Ele não diz de quem nem o quê: nosso servidor não sabe.",
   "webNotificationsBlocked": "O navegador não permitiu notificações do Siegel. Permita nas configurações do site e tente de novo.",
-  "noChatOpen": "Escolha uma conversa à esquerda."
+  "noChatOpen": "Escolha uma conversa à esquerda.",
+  "camera": "Câmera",
+  "viewOnce": "Ver uma vez",
+  "viewOncePhoto": "Foto · ver uma vez",
+  "viewOnceOpened": "Aberta",
+  "viewOnceExpired": "Não foi aberta a tempo",
+  "viewOnceOpenHint": "Abre uma vez e some",
+  "viewOnceOnPhone": "Fotos de visualização única abrem só no celular.",
+  "viewOnceHelp": "A pessoa pode abrir uma vez, no celular, com capturas de tela bloqueadas; depois some para os dois. Se não for aberta em 14 dias, também some. Ainda assim, alguém poderia fotografar a tela com outra câmera.",
+  "errViewOnceGone": "Esta foto de visualização única não pode ser aberta de novo."
 }

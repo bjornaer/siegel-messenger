@@ -115,6 +115,7 @@ message Attachment {
   bytes waveform = 12;    // MED-09: voice note loudness, one byte (0-255) per bar
   bytes reply_to = 13;    // MSG-07, as in Text
   bool sticker = 14;      // a WebP or PNG sticker: shown large, without a bubble (older apps show a photo)
+  bool view_once = 15;    // M9: opened once on the recipient's phone, then gone everywhere; no thumbnail
 }
 
 message Text {
@@ -146,6 +147,7 @@ message Receipt {
     KIND_UNSPECIFIED = 0;
     KIND_DELIVERED = 1;
     KIND_READ = 2;
+    KIND_OPENED = 3; // M9: a view-once photo was opened (follows the read-receipts setting)
   }
   Kind kind = 1;
   repeated bytes message_ids = 2;

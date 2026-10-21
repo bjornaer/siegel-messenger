@@ -755,7 +755,7 @@ impl SiegelCore {
                         .find(|(x, _)| x[..] == a[..])
                         .map_or(Status::Sent, |(_, st)| *st)
                 })
-                .fold(Status::Read, |lo, st| if st < lo { st } else { lo });
+                .fold(Status::Opened, |lo, st| if st < lo { st } else { lo });
             if all > Status::Sent {
                 storage(s.advance_status(&conv.group_id, std::slice::from_ref(id), all))?;
             }

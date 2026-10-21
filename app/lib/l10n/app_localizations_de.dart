@@ -1499,4 +1499,34 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get noChatOpen => 'Wähle links einen Chat.';
+
+  @override
+  String get camera => 'Kamera';
+
+  @override
+  String get viewOnce => 'Einmal ansehen';
+
+  @override
+  String get viewOncePhoto => 'Foto · einmal ansehen';
+
+  @override
+  String get viewOnceOpened => 'Geöffnet';
+
+  @override
+  String get viewOnceExpired => 'Nicht rechtzeitig geöffnet';
+
+  @override
+  String get viewOnceOpenHint => 'Öffnet sich einmal, dann ist es weg';
+
+  @override
+  String get viewOnceOnPhone =>
+      'Einmal-Fotos öffnen sich nur auf deinem Handy.';
+
+  @override
+  String get viewOnceHelp =>
+      'Die Person kann es einmal auf ihrem Handy öffnen, Bildschirmfotos sind dabei gesperrt; danach ist es für euch beide weg. Wird es 14 Tage nicht geöffnet, ist es auch weg. Mit einer anderen Kamera ließe sich der Bildschirm trotzdem abfotografieren.';
+
+  @override
+  String get errViewOnceGone =>
+      'Dieses Einmal-Foto lässt sich nicht noch einmal öffnen.';
 }

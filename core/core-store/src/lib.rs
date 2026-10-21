@@ -65,6 +65,8 @@ pub enum Status {
     Sent = 2,
     Delivered = 3,
     Read = 4,
+    /// M9: a view-once photo was opened (theirs, or ours by them).
+    Opened = 5,
 }
 
 impl Status {
@@ -74,6 +76,7 @@ impl Status {
             1 => Self::Sending,
             2 => Self::Sent,
             4 => Self::Read,
+            5 => Self::Opened,
             _ => Self::Delivered,
         }
     }

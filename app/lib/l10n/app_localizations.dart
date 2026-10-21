@@ -2591,6 +2591,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose a chat on the left.'**
   String get noChatOpen;
+
+  /// No description provided for @camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get camera;
+
+  /// No description provided for @viewOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'View once'**
+  String get viewOnce;
+
+  /// No description provided for @viewOncePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo · view once'**
+  String get viewOncePhoto;
+
+  /// No description provided for @viewOnceOpened.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened'**
+  String get viewOnceOpened;
+
+  /// No description provided for @viewOnceExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Not opened in time'**
+  String get viewOnceExpired;
+
+  /// No description provided for @viewOnceOpenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens once, then it is gone'**
+  String get viewOnceOpenHint;
+
+  /// No description provided for @viewOnceOnPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'View-once photos open on your phone only.'**
+  String get viewOnceOnPhone;
+
+  /// No description provided for @viewOnceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'They can open it once, on their phone, with screenshots blocked; then it\'s gone for both of you. Not opened within 14 days, it\'s gone too. Someone could still photograph the screen with another camera.'**
+  String get viewOnceHelp;
+
+  /// No description provided for @errViewOnceGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This view-once photo can\'t be opened again.'**
+  String get errViewOnceGone;
 }
 
 class _AppLocalizationsDelegate

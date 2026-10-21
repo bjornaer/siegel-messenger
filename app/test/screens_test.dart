@@ -182,6 +182,12 @@ class FakeCore implements Core {
   @override
   Future<String> linkBegin({required String deviceName}) async => 'siegel-link:x.age1y.$deviceName';
   @override
+  Future<Uint8List> openViewOnce({required List<int> messageId}) async {
+    calls.add('openViewOnce');
+    return blobs[base64Encode(messageId)] ?? Uint8List(0);
+  }
+
+  @override
   Future<bool> linkWait() async => linkApproved;
   bool linkApproved = false;
   @override
@@ -423,9 +429,10 @@ class FakeCore implements Core {
     required int height,
     required List<int> thumbnail,
     required bool sticker,
+    required bool viewOnce,
     Uint8List? replyTo,
   }) async {
-    calls.add(sticker ? 'sendSticker' : 'sendAttachment');
+    calls.add(sticker ? 'sendSticker' : (viewOnce ? 'sendViewOnce' : 'sendAttachment'));
     final m = msg(
       groupId,
       '',
@@ -442,6 +449,8 @@ class FakeCore implements Core {
         height: height,
         thumbnail: Uint8List.fromList(thumbnail),
         sticker: sticker,
+        viewOnce: viewOnce,
+        gone: viewOnce,
       ),
     );
     (history[base64Encode(groupId)] ??= []).add(m);
@@ -1136,6 +1145,8 @@ void main() {
         height: 0,
         thumbnail: Uint8List(0),
         sticker: false,
+        viewOnce: false,
+        gone: false,
       ),
     );
     (core.history[base64Encode(id)] ??= []).add(voice);
@@ -1278,6 +1289,8 @@ void main() {
       height: 3,
       thumbnail: png,
       sticker: false,
+      viewOnce: false,
+      gone: false,
     );
     (core.history[base64Encode(id)] ??= []).addAll([
       FakeCore.msg(id, '', outgoing: false, attachment: att('image/jpeg', '')),
@@ -1780,6 +1793,8 @@ void main() {
         height: 512,
         thumbnail: Uint8List(0),
         sticker: true,
+        viewOnce: false,
+        gone: false,
       ),
     );
     core.blobs[base64Encode(theirs.messageId)] = png;
@@ -1967,6 +1982,8 @@ void main() {
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         ),
         sticker: false,
+        viewOnce: false,
+        gone: false,
       ),
     );
     (core.history[base64Encode(id)] ??= []).add(photo);
@@ -2179,6 +2196,93 @@ void main() {
           .onPressed,
       isNull,
     );
+  });
+
+  testWidgets('view-once photos: chosen before sending, opened once with no preview, then gone (M9)', (t) async {
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    );
+    Outgoing? sent;
+    await t.pumpWidget(
+      wrap(
+        Builder(
+          builder: (c) => TextButton(
+            onPressed: () async => sent = await Navigator.of(c).push<Outgoing>(
+              MaterialPageRoute(
+                builder: (_) => PhotoSendScreen(photo: outgoing(png, 'image/png', width: 1, height: 1)),
+              ),
+            ),
+            child: const Text('pick'),
+          ),
+        ),
+      ),
+    );
+    await tapText(t, 'pick');
+    expect(find.textContaining('14 days'), findsNothing);
+    await t.tap(find.byTooltip('View once'));
+    await t.pump();
+    expect(find.textContaining('14 days'), findsOneWidget, reason: 'says what view once does, and its limit');
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(sent?.viewOnce, isTrue);
+
+    AttachmentView once({bool gone = false}) => AttachmentView(
+      mimeType: 'image/jpeg',
+      fileName: '',
+      size: BigInt.from(png.length),
+      durationMs: 0,
+      voiceNote: false,
+      waveform: Uint8List(0),
+      width: 1,
+      height: 1,
+      thumbnail: Uint8List(0),
+      sticker: false,
+      viewOnce: true,
+      gone: gone,
+    );
+    final core = FakeCore()..registered = true;
+    final theirs = FakeCore.msg([1], '', outgoing: false, attachment: once());
+    core.blobs[base64Encode(theirs.messageId)] = png;
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: ViewOnceMessage(core: core, message: theirs),
+        ),
+      ),
+    );
+    expect(find.text('Photo · view once'), findsOneWidget);
+    expect(find.byType(Image), findsNothing, reason: 'no preview, not even blurred');
+    await tapText(t, 'Photo · view once');
+    expect(core.calls, contains('openViewOnce'));
+    expect(find.byType(ViewOnceViewer), findsOneWidget);
+    expect(find.byIcon(Icons.download), findsNothing, reason: 'nothing to save');
+    await t.tap(find.byType(CloseButton));
+    await t.pumpAndSettle();
+    expect(find.text('Opened'), findsOneWidget);
+    core.calls.clear();
+    await tapText(t, 'Opened');
+    expect(core.calls, isNot(contains('openViewOnce')), reason: 'once');
+
+    final expired = FakeCore.msg([1], '', outgoing: false, attachment: once(gone: true));
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: ViewOnceMessage(key: UniqueKey(), core: core, message: expired),
+        ),
+      ),
+    );
+    expect(find.text('Not opened in time'), findsOneWidget);
+    final mine = FakeCore.msg([1], '', outgoing: true, attachment: once(gone: true));
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: ViewOnceMessage(key: UniqueKey(), core: core, message: mine),
+        ),
+      ),
+    );
+    expect(find.text('Photo · view once'), findsOneWidget, reason: "the sender can't open it either");
+    await tapText(t, 'Photo · view once');
+    expect(core.calls, isNot(contains('openViewOnce')));
   });
 
   testWidgets('a wide window shows the open chat beside the list; narrow, over it (M8)', (t) async {

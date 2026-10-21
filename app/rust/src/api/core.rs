@@ -481,6 +481,7 @@ fn status_view(s: core_api::Status) -> MessageStatus {
         Status::Sent => MessageStatus::Sent,
         Status::Delivered => MessageStatus::Delivered,
         Status::Read => MessageStatus::Read,
+        Status::Opened => MessageStatus::Opened,
     }
 }
 
@@ -526,6 +527,10 @@ pub struct AttachmentView {
     pub thumbnail: Vec<u8>,
     /// Shown large, without a bubble.
     pub sticker: bool,
+    /// M9: opens once, on the recipient's phone (`open_view_once`).
+    pub view_once: bool,
+    /// M9: a view-once photo opened or expired here: the placeholder only.
+    pub gone: bool,
 }
 
 /// MSG-04. Incoming messages are Delivered until read.
@@ -535,6 +540,8 @@ pub enum MessageStatus {
     Sent,
     Delivered,
     Read,
+    /// M9: a view-once photo was opened.
+    Opened,
 }
 
 pub struct Reaction {
@@ -573,6 +580,8 @@ impl From<core_api::ChatMessage> for MessageView {
                 height: a.height,
                 thumbnail: a.thumbnail,
                 sticker: a.sticker,
+                view_once: a.view_once,
+                gone: a.gone,
             }),
             event: m.event.map(|e| {
                 use core_api::GroupEventKind as K;
@@ -949,6 +958,7 @@ impl Core {
         height: u32,
         thumbnail: Vec<u8>,
         sticker: bool,
+        view_once: bool,
         reply_to: Option<Vec<u8>>,
     ) -> Result<MessageView, CoreError> {
         let a = core_api::OutgoingAttachment {
@@ -962,12 +972,19 @@ impl Core {
             height,
             thumbnail,
             sticker,
+            view_once,
         };
         Ok(self
             .0
             .send_attachment(&group_id, a, reply_to.as_deref())
             .await?
             .into())
+    }
+
+    /// M9: a view-once photo's bytes, this once; then it is gone here. "view_once_gone",
+    /// or "view_once_phone_only" on a linked device.
+    pub async fn open_view_once(&self, message_id: Vec<u8>) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.open_view_once(&message_id).await?)
     }
 
     /// MED-15: sets (PNG bytes) or removes (None) our picture and tells our contacts.

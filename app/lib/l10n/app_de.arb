@@ -414,5 +414,14 @@
   "webNotifications": "Mitteilungen in diesem Browser",
   "webNotificationsHelp": "Ist der Tab geschlossen, meldet ein Hinweis, dass eine Nachricht wartet. Wer oder was, steht nicht darin: Unser Server weiß es nicht.",
   "webNotificationsBlocked": "Der Browser hat Mitteilungen für Siegel nicht erlaubt. Erlaube sie in den Website-Einstellungen und versuch es erneut.",
-  "noChatOpen": "Wähle links einen Chat."
+  "noChatOpen": "Wähle links einen Chat.",
+  "camera": "Kamera",
+  "viewOnce": "Einmal ansehen",
+  "viewOncePhoto": "Foto · einmal ansehen",
+  "viewOnceOpened": "Geöffnet",
+  "viewOnceExpired": "Nicht rechtzeitig geöffnet",
+  "viewOnceOpenHint": "Öffnet sich einmal, dann ist es weg",
+  "viewOnceOnPhone": "Einmal-Fotos öffnen sich nur auf deinem Handy.",
+  "viewOnceHelp": "Die Person kann es einmal auf ihrem Handy öffnen, Bildschirmfotos sind dabei gesperrt; danach ist es für euch beide weg. Wird es 14 Tage nicht geöffnet, ist es auch weg. Mit einer anderen Kamera ließe sich der Bildschirm trotzdem abfotografieren.",
+  "errViewOnceGone": "Dieses Einmal-Foto lässt sich nicht noch einmal öffnen."
 }

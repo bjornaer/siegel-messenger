@@ -417,6 +417,7 @@ void showGroupMessageInfo(BuildContext context, Core core, MessageView m) {
   String state(List<int> account) {
     final r = receipts.where((x) => listEquals(x.account, account)).firstOrNull;
     return switch (r?.status) {
+      MessageStatus.opened => t.viewOnceOpened,
       MessageStatus.read => t.statusRead,
       MessageStatus.delivered => t.statusDelivered,
       _ => t.statusSent,

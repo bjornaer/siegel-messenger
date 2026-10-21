@@ -1493,4 +1493,34 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get noChatOpen => 'Elige un chat a la izquierda.';
+
+  @override
+  String get camera => 'Cámara';
+
+  @override
+  String get viewOnce => 'Ver una vez';
+
+  @override
+  String get viewOncePhoto => 'Foto · ver una vez';
+
+  @override
+  String get viewOnceOpened => 'Abierta';
+
+  @override
+  String get viewOnceExpired => 'No se abrió a tiempo';
+
+  @override
+  String get viewOnceOpenHint => 'Se abre una vez y desaparece';
+
+  @override
+  String get viewOnceOnPhone =>
+      'Las fotos de una sola vista solo se abren en tu móvil.';
+
+  @override
+  String get viewOnceHelp =>
+      'Podrá abrirla una vez, en su móvil, con las capturas bloqueadas; después desaparece para los dos. Si no la abre en 14 días, también desaparece. Aun así, alguien podría fotografiar la pantalla con otra cámara.';
+
+  @override
+  String get errViewOnceGone =>
+      'Esta foto de una sola vista no se puede volver a abrir.';
 }

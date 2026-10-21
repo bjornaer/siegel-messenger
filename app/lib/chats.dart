@@ -828,6 +828,7 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final (i, icon, label) in [
+              (4, Icons.photo_camera_outlined, t.camera),
               (0, Icons.photo_outlined, t.photo),
               (1, Icons.videocam_outlined, t.video),
               (2, Icons.insert_drive_file_outlined, t.file),
@@ -841,7 +842,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (choice == null) return;
     try {
       final o = await switch (choice) {
-        0 => pickPhoto(),
+        0 || 4 => _photo(choice == 4 ? takePhoto : pickPhoto),
         1 => pickVideo((must) async {
           final c = await _askCompress(must);
           if (c != null && mounted) setState(() => _busy = true); // compressing takes a while
@@ -861,6 +862,26 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// M9: a photo (camera or gallery) goes through a look before sending, where it can be made
+  /// view once.
+  Future<Outgoing?> _photo(Future<Outgoing?> Function() pick) async {
+    final p = await pick();
+    if (p == null || !mounted) return null;
+    if (mounted) setState(() => _busy = false);
+    return Navigator.of(context).push<Outgoing>(MaterialPageRoute(builder: (_) => PhotoSendScreen(photo: p)));
+  }
+
+  /// M9: the composer's camera button.
+  Future<void> _camera() async {
+    try {
+      final o = await _photo(takePhoto);
+      if (o != null) await _sendAttachment(o);
+    } on Exception catch (e) {
+      debugPrint('camera: $e');
+      if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
     }
   }
 
@@ -900,6 +921,7 @@ class _ChatScreenState extends State<ChatScreen> {
         height: o.height,
         thumbnail: o.thumbnail,
         sticker: o.sticker,
+        viewOnce: o.viewOnce,
         replyTo: reply?.messageId,
       ),
     );
@@ -1135,7 +1157,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               if (!m.deleted && !c.request)
                 ListTile(leading: const Icon(Icons.reply), title: Text(t.reply), onTap: () => act(() => _reply(m))),
-              if (!m.deleted && m.event == null && !m.keyChange)
+              if (!m.deleted && m.event == null && !m.keyChange && m.attachment?.viewOnce != true)
                 ListTile(
                   leading: const Icon(Icons.shortcut),
                   title: Text(t.forward),
@@ -1153,7 +1175,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   title: Text(t.addToMyStickers),
                   onTap: () => act(() => _saveSticker(m)),
                 ),
-              if (!m.deleted && m.attachment != null && !m.attachment!.voiceNote && !m.attachment!.sticker)
+              if (!m.deleted &&
+                  m.attachment != null &&
+                  !m.attachment!.voiceNote &&
+                  !m.attachment!.sticker &&
+                  !m.attachment!.viewOnce)
                 ListTile(
                   leading: const Icon(Icons.download),
                   title: Text(t.saveToDevice),
@@ -1586,6 +1612,7 @@ class _ChatScreenState extends State<ChatScreen> {
         MessageStatus.sent => Icon(Icons.check, size: 14, color: muted, semanticLabel: t.statusSent),
         MessageStatus.delivered => Icon(Icons.done_all, size: 14, color: muted, semanticLabel: t.statusDelivered),
         MessageStatus.read => Icon(Icons.done_all, size: 16, color: read, semanticLabel: t.statusRead),
+        MessageStatus.opened => Icon(Icons.done_all, size: 16, color: read, semanticLabel: t.viewOnceOpened),
       };
 
   /// MSG-15: accept, delete or block before anything goes back to the requester.
@@ -1698,10 +1725,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 ValueListenableBuilder(
                   valueListenable: _text,
                   builder: (context, v, _) => v.text.trim().isEmpty && _editing == null
-                      ? IconButton(
-                          tooltip: t.recordVoice,
-                          icon: const Icon(Icons.mic_none),
-                          onPressed: _busy ? null : _startRecording,
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: t.camera,
+                              icon: const Icon(Icons.photo_camera_outlined),
+                              onPressed: _busy ? null : _camera,
+                            ),
+                            IconButton(
+                              tooltip: t.recordVoice,
+                              icon: const Icon(Icons.mic_none),
+                              onPressed: _busy ? null : _startRecording,
+                            ),
+                          ],
                         )
                       : IconButton(
                           tooltip: t.send,

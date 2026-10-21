@@ -17,6 +17,7 @@ import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
 
 import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
+import 'app_lock.dart' show secureWhile;
 import 'links.dart' show isAndroid;
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
@@ -28,6 +29,7 @@ String messageText(AppLocalizations t, MessageView m) {
   if (a == null) return m.text;
   if (a.voiceNote) return '🎤 ${t.voiceMessage} (${formatDuration(a.durationMs)})';
   if (a.sticker) return '💟 ${t.sticker}';
+  if (a.viewOnce) return '📷 ${t.viewOncePhoto}';
   return switch (kindOf(a)) {
     AttachmentKind.audio => '🎵 ${a.fileName}',
     AttachmentKind.image => '📷 ${t.photo}',
@@ -288,6 +290,7 @@ typedef Outgoing = ({
   bool voice,
   Uint8List waveform,
   bool sticker,
+  bool viewOnce,
 });
 
 Outgoing outgoing(
@@ -301,6 +304,7 @@ Outgoing outgoing(
   bool voice = false,
   Uint8List? waveform,
   bool sticker = false,
+  bool viewOnce = false,
 }) => (
   data: data,
   mime: mime,
@@ -312,6 +316,7 @@ Outgoing outgoing(
   voice: voice,
   waveform: waveform ?? Uint8List(0),
   sticker: sticker,
+  viewOnce: viewOnce,
 );
 
 const maxAttachment = 100 << 20; // MED-06
@@ -362,10 +367,17 @@ Future<(int, int)> sizeOf(Uint8List image) async {
 
 /// MED-07, MED-11: a photo from the gallery, compressed to at most 2048 px as JPEG with no EXIF
 /// (so no location). GIFs go as they are, to stay animated.
-Future<Outgoing?> pickPhoto() async {
-  final f = await ImagePicker().pickImage(source: ImageSource.gallery);
+Future<Outgoing?> pickPhoto() => _photo(ImageSource.gallery);
+
+/// M9: a photo taken now, with the phone's camera. It lands in the app's cache, never in the
+/// gallery, and the picker's copy is cleared once read.
+Future<Outgoing?> takePhoto() => _photo(ImageSource.camera);
+
+Future<Outgoing?> _photo(ImageSource source) async {
+  final f = await ImagePicker().pickImage(source: source, preferredCameraDevice: CameraDevice.rear);
   if (f == null) return null;
   final raw = await f.readAsBytes();
+  if (source == ImageSource.camera && !kIsWeb) File(f.path).delete().ignore(); // the plaintext copy
   final gif = f.name.toLowerCase().endsWith('.gif');
   if (gif && raw.length > maxAttachment) throw TooLarge();
   final data = gif
@@ -473,7 +485,7 @@ Future<bool> isMetered() async {
 /// MED-12: fetches a new attachment ahead of time when the settings allow it on this network.
 Future<void> autoDownload(Core core, MessageView m) async {
   final a = m.attachment;
-  if (a == null || a.voiceNote) return; // voice notes download on play
+  if (a == null || a.voiceNote || a.viewOnce) return; // voice notes on play; view-once on opening
   // Nothing from people not yet accepted downloads by itself (M7).
   if (core.chats().any((c) => c.request && listEquals(c.groupId, m.groupId))) return;
   final kind = switch (kindOf(a)) {
@@ -922,9 +934,10 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
 /// Picks what goes in a bubble for an attachment.
 /// [held]: from someone not yet accepted (a message request). Photos, videos and stickers stay
 /// blurred and undownloaded until tapped (M7, docs/csa-risk-assessment.md).
-Widget attachmentView(Core core, MessageView m, {bool held = false}) =>
-    held &&
-        (m.attachment!.sticker || const {AttachmentKind.image, AttachmentKind.video}.contains(kindOf(m.attachment!)))
+Widget attachmentView(Core core, MessageView m, {bool held = false}) => m.attachment!.viewOnce
+    ? ViewOnceMessage(core: core, message: m)
+    : held &&
+          (m.attachment!.sticker || const {AttachmentKind.image, AttachmentKind.video}.contains(kindOf(m.attachment!)))
     ? _Held(core: core, message: m)
     : _attachmentView(core, m);
 
@@ -1007,6 +1020,194 @@ class _AutoDownloadTileState extends State<AutoDownloadTile> {
       subtitle: Text('${_summary(t, false)}\n${_summary(t, true)}'),
       isThreeLine: true,
       onTap: _edit,
+    );
+  }
+}
+
+/// M9: a view-once photo's bubble: no preview, ever. The sender sees its state; the recipient
+/// opens it once, on the phone, with screenshots blocked.
+class ViewOnceMessage extends StatefulWidget {
+  const ViewOnceMessage({super.key, required this.core, required this.message});
+  final Core core;
+  final MessageView message;
+
+  @override
+  State<ViewOnceMessage> createState() => _ViewOnceMessageState();
+}
+
+class _ViewOnceMessageState extends State<ViewOnceMessage> {
+  bool _opened = false;
+  bool _busy = false;
+
+  Future<void> _open() async {
+    final t = AppLocalizations.of(context)!;
+    if (kIsWeb || widget.core.isLinkedDevice()) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.viewOnceOnPhone)));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final data = await widget.core.openViewOnce(messageId: widget.message.messageId);
+      if (!mounted) return;
+      setState(() => _opened = true);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => ViewOnceViewer(core: widget.core, data: data),
+        ),
+      );
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final m = widget.message;
+    final a = m.attachment!;
+    final opened = _opened || m.status == MessageStatus.opened;
+    final available = !m.outgoing && !a.gone && !_opened;
+    final label = m.outgoing
+        ? (opened ? t.viewOnceOpened : t.viewOncePhoto)
+        : available
+        ? t.viewOncePhoto
+        : opened
+        ? t.viewOnceOpened
+        : t.viewOnceExpired;
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _busy
+            ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2))
+            : Icon(available ? Icons.looks_one : Icons.looks_one_outlined, size: 22),
+        const SizedBox(width: 8),
+        Flexible(child: Text(label)),
+      ],
+    );
+    return available
+        ? Semantics(
+            button: true,
+            hint: t.viewOnceOpenHint,
+            child: InkWell(
+              onTap: _busy ? null : _open,
+              child: Padding(padding: const EdgeInsets.all(4), child: row),
+            ),
+          )
+        : Padding(padding: const EdgeInsets.all(4), child: row);
+  }
+}
+
+/// M9: the one viewing. Nothing to save or share; screenshots and screen recording are blocked
+/// while it is open (a second camera can still photograph it: the help text says so).
+class ViewOnceViewer extends StatefulWidget {
+  const ViewOnceViewer({super.key, required this.core, required this.data});
+  final Core core;
+  final Uint8List data;
+
+  @override
+  State<ViewOnceViewer> createState() => _ViewOnceViewerState();
+}
+
+class _ViewOnceViewerState extends State<ViewOnceViewer> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(secureWhile(widget.core, true));
+  }
+
+  @override
+  void dispose() {
+    unawaited(secureWhile(widget.core, false));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: Text(t.viewOncePhoto)),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.memory(widget.data, fit: BoxFit.contain, semanticLabel: t.viewOncePhoto),
+        ),
+      ),
+    );
+  }
+}
+
+/// M9: a photo before it goes, from the camera or the gallery: send it as it is, or view once.
+class PhotoSendScreen extends StatefulWidget {
+  const PhotoSendScreen({super.key, required this.photo});
+  final Outgoing photo;
+
+  @override
+  State<PhotoSendScreen> createState() => _PhotoSendScreenState();
+}
+
+class _PhotoSendScreenState extends State<PhotoSendScreen> {
+  bool _viewOnce = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final p = widget.photo;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(child: Image.memory(p.data, fit: BoxFit.contain)),
+          ),
+          if (_viewOnce)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                t.viewOnceHelp,
+                style: const TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: t.viewOnce,
+                    isSelected: _viewOnce,
+                    color: Colors.white,
+                    selectedIcon: const Icon(Icons.looks_one),
+                    icon: const Icon(Icons.looks_one_outlined),
+                    onPressed: () => setState(() => _viewOnce = !_viewOnce),
+                  ),
+                  const Spacer(),
+                  FloatingActionButton(
+                    tooltip: t.send,
+                    onPressed: () => Navigator.pop(
+                      context,
+                      outgoing(
+                        p.data,
+                        p.mime,
+                        width: p.width,
+                        height: p.height,
+                        thumbnail: p.thumbnail,
+                        viewOnce: _viewOnce,
+                      ),
+                    ),
+                    child: const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

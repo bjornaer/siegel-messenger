@@ -12,6 +12,7 @@ import 'package:siegel/discovery.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
 import 'package:siegel/main.dart';
+import 'package:siegel/media.dart' show PhotoSendScreen, outgoing;
 import 'package:siegel/web.dart' show PinScreen;
 import 'package:siegel/number.dart';
 import 'package:siegel/onboarding.dart';
@@ -67,6 +68,8 @@ AttachmentView _att(String mime, String name, {bool voice = false}) => Attachmen
   height: 3,
   thumbnail: base64Decode(_png),
   sticker: false,
+  viewOnce: false,
+  gone: false,
 );
 
 Future<Map<String, Widget>> screens() async {
@@ -105,6 +108,14 @@ Future<Map<String, Widget>> screens() async {
     ),
     'linked devices': LinkedDevicesScreen(core: core),
     'web PIN': PinScreen.create(onPin: (_) async => true),
+    'photo send': PhotoSendScreen(
+      photo: outgoing(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        ),
+        'image/png',
+      ),
+    ),
     'web unlock': PinScreen.unlock(onPin: (_) async => false, triesLeft: () => 9, onForgot: () {}),
     'report': ReportScreen(core: core, chat: core.chats().firstWhere((c) => !c.isGroup)),
     'app lock': AppLock(core: FakeCore()..settings['app_lock'] = '60', child: const SizedBox()),

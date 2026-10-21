@@ -414,5 +414,14 @@
   "webNotifications": "Notificaciones en este navegador",
   "webNotificationsHelp": "Con la pestaña cerrada, un aviso dice que hay un mensaje esperando. No puede decir de quién ni qué: nuestro servidor no lo sabe.",
   "webNotificationsBlocked": "El navegador no permitió las notificaciones de Siegel. Permítelas en la configuración del sitio y vuelve a intentarlo.",
-  "noChatOpen": "Elige un chat a la izquierda."
+  "noChatOpen": "Elige un chat a la izquierda.",
+  "camera": "Cámara",
+  "viewOnce": "Ver una vez",
+  "viewOncePhoto": "Foto · ver una vez",
+  "viewOnceOpened": "Abierta",
+  "viewOnceExpired": "No se abrió a tiempo",
+  "viewOnceOpenHint": "Se abre una vez y desaparece",
+  "viewOnceOnPhone": "Las fotos de una sola vista solo se abren en tu móvil.",
+  "viewOnceHelp": "Podrá abrirla una vez, en su móvil, con las capturas bloqueadas; después desaparece para los dos. Si no la abre en 14 días, también desaparece. Aun así, alguien podría fotografiar la pantalla con otra cámara.",
+  "errViewOnceGone": "Esta foto de una sola vista no se puede volver a abrir."
 }

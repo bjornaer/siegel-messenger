@@ -1488,4 +1488,34 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get noChatOpen => 'Escolha uma conversa à esquerda.';
+
+  @override
+  String get camera => 'Câmera';
+
+  @override
+  String get viewOnce => 'Ver uma vez';
+
+  @override
+  String get viewOncePhoto => 'Foto · ver uma vez';
+
+  @override
+  String get viewOnceOpened => 'Aberta';
+
+  @override
+  String get viewOnceExpired => 'Não foi aberta a tempo';
+
+  @override
+  String get viewOnceOpenHint => 'Abre uma vez e some';
+
+  @override
+  String get viewOnceOnPhone =>
+      'Fotos de visualização única abrem só no celular.';
+
+  @override
+  String get viewOnceHelp =>
+      'A pessoa pode abrir uma vez, no celular, com capturas de tela bloqueadas; depois some para os dois. Se não for aberta em 14 dias, também some. Ainda assim, alguém poderia fotografar a tela com outra câmera.';
+
+  @override
+  String get errViewOnceGone =>
+      'Esta foto de visualização única não pode ser aberta de novo.';
 }

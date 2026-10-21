@@ -39,6 +39,10 @@ pub struct AttachmentInfo {
     /// A small JPEG preview (images and video), at most 20 KB.
     pub thumbnail: Vec<u8>,
     pub sticker: bool,
+    /// M9: opens once, on the recipient's phone.
+    pub view_once: bool,
+    /// M9: a view-once photo already opened or expired here: only its placeholder is left.
+    pub gone: bool,
 }
 
 /// A file to send.
@@ -54,6 +58,7 @@ pub struct OutgoingAttachment {
     pub height: u32,
     pub thumbnail: Vec<u8>,
     pub sticker: bool,
+    pub view_once: bool,
 }
 
 /// Rejects attachment messages no honest client sends.
@@ -80,6 +85,8 @@ pub(crate) fn info(a: &pb::Attachment) -> AttachmentInfo {
         height: a.height,
         thumbnail: a.thumbnail.clone(),
         sticker: a.sticker,
+        view_once: a.view_once,
+        gone: crate::view_once::gone(a),
     }
 }
 
@@ -167,7 +174,9 @@ impl SiegelCore {
         }
         self.check_can_send(group_id)?;
         let (uploaded, blob) = self.upload(&a.data, false).await?;
+        let view_once = a.view_once;
         let content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
+            view_once,
             mime_type: a.mime_type,
             file_name: a.file_name,
             duration_ms: a.duration_ms,
@@ -175,12 +184,15 @@ impl SiegelCore {
             waveform: a.waveform.into_iter().take(MAX_WAVEFORM).collect(),
             width: a.width,
             height: a.height,
-            thumbnail: a.thumbnail,
+            // M9: no preview of a view-once photo, not even blurred.
+            thumbnail: if view_once { vec![] } else { a.thumbnail },
             sticker: a.sticker,
             reply_to: reply_to.unwrap_or_default().to_vec(),
             ..uploaded
         }));
-        self.media_write(&content.message_id, &blob)?;
+        if !view_once {
+            self.media_write(&content.message_id, &blob)?; // a view-once one isn't kept here
+        }
         let mut msg = Message {
             message_id: content.message_id.clone(),
             group_id: group_id.to_vec(),
@@ -194,6 +206,13 @@ impl SiegelCore {
         };
         self.with_store(|s| storage(s.save_message(&msg)))?;
         self.deliver_stored(&mut msg).await?;
+        if view_once {
+            // Sent: the sender keeps the placeholder only (until then a retry needs the key).
+            self.erase_view_once(&msg.message_id, None)?;
+            msg = self
+                .with_store(|s| storage(s.message(&msg.message_id)))?
+                .unwrap_or(msg);
+        }
         chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
     }
 
@@ -230,6 +249,7 @@ impl SiegelCore {
                     height: a.height,
                     thumbnail: a.thumbnail,
                     sticker: a.sticker,
+                    view_once: false, // never reached: a view-once one can't be read here
                 };
                 self.send_attachment(to, out, None).await
             }
@@ -250,10 +270,22 @@ impl SiegelCore {
         else {
             return Err(CoreError::new("not_found"));
         };
+        if a.view_once {
+            return Err(CoreError::new("view_once")); // only open_view_once, once
+        }
+        self.attachment_bytes(message_id, &a).await
+    }
+
+    /// Downloads (if needed) and decrypts an attachment.
+    pub(crate) async fn attachment_bytes(
+        &self,
+        message_id: &[u8],
+        a: &pb::Attachment,
+    ) -> Result<Vec<u8>, CoreError> {
         let blob = match self.media_read(message_id).filter(|b| !b.is_empty()) {
             Some(b) => b,
             None => {
-                let b = self.download(&a).await?;
+                let b = self.download(a).await?;
                 self.media_write(message_id, &b)?;
                 b
             }

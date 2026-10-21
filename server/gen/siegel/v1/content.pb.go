@@ -97,6 +97,7 @@ const (
 	Receipt_KIND_UNSPECIFIED Receipt_Kind = 0
 	Receipt_KIND_DELIVERED   Receipt_Kind = 1
 	Receipt_KIND_READ        Receipt_Kind = 2
+	Receipt_KIND_OPENED      Receipt_Kind = 3 // M9: a view-once photo was opened (follows the read-receipts setting)
 )
 
 // Enum value maps for Receipt_Kind.
@@ -105,11 +106,13 @@ var (
 		0: "KIND_UNSPECIFIED",
 		1: "KIND_DELIVERED",
 		2: "KIND_READ",
+		3: "KIND_OPENED",
 	}
 	Receipt_Kind_value = map[string]int32{
 		"KIND_UNSPECIFIED": 0,
 		"KIND_DELIVERED":   1,
 		"KIND_READ":        2,
+		"KIND_OPENED":      3,
 	}
 )
 
@@ -932,6 +935,7 @@ type Attachment struct {
 	Waveform      []byte                 `protobuf:"bytes,12,opt,name=waveform,proto3" json:"waveform,omitempty"`                       // MED-09: voice note loudness, one byte (0-255) per bar
 	ReplyTo       []byte                 `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`          // MSG-07, as in Text
 	Sticker       bool                   `protobuf:"varint,14,opt,name=sticker,proto3" json:"sticker,omitempty"`                        // a WebP or PNG sticker: shown large, without a bubble (older apps show a photo)
+	ViewOnce      bool                   `protobuf:"varint,15,opt,name=view_once,json=viewOnce,proto3" json:"view_once,omitempty"`      // M9: opened once on the recipient's phone, then gone everywhere; no thumbnail
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1060,6 +1064,13 @@ func (x *Attachment) GetReplyTo() []byte {
 func (x *Attachment) GetSticker() bool {
 	if x != nil {
 		return x.Sticker
+	}
+	return false
+}
+
+func (x *Attachment) GetViewOnce() bool {
+	if x != nil {
+		return x.ViewOnce
 	}
 	return false
 }
@@ -1431,7 +1442,7 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12-\n" +
 	"\x06avatar\x18\x03 \x01(\v2\x15.siegel.v1.AttachmentR\x06avatar\x12\x18\n" +
-	"\apadding\x18\x0f \x01(\fR\apadding\"\xfa\x02\n" +
+	"\apadding\x18\x0f \x01(\fR\apadding\"\x97\x03\n" +
 	"\n" +
 	"Attachment\x12\x17\n" +
 	"\ablob_id\x18\x01 \x01(\fR\x06blobId\x12\x10\n" +
@@ -1450,7 +1461,8 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"voice_note\x18\v \x01(\bR\tvoiceNote\x12\x1a\n" +
 	"\bwaveform\x18\f \x01(\fR\bwaveform\x12\x19\n" +
 	"\breply_to\x18\r \x01(\fR\areplyTo\x12\x18\n" +
-	"\asticker\x18\x0e \x01(\bR\asticker\"Q\n" +
+	"\asticker\x18\x0e \x01(\bR\asticker\x12\x1b\n" +
+	"\tview_once\x18\x0f \x01(\bR\bviewOnce\"Q\n" +
 	"\x04Text\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
 	"\breply_to\x18\x02 \x01(\fR\areplyTo\x12\x1a\n" +
@@ -1465,15 +1477,16 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\x04body\x18\x02 \x01(\tR\x04body\"'\n" +
 	"\x06Delete\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\fR\tmessageId\"\x98\x01\n" +
+	"message_id\x18\x01 \x01(\fR\tmessageId\"\xa9\x01\n" +
 	"\aReceipt\x12+\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x17.siegel.v1.Receipt.KindR\x04kind\x12\x1f\n" +
 	"\vmessage_ids\x18\x02 \x03(\fR\n" +
-	"messageIds\"?\n" +
+	"messageIds\"P\n" +
 	"\x04Kind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eKIND_DELIVERED\x10\x01\x12\r\n" +
-	"\tKIND_READ\x10\x02\"\b\n" +
+	"\tKIND_READ\x10\x02\x12\x0f\n" +
+	"\vKIND_OPENED\x10\x03\"\b\n" +
 	"\x06TypingBDZBgithub.com/bjornaer/siegel-messenger/server/gen/siegel/v1;siegelv1b\x06proto3"
 
 var (

@@ -173,6 +173,7 @@ void showMessageInfo(BuildContext context, MessageView m, String peer) {
     MessageStatus.sent => t.statusSent,
     MessageStatus.delivered => t.statusDelivered,
     MessageStatus.read => t.statusRead,
+    MessageStatus.opened => t.viewOnceOpened,
   };
   showDialog<void>(
     context: context,
