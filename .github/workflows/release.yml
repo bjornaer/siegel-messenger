@@ -1,0 +1,73 @@
+# Builds the Android app for a GitHub release and attaches it: siegel-<n>.aab (Play) and
+# siegel-<n>.apk (direct install). The build number <n> is the number the release's tag ends
+# with (build-18, v18, …). Signed with the upload key from the `production` environment's
+# secrets (docs/play-store.md); it never touches the repository.
+name: release
+on:
+  release:
+    types: [published]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write # attach the files to the release
+    defaults:
+      run:
+        working-directory: app
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: build number from the tag
+        run: |
+          n=$(printf '%s' "$TAG" | grep -oE '[0-9]+$') || { echo "::error::the tag must end in the build number, e.g. build-18"; exit 1; }
+          echo "BUILD=$n" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: rustup toolchain install stable --profile minimal -t aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            app/rust/target
+          key: release-${{ hashFiles('app/rust/Cargo.lock') }}
+      - name: upload key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          # Without the key Gradle would quietly sign with the debug key: stop instead.
+          [ -n "$KEYSTORE" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ] \
+            || { echo "::error::set the ANDROID_UPLOAD_* secrets (docs/play-store.md)"; exit 1; }
+          printf '%s' "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/upload.jks" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
+      - run: flutter pub get
+      - run: flutter build appbundle --release --build-number "$BUILD"
+      - run: flutter build apk --release --build-number "$BUILD"
+      - name: signed with the upload key, not the debug key
+        run: |
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs "$apk" \
+            | tee /dev/stderr | grep -q "CN=Android Debug" && { echo "::error::debug-signed"; exit 1; } || true
+      - name: attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out
+          cp build/app/outputs/bundle/release/app-release.aab "out/siegel-$BUILD.aab"
+          cp build/app/outputs/flutter-apk/app-release.apk "out/siegel-$BUILD.apk"
+          (cd out && sha256sum siegel-* > "siegel-$BUILD.sha256")
+          gh release upload "$TAG" out/* --clobber
+      - if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/upload.jks"

@@ -21,6 +21,30 @@ flutter build appbundle --release --build-number <n>   # n must grow with every 
 # upload build/app/outputs/bundle/release/app-release.aab
 ```
 
+### From a GitHub release (CI)
+
+Publishing a release whose tag ends in the build number (`build-18`, `v18`) runs
+`.github/workflows/release.yml`. It attaches `siegel-<n>.aab` (upload to Play),
+`siegel-<n>.apk` (install directly) and `siegel-<n>.sha256` to the release.
+
+It signs with the upload key, stored as secrets of the `production` environment. Set them once,
+from your machine, so the key never passes through anyone else. Each `gh secret set` without a
+value prompts for it:
+
+```sh
+base64 -i <path to the upload keystore .jks> | gh secret set ANDROID_UPLOAD_KEYSTORE --env production
+gh secret set ANDROID_UPLOAD_STORE_PASSWORD --env production
+gh secret set ANDROID_UPLOAD_KEY_ALIAS --env production
+gh secret set ANDROID_UPLOAD_KEY_PASSWORD --env production
+```
+
+The values are the ones in `app/android/key.properties`. Without them the job stops, rather than
+shipping a debug-signed build.
+
+The APK is signed with the upload key; Play re-signs the AAB with Google's app-signing key. A phone
+that installed the APK can't take Play updates over it (different signatures), and the other way
+round: uninstall first.
+
 ## Store listing
 
 Short description (76/80):
