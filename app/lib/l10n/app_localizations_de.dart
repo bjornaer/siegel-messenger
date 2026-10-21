@@ -1482,4 +1482,7 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errVideoCompress =>
       'Dieses Video ließ sich nicht verkleinern und ist größer als 100 MB. Kürze es zuerst oder sende ein kürzeres.';
+
+  @override
+  String get mostUsedStickers => 'Am häufigsten';
 }

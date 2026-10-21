@@ -1471,4 +1471,7 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get errVideoCompress =>
       'Não deu para diminuir este vídeo, e ele tem mais de 100 MB. Corte-o antes ou envie um mais curto.';
+
+  @override
+  String get mostUsedStickers => 'Mais usados';
 }

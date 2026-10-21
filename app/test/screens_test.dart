@@ -1802,9 +1802,28 @@ void main() {
     await t.pump(const Duration(seconds: 5)); // the snackbar covers the composer
     await t.pumpAndSettle();
 
+    // With stickers of their own, Mine opens first; what they send most goes on top.
     await t.tap(find.byTooltip('Stickers'));
     await t.pumpAndSettle();
-    expect(find.text('Siegel'), findsOneWidget);
+    expect(find.text('Most used'), findsNothing);
+    Finder inSheet(Finder f) => find.descendant(of: find.byType(BottomSheet), matching: f);
+    await t.tap(inSheet(find.bySemanticsLabel('Sticker')).first);
+    await t.pumpAndSettle();
+    expect(core.calls, contains('sendSticker'));
+    await t.pump(const Duration(seconds: 5)); // the snackbar covers the composer
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Stickers'));
+    await t.pumpAndSettle();
+    expect(find.text('Most used'), findsOneWidget);
+    expect(inSheet(find.bySemanticsLabel('Sticker')), findsNWidgets(2), reason: 'in Most used and in Mine');
+    Navigator.of(t.element(find.text('Most used'))).pop();
+    await t.pumpAndSettle();
+
+    core.calls.clear();
+    await t.tap(find.byTooltip('Stickers'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Siegel'));
+    await t.pumpAndSettle();
     await t.runAsync(() async {
       await t.tap(find.bySemanticsLabel('seal'));
       await Future<void>.delayed(const Duration(milliseconds: 500)); // drawn to a PNG

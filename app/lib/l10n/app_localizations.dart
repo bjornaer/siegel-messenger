@@ -2561,6 +2561,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This video couldn\'t be made smaller, and it\'s over 100 MB. Trim it first, or send a shorter one.'**
   String get errVideoCompress;
+
+  /// No description provided for @mostUsedStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Most used'**
+  String get mostUsedStickers;
 }
 
 class _AppLocalizationsDelegate

@@ -28,6 +28,8 @@ Future<StickerPick?> pickSticker(BuildContext context, Core core) => showModalBo
   ),
 );
 
+const _usesKey = 'sticker_uses';
+
 class _StickerSheet extends StatefulWidget {
   const _StickerSheet({required this.core});
   final Core core;
@@ -120,8 +122,11 @@ class _StickerSheetState extends State<_StickerSheet> {
     final all = core.stickers();
     final packs = {for (final s in all) s.pack}..remove('');
     final mine = all.where((s) => s.pack.isEmpty).toList();
+    final uses = _uses();
+    final top = all.where((s) => (uses[s.id] ?? 0) > 0).toList()..sort((a, b) => uses[b.id]!.compareTo(uses[a.id]!));
     return DefaultTabController(
       length: 2 + packs.length,
+      initialIndex: mine.isEmpty && top.isEmpty ? 0 : 1, // their own stickers first, once they have some
       child: Column(
         children: [
           TabBar(
@@ -136,18 +141,24 @@ class _StickerSheetState extends State<_StickerSheet> {
           Expanded(
             child: TabBarView(
               children: [
-                _grid([
-                  for (final id in siegelStickers)
-                    _Cell(
-                      label: id,
-                      child: CustomPaint(painter: SiegelSticker(id)),
-                      onTap: () async {
-                        final png = await renderSiegelSticker(id);
-                        if (context.mounted) Navigator.pop(context, (data: png, mime: 'image/png'));
-                      },
-                    ),
-                ]),
-                mine.isEmpty ? Center(child: Text(t.noStickers, textAlign: TextAlign.center)) : _stored(mine, ''),
+                CustomScrollView(
+                  slivers: [
+                    _grid([
+                      for (final id in siegelStickers)
+                        _Cell(
+                          label: id,
+                          child: CustomPaint(painter: SiegelSticker(id)),
+                          onTap: () async {
+                            final png = await renderSiegelSticker(id);
+                            if (context.mounted) Navigator.pop(context, (data: png, mime: 'image/png'));
+                          },
+                        ),
+                    ]),
+                  ],
+                ),
+                mine.isEmpty && top.isEmpty
+                    ? Center(child: Text(t.noStickers, textAlign: TextAlign.center))
+                    : _stored(mine, '', mostUsed: top.take(15).toList()),
                 for (final p in packs) _stored(all.where((s) => s.pack == p).toList(), p),
               ],
             ),
@@ -172,21 +183,59 @@ class _StickerSheetState extends State<_StickerSheet> {
     );
   }
 
-  Widget _stored(List<StickerView> list, String pack) {
+  /// How often each stored sticker was sent, kept in the encrypted database's settings.
+  Map<String, int> _uses() {
+    try {
+      return (jsonDecode(core.setting(key: _usesKey) ?? '{}') as Map).cast<String, int>();
+    } on Object {
+      return {};
+    }
+  }
+
+  void _send(StickerView s, Uint8List d) {
+    final uses = _uses();
+    uses[s.id] = (uses[s.id] ?? 0) + 1;
+    core.setSetting(key: _usesKey, value: jsonEncode(uses));
+    Navigator.pop(context, (data: d, mime: s.mimeType));
+  }
+
+  List<Widget> _cells(List<StickerView> list) {
     final t = AppLocalizations.of(context)!;
+    return [
+      for (final s in list)
+        if (core.stickerData(id: s.id) case final d? when d.isNotEmpty)
+          _Cell(
+            label: t.sticker,
+            child: Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true),
+            onTap: () => _send(s, d),
+            onLongPress: () => _options(s.pack, s, d),
+          ),
+    ];
+  }
+
+  /// A pack's stickers; in Mine, the 15 most sent (from any pack) come first.
+  Widget _stored(List<StickerView> list, String pack, {List<StickerView> mostUsed = const []}) {
+    final t = AppLocalizations.of(context)!;
+    final heading = Theme.of(context).textTheme.labelLarge;
+    Widget title(String text) => SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Semantics(header: true, child: Text(text, style: heading)),
+      ),
+    );
     return Column(
       children: [
         Expanded(
-          child: _grid([
-            for (final s in list)
-              if (core.stickerData(id: s.id) case final d? when d.isNotEmpty)
-                _Cell(
-                  label: t.sticker,
-                  child: Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true),
-                  onTap: () => Navigator.pop(context, (data: d, mime: s.mimeType)),
-                  onLongPress: () => _options(pack, s, d),
-                ),
-          ]),
+          child: CustomScrollView(
+            slivers: [
+              if (mostUsed.isNotEmpty) ...[
+                title(t.mostUsedStickers),
+                _grid(_cells(mostUsed)),
+                if (list.isNotEmpty) title(t.myStickers),
+              ],
+              _grid(_cells(list)),
+            ],
+          ),
         ),
         if (pack.isNotEmpty) TextButton(onPressed: () => _remove(pack, ''), child: Text(t.removeStickerPack(pack))),
       ],
@@ -208,12 +257,9 @@ class _StickerSheetState extends State<_StickerSheet> {
     if (ok == true) await _run(() async => core.removeStickers(pack: pack, id: id));
   }
 
-  Widget _grid(List<Widget> cells) => GridView.count(
-    crossAxisCount: 4,
+  Widget _grid(List<Widget> cells) => SliverPadding(
     padding: const EdgeInsets.all(8),
-    mainAxisSpacing: 8,
-    crossAxisSpacing: 8,
-    children: cells,
+    sliver: SliverGrid.count(crossAxisCount: 4, mainAxisSpacing: 8, crossAxisSpacing: 8, children: cells),
   );
 }
 

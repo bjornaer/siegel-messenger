@@ -409,5 +409,6 @@
   "unlinkThisBrowser": "Desvincular este navegador",
   "unlinkThisBrowserBody": "Siegel olvida tus chats en este navegador. Tu móvil y tu cuenta siguen igual.",
   "webPinLabel": "PIN (de 4 a 6 dígitos)",
-  "errVideoCompress": "No se pudo reducir este vídeo y pesa más de 100 MB. Recórtalo primero o envía uno más corto."
+  "errVideoCompress": "No se pudo reducir este vídeo y pesa más de 100 MB. Recórtalo primero o envía uno más corto.",
+  "mostUsedStickers": "Más usados"
 }
