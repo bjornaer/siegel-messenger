@@ -18,6 +18,8 @@ rusqlite = { version = "0.39", features = ["bundled-sqlcipher-vendored-openssl"]
 [target.'cfg(target_family = "wasm")'.dependencies]
 sqlite-wasm-rs = { version = "0.5", features = ["sqlite3mc"] }
 sqlite-wasm-vfs = "0.2"
+# refinery stamps migrations with time's clock: in the browser it must ask JavaScript for it.
+time = { version = "0.3", features = ["wasm-bindgen"] }
 
 [target.'cfg(target_family = "wasm")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
