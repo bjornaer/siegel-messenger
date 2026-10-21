@@ -22,3 +22,6 @@ core/fuzz/target/
 core/fuzz/corpus/
 core/fuzz/artifacts/
 core/fuzz/coverage/
+
+# M8: the web app releases deploy.sh unpacks on the server
+/web-site/

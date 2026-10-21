@@ -24,6 +24,7 @@ import 'push.dart';
 import 'stickers.dart' show importStickerFiles;
 import 'suspended.dart';
 import 'server_data.dart';
+import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'themes.dart';
 import 'web.dart';
 import 'src/rust/api/core.dart';
@@ -49,7 +50,7 @@ Future<Core> openCore() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await RustLib.init();
+  await RustLib.init(externalLibrary: await browser.coreLibrary());
   if (kIsWeb) {
     await prepareStorage(); // M8: the database lives in IndexedDB
     return runApp(const WebStart());

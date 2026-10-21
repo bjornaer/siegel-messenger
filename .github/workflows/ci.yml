@@ -114,6 +114,10 @@ jobs:
   # site is kept as an artifact; part 5 serves it.
   web:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # attests the release (Sigstore) on main
+      attestations: write
     defaults:
       run:
         working-directory: app
@@ -146,11 +150,18 @@ jobs:
           -C link-args=--export=__wasm_init_tls -C link-args=--export=__tls_size -C link-args=--export=__tls_align
           -C link-args=--export=__tls_base'
       - run: flutter build web --release --no-web-resources-cdn
-      - run: ls -la build/web build/web/pkg && du -sh build/web
+      - name: fonts mirrored, no service worker, SRI, manifest
+        run: python3 -I tool/web_release.py build/web
+      - run: du -sh build/web && tar -czf siegel-web.tar.gz -C build/web .
+      # What anyone can check the served site against: the manifest, tied to this commit by GitHub.
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: app/build/web/.well-known/siegel-web-manifest.txt
       - uses: actions/upload-artifact@v4
         with:
           name: siegel-web
-          path: app/build/web
+          path: app/siegel-web.tar.gz
 
   e2e:
     # Headless Rust clients against the real stack (section 15 end-to-end tests, AC-01).
@@ -181,13 +192,16 @@ jobs:
 
   # Deploys main to Hetzner once CI is green. Inert until the DEPLOY_HOST variable is set (docs/deploy.md).
   deploy:
-    needs: [server, core, core-web, app, e2e]
+    needs: [server, core, core-web, app, e2e, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_HOST != ''
     runs-on: ubuntu-latest
     concurrency: deploy
     environment: production
     steps:
-      - name: ssh deploy (forced command runs scripts/deploy.sh)
+      - uses: actions/download-artifact@v4
+        with:
+          name: siegel-web
+      - name: ssh deploy (forced command runs scripts/deploy.sh), the web app on stdin
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -195,4 +209,4 @@ jobs:
           mkdir -p ~/.ssh
           echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           install -m 600 /dev/null ~/.ssh/deploy && echo "$SSH_KEY" > ~/.ssh/deploy
-          ssh -i ~/.ssh/deploy deploy@${{ vars.DEPLOY_HOST }}
+          ssh -i ~/.ssh/deploy deploy@${{ vars.DEPLOY_HOST }} web < siegel-web.tar.gz

@@ -68,6 +68,7 @@ type config struct {
 	reportsKey    string   // CMP-03: the moderators' age public key; empty = reporting off
 	consoleAddr   string   // M7: the moderation console's listen address; empty = off
 	webOrigin     string   // M8: the web app's origin (https://web.siegel.schlk.in); empty = no web app
+	webDir        string   // M8 part 5: where deploy.sh puts the built site (current -> a release)
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -123,6 +124,7 @@ func loadConfig() config {
 		reportsKey:    os.Getenv("SIEGEL_REPORTS_AGE_RECIPIENT"),
 		consoleAddr:   os.Getenv("SIEGEL_CONSOLE_ADDR"),
 		webOrigin:     os.Getenv("SIEGEL_WEB_ORIGIN"),
+		webDir:        os.Getenv("SIEGEL_WEB_DIR"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
@@ -290,7 +292,7 @@ func main() {
 	}
 	m := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(cfg.domain),
+		HostPolicy: autocert.HostWhitelist(hosts(cfg)...),
 		Cache:      autocert.DirCache(cfg.certDir),
 	}
 	acme := &http.Server{Addr: ":8080", Handler: m.HTTPHandler(nil), ReadHeaderTimeout: 10 * time.Second, ErrorLog: httpErrorLog}
@@ -334,7 +336,35 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /u/{username}", s.contactPage)
 	mux.HandleFunc("GET /g/{id}", s.page("g")) // GRP-16: the server can't tell which group
 	mux.HandleFunc("GET /.well-known/assetlinks.json", s.assetLinks)
-	return s.cors(mux)
+	api := s.cors(mux)
+	host := s.webHost()
+	if host == "" || s.cfg.webDir == "" {
+		return api
+	}
+	site := s.webSite()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(stripPort(r.Host), host) {
+			site.ServeHTTP(w, r) // the web app's own host: its files and nothing else
+			return
+		}
+		api.ServeHTTP(w, r)
+	})
+}
+
+// hosts are the names the certificate manager may get certificates for.
+func hosts(cfg config) []string {
+	h := []string{cfg.domain}
+	if _, web, ok := strings.Cut(cfg.webOrigin, "://"); ok && cfg.webDir != "" {
+		h = append(h, web)
+	}
+	return h
+}
+
+func stripPort(h string) string {
+	if i := strings.LastIndexByte(h, ':'); i > strings.LastIndexByte(h, ']') {
+		return h[:i]
+	}
+	return h
 }
 
 // cors lets the web app (M8) call the API from its own origin, and no other. No cookies are

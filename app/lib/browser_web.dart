@@ -1,4 +1,18 @@
+import 'dart:js_interop';
+
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart' show ExternalLibrary;
 import 'package:web/web.dart' as web;
+
+@JS('siegelCoreReady')
+external JSPromise<JSAny?> get _coreReady;
+
+/// The core, started by web/siegel_core.js; flutter_rust_bridge's own loader needs eval.
+Future<ExternalLibrary?> coreLibrary() async {
+  await _coreReady.toDart;
+  // The analyzer reads the phones' ExternalLibrary; this file only builds for the browser's.
+  // ignore: const_with_undefined_constructor_default
+  return const ExternalLibrary(debugInfo: 'web/siegel_core.js');
+}
 
 String? load(String key) => web.window.localStorage.getItem(key);
 

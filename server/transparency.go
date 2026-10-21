@@ -61,7 +61,10 @@ func (s *server) transparencyPage(w http.ResponseWriter, r *http.Request) {
 		Actions []line
 		Appeals []line
 		Legal   []line
-	}{pageData: pageData{Contact: s.cfg.contactEmail, Operator: s.cfg.operator}, Year: year}
+		Web     string // M8: the served web app's manifest hash
+		WebHost string
+	}{pageData: pageData{Contact: s.cfg.contactEmail, Operator: s.cfg.operator}, Year: year,
+		Web: s.webRelease(), WebHost: s.webHost()}
 	rows, err := s.db.Query(ctx, `SELECT item, count FROM transparency WHERE year = $1 ORDER BY item`, year)
 	if err == nil {
 		for rows.Next() {

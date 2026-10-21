@@ -21,4 +21,13 @@ them, so everything here starts with a report from a user, a username we flagged
 {{else}}<p>None yet this year.</p>{{end}}
 <p>What we can hand over is listed in our <a href="/privacy">privacy policy</a>: never message content,
 contacts or chat history, because we don't have them.</p>
+{{if .Web}}
+<h2>The web app's code</h2>
+<p>A server that serves code could serve different code to someone. So every release of
+<a href="https://{{.WebHost}}">{{.WebHost}}</a> lists the SHA-256 of each of its files in
+<a href="https://{{.WebHost}}/.well-known/siegel-web-manifest.txt">its manifest</a>, and GitHub records
+(in the public Sigstore log) which commit of our source code it was built from. The manifest served now
+has the SHA-256 <code>{{.Web}}</code>. To check it yourself, run <code>scripts/verify-web.sh</code> from our
+source code; it compares every file you are served with the attested list.</p>
+{{end}}
 {{template "foot"}}{{end}}

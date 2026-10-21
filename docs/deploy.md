@@ -111,6 +111,29 @@ fix ships (`docker compose logs server` names the file).
 Deploys leave OpenBao running (unchanged containers are not recreated), so no unseal is needed,
 unless a commit bumps the OpenBao image.
 
+## Siegel Web: web.siegel.schlk.in (M8)
+
+The web app is static files that CI builds (job `web`) and the deploy job sends along
+(`ssh deploy@host web < siegel-web.tar.gz`). `scripts/deploy.sh` unpacks each release into
+`/opt/siegel/web-site/releases/<commit>` and points `web-site/current` at it in one step, keeping the
+last three. The server serves it on its own host name and certificate, under strict headers:
+- CSP: our scripts and WebAssembly only, no eval; connections only to the API;
+- cross-origin isolated (the core's threads need it);
+- no framing.
+Fonts are mirrored at build time, so nothing loads from a third party.
+
+To turn it on, once:
+1. DNS: an `A` record for `web.siegel.schlk.in` to the server's IPv4 (same as `siegel.schlk.in`).
+2. In `/opt/siegel/.env`: `SIEGEL_WEB_ORIGIN=https://web.siegel.schlk.in`, then
+   `docker compose up -d server`. The certificate comes on the first visit.
+
+Until both are done the API serves no site, and the browser can't call it (no CORS).
+
+**Checking the served code.** Each release's `.well-known/siegel-web-manifest.txt` lists every
+file's SHA-256, and GitHub attests the manifest (Sigstore: which commit, which workflow).
+`scripts/verify-web.sh` checks the attestation and every served file; `/transparency` shows the
+manifest hash being served. **Roll back:** `ln -sfn releases/<older> web-site/current` (no restart needed).
+
 ## Backups
 
 Backups land in `/opt/siegel/backups` (one copy each, overwritten daily). They do not include
