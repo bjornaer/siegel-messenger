@@ -1,6 +1,6 @@
 # M8: Linked devices and Siegel Web, plan
 
-Status: parts 1–4 built (2026-10-20). AAB and web release at the end.
+Status: parts 1–5 built (2026-10-21). AAB and web release at the end.
 
 ## Decided
 
@@ -104,6 +104,30 @@ Output: a report on what works, the bundle size, and any blocker, before Part 4 
 - **Each release publishes the hash of its files** (in the repo and on `/transparency`), so anyone can
   check the served code is the published code. This is the main protection a web client can offer
   against a server that would serve different code.
+
+**Built (part 5):**
+- The API server serves the site on its own host name and certificate (no extra container):
+  - CSP: our scripts and WebAssembly only, no eval;
+  - cross-origin isolation;
+  - no framing, no listings.
+- No eval in the page:
+  - the core is started by `web/siegel_core.js`, since flutter_rust_bridge's loader would run
+    `new Function`;
+  - `init_app` is sync, so its thread pool (which finds its script by eval) never starts.
+- Self-contained:
+  - Flutter's 170 fallback fonts (7 MB) are mirrored at build;
+  - no service worker;
+  - SRI on the page's three scripts. Flutter's own loader adds `main.dart.js` and CanvasKit
+    without SRI; the manifest covers them.
+- `.well-known/siegel-web-manifest.txt` (SHA-256 of every file) is attested by GitHub (Sigstore) on
+  main; `/transparency` shows the served manifest's hash; `scripts/verify-web.sh` checks
+  everything.
+- Deploys send the site over the deploy key; `deploy.sh` swaps releases in one step and keeps three.
+- Fixed by trying it in Chrome:
+  - the cipher layer now wraps the IndexedDB VFS;
+  - refinery's clock comes from JavaScript.
+  `core-store` now has a test that runs in headless Chrome in CI.
+- **Turning it on:** DNS for `web.siegel.schlk.in`, then `SIEGEL_WEB_ORIGIN` (docs/deploy.md).
 
 ### Part 6: Notifications and polish
 
