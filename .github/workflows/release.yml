@@ -1,5 +1,5 @@
-# Builds the Android app for a GitHub release and attaches it: siegel-<n>.aab (Play) and
-# siegel-<n>.apk (direct install). The build number <n> is the number the release's tag ends
+# Builds the Android app for a GitHub release and attaches it as siegel-<n>.aab, for Play.
+# The build number <n> is the number the release's tag ends
 # with (build-18, v18, …). Signed with the upload key from the `production` environment's
 # secrets (docs/play-store.md); it never touches the repository.
 name: release
@@ -54,19 +54,17 @@ jobs:
             "$RUNNER_TEMP/upload.jks" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
       - run: flutter pub get
       - run: flutter build appbundle --release --build-number "$BUILD"
-      - run: flutter build apk --release --build-number "$BUILD"
       - name: signed with the upload key, not the debug key
         run: |
-          apk=build/app/outputs/flutter-apk/app-release.apk
-          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs "$apk" \
-            | tee /dev/stderr | grep -q "CN=Android Debug" && { echo "::error::debug-signed"; exit 1; } || true
+          certs=$(jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab)
+          echo "$certs" | grep -q "jar verified" || { echo "::error::not signed"; exit 1; }
+          if echo "$certs" | grep -q "CN=Android Debug"; then echo "::error::debug-signed"; exit 1; fi
       - name: attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p out
           cp build/app/outputs/bundle/release/app-release.aab "out/siegel-$BUILD.aab"
-          cp build/app/outputs/flutter-apk/app-release.apk "out/siegel-$BUILD.apk"
           (cd out && sha256sum siegel-* > "siegel-$BUILD.sha256")
           gh release upload "$TAG" out/* --clobber
       - if: always()
