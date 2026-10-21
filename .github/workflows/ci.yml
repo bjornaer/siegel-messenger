@@ -158,7 +158,7 @@ jobs:
           -C link-args=--max-memory=1073741824 -C link-args=--import-memory -C link-args=--export=__heap_base
           -C link-args=--export=__wasm_init_tls -C link-args=--export=__tls_size -C link-args=--export=__tls_align
           -C link-args=--export=__tls_base'
-      - run: flutter build web --release --no-web-resources-cdn
+      - run: flutter build web --release --no-web-resources-cdn --source-maps # readable console stacks; the source is public
       - name: fonts mirrored, no service worker, SRI, manifest
         run: python3 -I tool/web_release.py build/web
       - run: du -sh build/web && tar -czf siegel-web.tar.gz -C build/web .

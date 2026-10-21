@@ -51,6 +51,11 @@ Future<Core> openCore() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init(externalLibrary: await browser.coreLibrary());
+  // An error nobody caught: its code in the console (the browser shows only "Error" otherwise).
+  PlatformDispatcher.instance.onError = (e, stack) {
+    debugPrint('uncaught: ${e is CoreError ? 'CoreError(${e.code})' : e}\n$stack');
+    return false;
+  };
   if (kIsWeb) {
     await prepareStorage(); // M8: the database lives in IndexedDB
     return runApp(const WebStart());

@@ -163,7 +163,11 @@ class ChatService extends ChangeNotifier {
           }
           notifyListeners();
         },
-        onError: finish, // network error or server restart: reconnect below
+        onError: (Object e) {
+          // Network error or server restart: reconnect below. The code says which (web console).
+          debugPrint('stream: ${e is CoreError ? e.code : e}');
+          finish();
+        },
         onDone: finish,
       );
       await done.future;
