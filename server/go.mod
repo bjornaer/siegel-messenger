@@ -1,6 +1,6 @@
 module github.com/bjornaer/siegel-messenger/server
 
-go 1.26.9
+go 1.26.10
 
 tool (
 	connectrpc.com/connect/cmd/protoc-gen-connect-go
