@@ -160,6 +160,26 @@ impl SiegelCore {
         if !p.username.is_empty() {
             self.put(crate::USERNAME, p.username.as_bytes())?;
         }
+        // The phone's picture too (MED-15), fetched again only when it changed.
+        let current = self.get(MY_AVATAR_REF)?.unwrap_or_default();
+        match p.avatar {
+            Some(a) if crate::media::valid(&a) && a.size as usize <= MAX_AVATAR => {
+                if pb::Attachment::decode(current.as_slice())
+                    .ok()
+                    .map(|c| c.blob_id)
+                    != Some(a.blob_id.clone())
+                    && let Ok(blob) = self.download(&a).await
+                    && let Some(img) = core_media::decrypt(&a.key, &blob, a.size as usize)
+                {
+                    self.put(MY_AVATAR_REF, &a.encode_to_vec())?;
+                    self.put(MY_AVATAR, &img)?;
+                }
+            }
+            _ => {
+                self.put(MY_AVATAR_REF, b"")?;
+                self.put(MY_AVATAR, b"")?;
+            }
+        }
         Ok(())
     }
 

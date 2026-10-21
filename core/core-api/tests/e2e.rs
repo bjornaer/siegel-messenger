@@ -1705,6 +1705,9 @@ async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
     let (mut ae, mut be) = (listen(&alice), listen(&bob));
     befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
 
+    let picture = vec![0x89, b'P', b'N', b'G', 1, 2, 3];
+    alice.set_avatar(Some(picture.clone())).await.unwrap();
+
     let dir = std::env::temp_dir().join(format!("siegel-e2e-web-{}", fresh_number()));
     std::fs::create_dir_all(&dir).unwrap();
     let web = std::sync::Arc::new(
@@ -1727,6 +1730,18 @@ async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
     let linked = devices.iter().find(|d| d.linked).unwrap();
     assert_eq!(linked.name, "Test browser");
     let mut we = listen(&web);
+    // The phone's picture reaches the browser (its upkeep fetches our own profile).
+    for _ in 0..50 {
+        if web.my_avatar().is_some() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+    assert_eq!(
+        web.my_avatar(),
+        Some(picture),
+        "the phone's picture, on the browser"
+    );
 
     // Bob writes: both of Alice's devices get it.
     let bob_chat = bob.conversations().unwrap()[0].group_id.clone();
