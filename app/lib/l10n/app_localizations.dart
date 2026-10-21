@@ -2555,6 +2555,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'PIN (4 to 6 digits)'**
   String get webPinLabel;
+
+  /// No description provided for @errVideoCompress.
+  ///
+  /// In en, this message translates to:
+  /// **'This video couldn\'t be made smaller, and it\'s over 100 MB. Trim it first, or send a shorter one.'**
+  String get errVideoCompress;
 }
 
 class _AppLocalizationsDelegate

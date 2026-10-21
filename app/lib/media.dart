@@ -16,6 +16,7 @@ import 'package:record/record.dart';
 import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
 
+import 'links.dart' show isAndroid;
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'src/rust/api/core.dart';
@@ -63,9 +64,20 @@ class VoiceRecorder {
 
   Duration get elapsed => _watch.elapsed;
 
+  /// The screen stays on while recording: a lock would cut a long voice note off.
+  static Future<void> _keepOn(bool on) async {
+    if (!isAndroid) return;
+    try {
+      await const MethodChannel('siegel/window').invokeMethod<void>('keepOn', on);
+    } on PlatformException {
+      // the recording goes on regardless
+    }
+  }
+
   /// False when the microphone permission was refused.
   Future<bool> start() async {
     if (!await _rec.hasPermission()) return false;
+    unawaited(_keepOn(true));
     final dir = await getTemporaryDirectory();
     await _rec.start(
       const RecordConfig(encoder: AudioEncoder.aacLc),
@@ -81,6 +93,7 @@ class VoiceRecorder {
   /// Ends the recording and deletes its file; null when [keep] is false.
   Future<Recording?> stop({bool keep = true}) async {
     _watch.stop();
+    unawaited(_keepOn(false));
     await _sub?.cancel();
     final path = await _rec.stop();
     if (path == null) return null;
@@ -93,7 +106,10 @@ class VoiceRecorder {
     }
   }
 
-  void dispose() => unawaited(_rec.dispose());
+  void dispose() {
+    unawaited(_keepOn(false));
+    unawaited(_rec.dispose());
+  }
 }
 
 /// A voice note or audio file in a bubble: downloads on first play (MED-12: audio is manual),
@@ -281,6 +297,9 @@ const maxAttachment = 100 << 20; // MED-06
 
 class TooLarge implements Exception {}
 
+/// The video couldn't be compressed, and the original is over 100 MB.
+class CompressFailed implements Exception {}
+
 const _mimes = {
   'mp3': 'audio/mpeg',
   'm4a': 'audio/mp4',
@@ -341,29 +360,40 @@ Future<Outgoing?> pickVideo(Future<bool?> Function(bool mustCompress) askCompres
   if (f == null) return null;
   final compress = await askCompress(await f.length() > maxAttachment);
   if (compress == null) return null;
-  // Length and size from the original: the compressed copy may lack them.
-  final info = await VideoCompress.getMediaInfo(f.path);
+  // Length and size from the original: the compressed copy may lack them. The plugin fails on
+  // some phones' formats (HDR, HEVC); then the original goes, when it fits.
+  final info = await _orNull(() => VideoCompress.getMediaInfo(f.path));
   File? compressed;
   try {
     if (compress) {
-      final out = await VideoCompress.compressVideo(f.path, quality: VideoQuality.MediumQuality, includeAudio: true);
-      if (out?.path == null) return null;
-      compressed = File(out!.path!);
+      final out = await _orNull(
+        () => VideoCompress.compressVideo(f.path, quality: VideoQuality.MediumQuality, includeAudio: true),
+      );
+      if (out?.path != null) compressed = File(out!.path!);
     }
     final file = compressed ?? File(f.path);
-    if (await file.length() > maxAttachment) throw TooLarge();
-    final still = await VideoCompress.getByteThumbnail(f.path, quality: 60);
-    final portrait = info.orientation == 90 || info.orientation == 270;
+    if (await file.length() > maxAttachment) throw compress ? CompressFailed() : TooLarge();
+    final still = await _orNull(() => VideoCompress.getByteThumbnail(f.path, quality: 60));
+    final portrait = info?.orientation == 90 || info?.orientation == 270;
     return outgoing(
       await file.readAsBytes(),
-      mimeFor(f.path) == 'video/quicktime' && !compress ? 'video/quicktime' : 'video/mp4',
-      ms: (info.duration ?? 0).round(),
-      width: (portrait ? info.height : info.width) ?? 0,
-      height: (portrait ? info.width : info.height) ?? 0,
+      mimeFor(f.path) == 'video/quicktime' && compressed == null ? 'video/quicktime' : 'video/mp4',
+      ms: (info?.duration ?? 0).round(),
+      width: (portrait ? info?.height : info?.width) ?? 0,
+      height: (portrait ? info?.width : info?.height) ?? 0,
       thumbnail: still == null ? null : await thumbnailOf(still),
     );
   } finally {
     compressed?.delete().ignore(); // the plugin's deleteAllCache crashes (video_compress 3.1.4)
+  }
+}
+
+Future<T?> _orNull<T>(Future<T?> Function() f) async {
+  try {
+    return await f();
+  } on Object catch (e) {
+    debugPrint('video: $e');
+    return null;
   }
 }
 

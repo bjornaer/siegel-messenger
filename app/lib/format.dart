@@ -1,9 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 /// MSG-05 inline formatting, WhatsApp style: *bold*, _italic_, ~strike~, `monospace`. Markers
 /// only count at word boundaries, so snake_case, 2*3*4 and e-mail addresses stay plain. Styles
 /// nest, except inside monospace. The text is sent as typed; only the display changes.
-TextSpan formatText(String s) {
+/// Web addresses are links, taken before any marker so an address's _ or * stays in it.
+TextSpan formatText(String s, {void Function(String url)? onLink}) {
   final out = <InlineSpan>[];
   final plain = StringBuffer();
   void flush() {
@@ -13,13 +15,34 @@ TextSpan formatText(String s) {
 
   var i = 0;
   while (i < s.length) {
+    final link = _word(s, i - 1) ? null : _link.matchAsPrefix(s, i);
+    if (link != null) {
+      flush();
+      final shown = _trimEnd(link[0]!);
+      final url = shown.startsWith('www.') ? 'https://$shown' : shown;
+      out.add(
+        TextSpan(
+          text: shown,
+          style: const TextStyle(decoration: TextDecoration.underline),
+          // ponytail: recognizers aren't disposed; one small object per link per build.
+          recognizer: onLink == null ? null : (TapGestureRecognizer()..onTap = () => onLink(url)),
+        ),
+      );
+      i += shown.length;
+      continue;
+    }
     final style = _styles[s[i]];
     final end = style == null ? -1 : _closing(s, i);
     if (end > 0) {
       flush();
       final inner = s.substring(i + 1, end);
       out.add(
-        s[i] == '`' ? TextSpan(text: inner, style: style) : TextSpan(children: [formatText(inner)], style: style),
+        s[i] == '`'
+            ? TextSpan(text: inner, style: style)
+            : TextSpan(
+                children: [formatText(inner, onLink: onLink)],
+                style: style,
+              ),
       );
       i = end + 1;
     } else {
@@ -37,6 +60,19 @@ const _styles = {
   '~': TextStyle(decoration: TextDecoration.lineThrough),
   '`': TextStyle(fontFamily: 'monospace'),
 };
+
+final _link = RegExp(r'(https?://|www\.)[^\s<>"]+', caseSensitive: false);
+
+/// Sentence punctuation after an address isn't part of it; a ) is, if the address opened one.
+String _trimEnd(String u) {
+  while (u.isNotEmpty) {
+    final c = u[u.length - 1];
+    if (c == ')' && '('.allMatches(u).length >= ')'.allMatches(u).length) break;
+    if (!'.,;:!?\'")]}'.contains(c)) break;
+    u = u.substring(0, u.length - 1);
+  }
+  return u;
+}
 
 final _wordChar = RegExp(r'[\p{L}\p{N}]', unicode: true);
 

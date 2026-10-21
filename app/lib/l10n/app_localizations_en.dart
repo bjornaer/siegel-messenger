@@ -1464,4 +1464,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get webPinLabel => 'PIN (4 to 6 digits)';
+
+  @override
+  String get errVideoCompress =>
+      'This video couldn\'t be made smaller, and it\'s over 100 MB. Trim it first, or send a shorter one.';
 }

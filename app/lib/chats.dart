@@ -780,13 +780,25 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final o = await switch (choice) {
         0 => pickPhoto(),
-        1 => pickVideo(_askCompress),
+        1 => pickVideo((must) async {
+          final c = await _askCompress(must);
+          if (c != null && mounted) setState(() => _busy = true); // compressing takes a while
+          return c;
+        }),
         2 => pickFile(),
         _ => pickFile(audio: true),
       };
+      if (mounted) setState(() => _busy = false);
       if (o != null) await _sendAttachment(o);
     } on TooLarge {
       if (mounted) showError(context, const CoreError(code: 'attachment_too_large')); // MED-06
+    } on CompressFailed {
+      if (mounted) showError(context, const CoreError(code: 'video_compress_failed'));
+    } on Exception catch (e) {
+      debugPrint('attach: $e'); // a picker or codec failure: say so rather than nothing
+      if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -1397,7 +1409,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       else if (m.attachment != null)
                         attachmentView(core, m, held: c.request)
                       else
-                        Text.rich(formatText(m.text)),
+                        Text.rich(formatText(m.text, onLink: openUrl)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -1578,6 +1590,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
+          if (_busy) const LinearProgressIndicator(minHeight: 2), // compressing or sending
           if (_recorder != null)
             Row(
               children: [

@@ -408,5 +408,6 @@
   "webExpired": "Este navegador ficou 14 dias sem uso e foi desconectado. Conecte de novo pelo celular.",
   "unlinkThisBrowser": "Desconectar este navegador",
   "unlinkThisBrowserBody": "O Siegel esquece suas conversas neste navegador. Seu celular e sua conta continuam como estão.",
-  "webPinLabel": "PIN (de 4 a 6 dígitos)"
+  "webPinLabel": "PIN (de 4 a 6 dígitos)",
+  "errVideoCompress": "Não deu para diminuir este vídeo, e ele tem mais de 100 MB. Corte-o antes ou envie um mais curto."
 }

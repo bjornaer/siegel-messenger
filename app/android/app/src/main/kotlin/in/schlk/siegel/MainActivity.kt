@@ -24,6 +24,12 @@ class MainActivity : FlutterFragmentActivity() {
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     result.success(null)
                 }
+                // While recording a voice note: a long one mustn't be cut off by the screen locking.
+                "keepOn" -> {
+                    if (call.arguments == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -71,9 +77,13 @@ class MainActivity : FlutterFragmentActivity() {
                     result.success(null)
                 }
                 "open" -> {
-                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse(call.arguments as String)))
-                    result.success(null)
+                    try { // a link in a message: no app may handle it
+                        startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(call.arguments as String)))
+                        result.success(null)
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        result.error("no_app", null, null)
+                    }
                 }
                 "openStore" -> {
                     val page = android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName")

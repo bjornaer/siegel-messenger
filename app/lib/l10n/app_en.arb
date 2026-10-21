@@ -806,5 +806,6 @@
   "webExpired": "This browser wasn't used for 14 days, so it was unlinked. Link it again from your phone.",
   "unlinkThisBrowser": "Unlink this browser",
   "unlinkThisBrowserBody": "Siegel forgets your chats in this browser. Your phone and your account stay as they are.",
-  "webPinLabel": "PIN (4 to 6 digits)"
+  "webPinLabel": "PIN (4 to 6 digits)",
+  "errVideoCompress": "This video couldn't be made smaller, and it's over 100 MB. Trim it first, or send a shorter one."
 }

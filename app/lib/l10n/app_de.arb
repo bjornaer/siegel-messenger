@@ -408,5 +408,6 @@
   "webExpired": "Dieser Browser wurde 14 Tage nicht benutzt und ist getrennt. Verknüpfe ihn neu von deinem Handy aus.",
   "unlinkThisBrowser": "Diesen Browser trennen",
   "unlinkThisBrowserBody": "Siegel vergisst deine Chats in diesem Browser. Dein Handy und dein Konto bleiben, wie sie sind.",
-  "webPinLabel": "PIN (4 bis 6 Ziffern)"
+  "webPinLabel": "PIN (4 bis 6 Ziffern)",
+  "errVideoCompress": "Dieses Video ließ sich nicht verkleinern und ist größer als 100 MB. Kürze es zuerst oder sende ein kürzeres."
 }

@@ -59,6 +59,7 @@ void showError(BuildContext context, CoreError e) {
     'attachment_expired' => t.errAttachmentExpired,
     'attachment_corrupt' => t.errAttachmentCorrupt,
     'attachment_too_large' => t.errAttachmentTooLarge,
+    'video_compress_failed' => t.errVideoCompress,
     'upload_failed' => t.errUploadFailed,
     'avatar_invalid' => t.errAvatarInvalid,
     'attachment_invalid' => t.errAttachmentInvalid,
