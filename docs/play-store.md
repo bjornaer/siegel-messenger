@@ -32,7 +32,7 @@ from your machine, so the key never passes through anyone else. Each `gh secret 
 value prompts for it:
 
 ```sh
-base64 -i <path to the upload keystore .jks> | gh secret set ANDROID_UPLOAD_KEYSTORE --env production
+base64 < <path to the upload keystore .jks> | tr -d "\n" | gh secret set ANDROID_UPLOAD_KEYSTORE --env production
 gh secret set ANDROID_UPLOAD_STORE_PASSWORD --env production
 gh secret set ANDROID_UPLOAD_KEY_ALIAS --env production
 gh secret set ANDROID_UPLOAD_KEY_PASSWORD --env production
