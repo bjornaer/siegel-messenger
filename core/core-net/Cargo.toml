@@ -21,7 +21,9 @@ tokio-tungstenite = { version = "0.30", default-features = false, features = ["h
 
 # The browser (M8): fetch and the browser's WebSocket; the browser does TLS, so no pinning.
 [target.'cfg(target_family = "wasm")'.dependencies]
-gloo-net = { version = "0.6", default-features = false, features = ["websocket", "json"] }
+gloo-net = { version = "0.6", default-features = false, features = ["websocket"] }
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["WebSocket"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

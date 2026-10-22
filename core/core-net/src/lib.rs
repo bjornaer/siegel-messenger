@@ -3,7 +3,9 @@
 #[cfg(not(target_family = "wasm"))]
 use std::sync::Arc;
 
-use futures_util::{SinkExt, StreamExt};
+#[cfg(not(target_family = "wasm"))]
+use futures_util::SinkExt;
+use futures_util::StreamExt;
 use prost::Message;
 #[cfg(not(target_family = "wasm"))]
 use rustls::pki_types::{CertificateDer, ServerName, pem::PemObject};
@@ -662,13 +664,10 @@ impl Client {
     #[cfg(target_family = "wasm")]
     pub async fn stream(&self, token: &str) -> Result<Stream, Error> {
         let url = format!("{}/v1/stream", self.base.replacen("http", "ws", 1));
-        let bearer = format!("bearer.{token}");
-        let ws = gloo_net::websocket::futures::WebSocket::open_with_protocols(
-            &url,
-            &["siegel.v1", &bearer],
-        )
-        .map_err(net)?;
-        Ok(Stream { ws })
+        let protocols = js_sys::Array::of2(&"siegel.v1".into(), &format!("bearer.{token}").into());
+        let raw = web_sys::WebSocket::new_with_str_sequence(&url, &protocols).map_err(net)?;
+        let ws = gloo_net::websocket::futures::WebSocket::try_from(raw.clone()).map_err(net)?;
+        Ok(Stream { ws, raw })
     }
 }
 
@@ -688,6 +687,10 @@ pub struct Stream {
     ws: WebSocketStream<Box<dyn Io>>,
     #[cfg(target_family = "wasm")]
     ws: gloo_net::websocket::futures::WebSocket,
+    /// The same socket, for sending: gloo hands WebSocket.send a view of wasm memory, which the
+    /// threaded build shares (SharedArrayBuffer), and browsers refuse to send shared views.
+    #[cfg(target_family = "wasm")]
+    raw: web_sys::WebSocket,
 }
 
 pub enum Frame {
@@ -739,10 +742,19 @@ impl Stream {
     pub async fn ack(&mut self, ids: Vec<i64>) -> Result<(), Error> {
         let b = pb::StreamAck { ids }.encode_to_vec();
         #[cfg(not(target_family = "wasm"))]
-        let b = tungstenite::Message::Binary(b.into());
+        return self
+            .ws
+            .send(tungstenite::Message::Binary(b.into()))
+            .await
+            .map_err(|_| Error::new("network"));
         #[cfg(target_family = "wasm")]
-        let b = gloo_net::websocket::Message::Bytes(b);
-        self.ws.send(b).await.map_err(|_| Error::new("network"))
+        {
+            let copy = js_sys::Uint8Array::new_with_length(b.len() as u32); // not shared
+            copy.copy_from(&b);
+            self.raw
+                .send_with_array_buffer(&copy.buffer())
+                .map_err(|_| Error::new("network"))
+        }
     }
 }
 
