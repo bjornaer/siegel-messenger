@@ -650,6 +650,10 @@ class _NewChatScreenState extends State<NewChatScreen> {
   }
 }
 
+/// Siegel Web: Enter in the composer sends; Shift+Enter starts a new line.
+@visibleForTesting
+bool enterSends = kIsWeb;
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.core, required this.service, required this.groupId});
   final Core core;
@@ -1717,19 +1721,28 @@ class _ChatScreenState extends State<ChatScreen> {
                     onPressed: _busy ? null : _sticker,
                   ),
                 Expanded(
-                  child: TextField(
-                    controller: _text,
-                    focusNode: _focus,
-                    minLines: 1,
-                    maxLines: 5,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: _onChanged,
-                    decoration: InputDecoration(
-                      hintText: t.messageHint,
-                      border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
-                      // Over the chat background: a light veil so the pattern or photo shows only faintly.
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+                  // Siegel Web: Enter sends, Shift+Enter starts a new line (not while an IME is composing).
+                  child: CallbackShortcuts(
+                    bindings: {
+                      if (enterSends)
+                        const SingleActivator(LogicalKeyboardKey.enter): () {
+                          if (!_text.value.composing.isValid && !_busy) _send();
+                        },
+                    },
+                    child: TextField(
+                      controller: _text,
+                      focusNode: _focus,
+                      minLines: 1,
+                      maxLines: 5,
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: _onChanged,
+                      decoration: InputDecoration(
+                        hintText: t.messageHint,
+                        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+                        // Over the chat background: a light veil so the pattern or photo shows only faintly.
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+                      ),
                     ),
                   ),
                 ),

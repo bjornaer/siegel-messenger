@@ -2128,6 +2128,26 @@ void main() {
     );
   });
 
+  testWidgets('web: Enter sends, Shift+Enter is a new line', (t) async {
+    enterSends = true;
+    addTearDown(() => enterSends = false);
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.enterText(find.widgetWithText(TextField, 'Message'), 'hi');
+    await t.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await t.pumpAndSettle();
+    expect(core.history[base64Encode(id)] ?? [], isEmpty, reason: 'Shift+Enter does not send');
+    await t.sendKeyEvent(LogicalKeyboardKey.enter);
+    await t.pumpAndSettle();
+    expect(core.history[base64Encode(id)]!.map((m) => m.text), ['hi']);
+  });
+
   testWidgets('GIFs: trending first, search, and the picked one comes back as a GIF', (t) async {
     final core = FakeCore()..registered = true;
     StickerPick? picked;
