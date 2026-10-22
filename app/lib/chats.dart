@@ -1070,7 +1070,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sticker() async {
     final s = await pickSticker(context, core);
-    if (s != null) await _sendAttachment(outgoing(s.data, s.mime, width: 512, height: 512, sticker: true));
+    if (s == null) return;
+    if (s.mime == 'image/gif') {
+      // A GIF from GIPHY goes as a photo, animated.
+      final (w, h) = await sizeOf(s.data);
+      await _sendAttachment(outgoing(s.data, s.mime, width: w, height: h, thumbnail: await thumbnailOf(s.data)));
+    } else {
+      await _sendAttachment(outgoing(s.data, s.mime, width: 512, height: 512, sticker: true));
+    }
   }
 
   /// Any emoji as a reaction. Recent picks aren't remembered: the picker would keep them

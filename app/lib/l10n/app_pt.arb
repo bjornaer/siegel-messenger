@@ -423,5 +423,10 @@
   "viewOnceOpenHint": "Abre uma vez e some",
   "viewOnceOnPhone": "Fotos de visualização única abrem só no celular.",
   "viewOnceHelp": "A pessoa pode abrir uma vez, no celular, com capturas de tela bloqueadas; depois some para os dois. Se não for aberta em 14 dias, também some. Ainda assim, alguém poderia fotografar a tela com outra câmera.",
-  "errViewOnceGone": "Esta foto de visualização única não pode ser aberta de novo."
+  "errViewOnceGone": "Esta foto de visualização única não pode ser aberta de novo.",
+  "gifs": "GIFs",
+  "searchGifs": "Pesquisar no GIPHY",
+  "noGifs": "Nenhum GIF encontrado.",
+  "gifsUnavailable": "Os GIFs não estão disponíveis agora. Tente mais tarde.",
+  "gifsPrivacy": "As pesquisas passam pelo servidor do Siegel, então o GIPHY nunca vê você. O GIF é enviado com criptografia de ponta a ponta, como uma foto."
 }

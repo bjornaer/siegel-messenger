@@ -1529,4 +1529,21 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errViewOnceGone =>
       'Dieses Einmal-Foto lässt sich nicht noch einmal öffnen.';
+
+  @override
+  String get gifs => 'GIFs';
+
+  @override
+  String get searchGifs => 'GIPHY durchsuchen';
+
+  @override
+  String get noGifs => 'Keine GIFs gefunden.';
+
+  @override
+  String get gifsUnavailable =>
+      'GIFs sind gerade nicht verfügbar. Versuche es später noch einmal.';
+
+  @override
+  String get gifsPrivacy =>
+      'Suchen laufen über den Siegel-Server, GIPHY sieht dich also nie. Das GIF wird wie ein Foto Ende-zu-Ende-verschlüsselt gesendet.';
 }

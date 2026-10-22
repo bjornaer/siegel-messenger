@@ -423,5 +423,10 @@
   "viewOnceOpenHint": "Öffnet sich einmal, dann ist es weg",
   "viewOnceOnPhone": "Einmal-Fotos öffnen sich nur auf deinem Handy.",
   "viewOnceHelp": "Die Person kann es einmal auf ihrem Handy öffnen, Bildschirmfotos sind dabei gesperrt; danach ist es für euch beide weg. Wird es 14 Tage nicht geöffnet, ist es auch weg. Mit einer anderen Kamera ließe sich der Bildschirm trotzdem abfotografieren.",
-  "errViewOnceGone": "Dieses Einmal-Foto lässt sich nicht noch einmal öffnen."
+  "errViewOnceGone": "Dieses Einmal-Foto lässt sich nicht noch einmal öffnen.",
+  "gifs": "GIFs",
+  "searchGifs": "GIPHY durchsuchen",
+  "noGifs": "Keine GIFs gefunden.",
+  "gifsUnavailable": "GIFs sind gerade nicht verfügbar. Versuche es später noch einmal.",
+  "gifsPrivacy": "Suchen laufen über den Siegel-Server, GIPHY sieht dich also nie. Das GIF wird wie ein Foto Ende-zu-Ende-verschlüsselt gesendet."
 }

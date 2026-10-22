@@ -135,6 +135,13 @@ Until both are done the API serves no site, and the browser can't call it (no CO
    a new key silently ends every browser's subscription. The pushes carry nothing, and go only
    to the browsers' own push services (Google, Mozilla, Apple, Microsoft).
 
+**GIFs (GIPHY), optional.** Create an API key at developers.giphy.com (an app of type "API"),
+put `SIEGEL_GIPHY_KEY=…` in `/opt/siegel/.env`, then `docker compose up -d server`. Without it
+the sticker sheet's GIFs tab says GIFs aren't available. Searches and GIFs go through the server
+(never logged), so GIPHY sees the server, not the user. A new key is a beta key (100 calls an
+hour, shared by everyone); apply for a production key in GIPHY's dashboard before many people
+use it. GIPHY asks that the app show "Powered by GIPHY", which the tab does.
+
 **Checking the served code.** Each release's `.well-known/siegel-web-manifest.txt` lists every
 file's SHA-256, and GitHub attests the manifest (Sigstore: which commit, which workflow).
 `scripts/verify-web.sh` checks the attestation and every served file; `/transparency` shows the

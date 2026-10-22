@@ -70,6 +70,7 @@ type config struct {
 	webOrigin     string   // M8: the web app's origin (https://web.siegel.schlk.in); empty = no web app
 	webDir        string   // M8 part 5: where deploy.sh puts the built site (current -> a release)
 	vapidKey      string   // M8 part 6: Web Push signing key (siegel-admin vapid-keygen); empty = no web push
+	giphyKey      string   // GIF search through this server (gifs.go); empty = no GIFs
 	androidLatest int      // newest Android build in the Play Store (update banner)
 	androidMin    int      // Android builds below this must update
 	androidCerts  []string // SHA-256 of the app's signing certificates, for App Links
@@ -127,6 +128,7 @@ func loadConfig() config {
 		webOrigin:     os.Getenv("SIEGEL_WEB_ORIGIN"),
 		webDir:        os.Getenv("SIEGEL_WEB_DIR"),
 		vapidKey:      os.Getenv("SIEGEL_VAPID_KEY"),
+		giphyKey:      os.Getenv("SIEGEL_GIPHY_KEY"),
 		androidLatest: env("SIEGEL_ANDROID_LATEST_BUILD", 0, strconv.Atoi),
 		androidMin:    env("SIEGEL_ANDROID_MIN_BUILD", 0, strconv.Atoi),
 		androidCerts: strings.Split(env("SIEGEL_ANDROID_CERT_SHA256",
@@ -341,6 +343,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /v1/blobs/{id}", s.getBlob)
 	mux.HandleFunc("GET /v1/stream", s.stream)
 	mux.HandleFunc("GET /v1/push/vapid", s.vapidKey)
+	mux.HandleFunc("GET /v1/gifs", s.gifSearch)
+	mux.HandleFunc("GET /v1/gifs/{id}/{size}", s.gifMedia)
 	mux.HandleFunc("GET /privacy", s.page("privacy"))
 	mux.HandleFunc("GET /terms", s.page("terms"))
 	mux.HandleFunc("GET /guidelines", s.page("guidelines"))

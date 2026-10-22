@@ -66,6 +66,7 @@ services:
       SIEGEL_WEB_ORIGIN: ${SIEGEL_WEB_ORIGIN:-}
       SIEGEL_WEB_DIR: /web # deploy.sh unpacks each release of the site here (current -> it)
       SIEGEL_VAPID_KEY: ${SIEGEL_VAPID_KEY:-} # M8: Web Push (siegel-admin vapid-keygen); empty = none
+      SIEGEL_GIPHY_KEY: ${SIEGEL_GIPHY_KEY:-} # GIF search (server/gifs.go); empty = no GIFs
       SIEGEL_ANDROID_LATEST_BUILD: ${SIEGEL_ANDROID_LATEST_BUILD:-0}
       SIEGEL_ANDROID_MIN_BUILD: ${SIEGEL_ANDROID_MIN_BUILD:-0}
       SIEGEL_ANDROID_CERT_SHA256: ${SIEGEL_ANDROID_CERT_SHA256:-}

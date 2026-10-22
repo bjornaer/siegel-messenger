@@ -1120,6 +1120,16 @@ impl Core {
         Ok(self.0.drain(move |e| send_event(&sink, e)).await?)
     }
 
+    /// GIPHY search through our server: GIF IDs, trending for an empty query.
+    pub async fn gif_search(&self, query: String, offset: u32) -> Result<Vec<String>, CoreError> {
+        Ok(self.0.gif_search(&query, offset).await?)
+    }
+
+    /// A GIF's small preview (WebP), or with `full` the GIF to send.
+    pub async fn gif(&self, id: String, full: bool) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.gif(&id, full).await?)
+    }
+
     /// This device's FCM token, for content-free wake-ups (MSG-17).
     pub async fn set_push_token(&self, push_token: String) -> Result<(), CoreError> {
         Ok(self.0.set_push_token(&push_token).await?)

@@ -821,5 +821,10 @@
   "viewOnceOpenHint": "Opens once, then it is gone",
   "viewOnceOnPhone": "View-once photos open on your phone only.",
   "viewOnceHelp": "They can open it once, on their phone, with screenshots blocked; then it's gone for both of you. Not opened within 14 days, it's gone too. Someone could still photograph the screen with another camera.",
-  "errViewOnceGone": "This view-once photo can't be opened again."
+  "errViewOnceGone": "This view-once photo can't be opened again.",
+  "gifs": "GIFs",
+  "searchGifs": "Search GIPHY",
+  "noGifs": "No GIFs found.",
+  "gifsUnavailable": "GIFs aren't available right now. Try again later.",
+  "gifsPrivacy": "Searches go through Siegel's server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo."
 }

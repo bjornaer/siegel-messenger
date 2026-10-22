@@ -423,5 +423,10 @@
   "viewOnceOpenHint": "Se abre una vez y desaparece",
   "viewOnceOnPhone": "Las fotos de una sola vista solo se abren en tu móvil.",
   "viewOnceHelp": "Podrá abrirla una vez, en su móvil, con las capturas bloqueadas; después desaparece para los dos. Si no la abre en 14 días, también desaparece. Aun así, alguien podría fotografiar la pantalla con otra cámara.",
-  "errViewOnceGone": "Esta foto de una sola vista no se puede volver a abrir."
+  "errViewOnceGone": "Esta foto de una sola vista no se puede volver a abrir.",
+  "gifs": "GIFs",
+  "searchGifs": "Buscar en GIPHY",
+  "noGifs": "No se encontraron GIFs.",
+  "gifsUnavailable": "Los GIFs no están disponibles ahora. Inténtalo más tarde.",
+  "gifsPrivacy": "Las búsquedas pasan por el servidor de Siegel, así GIPHY nunca te ve. El GIF se envía cifrado de extremo a extremo, como una foto."
 }

@@ -2645,6 +2645,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This view-once photo can\'t be opened again.'**
   String get errViewOnceGone;
+
+  /// No description provided for @gifs.
+  ///
+  /// In en, this message translates to:
+  /// **'GIFs'**
+  String get gifs;
+
+  /// No description provided for @searchGifs.
+  ///
+  /// In en, this message translates to:
+  /// **'Search GIPHY'**
+  String get searchGifs;
+
+  /// No description provided for @noGifs.
+  ///
+  /// In en, this message translates to:
+  /// **'No GIFs found.'**
+  String get noGifs;
+
+  /// No description provided for @gifsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'GIFs aren\'t available right now. Try again later.'**
+  String get gifsUnavailable;
+
+  /// No description provided for @gifsPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Searches go through Siegel\'s server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo.'**
+  String get gifsPrivacy;
 }
 
 class _AppLocalizationsDelegate

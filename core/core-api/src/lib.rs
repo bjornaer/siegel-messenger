@@ -469,6 +469,16 @@ impl SiegelCore {
         Ok(self.net.set_push_token(&self.token()?, push_token).await?)
     }
 
+    /// GIPHY search, through our server so GIPHY never sees this device (gifs.go).
+    pub async fn gif_search(&self, query: &str, offset: u32) -> Result<Vec<String>, CoreError> {
+        Ok(self.net.gif_search(&self.token()?, query, offset).await?)
+    }
+
+    /// A GIF's preview, or the GIF itself to send like any photo.
+    pub async fn gif(&self, id: &str, full: bool) -> Result<Vec<u8>, CoreError> {
+        Ok(self.net.gif(&self.token()?, id, full).await?)
+    }
+
     /// Deletes the account on the server (ID-16), then everything on this device.
     pub async fn delete_account(&self) -> Result<(), CoreError> {
         self.net.delete_account(&self.token()?).await?;

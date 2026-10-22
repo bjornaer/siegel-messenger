@@ -1523,4 +1523,21 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errViewOnceGone =>
       'Esta foto de una sola vista no se puede volver a abrir.';
+
+  @override
+  String get gifs => 'GIFs';
+
+  @override
+  String get searchGifs => 'Buscar en GIPHY';
+
+  @override
+  String get noGifs => 'No se encontraron GIFs.';
+
+  @override
+  String get gifsUnavailable =>
+      'Los GIFs no están disponibles ahora. Inténtalo más tarde.';
+
+  @override
+  String get gifsPrivacy =>
+      'Las búsquedas pasan por el servidor de Siegel, así GIPHY nunca te ve. El GIF se envía cifrado de extremo a extremo, como una foto.';
 }

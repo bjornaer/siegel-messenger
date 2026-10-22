@@ -279,6 +279,18 @@ class FakeCore implements Core {
   List<StickerView> stickers() => List.of(stickerList);
   @override
   Uint8List? stickerData({required String id}) => stickerBytes[id];
+  final gifQueries = <String>[];
+  static final tinyPng = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  );
+  @override
+  Future<List<String>> gifSearch({required String query, required int offset}) async {
+    gifQueries.add(query);
+    return offset == 0 ? ['${query}1', '${query}2'] : [];
+  }
+
+  @override
+  Future<Uint8List> gif({required String id, required bool full}) async => tinyPng;
   @override
   void removeStickers({required String pack, required String id}) =>
       stickerList.removeWhere((s) => s.pack == pack && (id.isEmpty || s.id == id));
@@ -2114,6 +2126,30 @@ void main() {
       [for (final s in core.stickers()) (s.pack, s.mimeType)],
       [('', 'image/webp'), ('', 'image/png'), ('Cats', 'image/webp')],
     );
+  });
+
+  testWidgets('GIFs: trending first, search, and the picked one comes back as a GIF', (t) async {
+    final core = FakeCore()..registered = true;
+    StickerPick? picked;
+    await t.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) =>
+              TextButton(onPressed: () async => picked = await pickSticker(context, core), child: const Text('open')),
+        ),
+      ),
+    );
+    await tapText(t, 'open');
+    await tapText(t, 'GIFs');
+    expect(core.gifQueries, [''], reason: 'trending');
+    expect(find.text('Powered by GIPHY'), findsOneWidget);
+    await t.enterText(find.byType(TextField), 'cats');
+    await t.pump(const Duration(milliseconds: 500));
+    await t.pumpAndSettle();
+    expect(core.gifQueries.last, 'cats');
+    await t.tap(find.bySemanticsLabel('GIFs').first);
+    await t.pumpAndSettle();
+    expect(picked?.mime, 'image/gif');
   });
 
   testWidgets('edit a sticker: add text, move it, colour it, save a new PNG', (t) async {

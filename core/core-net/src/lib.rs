@@ -447,6 +447,51 @@ impl Client {
         }
     }
 
+    /// GIF search through the server (GIPHY): IDs, trending for an empty query.
+    pub async fn gif_search(
+        &self,
+        token: &str,
+        query: &str,
+        offset: u32,
+    ) -> Result<Vec<String>, Error> {
+        let res = self
+            .http
+            .get(format!("{}/v1/gifs", self.base))
+            .query(&[("q", query), ("offset", &offset.to_string())])
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|_| Error::new("network"))?;
+        match res.status().as_u16() {
+            200 => serde_json::from_slice(&res.bytes().await.map_err(|_| Error::new("network"))?)
+                .map_err(|_| Error::new("bad_response")),
+            404 => Err(Error::new("gifs_off")),
+            429 => Err(Error::new("rate_limited")),
+            _ => Err(Error::new("network")),
+        }
+    }
+
+    /// One GIF through the server: the grid's small preview (WebP) or the one to send (GIF).
+    pub async fn gif(&self, token: &str, id: &str, full: bool) -> Result<Vec<u8>, Error> {
+        let size = if full { "full" } else { "preview" };
+        let res = self
+            .http
+            .get(format!("{}/v1/gifs/{id}/{size}", self.base))
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|_| Error::new("network"))?;
+        match res.status().as_u16() {
+            200 => Ok(res
+                .bytes()
+                .await
+                .map_err(|_| Error::new("network"))?
+                .to_vec()),
+            429 => Err(Error::new("rate_limited")),
+            _ => Err(Error::new("gif_unavailable")),
+        }
+    }
+
     /// DISC-03: our own number turns discovery on; None turns it off.
     pub async fn set_discoverable(&self, token: &str, phone: Option<&str>) -> Result<(), Error> {
         let req = pb::DiscoveryServiceSetDiscoverableRequest {

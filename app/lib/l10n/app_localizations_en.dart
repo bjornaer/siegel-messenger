@@ -1513,4 +1513,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errViewOnceGone => 'This view-once photo can\'t be opened again.';
+
+  @override
+  String get gifs => 'GIFs';
+
+  @override
+  String get searchGifs => 'Search GIPHY';
+
+  @override
+  String get noGifs => 'No GIFs found.';
+
+  @override
+  String get gifsUnavailable =>
+      'GIFs aren\'t available right now. Try again later.';
+
+  @override
+  String get gifsPrivacy =>
+      'Searches go through Siegel\'s server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo.';
 }

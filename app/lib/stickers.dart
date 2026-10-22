@@ -18,13 +18,16 @@ import 'sticker_editor.dart';
 /// A sticker ready to send.
 typedef StickerPick = ({Uint8List data, String mime});
 
-/// The sticker sheet: the built-in Siegel pack, my stickers, and imported packs. Returns the
-/// sticker to send, or null.
+/// The sticker sheet: the built-in Siegel pack, my stickers, GIFs (GIPHY), and imported packs.
+/// Returns the sticker or GIF ('image/gif') to send, or null.
 Future<StickerPick?> pickSticker(BuildContext context, Core core) => showModalBottomSheet<StickerPick>(
   context: context,
   isScrollControlled: true,
-  builder: (_) => SafeArea(
-    child: SizedBox(height: 420, child: _StickerSheet(core: core)),
+  builder: (c) => SafeArea(
+    child: Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom), // the GIF search's keyboard
+      child: SizedBox(height: 420, child: _StickerSheet(core: core)),
+    ),
   ),
 );
 
@@ -125,7 +128,7 @@ class _StickerSheetState extends State<_StickerSheet> {
     final uses = _uses();
     final top = all.where((s) => (uses[s.id] ?? 0) > 0).toList()..sort((a, b) => uses[b.id]!.compareTo(uses[a.id]!));
     return DefaultTabController(
-      length: 2 + packs.length,
+      length: 3 + packs.length,
       initialIndex: mine.isEmpty && top.isEmpty ? 0 : 1, // their own stickers first, once they have some
       child: Column(
         children: [
@@ -135,6 +138,7 @@ class _StickerSheetState extends State<_StickerSheet> {
             tabs: [
               const Tab(text: 'Siegel'),
               Tab(text: t.myStickers),
+              Tab(text: t.gifs),
               for (final p in packs) Tab(text: p),
             ],
           ),
@@ -159,6 +163,7 @@ class _StickerSheetState extends State<_StickerSheet> {
                 mine.isEmpty && top.isEmpty
                     ? Center(child: Text(t.noStickers, textAlign: TextAlign.center))
                     : _stored(mine, '', mostUsed: top.take(15).toList()),
+                _Gifs(core: core),
                 for (final p in packs) _stored(all.where((s) => s.pack == p).toList(), p),
               ],
             ),
@@ -261,6 +266,141 @@ class _StickerSheetState extends State<_StickerSheet> {
     padding: const EdgeInsets.all(8),
     sliver: SliverGrid.count(crossAxisCount: 4, mainAxisSpacing: 8, crossAxisSpacing: 8, children: cells),
   );
+}
+
+/// GIPHY search, trending until something is typed. Everything goes through our server
+/// (server/gifs.go); the chosen GIF is then sent like a photo.
+class _Gifs extends StatefulWidget {
+  const _Gifs({required this.core});
+  final Core core;
+
+  @override
+  State<_Gifs> createState() => _GifsState();
+}
+
+class _GifsState extends State<_Gifs> {
+  final _previews = <String, Future<Uint8List>>{};
+  List<String> _ids = [];
+  String _query = '';
+  bool _loading = false, _end = false, _failed = false, _sending = false;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _more();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _search(String q) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      setState(() {
+        _query = q.trim();
+        _ids = [];
+        _end = _failed = false;
+      });
+      _more();
+    });
+  }
+
+  Future<void> _more() async {
+    if (_loading || _end) return;
+    final q = _query;
+    setState(() => _loading = true);
+    try {
+      final page = await widget.core.gifSearch(query: q, offset: _ids.length);
+      if (!mounted || q != _query) return;
+      setState(() {
+        _ids = [..._ids, ...page.where((id) => !_ids.contains(id))];
+        _end = page.isEmpty;
+      });
+    } on Object {
+      if (mounted && q == _query) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _send(String id) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      final gif = await widget.core.gif(id: id, full: true);
+      if (mounted) Navigator.pop(context, (data: gif, mime: 'image/gif'));
+    } on CoreError catch (e) {
+      if (mounted) {
+        setState(() => _sending = false);
+        showError(context, e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: TextField(
+            decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: t.searchGifs, isDense: true),
+            textInputAction: TextInputAction.search,
+            onChanged: _search,
+          ),
+        ),
+        if (_sending) const LinearProgressIndicator(),
+        Expanded(
+          child: _ids.isEmpty && !_loading
+              ? Center(child: Text(_failed ? t.gifsUnavailable : t.noGifs, textAlign: TextAlign.center))
+              : NotificationListener<ScrollNotification>(
+                  onNotification: (n) {
+                    if (n.metrics.extentAfter < 300) _more();
+                    return false;
+                  },
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 6,
+                      crossAxisSpacing: 6,
+                    ),
+                    itemCount: _ids.length,
+                    itemBuilder: (_, i) {
+                      final id = _ids[i];
+                      return _Cell(
+                        label: t.gifs,
+                        onTap: () => _send(id),
+                        child: FutureBuilder(
+                          future: _previews[id] ??= widget.core.gif(id: id, full: false),
+                          builder: (_, s) => s.hasData
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(s.data!, fit: BoxFit.cover, gaplessPlayback: true),
+                                )
+                              : ColoredBox(color: Theme.of(context).colorScheme.surfaceContainerHighest),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+        Tooltip(
+          message: t.gifsPrivacy,
+          triggerMode: TooltipTriggerMode.tap,
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Text('Powered by GIPHY', style: Theme.of(context).textTheme.labelSmall),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _Cell extends StatelessWidget {

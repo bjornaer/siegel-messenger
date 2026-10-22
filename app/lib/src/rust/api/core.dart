@@ -129,6 +129,12 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> to,
   });
 
+  /// A GIF's small preview (WebP), or with `full` the GIF to send.
+  Future<Uint8List> gif({required String id, required bool full});
+
+  /// GIPHY search through our server: GIF IDs, trending for an empty query.
+  Future<List<String>> gifSearch({required String query, required int offset});
+
   Uint8List? groupAvatar({required List<int> groupId});
 
   GroupInfoView groupInfo({required List<int> groupId});
