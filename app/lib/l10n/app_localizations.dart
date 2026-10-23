@@ -2675,6 +2675,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Searches go through Siegel\'s server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo.'**
   String get gifsPrivacy;
+
+  /// No description provided for @savedMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved messages'**
+  String get savedMessages;
 }
 
 class _AppLocalizationsDelegate

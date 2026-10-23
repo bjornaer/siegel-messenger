@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
@@ -58,6 +59,7 @@ Future<void> main() async {
   };
   if (kIsWeb) {
     await prepareStorage(); // M8: the database lives in IndexedDB
+    await BrowserContextMenu.disableContextMenu(); // a right click on a message opens ours
     return runApp(const WebStart());
   }
   runApp(SiegelApp(core: await openCore()));

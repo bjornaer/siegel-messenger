@@ -428,5 +428,6 @@
   "searchGifs": "Pesquisar no GIPHY",
   "noGifs": "Nenhum GIF encontrado.",
   "gifsUnavailable": "Os GIFs não estão disponíveis agora. Tente mais tarde.",
-  "gifsPrivacy": "As pesquisas passam pelo servidor do Siegel, então o GIPHY nunca vê você. O GIF é enviado com criptografia de ponta a ponta, como uma foto."
+  "gifsPrivacy": "As pesquisas passam pelo servidor do Siegel, então o GIPHY nunca vê você. O GIF é enviado com criptografia de ponta a ponta, como uma foto.",
+  "savedMessages": "Mensagens salvas"
 }

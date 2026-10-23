@@ -30,5 +30,13 @@ void revokeUrl(String url) {}
 /// The bytes behind a blob: URL (a finished voice recording).
 Future<Uint8List> fetchBytes(String url) => throw UnsupportedError('browser only');
 
+/// An image re-encoded on a canvas (EXIF dropped), scaled down so its shorter side is at most
+/// [side]: the bytes and their type ('image/png' when the browser can't write [mime]).
+Future<(Uint8List, String)> compressImage(Uint8List data, int side, int quality, String mime) =>
+    throw UnsupportedError('browser only');
+
+/// Files dropped on the page go to [onDrop] while it is set (an open chat), as (name, type, bytes).
+void Function(List<(String, String, Uint8List)>)? onDrop;
+
 /// What the phone's Linked devices list calls this browser.
 String deviceName() => 'Browser';

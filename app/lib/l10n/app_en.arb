@@ -826,5 +826,6 @@
   "searchGifs": "Search GIPHY",
   "noGifs": "No GIFs found.",
   "gifsUnavailable": "GIFs aren't available right now. Try again later.",
-  "gifsPrivacy": "Searches go through Siegel's server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo."
+  "gifsPrivacy": "Searches go through Siegel's server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo.",
+  "savedMessages": "Saved messages"
 }

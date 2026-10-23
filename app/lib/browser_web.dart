@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:math' as math;
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
@@ -78,6 +79,51 @@ void revokeUrl(String url) => web.URL.revokeObjectURL(url);
 Future<Uint8List> fetchBytes(String url) async {
   final res = await web.window.fetch(url.toJS).toDart;
   return (await res.arrayBuffer().toDart).toDart.asUint8List();
+}
+
+Future<(Uint8List, String)> compressImage(Uint8List data, int side, int quality, String mime) async {
+  final bmp = await web.window.createImageBitmap(web.Blob([data.toJS].toJS)).toDart;
+  try {
+    final scale = math.min(1.0, math.max(side / bmp.width, side / bmp.height));
+    final (w, h) = (math.max(1, (bmp.width * scale).round()), math.max(1, (bmp.height * scale).round()));
+    final canvas = web.OffscreenCanvas(w, h);
+    (canvas.getContext('2d') as web.OffscreenCanvasRenderingContext2D).drawImage(bmp, 0, 0, w, h);
+    final blob = await canvas.convertToBlob(web.ImageEncodeOptions(type: mime, quality: quality / 100)).toDart;
+    return ((await blob.arrayBuffer().toDart).toDart.asUint8List(), blob.type);
+  } finally {
+    bmp.close();
+  }
+}
+
+void Function(List<(String, String, Uint8List)>)? _onDrop;
+bool _dropListening = false;
+
+void Function(List<(String, String, Uint8List)>)? get onDrop => _onDrop;
+
+set onDrop(void Function(List<(String, String, Uint8List)>)? f) {
+  _onDrop = f;
+  if (_dropListening) return;
+  _dropListening = true;
+  // Without preventDefault on dragover the browser would open a dropped file itself.
+  web.window.addEventListener('dragover', ((web.DragEvent e) => e.preventDefault()).toJS);
+  web.window.addEventListener(
+    'drop',
+    ((web.DragEvent e) {
+      e.preventDefault();
+      final files = e.dataTransfer?.files;
+      final handler = _onDrop;
+      if (files == null || handler == null || files.length == 0) return;
+      () async {
+        final out = <(String, String, Uint8List)>[];
+        for (var i = 0; i < files.length; i++) {
+          final f = files.item(i)!;
+          if (f.size > 128 << 20) continue; // over any attachment's limit: don't read it all
+          out.add((f.name, f.type, (await f.arrayBuffer().toDart).toDart.asUint8List()));
+        }
+        handler(out);
+      }();
+    }).toJS,
+  );
 }
 
 String deviceName() {

@@ -1546,4 +1546,7 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get gifsPrivacy =>
       'Suchen laufen über den Siegel-Server, GIPHY sieht dich also nie. Das GIF wird wie ein Foto Ende-zu-Ende-verschlüsselt gesendet.';
+
+  @override
+  String get savedMessages => 'Gespeicherte Nachrichten';
 }

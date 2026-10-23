@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+
+import 'media.dart' show reencode;
+
 import 'package:image_picker/image_picker.dart';
 
 import 'l10n/app_localizations.dart';
@@ -310,13 +312,7 @@ class _ChatBackgroundTileState extends State<ChatBackgroundTile> {
       final file = await ImagePicker().pickImage(source: ImageSource.gallery);
       if (file == null) return;
       // Phone-screen sized: sharp behind a chat, small in the database.
-      final jpeg = await FlutterImageCompress.compressWithList(
-        await file.readAsBytes(),
-        minWidth: 1440,
-        minHeight: 1440,
-        quality: 80,
-        keepExif: false,
-      );
+      final (jpeg, _) = await reencode(await file.readAsBytes(), side: 1440, quality: 80);
       widget.core.setSetting(key: _photo, value: base64Encode(jpeg));
     } else {
       widget.core.setSetting(key: _photo, value: '');

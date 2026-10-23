@@ -349,10 +349,33 @@ const _mimes = {
 
 String mimeFor(String name) => _mimes[name.split('.').last.toLowerCase()] ?? 'application/octet-stream';
 
+/// An image re-encoded without EXIF (so no location), scaled down so its shorter side is at
+/// most [side]: JPEG, or WebP when [webp] and the device can write it. The bytes and their type.
+/// A browser does it on a canvas; flutter_image_compress's web build would need a script we
+/// don't load.
+Future<(Uint8List, String)> reencode(
+  Uint8List image, {
+  int side = 1920,
+  required int quality,
+  bool webp = false,
+}) async {
+  final mime = webp ? 'image/webp' : 'image/jpeg';
+  if (kIsWeb) return browser.compressImage(image, side, quality, mime);
+  final out = await FlutterImageCompress.compressWithList(
+    image,
+    minWidth: side,
+    minHeight: side,
+    quality: quality,
+    keepExif: false,
+    format: webp ? CompressFormat.webp : CompressFormat.jpeg,
+  );
+  return (out, mime);
+}
+
 /// MED-04: a JPEG preview of at most 20 KB.
 Future<Uint8List> thumbnailOf(Uint8List image) async {
   for (final (side, q) in [(160, 60), (120, 45), (80, 35)]) {
-    final t = await FlutterImageCompress.compressWithList(image, minWidth: side, minHeight: side, quality: q);
+    final (t, _) = await reencode(image, side: side, quality: q);
     if (t.length <= 20 << 10) return t;
   }
   return Uint8List(0);
@@ -378,13 +401,15 @@ Future<Outgoing?> _photo(ImageSource source) async {
   if (f == null) return null;
   final raw = await f.readAsBytes();
   if (source == ImageSource.camera && !kIsWeb) File(f.path).delete().ignore(); // the plaintext copy
-  final gif = f.name.toLowerCase().endsWith('.gif');
+  return photoOf(raw, gif: f.name.toLowerCase().endsWith('.gif'));
+}
+
+/// A photo ready to send: at most 2048 px, JPEG, no EXIF. GIFs go as they are, to stay animated.
+Future<Outgoing> photoOf(Uint8List raw, {bool gif = false}) async {
   if (gif && raw.length > maxAttachment) throw TooLarge();
-  final data = gif
-      ? raw
-      : await FlutterImageCompress.compressWithList(raw, minWidth: 2048, minHeight: 2048, quality: 82, keepExif: false);
+  final (data, mime) = gif ? (raw, 'image/gif') : await reencode(raw, side: 2048, quality: 82);
   final (w, h) = await sizeOf(data);
-  return outgoing(data, gif ? 'image/gif' : 'image/jpeg', width: w, height: h, thumbnail: await thumbnailOf(data));
+  return outgoing(data, mime, width: w, height: h, thumbnail: await thumbnailOf(data));
 }
 
 /// MED-08: a video from the gallery, compressed when the sender chooses or must (over 100 MB).

@@ -321,7 +321,10 @@ impl SiegelCore {
             welcome: out.welcome,
             welcome_recipients: out.welcome_to.iter().map(addr).collect(),
         };
-        if let Err(e) = self.net.commit(&self.token()?, req).await {
+        // Saved messages (no one else, no other device yet): nothing to tell the server.
+        if !req.commit.is_empty()
+            && let Err(e) = self.net.commit(&self.token()?, req).await
+        {
             let _ = self.with_mls(|m, _| m.forget(&out.group_id).map_err(mls_err));
             return Err(e.into());
         }

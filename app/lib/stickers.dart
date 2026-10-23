@@ -7,7 +7,9 @@ import 'dart:ui' as ui;
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+
+import 'media.dart' show reencode;
+
 import 'package:image_picker/image_picker.dart';
 
 import 'l10n/app_localizations.dart';
@@ -425,8 +427,9 @@ class _Cell extends StatelessWidget {
 
 /// A sticker edited or made here (PNG): kept as WebP when the phone can encode it.
 Future<void> saveSticker(Core core, Uint8List png) async {
-  final webp = await FlutterImageCompress.compressWithList(png, format: CompressFormat.webp, quality: 85);
-  core.addSticker(data: webp.isNotEmpty ? webp : png, mimeType: webp.isNotEmpty ? 'image/webp' : 'image/png', pack: '');
+  final (webp, mime) = await reencode(png, side: 512, quality: 85, webp: true);
+  final ok = webp.isNotEmpty && mime == 'image/webp'; // Safari's canvas writes no WebP: keep the PNG
+  core.addSticker(data: ok ? webp : png, mimeType: ok ? mime : 'image/png', pack: '');
 }
 
 /// Files picked or shared to Siegel: WebP or PNG stickers go to my stickers, .wastickers packs

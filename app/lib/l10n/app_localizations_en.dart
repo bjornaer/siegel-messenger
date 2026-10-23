@@ -1530,4 +1530,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gifsPrivacy =>
       'Searches go through Siegel\'s server, so GIPHY never sees you. The GIF is sent end-to-end encrypted, like a photo.';
+
+  @override
+  String get savedMessages => 'Saved messages';
 }

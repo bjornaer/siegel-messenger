@@ -1708,6 +1708,10 @@ async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
     let picture = vec![0x89, b'P', b'N', b'G', 1, 2, 3];
     alice.set_avatar(Some(picture.clone())).await.unwrap();
 
+    // Saved messages: a group of just Alice, before any other device exists.
+    let notes = alice.create_group("Saved messages", &[]).await.unwrap();
+    alice.send_text(&notes, "note to self", None).await.unwrap();
+
     let dir = std::env::temp_dir().join(format!("siegel-e2e-web-{}", fresh_number()));
     std::fs::create_dir_all(&dir).unwrap();
     let web = std::sync::Arc::new(
@@ -1742,6 +1746,32 @@ async fn a_linked_device_gets_and_sends_messages_until_unlinked() {
         Some(picture),
         "the phone's picture, on the browser"
     );
+
+    // The browser joins Saved messages like any chat, and notes go both ways.
+    eventually(|| {
+        web.conversations()
+            .unwrap()
+            .iter()
+            .any(|c| c.group_id == notes)
+    })
+    .await;
+    assert_eq!(web.group_info(&notes).unwrap().name, "Saved messages");
+    alice.send_text(&notes, "milk", None).await.unwrap();
+    until(
+        &mut we,
+        |e| matches!(e, Event::Message(m) if m.text == "milk"),
+    )
+    .await;
+    web.send_text(&notes, "eggs", None).await.unwrap();
+    let Event::Message(n) = until(
+        &mut ae,
+        |e| matches!(e, Event::Message(m) if m.text == "eggs"),
+    )
+    .await
+    else {
+        unreachable!()
+    };
+    assert!(n.outgoing);
 
     // Bob writes: both of Alice's devices get it.
     let bob_chat = bob.conversations().unwrap()[0].group_id.clone();

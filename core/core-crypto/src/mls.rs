@@ -358,11 +358,23 @@ impl<P: OpenMlsProvider> Mls<P> {
             self.credential.clone(),
         )
         .map_err(err)?;
+        let group_id = g.group_id().as_slice().to_vec();
+        if kps.is_empty() {
+            // Just us (saved messages): no commit until another device of ours joins.
+            return Ok(Outgoing {
+                group_id,
+                epoch: 0,
+                commit: vec![],
+                commit_to: vec![],
+                welcome: vec![],
+                welcome_to,
+            });
+        }
         let (commit, welcome, _) = g
             .add_members(&self.provider, &self.signer, &kps)
             .map_err(err)?;
         Ok(Outgoing {
-            group_id: g.group_id().as_slice().to_vec(),
+            group_id,
             epoch: 0,
             commit: commit.tls_serialize_detached().map_err(err)?,
             commit_to: vec![], // nobody else is in the group yet
@@ -1014,6 +1026,33 @@ mod tests {
         let cred = DeviceCredential::issue(&id, account, dev, signer.public(), as_sig);
         assert_eq!(DeviceCredential::decode(&cred.encode()), Some(cred.clone()));
         Mls::load(provider, signer.public(), &cred, as_key.public()).unwrap()
+    }
+
+    #[test]
+    fn a_group_of_just_us_then_our_other_device() {
+        let as_key = IdentityKey::generate();
+        let (phone, web) = (device(&as_key, 1, false), device(&as_key, 1, false));
+        let out = phone
+            .create_group(&[], Some(&GroupState::default()))
+            .unwrap();
+        assert!(out.commit.is_empty() && out.welcome.is_empty());
+        phone.confirm(&out.group_id).unwrap();
+        assert!(phone.others(&out.group_id).unwrap().is_empty());
+        // Later the browser is linked and added, like to any conversation.
+        let add = phone
+            .commit(
+                &out.group_id,
+                &web.key_packages(1, false).unwrap(),
+                &[],
+                None,
+            )
+            .unwrap();
+        assert_eq!(add.epoch, 0);
+        phone.confirm(&out.group_id).unwrap();
+        assert!(matches!(
+            web.receive(&add.welcome).unwrap(),
+            Received::Joined { .. }
+        ));
     }
 
     #[test]

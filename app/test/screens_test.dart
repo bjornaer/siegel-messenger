@@ -8,11 +8,13 @@ import 'package:flutter/foundation.dart' show listEquals;
 import 'package:archive/archive.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:siegel/app_lock.dart';
+import 'package:siegel/browser.dart' as browser;
 import 'package:siegel/discovery.dart';
 import 'package:siegel/linked_devices.dart';
 import 'package:siegel/links.dart' show appChannel;
@@ -40,7 +42,7 @@ class FakeCore implements Core {
   bool linked = false;
   String? name;
   String? user;
-  final settings = <String, String>{};
+  final settings = <String, String>{'saved_messages': '1'}; // most tests: made already
   final calls = <String>[];
   final failNext = <String, String>{}; // method -> CoreError code, thrown once
 
@@ -957,6 +959,18 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Siegel is locked'), findsNothing);
     expect(find.text('secret chats'), findsOneWidget);
+  });
+
+  test('Saved messages: the phone makes it once; a linked browser never does', () async {
+    final phone = FakeCore()..settings.clear();
+    await ensureSavedMessages(phone, 'Saved messages');
+    await ensureSavedMessages(phone, 'Saved messages');
+    expect(phone.chats().where((c) => c.groupName == 'Saved messages'), hasLength(1));
+    final web = FakeCore()
+      ..settings.clear()
+      ..linked = true;
+    await ensureSavedMessages(web, 'Saved messages');
+    expect(web.chats(), isEmpty);
   });
 
   testWidgets('chat list, new chat by @username, send and receive (M2)', (t) async {
@@ -2128,9 +2142,9 @@ void main() {
     );
   });
 
-  testWidgets('web: Enter sends, Shift+Enter is a new line', (t) async {
-    enterSends = true;
-    addTearDown(() => enterSends = false);
+  testWidgets('web: Enter sends, Shift+Enter is a new line; hover to reply, right click for the menu', (t) async {
+    webUi = true;
+    addTearDown(() => webUi = false);
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();
     addTearDown(service.dispose);
@@ -2146,6 +2160,26 @@ void main() {
     await t.sendKeyEvent(LogicalKeyboardKey.enter);
     await t.pumpAndSettle();
     expect(core.history[base64Encode(id)]!.map((m) => m.text), ['hi']);
+
+    // A mouse over the bubble shows Reply; a right click opens the message's menu.
+    final mouse = await t.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(t.getCenter(find.text('hi')));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Reply'));
+    await t.pumpAndSettle();
+    expect(find.text('hi'), findsNWidgets(2), reason: 'the bubble and the reply preview');
+    await t.tap(find.text('hi').first, buttons: kSecondaryMouseButton);
+    await t.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Reply'), findsOneWidget);
+    await t.tapAt(Offset.zero); // close the menu
+    await t.pumpAndSettle();
+
+    // A file dropped on the page goes to the open chat.
+    browser.onDrop!([('notes.txt', 'text/plain', Uint8List.fromList(utf8.encode('hello')))]);
+    await t.pumpAndSettle();
+    expect(core.history[base64Encode(id)]!.last.attachment?.fileName, 'notes.txt');
   });
 
   testWidgets('GIFs: trending first, search, and the picked one comes back as a GIF', (t) async {

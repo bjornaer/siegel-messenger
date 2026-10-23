@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'avatar.dart';
+import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'backgrounds.dart';
 import 'discovery.dart';
 import 'format.dart';
@@ -383,6 +384,24 @@ class _WideChats extends InheritedWidget {
 
 /// M8 part 6: the home screen. On a wide window (a browser, a tablet) the open chat sits
 /// beside the list, in its own navigator: a chat that closes itself leaves the placeholder.
+const _savedKey = 'saved_messages';
+bool _savingMessages = false;
+
+/// A "Saved messages" chat: a group of just us, made once by the phone. Linked devices get it
+/// like any other chat. Deleted, it stays deleted.
+Future<void> ensureSavedMessages(Core core, String name) async {
+  if (_savingMessages || core.isLinkedDevice() || core.setting(key: _savedKey) != null) return;
+  _savingMessages = true;
+  try {
+    await core.createGroup(name: name, usernames: const []);
+    core.setSetting(key: _savedKey, value: '1');
+  } on Object {
+    // Offline, say: tried again next time the app opens.
+  } finally {
+    _savingMessages = false;
+  }
+}
+
 class ChatsHome extends StatefulWidget {
   const ChatsHome({super.key, required this.core, required this.service, required this.settings});
   final Core core;
@@ -397,6 +416,14 @@ class ChatsHome extends StatefulWidget {
 
 class _ChatsHomeState extends State<ChatsHome> {
   final _pane = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ensureSavedMessages(widget.core, AppLocalizations.of(context)!.savedMessages);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -650,9 +677,10 @@ class _NewChatScreenState extends State<NewChatScreen> {
   }
 }
 
-/// Siegel Web: Enter in the composer sends; Shift+Enter starts a new line.
+/// Siegel Web's keyboard and mouse: Enter sends (Shift+Enter is a new line), a reply button
+/// shows beside the bubble under the pointer, and files dropped on the page go to the open chat.
 @visibleForTesting
-bool enterSends = kIsWeb;
+bool webUi = kIsWeb;
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.core, required this.service, required this.groupId});
@@ -688,10 +716,12 @@ class _ChatScreenState extends State<ChatScreen> {
     widget.service.addListener(_markRead);
     _lifecycle = AppLifecycleListener(onShow: _markRead);
     _markRead();
+    if (webUi) browser.onDrop = _dropped;
   }
 
   @override
   void dispose() {
+    if (webUi && browser.onDrop == _dropped) browser.onDrop = null;
     widget.service.removeListener(_markRead);
     _lifecycle.dispose();
     // The chat list redraws without this chat's unread count (after the tree is unlocked).
@@ -870,6 +900,26 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Siegel Web: files dropped on the page are sent here, photos made smaller like picked ones.
+  Future<void> _dropped(List<(String, String, Uint8List)> files) async {
+    final c = _summary();
+    if (_editing != null || c == null || c.left || c.request) return; // only where the composer is
+    for (final (name, type, data) in files) {
+      final mime = type.isNotEmpty ? type : mimeFor(name);
+      try {
+        if (data.length > maxAttachment) throw TooLarge();
+        final photo = mime.startsWith('image/') && mime != 'image/svg+xml';
+        await _sendAttachment(photo ? await photoOf(data, gif: mime == 'image/gif') : outgoing(data, mime, name: name));
+      } on TooLarge {
+        if (mounted) showError(context, const CoreError(code: 'attachment_too_large'));
+      } on Object catch (e) {
+        debugPrint('drop: $e');
+        if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
+      }
+      if (!mounted) return;
     }
   }
 
@@ -1435,8 +1485,11 @@ class _ChatScreenState extends State<ChatScreen> {
             : {CustomSemanticsAction(label: t.reply): () => _reply(m)},
         child: _SwipeToReply(
           onReply: m.deleted || c.request ? null : () => _reply(m),
+          outgoing: m.outgoing,
           child: GestureDetector(
             onLongPress: () => _actions(m, c),
+            onSecondaryTap: webUi ? () => _actions(m, c) : null, // a right click, in the browser
+
             onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 3),
@@ -1724,7 +1777,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Siegel Web: Enter sends, Shift+Enter starts a new line (not while an IME is composing).
                   child: CallbackShortcuts(
                     bindings: {
-                      if (enterSends)
+                      if (webUi)
                         const SingleActivator(LogicalKeyboardKey.enter): () {
                           if (!_text.value.composing.isValid && !_busy) _send();
                         },
@@ -1778,11 +1831,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 }
 
-/// MSG-18: drag a bubble right to reply; a haptic tick says the drag went far enough.
+/// MSG-18: drag a bubble right to reply; a haptic tick says the drag went far enough. With a
+/// mouse (Siegel Web), a reply button shows beside the bubble under the pointer.
 class _SwipeToReply extends StatefulWidget {
-  const _SwipeToReply({required this.onReply, required this.child});
+  const _SwipeToReply({required this.onReply, required this.outgoing, required this.child});
 
   final VoidCallback? onReply;
+  final bool outgoing;
   final Widget child;
 
   @override
@@ -1792,10 +1847,29 @@ class _SwipeToReply extends StatefulWidget {
 class _SwipeToReplyState extends State<_SwipeToReply> {
   static const _threshold = 64.0;
   double _dx = 0;
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     if (widget.onReply == null) return widget.child;
+    if (webUi) {
+      final button = Visibility.maintain(
+        visible: _hover,
+        child: IconButton(
+          tooltip: AppLocalizations.of(context)!.reply,
+          icon: const Icon(Icons.reply, size: 20),
+          onPressed: widget.onReply,
+        ),
+      );
+      return MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: widget.outgoing ? [button, Flexible(child: widget.child)] : [Flexible(child: widget.child), button],
+        ),
+      );
+    }
     final armed = _dx >= _threshold;
     return GestureDetector(
       excludeFromSemantics: true, // screen readers get a Reply action on the bubble instead
