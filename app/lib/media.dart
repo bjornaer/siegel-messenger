@@ -381,10 +381,13 @@ Future<Uint8List> thumbnailOf(Uint8List image) async {
   return Uint8List(0);
 }
 
+/// Decodes the first frame: a browser's ImageDescriptor can't say an image's size.
 Future<(int, int)> sizeOf(Uint8List image) async {
-  final d = await ui.ImageDescriptor.encoded(await ui.ImmutableBuffer.fromUint8List(image));
-  final s = (d.width, d.height);
-  d.dispose();
+  final c = await ui.instantiateImageCodec(image);
+  final f = await c.getNextFrame();
+  final s = (f.image.width, f.image.height);
+  f.image.dispose();
+  c.dispose();
   return s;
 }
 
@@ -707,7 +710,16 @@ class _ImageMessageState extends State<ImageMessage> with _Fetch {
               fit: StackFit.expand,
               children: [
                 if (shown != null)
-                  Image.memory(shown, fit: BoxFit.cover, gaplessPlayback: true, semanticLabel: t.photo)
+                  Image.memory(
+                    shown,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    semanticLabel: t.photo,
+                    errorBuilder: (_, e, _) {
+                      debugPrint('image: $e'); // web console
+                      return const Center(child: Icon(Icons.broken_image_outlined));
+                    },
+                  )
                 else
                   ColoredBox(color: Theme.of(context).colorScheme.surfaceContainerHigh),
                 if (data == null)
