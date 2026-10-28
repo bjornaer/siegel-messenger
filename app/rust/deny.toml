@@ -12,6 +12,10 @@ ignore = [
   # Unmaintained, not vulnerable: read at compile time by age's i18n proc-macros (basic-toml <-
   # i18n-config <- i18n-embed-fl <- age, used for reports and device links). Nothing ships.
   { id = "RUSTSEC-2026-0374", reason = "build-time only, unmaintained notice" },
+  # Timing leaks in crypto-bigint 0.5 (fixed only in 0.7.6), reached only through elliptic-curve
+  # 0.13 for P-256/P-384/K-256 under OpenMLS. We only use X25519/Ed25519 (CIPHERSUITE in
+  # core-crypto/src/mls.rs), so no secret goes through it. Revisit when OpenMLS moves to 0.7.
+  { id = "RUSTSEC-2026-0387", reason = "NIST/secp curves unused: X25519/Ed25519 suite only" },
 ]
 
 [licenses]
