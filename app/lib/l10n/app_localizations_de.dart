@@ -1549,4 +1549,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get savedMessages => 'Gespeicherte Nachrichten';
+
+  @override
+  String get scrollToBottom => 'Zur neuesten Nachricht';
 }

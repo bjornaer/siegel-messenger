@@ -1543,4 +1543,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get savedMessages => 'Mensajes guardados';
+
+  @override
+  String get scrollToBottom => 'Ir al mensaje más reciente';
 }

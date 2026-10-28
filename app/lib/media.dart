@@ -155,6 +155,7 @@ class _AudioMessageState extends State<AudioMessage> {
   bool _loading = false;
   Duration _pos = Duration.zero;
   Duration? _len;
+  bool _scrubbing = false; // the finger, not the player, moves _pos
 
   AttachmentView get _a => widget.message.attachment!;
   bool get _isPlaying => _player?.state == PlayerState.playing;
@@ -167,7 +168,7 @@ class _AudioMessageState extends State<AudioMessage> {
   }
 
   AudioPlayer _ensurePlayer() => _player ??= AudioPlayer()
-    ..onPositionChanged.listen((p) => mounted ? setState(() => _pos = p) : null)
+    ..onPositionChanged.listen((p) => mounted && !_scrubbing ? setState(() => _pos = p) : null)
     ..onDurationChanged.listen((d) => mounted ? setState(() => _len = d) : null)
     ..onPlayerStateChanged.listen((_) => mounted ? setState(() {}) : null)
     ..onPlayerComplete.listen((_) => mounted ? setState(() => _pos = Duration.zero) : null);
@@ -189,12 +190,21 @@ class _AudioMessageState extends State<AudioMessage> {
     _playing = this;
     final p = _ensurePlayer();
     if (p.state == PlayerState.paused) return p.resume();
-    await p.play(BytesSource(_data!, mimeType: _a.mimeType));
+    await p.play(BytesSource(_data!, mimeType: _a.mimeType), position: _pos);
   }
 
-  Future<void> _seek(double fraction) async {
-    final len = _len;
-    if (len != null && _player != null) await _player!.seek(len * fraction);
+  /// A tap or drag along the waveform. Before playing, it's where playing starts.
+  void _scrub(double dx) {
+    final total = _len ?? Duration(milliseconds: _a.durationMs);
+    setState(() {
+      _scrubbing = true;
+      _pos = total * (dx / _waveWidth).clamp(0.0, 1.0);
+    });
+  }
+
+  Future<void> _seek() async {
+    _scrubbing = false;
+    if (_player?.source != null) await _player!.seek(_pos);
   }
 
   @override
@@ -224,7 +234,13 @@ class _AudioMessageState extends State<AudioMessage> {
                 if (!_a.voiceNote) Text(_a.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
                 GestureDetector(
                   excludeFromSemantics: true, // seeking by touch; Play and Pause are the accessible controls
-                  onTapDown: (d) => _seek((d.localPosition.dx / _waveWidth).clamp(0.0, 1.0)),
+                  onTapDown: (d) => _scrub(d.localPosition.dx),
+                  onTapUp: (_) => _seek(),
+                  onTapCancel: _seek,
+                  onHorizontalDragStart: (d) => _scrub(d.localPosition.dx),
+                  onHorizontalDragUpdate: (d) => _scrub(d.localPosition.dx),
+                  onHorizontalDragEnd: (_) => _seek(),
+                  onHorizontalDragCancel: _seek,
                   child: _a.waveform.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -463,16 +479,23 @@ Future<T?> _orNull<T>(Future<T?> Function() f) async {
   }
 }
 
-/// MED-10 (and MED-09 audio files): any file, sent unchanged.
-Future<Outgoing?> pickFile({bool audio = false}) async {
-  final f = await FilePicker.pickFile(type: audio ? FileType.audio : FileType.any);
-  if (f == null) return null;
-  if ((f.lengthSync() ?? 0) > maxAttachment) throw TooLarge(); // before reading it all
+/// MED-10 (and MED-09 audio files): any files, sent unchanged, read one at a time as each goes.
+/// One too large is skipped; [TooLarge] comes once the rest went.
+Stream<Outgoing> pickFiles({bool audio = false}) async* {
+  final files = await FilePicker.pickFiles(type: audio ? FileType.audio : FileType.any);
+  var skipped = false;
   try {
-    return outgoing(await f.readAsBytes(), mimeFor(f.name), name: f.name);
+    for (final f in files) {
+      if ((f.lengthSync() ?? 0) > maxAttachment) {
+        skipped = true; // before reading it all
+        continue;
+      }
+      yield outgoing(await f.readAsBytes(), mimeFor(f.name), name: f.name);
+    }
   } finally {
     unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
   }
+  if (skipped) throw TooLarge();
 }
 
 enum AttachmentKind { audio, image, video, file }

@@ -1538,4 +1538,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get savedMessages => 'Mensagens salvas';
+
+  @override
+  String get scrollToBottom => 'Ir para a mensagem mais recente';
 }

@@ -701,6 +701,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final _text = TextEditingController();
   final _focus = FocusNode();
   final _keys = <String, GlobalKey>{};
+  final _scroll = ScrollController();
+  final _away = ValueNotifier(false); // scrolled up from the newest message
   bool _busy = false;
   MessageView? _replyTo;
   MessageView? _editing;
@@ -717,6 +719,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _lifecycle = AppLifecycleListener(onShow: _markRead);
     _markRead();
     if (webUi) browser.onDrop = _dropped;
+    _scroll.addListener(() => _away.value = _scroll.offset > 400);
   }
 
   @override
@@ -731,6 +734,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _recorder?.dispose();
     _text.dispose();
     _focus.dispose();
+    _scroll.dispose();
+    _away.dispose();
     super.dispose();
   }
 
@@ -879,15 +884,19 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (choice == null) return;
     try {
+      if (choice == 2 || choice == 3) {
+        await for (final o in pickFiles(audio: choice == 3)) {
+          await _sendAttachment(o);
+        }
+        return;
+      }
       final o = await switch (choice) {
         0 || 4 => _photo(choice == 4 ? takePhoto : pickPhoto),
-        1 => pickVideo((must) async {
+        _ => pickVideo((must) async {
           final c = await _askCompress(must);
           if (c != null && mounted) setState(() => _busy = true); // compressing takes a while
           return c;
         }),
-        2 => pickFile(),
-        _ => pickFile(audio: true),
       };
       if (mounted) setState(() => _busy = false);
       if (o != null) await _sendAttachment(o);
@@ -1397,7 +1406,31 @@ class _ChatScreenState extends State<ChatScreen> {
             core: core,
             child: Column(
               children: [
-                Expanded(child: _messages(context, c)),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      _messages(context, c),
+                      PositionedDirectional(
+                        end: 12,
+                        bottom: 12,
+                        child: ValueListenableBuilder(
+                          valueListenable: _away,
+                          builder: (_, away, _) => away
+                              ? IconButton.filledTonal(
+                                  tooltip: t.scrollToBottom,
+                                  icon: const Icon(Icons.keyboard_arrow_down),
+                                  onPressed: () => _scroll.animateTo(
+                                    0,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOut,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 SafeArea(
                   top: false,
                   child: c.left
@@ -1436,6 +1469,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = core.messages(groupId: _group, limit: 500);
     final byId = {for (final m in messages) base64Encode(m.messageId): m};
     return SingleChildScrollView(
+      controller: _scroll,
       reverse: true,
       padding: const EdgeInsets.all(12),
       child: Column(

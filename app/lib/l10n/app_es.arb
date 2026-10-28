@@ -429,5 +429,6 @@
   "noGifs": "No se encontraron GIFs.",
   "gifsUnavailable": "Los GIFs no están disponibles ahora. Inténtalo más tarde.",
   "gifsPrivacy": "Las búsquedas pasan por el servidor de Siegel, así GIPHY nunca te ve. El GIF se envía cifrado de extremo a extremo, como una foto.",
-  "savedMessages": "Mensajes guardados"
+  "savedMessages": "Mensajes guardados",
+  "scrollToBottom": "Ir al mensaje más reciente"
 }

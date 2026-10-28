@@ -1533,4 +1533,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get savedMessages => 'Saved messages';
+
+  @override
+  String get scrollToBottom => 'Scroll to the newest message';
 }

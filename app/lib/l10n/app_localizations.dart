@@ -2681,6 +2681,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saved messages'**
   String get savedMessages;
+
+  /// No description provided for @scrollToBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to the newest message'**
+  String get scrollToBottom;
 }
 
 class _AppLocalizationsDelegate

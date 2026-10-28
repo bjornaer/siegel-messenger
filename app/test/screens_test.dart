@@ -1184,6 +1184,13 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byTooltip('Play'), findsOneWidget);
     expect(find.text('0:04'), findsOneWidget);
+    final wave = find.byWidgetPredicate((w) => w is CustomPaint && w.size == const Size(176, 28));
+    await t.tap(wave);
+    await t.pump(const Duration(milliseconds: 500)); // past a double tap
+    expect(find.text('0:02'), findsOneWidget, reason: 'a tap halfway: playing starts there');
+    await t.drag(wave, const Offset(44, 0));
+    await t.pump();
+    expect(find.text('0:03'), findsOneWidget, reason: 'dragged to three quarters');
     expect(find.byTooltip('Record a voice message'), findsOneWidget, reason: 'empty box: the mic');
     await t.enterText(find.widgetWithText(TextField, 'Message'), 'hi');
     await t.pump();
@@ -1194,6 +1201,23 @@ void main() {
     expect(find.text('Copy'), findsNothing, reason: 'nothing to copy');
     await tapText(t, 'Reply');
     expect(find.text('🎤 Voice message (0:04)'), findsOneWidget, reason: 'quoted above the composer');
+  });
+
+  testWidgets('scrolled up, a button goes back to the newest message', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    (core.history[base64Encode(id)] ??= []).addAll([for (var i = 0; i < 60; i++) FakeCore.msg(id, 'm$i', outgoing: i.isEven)]);
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.byTooltip('Scroll to the newest message'), findsNothing, reason: 'at the bottom');
+    await t.drag(find.text('m55'), const Offset(0, 1500));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Scroll to the newest message'));
+    await t.pumpAndSettle();
+    expect(find.text('m59'), findsOneWidget);
+    expect(find.byTooltip('Scroll to the newest message'), findsNothing);
   });
 
   test('notifications use the phone language, English when the app lacks it (MSG-17, Q3)', () {
