@@ -146,3 +146,63 @@ treats as ephemeral processing, so they aren't declared.
 2. Upload the AAB, add release notes, roll out.
 3. Testers must join through the opt-in link and install from Play. Keep at least 12 opted in
    for 14 days, then apply for production access.
+
+## Production access questionnaire
+
+Draft answers for Dashboard → Apply for production. Fill the [brackets]; check each field's
+length limit in the Console. Keep "no open crashes" true against Android vitals and the
+pre-launch report, and don't claim a legal review until O5 (docs/trust-and-safety.md) is done.
+
+### Part 1: About your closed test
+
+**How easy was it to recruit testers?** [Pick what matched: friends and family is usually
+"Somewhat difficult" or "Neither easy nor difficult".]
+
+**Tester engagement**
+
+> [N] testers used Siegel daily over the 14+ days as their messenger with each other: one-to-one and group chats, voice messages, photos, videos, files, stickers, GIFs, reactions, replies, group invite links, contact links and QR codes, and phone-number discovery. Several also linked Siegel Web in a desktop browser to their phone. Usage was close to what we expect in production: small circles of people who know each other, mostly text and voice notes, with photos and stickers. One difference: the group was small and mostly from [Spain], so we saw few message requests from strangers and few reports. We tested those flows (reporting, blocking, message requests, under-18 protections) ourselves with test accounts.
+
+**Feedback and how it was collected**
+
+> Feedback came through [a group chat with the testers / direct messages / email to support], plus Play Console pre-launch reports and crash reports. The main points:
+> - Siegel Web didn't load chats for some browsers, and one tester saw a blank page.
+> - Photos and GIFs sent from the browser didn't appear.
+> - Testers asked for Enter to send on desktop, replying from the web, drag and drop of images, and a "saved messages" chat with themselves.
+> - Long chats needed a quick way back to the newest message.
+> - Testers wanted to scrub through voice messages and to send several files at once.
+> - The SMS code sometimes didn't arrive, and international numbers were confusing to enter.
+> - Notifications didn't show on phones not set to English.
+
+### Part 2: About your app
+
+**Target audience**
+
+> Adults and older teens (16+; 14+ in Spain, as the terms say) who want a private messenger for family, friends and small groups. In particular, people in Europe who care about privacy and want end-to-end encryption without their contact list, metadata or message content going to the operator. It doesn't target or appeal to children. Accounts that say they're under 18 get extra protections: they can't be found by username and can only be added to groups by contacts. Media from strangers stays blurred until accepted.
+
+**Value proposition**
+
+> Siegel is a free messenger with no ads, built so the operator can't read or profile your conversations:
+> - Every message, photo, voice note and profile is end-to-end encrypted with the IETF MLS standard.
+> - Sealed sender hides who is writing to whom, and notifications carry no content.
+> - Phone numbers are stored only as a keyed hash, and messages live on the device, not the server.
+>
+> Users get what they expect from a modern messenger: groups, voice messages, media, stickers and GIFs, reactions, replies, and up to 4 linked devices including a browser. Strangers land in message requests, and there's in-app reporting and blocking. Unlike most alternatives it's built and hosted in the EU, under GDPR and the Digital Services Act.
+
+**Installs in the first year:** 1K–10K (100–1K if there's no launch plan yet).
+
+### Part 3: About your production readiness
+
+**Changes from the closed test**
+
+> Based on the closed test we shipped builds 19 to 21:
+> - **Siegel Web:** fixed chats not loading (message acknowledgements failed in some browsers), and fixed photos and GIFs sent from the browser. A browser that can't run the app now says why instead of showing a blank page.
+> - **Requested features:** Enter to send on desktop, replies, right-click and drag and drop on the web, a "Saved messages" chat with yourself, GIFs (via GIPHY) in the sticker sheet, a scroll-to-newest button, scrubbing through voice messages, and sending several files at once.
+> - **Reliability:** a country picker for phone numbers that shows where the SMS goes, a manual code path when an SMS doesn't arrive, and notifications on phones not set to English.
+> - **Security:** we kept dependencies on top of new security advisories.
+
+**How we decided it was ready**
+
+> - **Testing:** our automated tests (widget, accessibility, end-to-end against a real server, fuzzing of the parsers) pass on every build.
+> - **Closed test:** testers used the app daily for [14+] days. The issues they reported are fixed and confirmed by them, and crash reports and pre-launch reports show no open crashes.
+> - **Trust and safety:** in place before launch, as the DSA requires: terms, community guidelines, a child-safety risk assessment, in-app reporting, a moderation console with an audit log, and a published contact point.
+> - **Operations:** the server runs in the EU with encrypted backups and automated deploys after tests pass. We can force an update if a fix requires it.
