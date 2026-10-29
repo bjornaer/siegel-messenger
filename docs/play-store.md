@@ -47,7 +47,7 @@ Short description (76/80):
 
 > Sealed. Not shared. Private, end-to-end encrypted messaging, made in Europe.
 
-Full description (only claims what ships; update when groups and media land):
+Full description (only claims what ships):
 
 ```
 Sealed. Not shared.
@@ -58,7 +58,7 @@ YOUR MESSAGES LIVE ON YOUR PHONE
 Your chat history is stored only on your device, in an encrypted database. There's no copy on our servers and no cloud backup that someone else could open.
 
 NO PHONE NUMBER ON SHOW
-People find you by your @username. Your phone number is used once to verify your account and is never shown to anyone you chat with. We don't even store it: only a scrambled fingerprint of it.
+People find you by your @username, a contact link or QR code, or, only if you switch it on, by your phone number. Your number is never shown to anyone you chat with, and we don't even store it: only a scrambled fingerprint of it.
 
 WE SEE AS LITTLE AS POSSIBLE
 • End-to-end encryption with MLS, the modern open standard for secure messaging
@@ -74,17 +74,22 @@ YOU DECIDE WHO REACHES YOU
 • Registration Lock: a PIN that stops anyone who gets hold of your number from taking over your account
 
 EVERYTHING A CHAT NEEDS
-• Replies, reactions, edits and delete for everyone
+• Groups with invite links, @mentions and group photos
+• Voice messages, photos, videos and files, all end-to-end encrypted
+• View-once photos, stickers (make your own) and GIFs
+• Saved messages: a chat with yourself for notes
+• Replies, reactions with any emoji, edits and delete for everyone
 • Delivery and read receipts, typing indicators: turn them off any time
 • App lock with your fingerprint or device PIN, and screen protection against screenshots
-• Eight colour themes named after German legends and moods: Drache, Löwe, Lindwurm, Krampus, Nordlicht and more
+• Colour themes named after German legends and moods: Drache, Löwe, Lindwurm, Krampus, Nordlicht and more
+
+ON YOUR COMPUTER TOO
+Link up to 4 devices, including Siegel Web in your browser. Your phone approves each one.
 
 MADE IN EUROPE, OPEN FOR ALL TO CHECK
 Siegel is run from Spain on servers in the EU, under European data protection law. The source code is public, so anyone can verify what it does.
 
 Siegel is German for "seal". What you write stays sealed.
-
-Group chats, photos and file sharing are on the way.
 ```
 
 ## App content
@@ -120,10 +125,14 @@ users' devices. Google's form says such data doesn't need declaring, so don't li
 | Personal info → Phone number | Yes (kept only as a keyed hash; sent to the SMS processor) | No (service providers don't count as sharing) | Required | Account management; Fraud prevention, security and compliance |
 | Personal info → User IDs (@username) | Yes | No | Required | App functionality; Account management |
 | Device or other IDs (FCM token, Firebase installation ID, Play Integrity) | Yes | No | Required | App functionality; Fraud prevention, security and compliance |
+| Contacts | Yes (only blinded values the server can't turn back into numbers; never stored) | No | Optional (contact discovery, off until the user allows it) | App functionality |
+| Messages → Other in-app messages; Photos and videos; Files and docs | Yes, only in reports the user chooses to send (encrypted for our moderators) | No | Optional | Fraud prevention, security and compliance |
+| App activity → In-app search history (GIF searches) | No (passed through, not kept) | Yes, to GIPHY, without the account or IP | Optional | App functionality |
 
-Not collected: location, contacts (phone contact discovery isn't built), financial info,
-health, photos or files (end-to-end encrypted), audio, calendar, app activity, web browsing,
-app info and performance (no crash reporting). The last-connected day is account
+Not collected: location, financial info, health, photos, files or audio outside reports (end-to-end
+encrypted), calendar, other app activity, web browsing, app info and performance (no crash
+reporting). Contacts and GIF searches are declared to stay on the safe side: neither is readable
+or kept by us. The last-connected day is account
 housekeeping that goes with the account itself, so it isn't listed separately.
 
 Deletion: Play asks for a web link for deletion requests; serve one at
@@ -135,8 +144,11 @@ treats as ephemeral processing, so they aren't declared.
 
 ## Permissions to justify
 
-- `CAMERA`: scanning a contact's safety-number QR code (CRY-12). Requested only when the user
-  taps "Scan their code".
+- `CAMERA`: scanning QR codes (safety numbers, contact and device links) and taking photos and
+  videos in the app. Requested only when the user first does one of those.
+- `RECORD_AUDIO`: voice messages, requested on the first recording.
+- `READ_CONTACTS`: finding contacts who use Siegel (opt-in), requested only when the user taps
+  Find contacts.
 - `USE_BIOMETRIC`: app lock (ID-15).
 - `INTERNET`, `ACCESS_NETWORK_STATE`: messaging.
 
