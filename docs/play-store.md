@@ -182,6 +182,7 @@ pre-launch report, and don't claim a legal review until O5 (docs/trust-and-safet
 > - Testers asked for Enter to send on desktop, replying from the web, drag and drop of images, and a "saved messages" chat with themselves.
 > - Long chats needed a quick way back to the newest message.
 > - Testers wanted to scrub through voice messages and to send several files at once.
+> - A tester moving to a new phone didn't find how to get back into their account.
 > - The SMS code sometimes didn't arrive, and international numbers were confusing to enter.
 > - Notifications didn't show on phones not set to English.
 
@@ -206,9 +207,10 @@ pre-launch report, and don't claim a legal review until O5 (docs/trust-and-safet
 
 **Changes from the closed test**
 
-> Based on the closed test we shipped builds 19 to 21:
+> Based on the closed test we shipped builds 19 to 22:
 > - **Siegel Web:** fixed chats not loading (message acknowledgements failed in some browsers), and fixed photos and GIFs sent from the browser. A browser that can't run the app now says why instead of showing a blank page.
 > - **Requested features:** Enter to send on desktop, replies, right-click and drag and drop on the web, a "Saved messages" chat with yourself, GIFs (via GIPHY) in the sticker sheet, a scroll-to-newest button, scrubbing through voice messages, and sending several files at once.
+> - **Moving phones:** an explicit "I already have an account" sign-in on the welcome screen, saying what comes back (the @username, groups) and that the Registration Lock PIN is asked.
 > - **Reliability:** a country picker for phone numbers that shows where the SMS goes, a manual code path when an SMS doesn't arrive, and notifications on phones not set to English.
 > - **Security:** we kept dependencies on top of new security advisories.
 
