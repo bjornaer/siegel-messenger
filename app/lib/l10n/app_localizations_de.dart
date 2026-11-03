@@ -1552,4 +1552,14 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get scrollToBottom => 'Zur neuesten Nachricht';
+
+  @override
+  String get haveAccount => 'Ich habe schon ein Konto';
+
+  @override
+  String get signInTitle => 'Anmelden';
+
+  @override
+  String get signInHelp =>
+      'Neues Handy? Gib die Nummer deines Kontos ein. Dein @Benutzername bleibt, du bist also weiter erreichbar, und Gruppen nehmen dich wieder auf, sobald ihre Mitglieder online sind. Hast du eine PIN für die Registrierungssperre gesetzt, wird sie abgefragt.\n\nChats und Kontakte ziehen nicht mit um: Sie liegen nur auf deinem Handy. Das alte Handy wird abgemeldet und seine Chats gelöscht.';
 }

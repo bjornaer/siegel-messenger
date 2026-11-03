@@ -108,6 +108,7 @@ class _OnboardingState extends State<Onboarding> {
   int? _birthYear;
   int? _birthMonth;
   bool _busy = false;
+  bool _returning = false; // "I already have an account": the same steps, explained
   // ID-04: the server sets when a resend is allowed; each wait doubles, with a daily cap.
   int _resendLeft = 0; // seconds; the server enforces the real wait
   Timer? _tick;
@@ -218,11 +219,20 @@ class _OnboardingState extends State<Onboarding> {
           ),
           Text(t.historyNotice), // ID-14
           primary(t.continueButton, () => setState(() => step = _Step.phone)),
+          // ID-09: a new phone signs in with the account's number (and its PIN, ID-10).
+          OutlinedButton(
+            onPressed: () => setState(() {
+              _returning = true;
+              step = _Step.phone;
+            }),
+            child: Text(t.haveAccount),
+          ),
         ],
       ),
       _Step.phone => (
-        t.phoneTitle,
+        _returning ? t.signInTitle : t.phoneTitle,
         [
+          if (_returning) Text(t.signInHelp),
           // The country with its flag (the SIM's by default), then the number; the line under it
           // shows the exact international number the SMS goes to.
           PhoneNumberField(onChanged: (p) => setState(() => _parsed = p)),

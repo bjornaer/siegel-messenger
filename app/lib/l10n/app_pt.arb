@@ -430,5 +430,8 @@
   "gifsUnavailable": "Os GIFs não estão disponíveis agora. Tente mais tarde.",
   "gifsPrivacy": "As pesquisas passam pelo servidor do Siegel, então o GIPHY nunca vê você. O GIF é enviado com criptografia de ponta a ponta, como uma foto.",
   "savedMessages": "Mensagens salvas",
-  "scrollToBottom": "Ir para a mensagem mais recente"
+  "scrollToBottom": "Ir para a mensagem mais recente",
+  "haveAccount": "Já tenho uma conta",
+  "signInTitle": "Entrar",
+  "signInHelp": "Trocando de celular? Digite o número da sua conta. Seu @usuário continua o mesmo, então as pessoas ainda podem falar com você, e os grupos te adicionam de volta quando os membros ficam online. Se você definiu um PIN de bloqueio de registro, ele será pedido.\n\nConversas e contatos não são transferidos: eles ficam só no seu celular. O celular antigo é desconectado e as conversas dele são apagadas."
 }

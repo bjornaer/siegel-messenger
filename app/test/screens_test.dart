@@ -902,6 +902,24 @@ void main() {
     expect(find.text('Your profile'), findsOneWidget);
   });
 
+  testWidgets('a new phone: "I already have an account" says what comes back, then the PIN (ID-09)', (t) async {
+    final core = FakeCore();
+    await t.pumpWidget(wrap(Onboarding(core: core, onDone: () {})));
+    await tapText(t, 'I already have an account');
+    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.textContaining('Your @username stays'), findsOneWidget);
+    expect(find.textContaining('Your old phone is signed out'), findsOneWidget);
+    await enter(t, 'Your phone number', '+34 611 22 33 44');
+    await pickBirth(t, DateTime.now().year - 30);
+    await tapText(t, 'Send code');
+    await enter(t, 'Code', '000000');
+    core.failNext['verify 000000 '] = 'registration_lock_required';
+    await tapText(t, 'Verify');
+    await enter(t, '4-digit PIN', '4321');
+    await tapText(t, 'Verify');
+    expect(core.calls.last, 'verify 000000 4321');
+  });
+
   testWidgets('skipping the PIN needs confirming the takeover warning', (t) async {
     final core = FakeCore()..registered = true; // resumes at the profile step
     var done = false;

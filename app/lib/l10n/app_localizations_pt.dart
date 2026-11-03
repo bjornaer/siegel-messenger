@@ -1541,4 +1541,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get scrollToBottom => 'Ir para a mensagem mais recente';
+
+  @override
+  String get haveAccount => 'Já tenho uma conta';
+
+  @override
+  String get signInTitle => 'Entrar';
+
+  @override
+  String get signInHelp =>
+      'Trocando de celular? Digite o número da sua conta. Seu @usuário continua o mesmo, então as pessoas ainda podem falar com você, e os grupos te adicionam de volta quando os membros ficam online. Se você definiu um PIN de bloqueio de registro, ele será pedido.\n\nConversas e contatos não são transferidos: eles ficam só no seu celular. O celular antigo é desconectado e as conversas dele são apagadas.';
 }

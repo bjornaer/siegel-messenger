@@ -2687,6 +2687,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scroll to the newest message'**
   String get scrollToBottom;
+
+  /// No description provided for @haveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'I already have an account'**
+  String get haveAccount;
+
+  /// No description provided for @signInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get signInTitle;
+
+  /// No description provided for @signInHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Moving to a new phone? Enter your account\'s number. Your @username stays, so people can still reach you, and groups add you back as their members come online. If you set a Registration Lock PIN, you\'ll be asked for it.\n\nChats and contacts don\'t move: they\'re only ever on your phone. Your old phone is signed out and its chats are erased.'**
+  String get signInHelp;
 }
 
 class _AppLocalizationsDelegate

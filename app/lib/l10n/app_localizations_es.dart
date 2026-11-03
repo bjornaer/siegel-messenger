@@ -1546,4 +1546,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get scrollToBottom => 'Ir al mensaje más reciente';
+
+  @override
+  String get haveAccount => 'Ya tengo una cuenta';
+
+  @override
+  String get signInTitle => 'Iniciar sesión';
+
+  @override
+  String get signInHelp =>
+      '¿Cambias de teléfono? Introduce el número de tu cuenta. Tu @usuario se mantiene, así que te pueden seguir escribiendo, y los grupos te vuelven a añadir cuando sus miembros se conectan. Si pusiste un PIN de bloqueo de registro, te lo pediremos.\n\nLos chats y contactos no se trasladan: solo están en tu teléfono. El teléfono anterior se desconecta y sus chats se borran.';
 }

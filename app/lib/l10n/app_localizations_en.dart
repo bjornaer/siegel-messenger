@@ -1536,4 +1536,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scrollToBottom => 'Scroll to the newest message';
+
+  @override
+  String get haveAccount => 'I already have an account';
+
+  @override
+  String get signInTitle => 'Sign in';
+
+  @override
+  String get signInHelp =>
+      'Moving to a new phone? Enter your account\'s number. Your @username stays, so people can still reach you, and groups add you back as their members come online. If you set a Registration Lock PIN, you\'ll be asked for it.\n\nChats and contacts don\'t move: they\'re only ever on your phone. Your old phone is signed out and its chats are erased.';
 }

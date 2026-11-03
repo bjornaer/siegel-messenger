@@ -430,5 +430,8 @@
   "gifsUnavailable": "GIFs sind gerade nicht verfügbar. Versuche es später noch einmal.",
   "gifsPrivacy": "Suchen laufen über den Siegel-Server, GIPHY sieht dich also nie. Das GIF wird wie ein Foto Ende-zu-Ende-verschlüsselt gesendet.",
   "savedMessages": "Gespeicherte Nachrichten",
-  "scrollToBottom": "Zur neuesten Nachricht"
+  "scrollToBottom": "Zur neuesten Nachricht",
+  "haveAccount": "Ich habe schon ein Konto",
+  "signInTitle": "Anmelden",
+  "signInHelp": "Neues Handy? Gib die Nummer deines Kontos ein. Dein @Benutzername bleibt, du bist also weiter erreichbar, und Gruppen nehmen dich wieder auf, sobald ihre Mitglieder online sind. Hast du eine PIN für die Registrierungssperre gesetzt, wird sie abgefragt.\n\nChats und Kontakte ziehen nicht mit um: Sie liegen nur auf deinem Handy. Das alte Handy wird abgemeldet und seine Chats gelöscht."
 }

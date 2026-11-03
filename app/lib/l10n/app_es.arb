@@ -430,5 +430,8 @@
   "gifsUnavailable": "Los GIFs no están disponibles ahora. Inténtalo más tarde.",
   "gifsPrivacy": "Las búsquedas pasan por el servidor de Siegel, así GIPHY nunca te ve. El GIF se envía cifrado de extremo a extremo, como una foto.",
   "savedMessages": "Mensajes guardados",
-  "scrollToBottom": "Ir al mensaje más reciente"
+  "scrollToBottom": "Ir al mensaje más reciente",
+  "haveAccount": "Ya tengo una cuenta",
+  "signInTitle": "Iniciar sesión",
+  "signInHelp": "¿Cambias de teléfono? Introduce el número de tu cuenta. Tu @usuario se mantiene, así que te pueden seguir escribiendo, y los grupos te vuelven a añadir cuando sus miembros se conectan. Si pusiste un PIN de bloqueo de registro, te lo pediremos.\n\nLos chats y contactos no se trasladan: solo están en tu teléfono. El teléfono anterior se desconecta y sus chats se borran."
 }
