@@ -137,7 +137,12 @@ jobs:
           channel: stable
           cache: true
       # flutter_rust_bridge's web build: nightly for build-std, threads through shared memory.
-      - run: rustup toolchain install nightly --profile minimal -c rust-src -t wasm32-unknown-unknown
+      # Pinned: nightly 2026-11-08 passes the wasm link args to host build scripts too. frb runs
+      # "nightly" by name, so that name points at the pinned one.
+      - run: |
+          rustup toolchain install nightly-2026-11-03 --profile minimal -c rust-src -t wasm32-unknown-unknown
+          ln -sfn ~/.rustup/toolchains/nightly-2026-11-03-x86_64-unknown-linux-gnu ~/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu
+          cargo +nightly --version
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack

@@ -51,14 +51,14 @@ path = "tests/vc_operation_tree.rs"
 version = "0.6.0"
 
 [dependencies.refinery]
-version = "0.9"
+version = "0.10"
 features = [
     "rusqlite",
     "enums",
 ]
 
 [dependencies.rusqlite]
-version = "0.39"
+version = "0.41"
 features = ["bundled"]
 
 [dependencies.serde]
