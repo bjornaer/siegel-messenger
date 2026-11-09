@@ -1556,4 +1556,22 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get signInHelp =>
       '¿Cambias de teléfono? Introduce el número de tu cuenta. Tu @usuario se mantiene, así que te pueden seguir escribiendo, y los grupos te vuelven a añadir cuando sus miembros se conectan. Si pusiste un PIN de bloqueo de registro, te lo pediremos.\n\nLos chats y contactos no se trasladan: solo están en tu teléfono. El teléfono anterior se desconecta y sus chats se borran.';
+
+  @override
+  String get location => 'Ubicación';
+
+  @override
+  String get openInMaps => 'Abrir en mapas';
+
+  @override
+  String get sendLocationTitle => '¿Enviar tu ubicación?';
+
+  @override
+  String sendLocationBody(int meters) {
+    return 'Precisión de unos $meters m. Todos en este chat la verán.';
+  }
+
+  @override
+  String get errLocation =>
+      'No se pudo obtener tu ubicación. Comprueba que la ubicación esté activada y que Siegel pueda usarla.';
 }

@@ -63,6 +63,7 @@ void showError(BuildContext context, CoreError e) {
     'upload_failed' => t.errUploadFailed,
     'avatar_invalid' => t.errAvatarInvalid,
     'attachment_invalid' => t.errAttachmentInvalid,
+    'location_unavailable' => t.errLocation,
     'view_once_gone' || 'view_once' => t.errViewOnceGone,
     'view_once_phone_only' => t.viewOnceOnPhone,
     'network' => t.errNetwork,

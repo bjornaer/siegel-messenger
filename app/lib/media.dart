@@ -19,6 +19,7 @@ import 'package:video_player/video_player.dart';
 import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'app_lock.dart' show secureWhile;
 import 'links.dart' show isAndroid;
+import 'location.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
 import 'src/rust/api/core.dart';
@@ -26,7 +27,7 @@ import 'src/rust/api/core.dart';
 /// What stands in for a message in the chat list, quotes and notifications.
 String messageText(AppLocalizations t, MessageView m) {
   final a = m.attachment;
-  if (a == null) return m.text;
+  if (a == null) return locationOf(m.text) == null ? m.text : '📍 ${t.location}';
   if (a.voiceNote) return '🎤 ${t.voiceMessage} (${formatDuration(a.durationMs)})';
   if (a.sticker) return '💟 ${t.sticker}';
   if (a.viewOnce) return '📷 ${t.viewOncePhoto}';
@@ -736,6 +737,7 @@ class _ImageMessageState extends State<ImageMessage> with _Fetch {
                   Image.memory(
                     shown,
                     fit: BoxFit.cover,
+                    cacheWidth: (240 * MediaQuery.devicePixelRatioOf(context)).round(), // not the camera's size
                     gaplessPlayback: true,
                     semanticLabel: t.photo,
                     errorBuilder: (_, e, _) {

@@ -1551,4 +1551,22 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get signInHelp =>
       'Trocando de celular? Digite o número da sua conta. Seu @usuário continua o mesmo, então as pessoas ainda podem falar com você, e os grupos te adicionam de volta quando os membros ficam online. Se você definiu um PIN de bloqueio de registro, ele será pedido.\n\nConversas e contatos não são transferidos: eles ficam só no seu celular. O celular antigo é desconectado e as conversas dele são apagadas.';
+
+  @override
+  String get location => 'Localização';
+
+  @override
+  String get openInMaps => 'Abrir no mapa';
+
+  @override
+  String get sendLocationTitle => 'Enviar sua localização?';
+
+  @override
+  String sendLocationBody(int meters) {
+    return 'Precisão de cerca de $meters m. Todos nesta conversa vão vê-la.';
+  }
+
+  @override
+  String get errLocation =>
+      'Não foi possível obter sua localização. Verifique se a localização está ativada e se o Siegel pode usá-la.';
 }

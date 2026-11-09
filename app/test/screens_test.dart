@@ -23,6 +23,7 @@ import 'package:siegel/backgrounds.dart';
 import 'package:siegel/chats.dart';
 import 'package:siegel/groups.dart';
 import 'package:siegel/l10n/app_localizations.dart';
+import 'package:siegel/location.dart';
 import 'package:siegel/main.dart';
 import 'package:siegel/web.dart';
 import 'package:siegel/media.dart';
@@ -1226,7 +1227,9 @@ void main() {
     final service = ChatService(core, onDeregistered: () {})..start();
     addTearDown(service.dispose);
     final id = await core.startChat(username: 'bob');
-    (core.history[base64Encode(id)] ??= []).addAll([for (var i = 0; i < 60; i++) FakeCore.msg(id, 'm$i', outgoing: i.isEven)]);
+    (core.history[base64Encode(id)] ??= []).addAll([
+      for (var i = 0; i < 60; i++) FakeCore.msg(id, 'm$i', outgoing: i.isEven),
+    ]);
     await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
     await t.pumpAndSettle();
     expect(find.byTooltip('Scroll to the newest message'), findsNothing, reason: 'at the bottom');
@@ -1236,6 +1239,56 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('m59'), findsOneWidget);
     expect(find.byTooltip('Scroll to the newest message'), findsNothing);
+  });
+
+  testWidgets('a quote jumps to its message, even one not built yet (MSG-07)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final old = [for (var i = 0; i < 60; i++) FakeCore.msg(id, 'm$i', outgoing: i.isEven)];
+    (core.history[base64Encode(id)] ??= []).addAll([
+      ...old,
+      FakeCore.msg(id, 'that one', outgoing: false, replyTo: old.first.messageId),
+    ]);
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.text('m1'), findsNothing, reason: 'far up, not built');
+    await t.tap(find.text('m0')); // the quote
+    await t.pumpAndSettle();
+    expect(find.text('m1'), findsOneWidget);
+  });
+
+  testWidgets('sharing a location: asked first, sent as a map link, shown as a card', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      appChannel,
+      (c) async => c.method == 'location' ? [52.52, 13.405, 12.0] : null,
+    );
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Attach'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Location'));
+    await t.pumpAndSettle();
+    expect(find.text('Send your location?'), findsOneWidget);
+    expect(find.textContaining('about 12 m'), findsOneWidget);
+    await t.tap(find.text('Send'));
+    await t.pumpAndSettle();
+    final sent = core.history[base64Encode(id)]!.last;
+    expect(sent.text, startsWith('📍 https://www.openstreetmap.org/?mlat=52.52000&mlon=13.40500'));
+    expect(find.text('52.52000, 13.40500'), findsOneWidget);
+    expect(find.text('Open in maps'), findsOneWidget);
+    expect(messageText(lookupAppLocalizations(const Locale('en')), sent), '📍 Location');
+
+    expect(locationOf(sent.text), (lat: 52.52, lon: 13.405));
+    expect(locationOf('${sent.text} and more'), isNull, reason: 'only a message that is just the location');
+    expect(locationOf('📍 https://evil.example/?mlat=1.0&mlon=2.0#map=1'), isNull);
+    expect(locationOf(locationText((lat: 95.0, lon: 0.0))), isNull);
   });
 
   test('notifications use the phone language, English when the app lacks it (MSG-17, Q3)', () {

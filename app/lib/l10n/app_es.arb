@@ -433,5 +433,10 @@
   "scrollToBottom": "Ir al mensaje más reciente",
   "haveAccount": "Ya tengo una cuenta",
   "signInTitle": "Iniciar sesión",
-  "signInHelp": "¿Cambias de teléfono? Introduce el número de tu cuenta. Tu @usuario se mantiene, así que te pueden seguir escribiendo, y los grupos te vuelven a añadir cuando sus miembros se conectan. Si pusiste un PIN de bloqueo de registro, te lo pediremos.\n\nLos chats y contactos no se trasladan: solo están en tu teléfono. El teléfono anterior se desconecta y sus chats se borran."
+  "signInHelp": "¿Cambias de teléfono? Introduce el número de tu cuenta. Tu @usuario se mantiene, así que te pueden seguir escribiendo, y los grupos te vuelven a añadir cuando sus miembros se conectan. Si pusiste un PIN de bloqueo de registro, te lo pediremos.\n\nLos chats y contactos no se trasladan: solo están en tu teléfono. El teléfono anterior se desconecta y sus chats se borran.",
+  "location": "Ubicación",
+  "openInMaps": "Abrir en mapas",
+  "sendLocationTitle": "¿Enviar tu ubicación?",
+  "sendLocationBody": "Precisión de unos {meters} m. Todos en este chat la verán.",
+  "errLocation": "No se pudo obtener tu ubicación. Comprueba que la ubicación esté activada y que Siegel pueda usarla."
 }

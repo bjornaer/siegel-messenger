@@ -12,6 +12,9 @@ void save(String key, String? value) {}
 void reload() {}
 void openUrl(String url) {}
 
+/// This browser's position: [latitude, longitude, accuracy in m], or null.
+Future<List<double>?> location() async => null;
+
 /// M8 part 6: Web Push.
 bool get pushSupported => false;
 Future<bool> pushEnabled() async => false;

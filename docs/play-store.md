@@ -75,7 +75,7 @@ YOU DECIDE WHO REACHES YOU
 
 EVERYTHING A CHAT NEEDS
 • Groups with invite links, @mentions and group photos
-• Voice messages, photos, videos and files, all end-to-end encrypted
+• Voice messages, photos, videos, files and your location, all end-to-end encrypted
 • View-once photos, stickers (make your own) and GIFs
 • Saved messages: a chat with yourself for notes
 • Replies, reactions with any emoji, edits and delete for everyone
@@ -105,7 +105,8 @@ Siegel is German for "seal". What you write stays sealed.
 > To try messaging, start a chat with @[a second test account you keep signed in].
 
 **Content rating (IARC):** Communication app. Users can talk to each other: yes. Shares
-location: no. Digital purchases: no. Unrestricted internet: no.
+location: yes (only when a user chooses to send theirs to a chat).
+Changed with build 23: update the IARC questionnaire before rolling it out. Digital purchases: no. Unrestricted internet: no.
 
 **Target audience:** 16–17 and 18+. Doesn't appeal to children. (The in-app minimum is 14 in
 Spain and 16 elsewhere; 13–15 is left out because it includes 13-year-olds.)
@@ -126,10 +127,10 @@ users' devices. Google's form says such data doesn't need declaring, so don't li
 | Personal info → User IDs (@username) | Yes | No | Required | App functionality; Account management |
 | Device or other IDs (FCM token, Firebase installation ID, Play Integrity) | Yes | No | Required | App functionality; Fraud prevention, security and compliance |
 | Contacts | Yes (only blinded values the server can't turn back into numbers; never stored) | No | Optional (contact discovery, off until the user allows it) | App functionality |
-| Messages → Other in-app messages; Photos and videos; Files and docs | Yes, only in reports the user chooses to send (encrypted for our moderators) | No | Optional | Fraud prevention, security and compliance |
+| Messages → Other in-app messages; Photos and videos; Files and docs; Location → Precise location (a shared location is a message) | Yes, only in reports the user chooses to send (encrypted for our moderators) | No | Optional | Fraud prevention, security and compliance |
 | App activity → In-app search history (GIF searches) | No (passed through, not kept) | Yes, to GIPHY, without the account or IP | Optional | App functionality |
 
-Not collected: location, financial info, health, photos, files or audio outside reports (end-to-end
+Not collected: location outside reports (shared locations are end-to-end encrypted messages), financial info, health, photos, files or audio outside reports (end-to-end
 encrypted), calendar, other app activity, web browsing, app info and performance (no crash
 reporting). Contacts and GIF searches are declared to stay on the safe side: neither is readable
 or kept by us. The last-connected day is account
@@ -149,6 +150,8 @@ treats as ephemeral processing, so they aren't declared.
 - `RECORD_AUDIO`: voice messages, requested on the first recording.
 - `READ_CONTACTS`: finding contacts who use Siegel (opt-in), requested only when the user taps
   Find contacts.
+- `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`: sending your location to a chat, asked on the
+  first share; one fix per share, never in the background. Approximate is enough.
 - `USE_BIOMETRIC`: app lock (ID-15).
 - `INTERNET`, `ACCESS_NETWORK_STATE`: messaging.
 

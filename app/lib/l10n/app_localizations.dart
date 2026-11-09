@@ -2705,6 +2705,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Moving to a new phone? Enter your account\'s number. Your @username stays, so people can still reach you, and groups add you back as their members come online. If you set a Registration Lock PIN, you\'ll be asked for it.\n\nChats and contacts don\'t move: they\'re only ever on your phone. Your old phone is signed out and its chats are erased.'**
   String get signInHelp;
+
+  /// No description provided for @location.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get location;
+
+  /// No description provided for @openInMaps.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in maps'**
+  String get openInMaps;
+
+  /// No description provided for @sendLocationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send your location?'**
+  String get sendLocationTitle;
+
+  /// No description provided for @sendLocationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Accurate to about {meters} m. Everyone in this chat will see it.'**
+  String sendLocationBody(int meters);
+
+  /// No description provided for @errLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t find your location. Check that location is on and Siegel may use it.'**
+  String get errLocation;
 }
 
 class _AppLocalizationsDelegate

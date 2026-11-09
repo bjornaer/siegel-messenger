@@ -70,6 +70,16 @@ class MainActivity : FlutterFragmentActivity() {
                         requestPermissions(arrayOf(android.Manifest.permission.READ_CONTACTS), CONTACTS_REQUEST)
                     }
                 }
+                // Sharing a location: [latitude, longitude, accuracy in m], or null (no permission,
+                // location off, or no fix within 30 s). Approximate only is fine.
+                "location" -> {
+                    val fine = android.Manifest.permission.ACCESS_FINE_LOCATION
+                    val coarse = android.Manifest.permission.ACCESS_COARSE_LOCATION
+                    if (checkSelfPermission(coarse) == PERMISSION_GRANTED) locate(result) else {
+                        locationResult = result
+                        requestPermissions(arrayOf(fine, coarse), LOCATION_REQUEST)
+                    }
+                }
                 "share" -> {
                     val send = android.content.Intent(android.content.Intent.ACTION_SEND)
                         .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, call.arguments as String)
@@ -120,6 +130,12 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, grants: IntArray) {
         super.onRequestPermissionsResult(code, permissions, grants)
+        if (code == LOCATION_REQUEST) {
+            val result = locationResult ?: return
+            locationResult = null
+            if (grants.any { it == PERMISSION_GRANTED }) locate(result) else result.success(null)
+            return
+        }
         if (code != CONTACTS_REQUEST) return
         val result = contactsResult ?: return
         contactsResult = null
@@ -140,6 +156,34 @@ class MainActivity : FlutterFragmentActivity() {
         runOnUiThread { result.success(list) }
     }.start()
     private var appChannel: MethodChannel? = null
+    private var locationResult: MethodChannel.Result? = null
+
+    // A fresh fix from the platform (no Play services); GPS needs the precise permission.
+    @Suppress("DEPRECATION", "MissingPermission") // requestSingleUpdate: Android 9 and 10
+    private fun locate(result: MethodChannel.Result) {
+        val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
+        val precise = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PERMISSION_GRANTED
+        val provider = listOf(android.location.LocationManager.GPS_PROVIDER, android.location.LocationManager.NETWORK_PROVIDER)
+            .filter { precise || it != android.location.LocationManager.GPS_PROVIDER }
+            .firstOrNull { lm.isProviderEnabled(it) } ?: return result.success(null)
+        var done = false
+        val reply = { l: android.location.Location? ->
+            if (!done) {
+                done = true
+                result.success(l?.let { listOf(it.latitude, it.longitude, it.accuracy.toDouble()) })
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            lm.getCurrentLocation(provider, null, mainExecutor) { reply(it) } // gives up by itself
+        } else {
+            val listener = android.location.LocationListener { reply(it) }
+            lm.requestSingleUpdate(provider, listener, mainLooper)
+            android.os.Handler(mainLooper).postDelayed({
+                lm.removeUpdates(listener)
+                reply(lm.getLastKnownLocation(provider))
+            }, 30_000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         if (!readShared(intent)) pendingLink = intent?.dataString
@@ -197,6 +241,7 @@ class MainActivity : FlutterFragmentActivity() {
     private companion object {
         const val CLOUD_PROJECT = 779364744809L // Google Cloud project linked in Play Console
         const val CONTACTS_REQUEST = 7
+        const val LOCATION_REQUEST = 8
         const val PERMISSION_GRANTED = android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 }

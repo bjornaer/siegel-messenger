@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- DISC-04: finding contacts on Siegel, only when the user asks; numbers never leave the phone in the clear. -->
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    <!-- Sharing a location, only when the user sends one; it goes end-to-end encrypted into the chat. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-feature android:name="android.hardware.location" android:required="false"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>

@@ -18,6 +18,7 @@ import 'discovery.dart';
 import 'format.dart';
 import 'groups.dart';
 import 'links.dart';
+import 'location.dart';
 import 'media.dart';
 import 'update.dart';
 import 'profile.dart';
@@ -53,6 +54,13 @@ class ChatService extends ChangeNotifier {
   /// Every new incoming message, e.g. to notify while the app is in the background.
   final void Function(MessageView)? onMessage;
   bool _stopped = false;
+
+  // Counts changes per chat (events) and to all of them (our own actions), so an open chat only
+  // re-reads its messages when they may have changed: not on typing, nor on other chats' events.
+  final _changed = <String, int>{};
+  int _changedAll = 0;
+  int changes(Uint8List groupId) => _changedAll + (_changed[base64Encode(groupId)] ?? 0);
+
   StreamSubscription<CoreEvent>? _sub;
   Completer<void>? _waiting; // the current connection, or the backoff before the next
   bool _woken = false;
@@ -98,7 +106,10 @@ class ChatService extends ChangeNotifier {
   }
 
   /// Our own actions change chats too (last message, ticks); screens rebuild on this.
-  void refresh() => _stopped ? null : notifyListeners();
+  void refresh() {
+    _changedAll++;
+    if (!_stopped) notifyListeners();
+  }
 
   DateTime _lastEvent = DateTime(0);
 
@@ -161,6 +172,10 @@ class ChatService extends ChangeNotifier {
           if (e.kind == CoreEventKind.message && e.message != null) {
             onMessage?.call(e.message!);
             unawaited(autoDownload(core, e.message!)); // MED-12
+          }
+          if (e.kind != CoreEventKind.typing) {
+            final g = e.groupId;
+            g == null ? _changedAll++ : _changed.update(base64Encode(g), (n) => n + 1, ifAbsent: () => 1);
           }
           notifyListeners();
         },
@@ -701,6 +716,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final _text = TextEditingController();
   final _focus = FocusNode();
   final _keys = <String, GlobalKey>{};
+  List<MessageView> _cached = const [];
+  (String, int)? _cachedAt; // which chat, at which change
   final _scroll = ScrollController();
   final _away = ValueNotifier(false); // scrolled up from the newest message
   bool _busy = false;
@@ -876,6 +893,7 @@ class _ChatScreenState extends State<ChatScreen> {
               (1, Icons.videocam_outlined, t.video),
               (2, Icons.insert_drive_file_outlined, t.file),
               (3, Icons.audio_file_outlined, t.attachAudio),
+              (5, Icons.location_on_outlined, t.location),
             ])
               ListTile(leading: Icon(icon), title: Text(label), onTap: () => Navigator.pop(c, i)),
           ],
@@ -883,6 +901,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
     if (choice == null) return;
+    if (choice == 5) return _shareLocation();
     try {
       if (choice == 2 || choice == 3) {
         await for (final o in pickFiles(audio: choice == 3)) {
@@ -910,6 +929,40 @@ class _ChatScreenState extends State<ChatScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Asks before sending: where we are is sensitive, and a fix can be off.
+  Future<void> _shareLocation() async {
+    final t = AppLocalizations.of(context)!;
+    setState(() => _busy = true); // a fix can take a few seconds
+    final (Location, double)? here;
+    try {
+      here = await currentLocation();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (!mounted) return;
+    if (here == null) return showError(context, const CoreError(code: 'location_unavailable'));
+    final (l, accuracy) = here;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.sendLocationTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [LocationMessage(l), const SizedBox(height: 12), Text(t.sendLocationBody(accuracy.round()))],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(t.send)),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final reply = _replyTo;
+    setState(() => _replyTo = null);
+    await _run(() => core.sendText(groupId: _group, text: locationText(l), replyTo: reply?.messageId, mentions: []));
   }
 
   /// Siegel Web: files dropped on the page are sent here, photos made smaller like picked ones.
@@ -1271,6 +1324,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (m.outgoing &&
                   !m.deleted &&
                   m.attachment == null &&
+                  locationOf(m.text) == null &&
                   age < _editWindow &&
                   m.status != MessageStatus.failed)
                 ListTile(
@@ -1457,32 +1511,46 @@ class _ChatScreenState extends State<ChatScreen> {
     ),
   );
 
-  void _jumpTo(Uint8List messageId) {
-    final ctx = _keys[base64Encode(messageId)]?.currentContext;
-    if (ctx != null) {
-      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5);
+  /// Older bubbles aren't built until scrolled to: page up until the quoted one is.
+  Future<void> _jumpTo(Uint8List messageId) async {
+    final key = base64Encode(messageId);
+    for (var i = 0; i < 100 && mounted && _keys[key]?.currentContext == null; i++) {
+      final p = _scroll.position;
+      if (p.pixels >= p.maxScrollExtent) return; // not among the loaded messages
+      _scroll.jumpTo(min(p.pixels + p.viewportDimension, p.maxScrollExtent));
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    final ctx = _keys[key]?.currentContext;
+    if (ctx != null && ctx.mounted) {
+      await Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5);
     }
   }
 
-  // ponytail: builds all (up to 500) bubbles so replies can jump to any of them; paginate if chats get long.
+  // ponytail: the newest 500 messages; paginate if chats get long.
   Widget _messages(BuildContext context, ChatSummary c) {
-    final messages = core.messages(groupId: _group, limit: 500);
+    final at = (base64Encode(_group), widget.service.changes(_group));
+    if (at != _cachedAt) {
+      _cachedAt = at;
+      _cached = core.messages(groupId: _group, limit: 500);
+    }
+    final messages = _cached;
     final byId = {for (final m in messages) base64Encode(m.messageId): m};
-    return SingleChildScrollView(
+    final index = {for (final (i, m) in messages.reversed.indexed) _keys[base64Encode(m.messageId)]: i};
+    // Built lazily, newest at the bottom: only what's on screen is laid out.
+    return ListView.builder(
       controller: _scroll,
       reverse: true,
       padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          for (final m in messages)
-            if (m.event != null)
-              _systemLine(context, m)
-            else if (m.keyChange)
-              _keyChange(context, m, c)
-            else
-              _bubble(context, m, byId, c),
-        ],
-      ),
+      itemCount: messages.length,
+      findChildIndexCallback: (key) => index[key], // a new message keeps the others' state
+      itemBuilder: (context, i) {
+        final m = messages[messages.length - 1 - i];
+        return m.event != null
+            ? _systemLine(context, m)
+            : m.keyChange
+            ? _keyChange(context, m, c)
+            : _bubble(context, m, byId, c);
+      },
     );
   }
 
@@ -1598,6 +1666,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
                       else if (m.attachment != null)
                         attachmentView(core, m, held: c.request)
+                      else if (locationOf(m.text) case final l?)
+                        LocationMessage(l)
                       else
                         Text.rich(formatText(m.text, onLink: openUrl)),
                       Row(

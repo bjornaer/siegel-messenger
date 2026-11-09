@@ -1546,4 +1546,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get signInHelp =>
       'Moving to a new phone? Enter your account\'s number. Your @username stays, so people can still reach you, and groups add you back as their members come online. If you set a Registration Lock PIN, you\'ll be asked for it.\n\nChats and contacts don\'t move: they\'re only ever on your phone. Your old phone is signed out and its chats are erased.';
+
+  @override
+  String get location => 'Location';
+
+  @override
+  String get openInMaps => 'Open in maps';
+
+  @override
+  String get sendLocationTitle => 'Send your location?';
+
+  @override
+  String sendLocationBody(int meters) {
+    return 'Accurate to about $meters m. Everyone in this chat will see it.';
+  }
+
+  @override
+  String get errLocation =>
+      'Couldn\'t find your location. Check that location is on and Siegel may use it.';
 }

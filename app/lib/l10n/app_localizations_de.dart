@@ -1562,4 +1562,22 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get signInHelp =>
       'Neues Handy? Gib die Nummer deines Kontos ein. Dein @Benutzername bleibt, du bist also weiter erreichbar, und Gruppen nehmen dich wieder auf, sobald ihre Mitglieder online sind. Hast du eine PIN für die Registrierungssperre gesetzt, wird sie abgefragt.\n\nChats und Kontakte ziehen nicht mit um: Sie liegen nur auf deinem Handy. Das alte Handy wird abgemeldet und seine Chats gelöscht.';
+
+  @override
+  String get location => 'Standort';
+
+  @override
+  String get openInMaps => 'In Karten öffnen';
+
+  @override
+  String get sendLocationTitle => 'Deinen Standort senden?';
+
+  @override
+  String sendLocationBody(int meters) {
+    return 'Auf etwa $meters m genau. Alle in diesem Chat sehen ihn.';
+  }
+
+  @override
+  String get errLocation =>
+      'Dein Standort wurde nicht gefunden. Prüfe, ob der Standort an ist und Siegel ihn nutzen darf.';
 }

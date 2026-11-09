@@ -433,5 +433,10 @@
   "scrollToBottom": "Ir para a mensagem mais recente",
   "haveAccount": "Já tenho uma conta",
   "signInTitle": "Entrar",
-  "signInHelp": "Trocando de celular? Digite o número da sua conta. Seu @usuário continua o mesmo, então as pessoas ainda podem falar com você, e os grupos te adicionam de volta quando os membros ficam online. Se você definiu um PIN de bloqueio de registro, ele será pedido.\n\nConversas e contatos não são transferidos: eles ficam só no seu celular. O celular antigo é desconectado e as conversas dele são apagadas."
+  "signInHelp": "Trocando de celular? Digite o número da sua conta. Seu @usuário continua o mesmo, então as pessoas ainda podem falar com você, e os grupos te adicionam de volta quando os membros ficam online. Se você definiu um PIN de bloqueio de registro, ele será pedido.\n\nConversas e contatos não são transferidos: eles ficam só no seu celular. O celular antigo é desconectado e as conversas dele são apagadas.",
+  "location": "Localização",
+  "openInMaps": "Abrir no mapa",
+  "sendLocationTitle": "Enviar sua localização?",
+  "sendLocationBody": "Precisão de cerca de {meters} m. Todos nesta conversa vão vê-la.",
+  "errLocation": "Não foi possível obter sua localização. Verifique se a localização está ativada e se o Siegel pode usá-la."
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:math' as math;
 import 'dart:js_interop_unsafe';
@@ -25,6 +26,16 @@ void save(String key, String? value) =>
 void reload() => web.window.location.reload();
 
 void openUrl(String url) => web.window.open(url, '_blank', 'noopener');
+
+Future<List<double>?> location() {
+  final done = Completer<List<double>?>();
+  web.window.navigator.geolocation.getCurrentPosition(
+    ((web.GeolocationPosition p) => done.complete([p.coords.latitude, p.coords.longitude, p.coords.accuracy])).toJS,
+    ((web.GeolocationPositionError _) => done.complete(null)).toJS,
+    web.PositionOptions(enableHighAccuracy: true, timeout: 30000),
+  );
+  return done.future;
+}
 
 @JS('JSON.stringify')
 external String _stringify(JSAny value);
