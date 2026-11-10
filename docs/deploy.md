@@ -63,7 +63,9 @@ sudo -u deploy docker compose up -d                         # server picks up th
 ```
 
 **After every reboot or OpenBao restart, OpenBao is sealed.** The API answers `internal` to registration
-until you run `B bao bao operator unseal`. Data is safe meanwhile. Need root again later:
+until you run `B bao bao operator unseal`. Data is safe meanwhile. The server checks every minute and
+posts to `SIEGEL_ALERT_WEBHOOK` (below) when OpenBao becomes sealed or unreachable, and again once it's
+back, so you hear about it. Auto-unseal is deliberately off: the unseal key never sits on the server. Need root again later:
 `bao operator generate-root` with the unseal key.
 
 Check it end to end; the first HTTPS request also fetches the Let's Encrypt certificate:
@@ -172,6 +174,52 @@ pg_restore -h <db> -U postgres -d siegel --clean postgres.dump   # a real restor
 
 The bucket mirror (`backups/bucket`) stays plain: attachments are encrypted by the apps with keys the
 server never has (MED-03), so it holds only ciphertext.
+
+### Off-server copies: Hetzner server backups
+
+Turn on **Backups** for the VM in the Hetzner console (Server → Backups; 20% of the server price).
+Hetzner keeps 7 daily whole-disk images. They cover what `/opt/siegel/backups` can't: the `baodata`
+volume (OpenBao's keys, still sealed by your unseal key) and the backups folder itself if the disk
+dies. The images also hold `.env` with its secrets, so treat access to the Hetzner project like root
+on the server: 2FA on the account, no shared logins.
+
+### Restore drill (every quarter, on a throwaway copy)
+
+It runs on a new server made from a backup image, cut off from the internet so the copy can't send
+pushes or SMS to real people. Production is never touched.
+
+1. Firewalls → create `fw-drill`: inbound TCP 22 from your IP only. Add **one outbound rule** (TCP 22
+   to 127.0.0.1/32, a placeholder): with any outbound rule present, Hetzner drops all other outbound
+   traffic, so FCM, SMS and the alert webhook are unreachable.
+2. Server → Backups → the latest image → **Create new server** from it, with firewall `fw-drill` and
+   no DNS change. Its containers start by themselves; OpenBao starts sealed.
+3. On the copy:
+
+   ```sh
+   ssh root@<copy IP>
+   cd /opt/siegel
+   B() { docker compose exec -e BAO_ADDR=http://127.0.0.1:8200 "$@"; }
+   B bao bao operator unseal                       # your offline unseal key
+   . ./.env
+   # The pepper came back: this HMAC of the word "drill" (not a number) must match production's.
+   B -e BAO_TOKEN=$SIEGEL_BAO_TOKEN bao bao write -field=hmac transit/hmac/siegel-phone/sha2-256 \
+     input=ZHJpbGw= key_version=1
+   docker compose exec postgres psql -U postgres siegel -tc 'SELECT count(*) FROM accounts'
+   docker compose exec server /server admin audit --verify --last 1   # the audit chain is intact
+   ```
+
+   Run the same `bao write` line on production and compare the two `vault:v1:...` values.
+4. The database backup on its own (`postgres.dump.age`), which also proves your age key still works.
+   The copy can't install anything, but the backup container already has `age` and `pg_restore`:
+
+   ```sh
+   scp siegel-backup.key root@<copy IP>:/root/               # from your laptop
+   docker compose cp /root/siegel-backup.key postgres-backup:/tmp/k
+   docker compose exec postgres-backup sh -c \
+     'age -d -i /tmp/k /backups/postgres.dump.age | pg_restore --list | grep -c "TABLE DATA"; rm /tmp/k'
+   rm /root/siegel-backup.key
+   ```
+5. Delete the copy and `fw-drill`. Write the date and the account count in your notes.
 
 ## Moderators' key (reports, M7)
 

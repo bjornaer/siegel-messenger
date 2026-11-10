@@ -112,6 +112,41 @@ func (b bao) asPublicKey(ctx context.Context) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(out.Data.Keys["1"].PublicKey)
 }
 
+// sealed asks OpenBao's unauthenticated seal status; unreachable counts as sealed too.
+func (b bao) sealed(ctx context.Context) bool {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.addr+"/v1/sys/seal-status", nil)
+	if err != nil {
+		return true
+	}
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return true
+	}
+	defer res.Body.Close()
+	var out struct{ Sealed bool }
+	return res.StatusCode != http.StatusOK || json.NewDecoder(res.Body).Decode(&out) != nil || out.Sealed
+}
+
+// watchSeal alerts the operator when OpenBao becomes sealed or unreachable (after a reboot it
+// waits for a manual unseal, and registration fails until then), and again once it's back.
+func (s *server) watchSeal(ctx context.Context, b bao, every time.Duration) {
+	was := false
+	for ctx.Err() == nil {
+		if now := b.sealed(ctx); now != was {
+			was = now
+			if now {
+				s.alert(ctx, "Siegel: OpenBao is sealed or unreachable. Registration and contact discovery fail until you unseal it (docs/deploy.md, section 3).")
+			} else {
+				s.alert(ctx, "Siegel: OpenBao is unsealed again.")
+			}
+		}
+		select {
+		case <-ctx.Done():
+		case <-time.After(every):
+		}
+	}
+}
+
 func (b bao) renew(ctx context.Context) error {
 	return postJSON(ctx, b.addr+"/v1/auth/token/renew-self", http.Header{"X-Vault-Token": {b.token}}, map[string]any{}, nil)
 }

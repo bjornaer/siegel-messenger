@@ -277,6 +277,7 @@ func main() {
 	}
 	s.blobs = cfg.s3
 	go s.janitor(ctx, b)
+	go s.watchSeal(ctx, b, time.Minute)
 	// M7 part 5: the moderation console, on its own port; compose publishes it on the host's
 	// 127.0.0.1 only (reach it through an SSH tunnel).
 	if cfg.consoleAddr != "" {

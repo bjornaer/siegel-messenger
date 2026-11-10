@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,6 +23,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -223,5 +225,36 @@ func TestSMSFallback(t *testing.T) { // ID-03: one provider failing doesn't stop
 	gwDown = false
 	if err := send(ctx, "+34600000001", "123456"); err != nil {
 		t.Fatal("the first provider is used when it works:", err)
+	}
+}
+
+func TestWatchSealAlertsOnChange(t *testing.T) {
+	var sealed atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `{"sealed":%v}`, sealed.Load())
+	}))
+	defer srv.Close()
+	alerts := make(chan string, 4)
+	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		alerts <- string(b)
+	}))
+	defer hook.Close()
+	s := newServer(config{alertURL: hook.URL}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sealed.Store(true)
+	go s.watchSeal(ctx, bao{addr: srv.URL}, 10*time.Millisecond)
+	if a := <-alerts; !strings.Contains(a, "sealed or unreachable") {
+		t.Fatalf("first alert %q", a)
+	}
+	sealed.Store(false)
+	if a := <-alerts; !strings.Contains(a, "unsealed again") {
+		t.Fatalf("second alert %q", a)
+	}
+	select {
+	case a := <-alerts:
+		t.Fatalf("repeated alert %q", a)
+	case <-time.After(50 * time.Millisecond): // no change, no alert
 	}
 }
