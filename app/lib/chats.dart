@@ -26,6 +26,7 @@ import 'report.dart';
 import 'stickers.dart';
 import 'push.dart' show appVisible, clearNotification;
 import 'safety.dart';
+import 'search.dart';
 import 'src/rust/api/core.dart';
 import 'themes.dart';
 
@@ -346,8 +347,8 @@ Future<bool> deleteChat(BuildContext context, Core core, ChatService service, Ch
 }
 
 /// Chats in the main list (or the archive): no requests, no deleted 1:1 chats still empty.
-List<ChatSummary> listedChats(Core core, {required bool archived}) => [
-  for (final c in core.chats())
+List<ChatSummary> listedChats(Core core, {required bool archived, List<ChatSummary>? from}) => [
+  for (final c in from ?? core.chats())
     if (!c.request &&
         isArchived(core, c.groupId) == archived &&
         !(c.last == null && core.setting(key: hiddenKey(c.groupId)) == '1'))
@@ -377,10 +378,11 @@ class ArchivedScreen extends StatelessWidget {
 }
 
 /// Opens a chat: beside the list on a wide window, over it otherwise.
-void openChat(BuildContext context, Core core, ChatService service, Uint8List groupId) {
+/// [jumpTo]: a message to scroll to once the chat is open (a search result).
+void openChat(BuildContext context, Core core, ChatService service, Uint8List groupId, {Uint8List? jumpTo}) {
   final wide = context.getInheritedWidgetOfExactType<_WideChats>();
   final route = MaterialPageRoute<void>(
-    builder: (_) => ChatScreen(core: core, service: service, groupId: groupId),
+    builder: (_) => ChatScreen(core: core, service: service, groupId: groupId, jumpTo: jumpTo),
   );
   if (wide == null) {
     Navigator.of(context).push(route);
@@ -482,6 +484,15 @@ class ChatListScreen extends StatelessWidget {
         title: Text(t.chatsTitle),
         actions: [
           IconButton(
+            tooltip: t.searchMessages,
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SearchScreen(core: core, service: service),
+              ),
+            ),
+          ),
+          IconButton(
             tooltip: t.settings,
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: settings)),
@@ -491,11 +502,42 @@ class ChatListScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: service,
         builder: (context, _) {
-          final all = core.chats();
-          final chats = listedChats(core, archived: false);
+          final all = core.chats(); // once per rebuild: each call crosses into the core
+          final chats = listedChats(core, archived: false, from: all);
           final requests = all.where((c) => c.request).length;
-          final archived = listedChats(core, archived: true);
+          final archived = listedChats(core, archived: true, from: all);
           final archivedUnread = archived.where((c) => c.unread > 0).length;
+          final head = <Widget>[
+            UpdateBanner(core: core),
+            if (requests > 0)
+              ListTile(
+                leading: const Icon(Icons.mark_email_unread_outlined),
+                title: Text(t.messageRequestsCount(requests)),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MessageRequestsScreen(core: core, service: service),
+                  ),
+                ),
+              ),
+            if (archived.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: Text(t.archived),
+                trailing: archivedUnread == 0
+                    ? null
+                    : Text('$archivedUnread', semanticsLabel: t.unreadChats(archivedUnread)),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ArchivedScreen(core: core, service: service),
+                  ),
+                ),
+              ),
+            if (chats.isEmpty && requests == 0 && archived.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text(t.noChats, textAlign: TextAlign.center),
+              ),
+          ];
           // Pull down to reconnect at once and fetch anything waiting.
           return RefreshIndicator(
             onRefresh: () async {
@@ -503,40 +545,12 @@ class ChatListScreen extends StatelessWidget {
               await Future<void>.delayed(const Duration(seconds: 1));
               service.refresh();
             },
-            child: ListView(
+            // Built lazily: only the rows on screen.
+            child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                UpdateBanner(core: core),
-                if (requests > 0)
-                  ListTile(
-                    leading: const Icon(Icons.mark_email_unread_outlined),
-                    title: Text(t.messageRequestsCount(requests)),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => MessageRequestsScreen(core: core, service: service),
-                      ),
-                    ),
-                  ),
-                if (archived.isNotEmpty)
-                  ListTile(
-                    leading: const Icon(Icons.archive_outlined),
-                    title: Text(t.archived),
-                    trailing: archivedUnread == 0
-                        ? null
-                        : Text('$archivedUnread', semanticsLabel: t.unreadChats(archivedUnread)),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ArchivedScreen(core: core, service: service),
-                      ),
-                    ),
-                  ),
-                if (chats.isEmpty && requests == 0 && archived.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(t.noChats, textAlign: TextAlign.center),
-                  ),
-                for (final c in chats) _chatTile(context, core, service, c),
-              ],
+              itemCount: head.length + chats.length,
+              itemBuilder: (context, i) =>
+                  i < head.length ? head[i] : _chatTile(context, core, service, chats[i - head.length]),
             ),
           );
         },
@@ -698,10 +712,11 @@ class _NewChatScreenState extends State<NewChatScreen> {
 bool webUi = kIsWeb;
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.core, required this.service, required this.groupId});
+  const ChatScreen({super.key, required this.core, required this.service, required this.groupId, this.jumpTo});
   final Core core;
   final ChatService service;
   final Uint8List groupId;
+  final Uint8List? jumpTo;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -737,6 +752,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _markRead();
     if (webUi) browser.onDrop = _dropped;
     _scroll.addListener(() => _away.value = _scroll.offset > 400);
+    final to = widget.jumpTo;
+    if (to != null) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _jumpTo(to) : null);
   }
 
   @override

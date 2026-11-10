@@ -393,6 +393,12 @@ class FakeCore implements Core {
   @override
   List<MessageView> messages({required List<int> groupId, required int limit}) => history[base64Encode(groupId)] ?? [];
   @override
+  Future<List<MessageView>> search({required String query, required int limit}) async => [
+    for (final h in history.values)
+      for (final m in h.reversed)
+        if (m.text.toLowerCase().contains(query.toLowerCase())) m,
+  ].take(limit).toList();
+  @override
   Future<Uint8List> startChat({required String username}) async {
     await _maybeFail('startChat $username');
     final id = Uint8List.fromList(utf8.encode('g-$username'));
@@ -1257,6 +1263,36 @@ void main() {
     await t.tap(find.text('m0')); // the quote
     await t.pumpAndSettle();
     expect(find.text('m1'), findsOneWidget);
+  });
+
+  testWidgets('search finds a message in any chat and opens the chat at it (CLI-05)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    (core.history[base64Encode(id)] ??= []).addAll([
+      FakeCore.msg(id, 'Meet at the old bridge', outgoing: false),
+      for (var i = 0; i < 60; i++) FakeCore.msg(id, 'm$i', outgoing: i.isEven),
+    ]);
+    await t.pumpWidget(wrap(ChatListScreen(core: core, service: service, settings: (_) => const SizedBox())));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Search messages'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField), 'BRIDGE');
+    await t.pump(const Duration(milliseconds: 300));
+    await t.pumpAndSettle();
+    expect(find.text('@bob'), findsOneWidget);
+    await t.tap(find.textContaining('old bridge'));
+    await t.pumpAndSettle();
+    expect(find.text('m0'), findsOneWidget, reason: 'scrolled up to the found message');
+    expect(find.text('m59'), findsNothing);
+
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField), 'nothing like this');
+    await t.pump(const Duration(milliseconds: 300));
+    await t.pumpAndSettle();
+    expect(find.text('No messages found'), findsOneWidget);
   });
 
   testWidgets('sharing a location: asked first, sent as a map link, shown as a card', (t) async {

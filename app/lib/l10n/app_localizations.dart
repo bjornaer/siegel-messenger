@@ -2735,6 +2735,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t find your location. Check that location is on and Siegel may use it.'**
   String get errLocation;
+
+  /// No description provided for @searchMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Search messages'**
+  String get searchMessages;
+
+  /// No description provided for @noMessagesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages found'**
+  String get noMessagesFound;
 }
 
 class _AppLocalizationsDelegate

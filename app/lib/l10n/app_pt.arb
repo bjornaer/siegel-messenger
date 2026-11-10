@@ -438,5 +438,7 @@
   "openInMaps": "Abrir no mapa",
   "sendLocationTitle": "Enviar sua localização?",
   "sendLocationBody": "Precisão de cerca de {meters} m. Todos nesta conversa vão vê-la.",
-  "errLocation": "Não foi possível obter sua localização. Verifique se a localização está ativada e se o Siegel pode usá-la."
+  "errLocation": "Não foi possível obter sua localização. Verifique se a localização está ativada e se o Siegel pode usá-la.",
+  "searchMessages": "Buscar mensagens",
+  "noMessagesFound": "Nenhuma mensagem encontrada"
 }

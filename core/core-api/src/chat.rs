@@ -173,6 +173,24 @@ pub struct ChatMessage {
     pub attachment: Option<crate::AttachmentInfo>,
 }
 
+/// Lowercase without accents, so "cancion" finds "Canción" and "uber" finds "Über".
+fn fold(s: &str) -> String {
+    s.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'à'..='å' | 'ā' | 'ă' | 'ą' => 'a',
+            'ç' | 'ć' | 'č' => 'c',
+            'è'..='ë' | 'ē' | 'ę' | 'ě' => 'e',
+            'ì'..='ï' | 'ī' => 'i',
+            'ñ' | 'ń' | 'ň' => 'n',
+            'ò'..='ö' | 'ø' | 'ō' | 'ő' => 'o',
+            'ù'..='ü' | 'ū' | 'ů' | 'ű' => 'u',
+            'ý' | 'ÿ' => 'y',
+            c => c,
+        })
+        .collect()
+}
+
 pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Option<ChatMessage> {
     let (mut t, mut key_change, mut event) = (pb::Text::default(), false, None);
     let mut attachment = None;
@@ -447,6 +465,28 @@ impl SiegelCore {
             }
             Ok(out)
         })
+    }
+
+    /// CLI-05: messages whose text or file name contains `query`, ignoring case and accents,
+    /// newest first. The bodies are encrypted at rest, so they're decoded here, not in SQL.
+    // ponytail: scans every message (a few ms per 10,000); an FTS5 index if histories get huge.
+    pub fn search(&self, query: &str, limit: usize) -> Result<Vec<ChatMessage>, CoreError> {
+        let q = fold(query.trim());
+        if q.is_empty() {
+            return Ok(Vec::new());
+        }
+        let all = self.with_store(|s| storage(s.all_messages()))?; // the lock is released here
+        Ok(all
+            .into_iter()
+            .filter_map(|m| chat_message(m, Vec::new()))
+            .filter(|m| {
+                fold(&m.text).contains(&q)
+                    || m.attachment
+                        .as_ref()
+                        .is_some_and(|a| fold(&a.file_name).contains(&q))
+            })
+            .take(limit)
+            .collect())
     }
 
     /// Encrypts content for the group and delivers it: sealed to contacts whose profile key we
@@ -1083,4 +1123,12 @@ pub(crate) fn note_identity(s: &SqlCipher, peer: &[u8], identity: &[u8]) -> Resu
 
 pub(crate) fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn fold_ignores_case_and_accents() {
+        assert_eq!(super::fold("Canción ÜBER Ação"), "cancion uber acao");
+    }
 }

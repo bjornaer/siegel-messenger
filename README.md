@@ -17,10 +17,12 @@ along sealed envelopes: it can't read messages, see names or photos, or tell who
 - **Nothing kept on the server.** Messages wait encrypted until your phone fetches them; attachments are
   deleted after 30 days. Message history lives only on your phone.
 - **No trackers, no ads, no third-party SDKs** besides push notifications (FCM), which carry no content.
-- Text, replies, reactions, edits, deletes, voice messages, photos, videos and files; groups with admins
-  and invite links; safety numbers; app lock; English, Spanish, German and Portuguese.
+- Text, replies, reactions, edits, deletes, voice messages, photos, videos, files and locations;
+  view-once photos, stickers and GIFs; message search; a Saved messages chat; groups with admins and
+  invite links; safety numbers; app lock; English, Spanish, German and Portuguese.
+- **Siegel Web:** link up to 4 browsers to your phone at web.siegel.schlk.in.
 
-Android today (closed testing on Google Play); iOS is planned.
+Android on Google Play, and the browser. No iOS app is planned for now.
 
 ## How it fits together
 
@@ -35,7 +37,7 @@ Android today (closed testing on Google Play); iOS is planned.
 
 | Path | What |
 | --- | --- |
-| `app/` | Flutter app (Android; iOS later) and the Rust bridge in `app/rust` |
+| `app/` | Flutter app (Android and the browser) and the Rust bridge in `app/rust` |
 | `core/` | Rust core: `core-crypto` (MLS, discovery), `core-media` (attachment encryption), `core-store` (SQLCipher), `core-net` (API client), `core-api` (what the app calls) |
 | `server/` | Go API server ([Connect](https://connectrpc.com/) + WebSocket) |
 | `proto/` | The API, as Protocol Buffers, shared by server and core |

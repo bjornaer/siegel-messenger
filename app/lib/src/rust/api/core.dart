@@ -254,6 +254,10 @@ abstract class Core implements RustOpaqueInterface {
   /// The chat's 60-digit safety number, also encoded in its QR code (CRY-12).
   String? safetyNumber({required List<int> groupId});
 
+  /// CLI-05: messages containing `query` in any chat, ignoring case and accents, newest first.
+  /// Async: it decodes every stored message, which mustn't run on the UI thread.
+  Future<List<MessageView>> search({required String query, required int limit});
+
   /// MED-09: a voice note or audio file (and, later, any file). Fails without storing a
   /// message if the upload fails.
   Future<MessageView> sendAttachment({

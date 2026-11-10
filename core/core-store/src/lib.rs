@@ -125,6 +125,8 @@ pub trait Store: Send {
     /// Oldest first, in arrival order (MSG-03).
     fn messages(&self, group_id: &[u8], limit: u32) -> Result<Vec<Message>>;
     fn message(&self, message_id: &[u8]) -> Result<Option<Message>>;
+    /// CLI-05: every message not deleted for everyone, newest first, for search.
+    fn all_messages(&self) -> Result<Vec<Message>>;
     /// Rewrites body, status and the edited/deleted flags; deleting also drops reactions
     /// and earlier versions.
     fn update_message(&self, m: &Message) -> Result<()>;
@@ -425,6 +427,10 @@ impl Store for SqlCipher {
         Ok(self
             .messages_where("WHERE message_id = ?1", [message_id])?
             .pop())
+    }
+
+    fn all_messages(&self) -> Result<Vec<Message>> {
+        self.messages_where("WHERE deleted = 0 ORDER BY seq DESC", [])
     }
 
     fn update_message(&self, m: &Message) -> Result<()> {

@@ -843,5 +843,7 @@
       }
     }
   },
-  "errLocation": "Couldn't find your location. Check that location is on and Siegel may use it."
+  "errLocation": "Couldn't find your location. Check that location is on and Siegel may use it.",
+  "searchMessages": "Search messages",
+  "noMessagesFound": "No messages found"
 }

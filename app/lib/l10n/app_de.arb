@@ -438,5 +438,7 @@
   "openInMaps": "In Karten öffnen",
   "sendLocationTitle": "Deinen Standort senden?",
   "sendLocationBody": "Auf etwa {meters} m genau. Alle in diesem Chat sehen ihn.",
-  "errLocation": "Dein Standort wurde nicht gefunden. Prüfe, ob der Standort an ist und Siegel ihn nutzen darf."
+  "errLocation": "Dein Standort wurde nicht gefunden. Prüfe, ob der Standort an ist und Siegel ihn nutzen darf.",
+  "searchMessages": "Nachrichten suchen",
+  "noMessagesFound": "Keine Nachrichten gefunden"
 }

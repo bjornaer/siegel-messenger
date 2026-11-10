@@ -206,6 +206,20 @@ async fn two_users_chat_over_mls() {
     };
     assert_eq!(m.text, "hi alice");
 
+    // CLI-05: case and accents don't matter; newest first.
+    bob.send_text(&chat, "Vamos a la canción", None)
+        .await
+        .unwrap();
+    let found: Vec<_> = bob
+        .search("CANCION", 10)
+        .unwrap()
+        .into_iter()
+        .map(|m| m.text)
+        .collect();
+    assert_eq!(found, vec!["Vamos a la canción".to_string()]);
+    assert_eq!(bob.search("hi", 10).unwrap()[0].text, "hi alice");
+    assert!(bob.search("  ", 10).unwrap().is_empty());
+
     let history: Vec<_> = alice
         .messages(&chat, 10)
         .unwrap()

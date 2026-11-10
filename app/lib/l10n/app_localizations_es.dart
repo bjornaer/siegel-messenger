@@ -1574,4 +1574,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get errLocation =>
       'No se pudo obtener tu ubicación. Comprueba que la ubicación esté activada y que Siegel pueda usarla.';
+
+  @override
+  String get searchMessages => 'Buscar mensajes';
+
+  @override
+  String get noMessagesFound => 'No se encontraron mensajes';
 }

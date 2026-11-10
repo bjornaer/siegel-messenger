@@ -927,6 +927,17 @@ impl Core {
             .collect())
     }
 
+    /// CLI-05: messages containing `query` in any chat, ignoring case and accents, newest first.
+    /// Async: it decodes every stored message, which mustn't run on the UI thread.
+    pub async fn search(&self, query: String, limit: u32) -> Result<Vec<MessageView>, CoreError> {
+        Ok(self
+            .0
+            .search(&query, limit as usize)?
+            .into_iter()
+            .map(MessageView::from)
+            .collect())
+    }
+
     /// Sends a text, optionally as a reply (MSG-07). On failure the message stays Failed.
     pub async fn send_text(
         &self,

@@ -1580,4 +1580,10 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get errLocation =>
       'Dein Standort wurde nicht gefunden. Prüfe, ob der Standort an ist und Siegel ihn nutzen darf.';
+
+  @override
+  String get searchMessages => 'Nachrichten suchen';
+
+  @override
+  String get noMessagesFound => 'Keine Nachrichten gefunden';
 }
