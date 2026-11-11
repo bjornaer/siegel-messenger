@@ -448,6 +448,7 @@ impl SiegelCore {
         let token = self.token()?;
         for _ in 0..3 {
             let g = self.conversation(conv)?.mls_group;
+            let epoch = self.with_mls(|m, _| m.epoch(&g).map_err(mls_err))?;
             let before = self.with_mls(|m, _| m.state(&g).map_err(mls_err))?;
             let edited = before.clone().map(&edit);
             let out = self.with_mls(|m, _| {
@@ -514,13 +515,18 @@ impl SiegelCore {
                     if on_stream {
                         return Err(e.into());
                     }
-                    let epoch = self.with_mls(|m, _| m.epoch(&g).map_err(mls_err))?;
-                    // The winning commit comes in on the stream; give it a moment.
+                    // The winning commit comes in on the stream; give it a moment. If it never
+                    // does, this device missed or refused one and can't catch up by waiting.
+                    let mut moved = false;
                     for _ in 0..50 {
                         crate::rt::sleep(std::time::Duration::from_millis(200)).await;
                         if self.with_mls(|m, _| m.epoch(&g).map_err(mls_err))? > epoch {
+                            moved = true;
                             break;
                         }
+                    }
+                    if !moved {
+                        return Err(CoreError::new("group_out_of_sync"));
                     }
                 }
                 Err(e) => {

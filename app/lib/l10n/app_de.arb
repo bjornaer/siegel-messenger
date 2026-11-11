@@ -201,6 +201,7 @@
   "expiresOn": "Läuft ab {when}",
   "revoke": "Widerrufen",
   "errLinkStale": "Die Gruppe hat sich gerade geändert. Versuche den Link gleich noch einmal.",
+  "errGroupOutOfSync": "Diese Gruppe ist auf diesem Gerät nicht synchron, daher können keine Änderungen gesendet werden. Ein anderer Admin kann die Änderung vorerst vornehmen.",
   "errInviteNotFound": "Dieser Link ist abgelaufen oder wurde widerrufen.",
   "errAlreadyMember": "Du bist schon in dieser Gruppe.",
   "voiceMessage": "Sprachnachricht",

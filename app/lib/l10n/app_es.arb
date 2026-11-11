@@ -201,6 +201,7 @@
   "expiresOn": "Caduca {when}",
   "revoke": "Revocar",
   "errLinkStale": "El grupo acaba de cambiar. Vuelve a probar el enlace en un momento.",
+  "errGroupOutOfSync": "Este grupo no está sincronizado en este dispositivo, así que no se pueden enviar cambios. Por ahora, otro admin puede hacer el cambio.",
   "errInviteNotFound": "Este enlace ha caducado o se ha revocado.",
   "errAlreadyMember": "Ya estás en este grupo.",
   "voiceMessage": "Mensaje de voz",

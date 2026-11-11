@@ -179,9 +179,11 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
   Future<void> _run(Future<void> Function() f) async {
     setState(() => _busy = true);
-    await _try(context, f);
-    if (!mounted) return;
-    setState(() => _busy = false);
+    try {
+      await _try(context, f);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
     widget.service.refresh();
   }
 
@@ -302,7 +304,12 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         final canEdit = g != null && (g.meAdmin || !g.adminsOnlyInfo);
         final canAdd = g != null && (g.meAdmin || !g.adminsOnlyAdd);
         return Scaffold(
-          appBar: SiegelBar(title: Text(t.groupInfo)),
+          appBar: SiegelBar(
+            title: Text(t.groupInfo),
+            bottom: _busy
+                ? const PreferredSize(preferredSize: Size.fromHeight(4), child: LinearProgressIndicator())
+                : null,
+          ),
           body: ListView(
             children: [
               const SizedBox(height: 16),

@@ -724,6 +724,10 @@ class AppLocalizationsPt extends AppLocalizations {
       'O grupo acabou de mudar. Tente o link de novo daqui a pouco.';
 
   @override
+  String get errGroupOutOfSync =>
+      'Este grupo está dessincronizado neste aparelho, então não dá para enviar mudanças nele. Por enquanto, outro admin pode fazer a mudança.';
+
+  @override
   String get errInviteNotFound => 'Este link expirou ou foi revogado.';
 
   @override

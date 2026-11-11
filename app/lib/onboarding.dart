@@ -51,6 +51,7 @@ void showError(BuildContext context, CoreError e) {
     'resend_too_soon' => t.errResendTooSoon,
     'link_invalid' => t.errLinkInvalid,
     'link_stale' => t.errLinkStale,
+    'group_out_of_sync' => t.errGroupOutOfSync,
     'invite_not_found' => t.errInviteNotFound,
     'already_member' => t.errAlreadyMember,
     'link_key_mismatch' => t.errLinkKeyMismatch,

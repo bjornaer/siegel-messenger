@@ -201,6 +201,7 @@
   "expiresOn": "Expira {when}",
   "revoke": "Revogar",
   "errLinkStale": "O grupo acabou de mudar. Tente o link de novo daqui a pouco.",
+  "errGroupOutOfSync": "Este grupo está dessincronizado neste aparelho, então não dá para enviar mudanças nele. Por enquanto, outro admin pode fazer a mudança.",
   "errInviteNotFound": "Este link expirou ou foi revogado.",
   "errAlreadyMember": "Você já está neste grupo.",
   "voiceMessage": "Mensagem de voz",

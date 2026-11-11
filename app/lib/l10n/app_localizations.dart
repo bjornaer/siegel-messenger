@@ -1308,6 +1308,12 @@ abstract class AppLocalizations {
   /// **'The group just changed. Try the link again in a moment.'**
   String get errLinkStale;
 
+  /// No description provided for @errGroupOutOfSync.
+  ///
+  /// In en, this message translates to:
+  /// **'This group is out of sync on this device, so changes to it can\'t be sent. Another admin can make the change for now.'**
+  String get errGroupOutOfSync;
+
   /// No description provided for @errInviteNotFound.
   ///
   /// In en, this message translates to:

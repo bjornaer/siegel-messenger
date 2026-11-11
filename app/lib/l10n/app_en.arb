@@ -398,6 +398,7 @@
   },
   "revoke": "Revoke",
   "errLinkStale": "The group just changed. Try the link again in a moment.",
+  "errGroupOutOfSync": "This group is out of sync on this device, so changes to it can't be sent. Another admin can make the change for now.",
   "errInviteNotFound": "This link has expired or was revoked.",
   "errAlreadyMember": "You're already in this group.",
   "voiceMessage": "Voice message",

@@ -726,6 +726,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'El grupo acaba de cambiar. Vuelve a probar el enlace en un momento.';
 
   @override
+  String get errGroupOutOfSync =>
+      'Este grupo no está sincronizado en este dispositivo, así que no se pueden enviar cambios. Por ahora, otro admin puede hacer el cambio.';
+
+  @override
   String get errInviteNotFound => 'Este enlace ha caducado o se ha revocado.';
 
   @override
