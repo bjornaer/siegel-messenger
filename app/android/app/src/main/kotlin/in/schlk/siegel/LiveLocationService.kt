@@ -26,6 +26,13 @@ class LiveLocationService : Service() {
             .setContentTitle(title)
             .setOngoing(true)
             .setContentIntent(open)
+            .apply {
+                // Shown at once: Android 12+ otherwise holds it back up to 10 s, and people must
+                // see that their location is going out from the moment it does.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+                }
+            }
             .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
