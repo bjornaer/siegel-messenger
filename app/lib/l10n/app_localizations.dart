@@ -2753,6 +2753,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No app on this phone opens this kind of file. Save it with the download button instead.'**
   String get noAppToOpen;
+
+  /// No description provided for @liveLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location'**
+  String get liveLocation;
+
+  /// No description provided for @liveUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Live until {time}'**
+  String liveUntil(String time);
+
+  /// No description provided for @liveEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location ended'**
+  String get liveEnded;
+
+  /// No description provided for @stopSharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop sharing'**
+  String get stopSharing;
+
+  /// No description provided for @currentLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Current location'**
+  String get currentLocation;
+
+  /// No description provided for @liveFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Live, {minutes} min'**
+  String liveFor(int minutes);
+
+  /// No description provided for @sharingLiveLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing your live location'**
+  String get sharingLiveLocation;
 }
 
 class _AppLocalizationsDelegate

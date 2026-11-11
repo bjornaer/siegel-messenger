@@ -13,6 +13,14 @@ use crate::{ACCOUNT, CoreError, SiegelCore, storage};
 pub(crate) const MAX_TEXT: usize = 64 * 1024;
 /// MSG-09 and MSG-11 windows, on the sender's clock (like `sent_at`).
 const EDIT_WINDOW_MS: i64 = 15 * 60 * 1000;
+
+/// A shared location: the app sends it as a text holding this map link (app/lib/location.dart).
+fn is_location(text: &str) -> bool {
+    text.strip_prefix("📍 ").is_some_and(|url| {
+        url.starts_with("https://www.openstreetmap.org/?mlat=")
+            && !url.contains(char::is_whitespace)
+    })
+}
 const DELETE_WINDOW_MS: i64 = 48 * 60 * 60 * 1000;
 /// One emoji, any picker can produce: the longest (a couple with two skin tones) is 35 bytes.
 const MAX_REACTION: usize = 64;
@@ -67,7 +75,10 @@ pub(crate) fn apply_change(
                 return Ok(false);
             }
             if commit {
-                storage(s.save_version(target, &m.body))?;
+                // A live location's updates replace each other: no trail of where someone was.
+                if !(is_location(&t.body) && is_location(&e.body)) {
+                    storage(s.save_version(target, &m.body))?;
+                }
                 t.body = e.body.clone();
                 m.body = orig.encode_to_vec();
                 m.edited = true;
@@ -335,5 +346,16 @@ impl SiegelCore {
             sent_at: now_ms(),
             body: Some(body),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn locations_are_only_the_link() {
+        let l = "📍 https://www.openstreetmap.org/?mlat=52.52000&mlon=13.40500&live=1762870000#map=17/52.52000/13.40500";
+        assert!(super::is_location(l));
+        assert!(!super::is_location(&format!("{l} see you there")));
+        assert!(!super::is_location("📍 https://evil.example/?mlat=1"));
     }
 }

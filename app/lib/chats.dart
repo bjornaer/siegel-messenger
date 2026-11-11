@@ -961,22 +961,56 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     if (here == null) return showError(context, const CoreError(code: 'location_unavailable'));
     final (l, accuracy) = here;
+    var minutes = 0; // 0: where we are now; else live for that long
     final ok = await showDialog<bool>(
       context: context,
-      builder: (d) => AlertDialog(
-        title: Text(t.sendLocationTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [LocationMessage(l), const SizedBox(height: 12), Text(t.sendLocationBody(accuracy.round()))],
+      builder: (d) => StatefulBuilder(
+        builder: (d, set) => AlertDialog(
+          title: Text(t.sendLocationTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LocationMessage(l),
+              const SizedBox(height: 12),
+              Text(t.sendLocationBody(accuracy.round())),
+              // A browser tab can't keep sending its position, so live is phone only.
+              if (!kIsWeb) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final m in const [0, 5, 10, 15])
+                      ChoiceChip(
+                        label: Text(m == 0 ? t.currentLocation : t.liveFor(m)),
+                        selected: minutes == m,
+                        onSelected: (_) => set(() => minutes = m),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+            FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(t.send)),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(t.send)),
-        ],
       ),
     );
     if (ok != true || !mounted) return;
+    if (minutes > 0) {
+      return _run(
+        () => shareLive(
+          core,
+          _group,
+          l,
+          Duration(minutes: minutes),
+          notice: t.sharingLiveLocation,
+          changed: widget.service.refresh,
+        ),
+      );
+    }
     final reply = _replyTo;
     setState(() => _replyTo = null);
     await _run(() => core.sendText(groupId: _group, text: locationText(l), replyTo: reply?.messageId, mentions: []));
@@ -1366,7 +1400,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         : showMessageInfo(context, m, chatTitle(t, c)),
                   ),
                 ),
-              if (m.edited && !m.deleted)
+              if (m.edited && !m.deleted && locationOf(m.text) == null) // live locations update by editing
                 ListTile(
                   leading: const Icon(Icons.history),
                   title: Text(t.editHistory),
@@ -1684,13 +1718,22 @@ class _ChatScreenState extends State<ChatScreen> {
                       else if (m.attachment != null)
                         attachmentView(core, m, held: c.request)
                       else if (locationOf(m.text) case final l?)
-                        LocationMessage(l)
+                        ValueListenableBuilder(
+                          valueListenable: liveSharing,
+                          builder: (_, sharing, _) => LocationMessage(
+                            l,
+                            until: liveUntil(m.text),
+                            onStop: sharing.contains(id)
+                                ? () => stopLive(core, m.messageId, early: true, changed: widget.service.refresh)
+                                : null,
+                          ),
+                        )
                       else
                         Text.rich(formatText(m.text, onLink: openUrl)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          if (m.edited && !m.deleted)
+                          if (m.edited && !m.deleted && locationOf(m.text) == null) // live locations update by editing
                             GestureDetector(
                               onTap: () => _history(m),
                               child: Text('${t.edited} ', style: small),

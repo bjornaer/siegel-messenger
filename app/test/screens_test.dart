@@ -1295,6 +1295,52 @@ void main() {
     expect(find.text('No messages found'), findsOneWidget);
   });
 
+  testWidgets('live location: updates every 30 s, stops on request, then shows ended', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final calls = <String>[];
+    var lat = 52.52;
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (c) async {
+      calls.add(c.method);
+      return c.method == 'location' ? [lat, 13.405, 12.0] : null;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Attach'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Location'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Live, 5 min'));
+    await t.pump();
+    await t.tap(find.text('Send'));
+    await t.pumpAndSettle();
+    String sent() => core.history[base64Encode(id)]!.last.text;
+    expect(liveUntil(sent())!.difference(DateTime.now()).inMinutes, inInclusiveRange(4, 5));
+    expect(calls, contains('liveStart'));
+    expect(find.text('Live location'), findsOneWidget);
+    expect(find.textContaining('Live until'), findsOneWidget);
+    expect(
+      find.textContaining(RegExp('edited', caseSensitive: false)),
+      findsNothing,
+      reason: 'updates are edits, not shown as such',
+    );
+
+    lat = 52.53;
+    await t.pump(liveEvery);
+    await t.pumpAndSettle();
+    expect(locationOf(sent())!.lat, 52.53);
+    expect(find.textContaining(RegExp('edited', caseSensitive: false)), findsNothing);
+
+    await t.tap(find.text('Stop sharing'));
+    await t.pumpAndSettle();
+    expect(calls.last, 'liveStop');
+    expect(find.text('Live location ended'), findsOneWidget);
+    expect(find.text('Stop sharing'), findsNothing);
+  });
+
   testWidgets('sharing a location: asked first, sent as a map link, shown as a card', (t) async {
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();

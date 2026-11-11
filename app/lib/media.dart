@@ -27,7 +27,10 @@ import 'src/rust/api/core.dart';
 /// What stands in for a message in the chat list, quotes and notifications.
 String messageText(AppLocalizations t, MessageView m) {
   final a = m.attachment;
-  if (a == null) return locationOf(m.text) == null ? m.text : '📍 ${t.location}';
+  if (a == null) {
+    if (locationOf(m.text) == null) return m.text;
+    return '📍 ${liveUntil(m.text) == null ? t.location : t.liveLocation}';
+  }
   if (a.voiceNote) return '🎤 ${t.voiceMessage} (${formatDuration(a.durationMs)})';
   if (a.sticker) return '💟 ${t.sticker}';
   if (a.viewOnce) return '📷 ${t.viewOncePhoto}';

@@ -1590,4 +1590,29 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get noAppToOpen =>
       'Keine App auf diesem Telefon öffnet diese Art von Datei. Speichere sie mit dem Download-Knopf.';
+
+  @override
+  String get liveLocation => 'Live-Standort';
+
+  @override
+  String liveUntil(String time) {
+    return 'Live bis $time';
+  }
+
+  @override
+  String get liveEnded => 'Live-Standort beendet';
+
+  @override
+  String get stopSharing => 'Teilen beenden';
+
+  @override
+  String get currentLocation => 'Aktueller Standort';
+
+  @override
+  String liveFor(int minutes) {
+    return 'Live, $minutes Min.';
+  }
+
+  @override
+  String get sharingLiveLocation => 'Dein Live-Standort wird geteilt';
 }

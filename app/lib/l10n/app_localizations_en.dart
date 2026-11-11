@@ -1574,4 +1574,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noAppToOpen =>
       'No app on this phone opens this kind of file. Save it with the download button instead.';
+
+  @override
+  String get liveLocation => 'Live location';
+
+  @override
+  String liveUntil(String time) {
+    return 'Live until $time';
+  }
+
+  @override
+  String get liveEnded => 'Live location ended';
+
+  @override
+  String get stopSharing => 'Stop sharing';
+
+  @override
+  String get currentLocation => 'Current location';
+
+  @override
+  String liveFor(int minutes) {
+    return 'Live, $minutes min';
+  }
+
+  @override
+  String get sharingLiveLocation => 'Sharing your live location';
 }

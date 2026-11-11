@@ -441,5 +441,12 @@
   "errLocation": "Dein Standort wurde nicht gefunden. Prüfe, ob der Standort an ist und Siegel ihn nutzen darf.",
   "searchMessages": "Nachrichten suchen",
   "noMessagesFound": "Keine Nachrichten gefunden",
-  "noAppToOpen": "Keine App auf diesem Telefon öffnet diese Art von Datei. Speichere sie mit dem Download-Knopf."
+  "noAppToOpen": "Keine App auf diesem Telefon öffnet diese Art von Datei. Speichere sie mit dem Download-Knopf.",
+  "liveLocation": "Live-Standort",
+  "liveUntil": "Live bis {time}",
+  "liveEnded": "Live-Standort beendet",
+  "stopSharing": "Teilen beenden",
+  "currentLocation": "Aktueller Standort",
+  "liveFor": "Live, {minutes} Min.",
+  "sharingLiveLocation": "Dein Live-Standort wird geteilt"
 }

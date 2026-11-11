@@ -846,5 +846,26 @@
   "errLocation": "Couldn't find your location. Check that location is on and Siegel may use it.",
   "searchMessages": "Search messages",
   "noMessagesFound": "No messages found",
-  "noAppToOpen": "No app on this phone opens this kind of file. Save it with the download button instead."
+  "noAppToOpen": "No app on this phone opens this kind of file. Save it with the download button instead.",
+  "liveLocation": "Live location",
+  "liveUntil": "Live until {time}",
+  "liveEnded": "Live location ended",
+  "stopSharing": "Stop sharing",
+  "currentLocation": "Current location",
+  "liveFor": "Live, {minutes} min",
+  "sharingLiveLocation": "Sharing your live location",
+  "@liveUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@liveFor": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  }
 }

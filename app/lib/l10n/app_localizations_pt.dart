@@ -1579,4 +1579,30 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get noAppToOpen =>
       'Nenhum app deste telefone abre esse tipo de arquivo. Salve-o com o botão de download.';
+
+  @override
+  String get liveLocation => 'Localização em tempo real';
+
+  @override
+  String liveUntil(String time) {
+    return 'Em tempo real até $time';
+  }
+
+  @override
+  String get liveEnded => 'Localização em tempo real encerrada';
+
+  @override
+  String get stopSharing => 'Parar de compartilhar';
+
+  @override
+  String get currentLocation => 'Localização atual';
+
+  @override
+  String liveFor(int minutes) {
+    return 'Em tempo real, $minutes min';
+  }
+
+  @override
+  String get sharingLiveLocation =>
+      'Compartilhando sua localização em tempo real';
 }

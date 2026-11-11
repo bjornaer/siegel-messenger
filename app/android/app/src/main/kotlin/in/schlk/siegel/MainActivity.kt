@@ -80,6 +80,16 @@ class MainActivity : FlutterFragmentActivity() {
                         requestPermissions(arrayOf(fine, coarse), LOCATION_REQUEST)
                     }
                 }
+                // Live location: the ongoing notification while it's shared (LiveLocationService).
+                "liveStart" -> {
+                    startForegroundService(android.content.Intent(this, LiveLocationService::class.java)
+                        .putExtra("title", call.arguments as String))
+                    result.success(null)
+                }
+                "liveStop" -> {
+                    stopService(android.content.Intent(this, LiveLocationService::class.java))
+                    result.success(null)
+                }
                 "share" -> {
                     val send = android.content.Intent(android.content.Intent.ACTION_SEND)
                         .setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, call.arguments as String)

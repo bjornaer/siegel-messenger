@@ -152,6 +152,12 @@ treats as ephemeral processing, so they aren't declared.
   Find contacts.
 - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`: sending your location to a chat, asked on the
   first share; one fix per share, never in the background. Approximate is enough.
+- `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`: live location (build 25). The user picks 5, 10
+  or 15 minutes; an ongoing "Sharing your live location" notification keeps the app running and
+  it sends a fix every 30 seconds until then or until they tap Stop sharing. Started only from the
+  open app, so no background-location permission. **Play Console → App content → Foreground service
+  permissions:** declare "Location", describe the above, and link a short screen recording of
+  starting and stopping a live share.
 - `USE_BIOMETRIC`: app lock (ID-15).
 - `INTERNET`, `ACCESS_NETWORK_STATE`: messaging.
 

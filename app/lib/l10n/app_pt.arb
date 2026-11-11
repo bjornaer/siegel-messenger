@@ -441,5 +441,12 @@
   "errLocation": "Não foi possível obter sua localização. Verifique se a localização está ativada e se o Siegel pode usá-la.",
   "searchMessages": "Buscar mensagens",
   "noMessagesFound": "Nenhuma mensagem encontrada",
-  "noAppToOpen": "Nenhum app deste telefone abre esse tipo de arquivo. Salve-o com o botão de download."
+  "noAppToOpen": "Nenhum app deste telefone abre esse tipo de arquivo. Salve-o com o botão de download.",
+  "liveLocation": "Localização em tempo real",
+  "liveUntil": "Em tempo real até {time}",
+  "liveEnded": "Localização em tempo real encerrada",
+  "stopSharing": "Parar de compartilhar",
+  "currentLocation": "Localização atual",
+  "liveFor": "Em tempo real, {minutes} min",
+  "sharingLiveLocation": "Compartilhando sua localização em tempo real"
 }
