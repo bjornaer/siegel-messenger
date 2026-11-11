@@ -18,7 +18,7 @@ import 'package:video_player/video_player.dart';
 
 import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'app_lock.dart' show secureWhile;
-import 'links.dart' show isAndroid;
+import 'links.dart' show appChannel, isAndroid;
 import 'location.dart';
 import 'l10n/app_localizations.dart';
 import 'onboarding.dart' show showError;
@@ -964,9 +964,8 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
     final a = widget.message.attachment!;
     return GestureDetector(
       onTap: () async {
-        if (await fetch(widget.core, widget.message) != null && context.mounted) {
-          await saveToDevice(context, widget.core, widget.message);
-        }
+        final d = await fetch(widget.core, widget.message);
+        if (d != null && context.mounted) await _open(context, widget.core, widget.message, d);
       },
       child: SizedBox(
         width: 240,
@@ -985,11 +984,33 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
                 ],
               ),
             ),
-            Icon(Icons.download, semanticLabel: t.saveToDevice),
+            IconButton(
+              tooltip: t.saveToDevice,
+              icon: const Icon(Icons.download),
+              onPressed: () async {
+                if (await fetch(widget.core, widget.message) != null && context.mounted) {
+                  await saveToDevice(context, widget.core, widget.message);
+                }
+              },
+            ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Opens a file in another app; with none for its type, says to save it instead. In the browser it
+/// downloads: opened in a tab, a received HTML file would run with Siegel Web's origin and keys.
+Future<void> _open(BuildContext context, Core core, MessageView m, Uint8List data) async {
+  if (kIsWeb) return saveToDevice(context, core, m);
+  final a = m.attachment!;
+  try {
+    await appChannel.invokeMethod<void>('openFile', [a.fileName, data, a.mimeType]);
+  } on PlatformException {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noAppToOpen)));
+    }
   }
 }
 

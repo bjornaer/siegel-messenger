@@ -2747,6 +2747,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No messages found'**
   String get noMessagesFound;
+
+  /// No description provided for @noAppToOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'No app on this phone opens this kind of file. Save it with the download button instead.'**
+  String get noAppToOpen;
 }
 
 class _AppLocalizationsDelegate

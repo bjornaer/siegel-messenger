@@ -95,6 +95,26 @@ class MainActivity : FlutterFragmentActivity() {
                         result.error("no_app", null, null)
                     }
                 }
+                // A received file, opened in whatever app handles its type. Only the newest stays
+                // decrypted in the cache: each open clears the folder first.
+                "openFile" -> {
+                    val (name, bytes, mime) = call.arguments as List<*>
+                    val dir = java.io.File(cacheDir, "open")
+                    dir.deleteRecursively()
+                    dir.mkdirs()
+                    val file = java.io.File(dir, (name as String).replace('/', '_').ifEmpty { "file" })
+                    file.writeBytes(bytes as ByteArray)
+                    val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", file)
+                    val view = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                        .setDataAndType(uri, mime as String)
+                        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try {
+                        startActivity(android.content.Intent.createChooser(view, null))
+                        result.success(null)
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        result.error("no_app", null, null)
+                    }
+                }
                 "openStore" -> {
                     val page = android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
                     val market = android.content.Intent(android.content.Intent.ACTION_VIEW,

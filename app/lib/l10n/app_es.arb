@@ -440,5 +440,6 @@
   "sendLocationBody": "Precisión de unos {meters} m. Todos en este chat la verán.",
   "errLocation": "No se pudo obtener tu ubicación. Comprueba que la ubicación esté activada y que Siegel pueda usarla.",
   "searchMessages": "Buscar mensajes",
-  "noMessagesFound": "No se encontraron mensajes"
+  "noMessagesFound": "No se encontraron mensajes",
+  "noAppToOpen": "Ninguna app de este teléfono abre este tipo de archivo. Guárdalo con el botón de descarga."
 }

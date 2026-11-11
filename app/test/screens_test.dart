@@ -1449,15 +1449,31 @@ void main() {
       viewOnce: false,
       gone: false,
     );
+    final pdf = FakeCore.msg(id, '', outgoing: false, attachment: att('application/pdf', 'plan.pdf'));
+    core.blobs[base64Encode(pdf.messageId)] = Uint8List.fromList(utf8.encode('%PDF'));
     (core.history[base64Encode(id)] ??= []).addAll([
       FakeCore.msg(id, '', outgoing: false, attachment: att('image/jpeg', '')),
-      FakeCore.msg(id, '', outgoing: false, attachment: att('application/pdf', 'plan.pdf')),
+      pdf,
     ]);
     await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
     await t.pumpAndSettle();
     expect(find.byType(ImageMessage), findsOneWidget);
     expect(find.text('plan.pdf'), findsOneWidget);
     expect(find.text('2.0 MB'), findsOneWidget);
+
+    // A tap opens the file in another app, every time; the button saves it.
+    final opened = <List<Object?>>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (c) async {
+      if (c.method == 'openFile') opened.add(c.arguments as List<Object?>);
+      return null;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+    await t.tap(find.text('plan.pdf'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('plan.pdf'));
+    await t.pumpAndSettle();
+    expect(opened.map((a) => (a[0], a[2])), [('plan.pdf', 'application/pdf'), ('plan.pdf', 'application/pdf')]);
+    expect(find.byTooltip('Save to device'), findsOneWidget);
 
     await t.longPress(find.text('plan.pdf'));
     await t.pumpAndSettle();

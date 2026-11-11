@@ -440,5 +440,6 @@
   "sendLocationBody": "Precisão de cerca de {meters} m. Todos nesta conversa vão vê-la.",
   "errLocation": "Não foi possível obter sua localização. Verifique se a localização está ativada e se o Siegel pode usá-la.",
   "searchMessages": "Buscar mensagens",
-  "noMessagesFound": "Nenhuma mensagem encontrada"
+  "noMessagesFound": "Nenhuma mensagem encontrada",
+  "noAppToOpen": "Nenhum app deste telefone abre esse tipo de arquivo. Salve-o com o botão de download."
 }

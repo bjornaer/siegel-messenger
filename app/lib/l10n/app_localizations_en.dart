@@ -1570,4 +1570,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noMessagesFound => 'No messages found';
+
+  @override
+  String get noAppToOpen =>
+      'No app on this phone opens this kind of file. Save it with the download button instead.';
 }
