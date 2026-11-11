@@ -132,6 +132,8 @@ enum Handled {
     /// A commit arrived in a group we left but are still in: our leave proposal was for an
     /// older epoch and got dropped, so propose again (GRP-10).
     StillInGroup(Vec<u8>),
+    /// A group message from a later epoch than ours: our copy fell behind (`resync`).
+    Behind(Vec<u8>),
     /// DISC-08: they opened our contact link, so their chat skipped the message request.
     AcceptedByLink(Vec<u8>),
     /// MSG-11: someone deleted a message for everyone; its attachment goes too.
@@ -884,6 +886,9 @@ impl SiegelCore {
                 crate::groups::add_skew(s, &group_id)?;
                 Ok(None)
             }
+            Received::Behind { group_id } => {
+                Ok(storage(s.conversation_for_mls(&group_id))?.map(Handled::Behind))
+            }
             Received::Commit { .. } | Received::Ignored => Ok(None),
         })
     }
@@ -924,6 +929,7 @@ impl SiegelCore {
                 let _ = self.repropose_leave(&c.group_id).await;
             }
             if c.is_group && !c.left {
+                let _ = self.ensure_member_link(&c.group_id).await;
                 let _ = self.keep_group_avatar(&c.group_id).await;
                 let _ = self.refresh_group_avatar(&c.group_id).await;
             }
@@ -979,6 +985,13 @@ impl SiegelCore {
                         })) => {
                             self.forget_media(&message_id);
                             on_event(Event::Updated { group_id });
+                        }
+                        // ponytail: the message that showed we're behind is dropped; later ones
+                        // arrive at the new epoch and read fine.
+                        Ok(Some(Handled::Behind(group_id))) => {
+                            if self.resync(&group_id).await.is_ok() {
+                                on_event(Event::Updated { group_id });
+                            }
                         }
                         Ok(Some(Handled::Rejoined(group_id))) => {
                             if !self.is_request(&group_id).unwrap_or(true) {

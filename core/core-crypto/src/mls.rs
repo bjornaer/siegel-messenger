@@ -194,6 +194,11 @@ pub enum Received {
         group_id: Vec<u8>,
         reason: String,
     },
+    /// Sent in a later epoch than our copy has: we missed a commit the others took, so our
+    /// copy can't catch up by itself.
+    Behind {
+        group_id: Vec<u8>,
+    },
     Ignored,
 }
 
@@ -516,6 +521,14 @@ impl<P: OpenMlsProvider> Mls<P> {
                     new.joined.push(*a);
                 }
             }
+            // The members-only link: an admin adds it where it's missing and swaps it when
+            // anyone goes, so they can't read later snapshots (joining needs membership anyway).
+            // ponytail: a leave committed by a non-admin keeps the link until an admin commits.
+            if old.is_admin(&self.me()) && (new.member_link().is_none() || !gone.is_empty()) {
+                new.invites.retain(|i| !i.is_member_link());
+                new.invites
+                    .push(crate::groups::Invite::new_member_link(self.me()));
+            }
             old.check(&self.me(), &added, &removed, &unlisted, &new)
                 .map_err(|r| Error(r.0.into()))?;
             // A GroupContextExtensions proposal replaces the whole set: keep the others.
@@ -584,6 +597,11 @@ impl<P: OpenMlsProvider> Mls<P> {
         let st = state_of(gi.group_context().extensions()).ok_or(Error("not_a_group".into()))?;
         let n = st.joined.len();
         Ok((st, n))
+    }
+
+    /// The epoch a snapshot was taken at.
+    pub fn snapshot_epoch(snapshot: &[u8]) -> Result<u64, Error> {
+        Ok(group_info(snapshot)?.epoch().as_u64())
     }
 
     /// GRP-16: joins a group by external commit from its snapshot, with the link's proof in the
@@ -835,6 +853,9 @@ impl<P: OpenMlsProvider> Mls<P> {
                         .map_err(err)?;
                 }
                 let epoch = g.epoch().as_u64();
+                if pm.epoch().as_u64() > epoch {
+                    return Ok(Received::Behind { group_id });
+                }
                 let processed = g.process_message(&self.provider, pm).map_err(err)?;
                 if !matches!(processed.sender(), Sender::NewMemberCommit) {
                     return Ok(Received::Ignored);
@@ -875,11 +896,17 @@ impl<P: OpenMlsProvider> Mls<P> {
                     return Ok(rejected(r.0));
                 }
                 g.merge_staged_commit(&self.provider, *c).map_err(err)?;
+                // A member rejoining after falling behind isn't new.
+                let added = if old.joined.contains(&joiner.account_id) {
+                    vec![]
+                } else {
+                    vec![joiner.account_id]
+                };
                 Ok(Received::Commit {
                     group_id,
                     change: Some(Change {
                         by: joiner.account_id,
-                        added: vec![joiner.account_id],
+                        added,
                         removed: vec![],
                         left: vec![],
                         new: old.clone(),
@@ -891,6 +918,9 @@ impl<P: OpenMlsProvider> Mls<P> {
                 let pm: ProtocolMessage = pm.into();
                 let group_id = pm.group_id().as_slice().to_vec();
                 let mut g = self.group(&group_id)?;
+                if pm.epoch() > g.epoch() {
+                    return Ok(Received::Behind { group_id });
+                }
                 let processed = g.process_message(&self.provider, pm).map_err(err)?;
                 let sender_index = match processed.sender() {
                     Sender::Member(i) => *i,
@@ -1362,6 +1392,99 @@ mod tests {
             panic!("message")
         };
         assert_eq!(plaintext, b"back");
+    }
+
+    #[test]
+    fn a_member_behind_rejoins_by_the_member_link() {
+        // B missed a commit for good. Through the members-only link B rejoins from the latest
+        // snapshot, with no admin involved; an outsider holding that link can't get in.
+        let as_key = IdentityKey::generate();
+        let (a, b, c, e) = (
+            device(&as_key, 1, false),
+            device(&as_key, 2, false),
+            device(&as_key, 3, false),
+            device(&as_key, 5, false),
+        );
+        let kps: Vec<_> = [&b, &c]
+            .iter()
+            .flat_map(|m| m.key_packages(1, false).unwrap())
+            .collect();
+        let out = a.create_group(&kps, Some(&GroupState::default())).unwrap();
+        a.confirm(&out.group_id).unwrap();
+        let gid = out.group_id.clone();
+        for m in [&b, &c] {
+            m.receive(&out.welcome).unwrap();
+        }
+        // The admin's next commit adds the link.
+        let out = a.commit(&gid, &[], &[], None).unwrap();
+        a.confirm(&gid).unwrap();
+        for m in [&b, &c] {
+            m.receive(&out.commit).unwrap();
+        }
+        let link = b
+            .state(&gid)
+            .unwrap()
+            .unwrap()
+            .member_link()
+            .unwrap()
+            .clone();
+        assert!(a.state(&gid).unwrap().unwrap().invites.len() == 1);
+
+        let st = a.state(&gid).unwrap().unwrap();
+        let missed = a
+            .commit(
+                &gid,
+                &[],
+                &[],
+                Some(GroupState {
+                    name: "Hikers".into(),
+                    ..st
+                }),
+            )
+            .unwrap();
+        a.confirm(&gid).unwrap();
+        c.receive(&missed.commit).unwrap(); // B never sees it
+        let hi = a.encrypt(&gid, b"hi").unwrap();
+        assert!(matches!(b.receive(&hi).unwrap(), Received::Behind { .. }));
+
+        let snap = a.snapshot(&gid).unwrap();
+        // Only members may use it.
+        let stranger = e.join_by_link(&snap, &link.id, &link.key).unwrap();
+        assert!(matches!(
+            c.receive(&stranger.commit).unwrap(),
+            Received::Rejected { reason, .. } if reason.ends_with("not_a_member")
+        ));
+        b.forget(&gid).unwrap();
+        let back = b.join_by_link(&snap, &link.id, &link.key).unwrap();
+        for m in [&a, &c] {
+            let Received::Commit {
+                change: Some(ch), ..
+            } = m.receive(&back.commit).unwrap()
+            else {
+                panic!("rejoin")
+            };
+            assert!(ch.added.is_empty(), "B was never gone");
+        }
+        assert_eq!(b.state(&gid).unwrap().unwrap().name, "Hikers");
+        assert_eq!(a.roster(&gid).unwrap().len(), 3, "B's old leaf went");
+        let hi = a.encrypt(&gid, b"back").unwrap();
+        let Received::Message { plaintext, .. } = b.receive(&hi).unwrap() else {
+            panic!("message")
+        };
+        assert_eq!(plaintext, b"back");
+
+        // Removing someone swaps the link.
+        let out = a.commit(&gid, &[], &[[3; 16]], None).unwrap();
+        a.confirm(&gid).unwrap();
+        b.receive(&out.commit).unwrap();
+        let next = b
+            .state(&gid)
+            .unwrap()
+            .unwrap()
+            .member_link()
+            .unwrap()
+            .clone();
+        assert_ne!(next.id, link.id);
     }
 
     #[test]

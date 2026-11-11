@@ -55,6 +55,26 @@ pub struct Invite {
 impl Invite {
     const LEN: usize = 16 + 32 + 16 + 8 + 16;
 
+    /// The members-only link (`expires == 0`): a member whose copy of the group fell behind
+    /// rejoins through it from the latest snapshot. Never shown or shared; apps from before it
+    /// see an expired link. Admins add it and swap it when someone is removed.
+    pub fn new_member_link(by: Account) -> Self {
+        use rand_core::RngCore;
+        let mut b = [0u8; 64];
+        rand_core::OsRng.fill_bytes(&mut b);
+        Self {
+            id: b[..16].try_into().expect("16"),
+            key: b[16..48].try_into().expect("32"),
+            write_key: b[48..].try_into().expect("16"),
+            expires: 0,
+            by,
+        }
+    }
+
+    pub fn is_member_link(&self) -> bool {
+        self.expires == 0
+    }
+
     fn snapshot_cipher(key: &[u8; 32]) -> aes_gcm::Aes256Gcm {
         use aes_gcm::KeyInit;
         let mut k = [0u8; 32];
@@ -193,13 +213,21 @@ impl GroupState {
             .iter()
             .find(|i| proof.get(..16) == Some(&i.id[..]))
             .ok_or(Refused("invite_unknown"))?;
-        if invite.expires <= now {
+        if invite.is_member_link() {
+            if !self.joined.contains(joiner) {
+                return Err(Refused("not_a_member"));
+            }
+        } else if invite.expires <= now {
             return Err(Refused("invite_expired"));
         }
         if Invite::proof(&invite.id, &invite.key, joiner, epoch) != proof {
             return Err(Refused("invite_proof_invalid"));
         }
         Ok(())
+    }
+
+    pub fn member_link(&self) -> Option<&Invite> {
+        self.invites.iter().find(|i| i.is_member_link())
     }
 
     /// GRP-08: the admins still in the group, or the longest-standing member if none is left.

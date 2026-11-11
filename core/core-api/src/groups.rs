@@ -306,10 +306,15 @@ impl SiegelCore {
         let mut kps = self.claim_all(&accounts).await?;
         // M8: our own other devices are members too (the server skips this one).
         kps.extend(self.own_other_key_packages().await);
+        let by: Account = self
+            .me_account()?
+            .try_into()
+            .map_err(|_| CoreError::new("not_registered"))?;
         let init = GroupState {
             name: name.into(),
             admins_only_info: true, // GRP-06 defaults
             admins_only_add: true,
+            invites: vec![core_crypto::groups::Invite::new_member_link(by)],
             ..Default::default()
         };
         let out = self.with_mls(|m, _| m.create_group(&kps, Some(&init)).map_err(mls_err))?;
@@ -344,6 +349,7 @@ impl SiegelCore {
             system_line(s, &gid, pb::group_event::Kind::Created, &me, &[], name)
         })?;
         self.share_profile_key(&gid).await?;
+        let _ = self.refresh_group_links(&gid).await; // the members-only link's snapshot
         Ok(gid)
     }
 
@@ -525,7 +531,7 @@ impl SiegelCore {
                             break;
                         }
                     }
-                    if !moved {
+                    if !moved && self.resync(conv).await.is_err() {
                         return Err(CoreError::new("group_out_of_sync"));
                     }
                 }
@@ -845,6 +851,8 @@ impl SiegelCore {
 
 /// GRP-16 default: links last a week.
 const INVITE_LIFE_SECS: u64 = 7 * 24 * 60 * 60;
+/// Every commit renews it, and CRY-10 self-updates commit at least weekly in a live group.
+const MEMBER_LINK_SNAPSHOT_SECS: u64 = 60 * 24 * 60 * 60;
 
 /// One live invite link of a group.
 #[derive(Debug, Clone, PartialEq)]
@@ -913,7 +921,8 @@ impl SiegelCore {
         };
         let added = invite.clone();
         self.group_commit(conv, &[], &[], move |mut s| {
-            s.invites.retain(|i| i.expires > now_secs());
+            s.invites
+                .retain(|i| i.expires > now_secs() || i.is_member_link());
             s.invites.push(added.clone());
             s
         })
@@ -976,7 +985,7 @@ impl SiegelCore {
         let live: Vec<_> = self
             .group_links_raw(conv)?
             .into_iter()
-            .filter(|i| i.expires > now)
+            .filter(|i| i.expires > now || i.is_member_link())
             .collect();
         if live.is_empty() {
             return Ok(());
@@ -986,10 +995,115 @@ impl SiegelCore {
         let token = self.token()?;
         for i in live {
             let sealed = core_crypto::groups::Invite::seal(&i.key, &plain);
+            // The members-only link never expires; its snapshot lives on while commits renew it.
+            let expires = if i.is_member_link() {
+                now + MEMBER_LINK_SNAPSHOT_SECS
+            } else {
+                i.expires
+            };
             self.net
-                .put_invite(&token, &i.id, &i.write_key, sealed, i.expires as i64)
+                .put_invite(&token, &i.id, &i.write_key, sealed, expires as i64)
                 .await?;
         }
+        Ok(())
+    }
+
+    /// Groups from before the members-only link get one from an admin's app (the commit adds
+    /// it). Runs from the stream's upkeep, so a lost race just waits for the next connect.
+    pub(crate) async fn ensure_member_link(&self, conv: &[u8]) -> Result<(), CoreError> {
+        let st = self.group_state(conv)?;
+        let me: Account = self
+            .me_account()?
+            .try_into()
+            .map_err(|_| CoreError::new("not_registered"))?;
+        if st.member_link().is_some() || !st.is_admin(&me) {
+            return Ok(());
+        }
+        self.group_commit_from(conv, &[], &[], |s| s, true).await
+    }
+
+    /// A member whose copy fell behind (it missed or refused a commit the others took) rejoins
+    /// from the latest snapshot through the members-only link: the chat and its history stay;
+    /// what was sent while behind is lost. At most once an hour per group.
+    pub(crate) async fn resync(&self, conv: &[u8]) -> Result<(), CoreError> {
+        let c = self.group_conversation(conv)?;
+        if c.left {
+            return Err(CoreError::new("group_left"));
+        }
+        let g = c.mls_group.clone();
+        let tried = format!("resync_at.{}", crate::chat::hex(&g));
+        let now = now_secs();
+        let last = self
+            .get(&tried)?
+            .and_then(|v| <[u8; 8]>::try_from(v.as_slice()).ok())
+            .map_or(0, u64::from_be_bytes);
+        if now.saturating_sub(last) < 3600 {
+            return Err(CoreError::new("group_out_of_sync"));
+        }
+        self.put(&tried, &now.to_be_bytes())?;
+        // Kept apart from the MLS state, which goes when we rejoin: a failed try can try again.
+        let saved = format!("member_link.{}", crate::chat::hex(&g));
+        let link = self
+            .with_mls(|m, _| m.state(&g).map_err(mls_err))
+            .ok()
+            .flatten()
+            .and_then(|s| s.member_link().cloned());
+        let (id, key): ([u8; 16], [u8; 32]) = match link {
+            Some(i) => {
+                self.put(&saved, &[&i.id[..], &i.key[..]].concat())?;
+                (i.id, i.key)
+            }
+            None => {
+                let b = self
+                    .get(&saved)?
+                    .filter(|b| b.len() == 48)
+                    .ok_or(CoreError::new("group_out_of_sync"))?;
+                (b[..16].try_into().unwrap(), b[16..].try_into().unwrap())
+            }
+        };
+        let (_, _, skew, snapshot) = self.fetch_snapshot(&self.group_link(&id, &key)).await?;
+        let mine = self.with_mls(|m, _| m.epoch(&g).map_err(mls_err)).ok();
+        let theirs = Mls::<Provider<'_>>::snapshot_epoch(&snapshot).map_err(mls_err)?;
+        if mine.is_some_and(|e| theirs <= e) {
+            return Err(CoreError::new("group_out_of_sync")); // nothing newer to rejoin from
+        }
+        let me: Account = self
+            .me_account()?
+            .try_into()
+            .map_err(|_| CoreError::new("not_registered"))?;
+        let (st, _) = Mls::<Provider<'_>>::peek(&snapshot).map_err(mls_err)?;
+        if !st.joined.contains(&me) {
+            // Removed while behind: the group is gone for us.
+            self.with_mls(|m, s| {
+                let _ = m.forget(&g);
+                storage(s.set_conversation_flags(conv, false, true))
+            })?;
+            return Err(CoreError::new("group_left"));
+        }
+        let _ = self.with_mls(|m, _| m.forget(&g).map_err(mls_err));
+        let out = self.with_mls(|m, _| m.join_by_link(&snapshot, &id, &key).map_err(mls_err))?;
+        let req = pb::GroupsServiceCommitRequest {
+            group_id: g.clone(),
+            epoch: out.epoch + skew,
+            commit: out.commit,
+            recipients: out.commit_to.iter().map(addr).collect(),
+            welcome: vec![],
+            welcome_recipients: vec![],
+        };
+        if let Err(e) = self.net.commit(&self.token()?, req).await {
+            let _ = self.with_mls(|m, _| m.forget(&g).map_err(mls_err));
+            return Err(e.into());
+        }
+        let mine = me.to_vec();
+        self.with_mls(|m, s| {
+            for member in m.roster(&g).map_err(mls_err)? {
+                if member.account_id[..] != mine[..] {
+                    note_identity(s, &member.account_id, &member.identity_pub)?;
+                }
+            }
+            storage(s.put(&skew_key(&g), &skew.to_be_bytes()))
+        })?;
+        let _ = self.refresh_group_links(conv).await;
         Ok(())
     }
 

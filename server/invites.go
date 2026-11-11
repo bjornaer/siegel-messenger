@@ -13,8 +13,9 @@ import (
 	siegelv1 "github.com/bjornaer/siegel-messenger/server/gen/siegel/v1"
 )
 
-// maxInviteLife caps how long a link lives (GRP-16: 1 week by default, set by the client).
-const maxInviteLife = 8 * 24 * time.Hour
+// maxInviteLife caps how long a snapshot lives: a week for a shared link (GRP-16), 60 days
+// for the members-only one, renewed by every commit (set by the client).
+const maxInviteLife = 61 * 24 * time.Hour
 
 type invites struct{ *server }
 

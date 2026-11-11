@@ -967,11 +967,13 @@ async fn concurrent_admin_commits_converge() {
 }
 
 #[tokio::test]
-async fn missed_commit_fails_fast() {
-    // A device that missed a commit can't catch up by waiting: it says so instead of retrying.
+async fn a_member_behind_rejoins() {
+    // Bob misses a commit for good. His next group change finds him behind, he rejoins through
+    // the members-only link, and the change goes through; everyone keeps talking.
     let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
         return;
     };
+    use core_api::Event;
     let (alice, _) = new_user(&url, "alice").await;
     let (bob, bob_name) = new_user(&url, "bob").await;
     let mut ae = listen(&alice);
@@ -983,10 +985,7 @@ async fn missed_commit_fails_fast() {
         .create_group("Fork", std::slice::from_ref(&bob_name))
         .await
         .unwrap();
-    until(&mut be, |e| {
-        matches!(e, core_api::Event::ConversationStarted { .. })
-    })
-    .await;
+    until(&mut be, |e| matches!(e, Event::ConversationStarted { .. })).await;
     let bob_id = bob
         .group_info(&gid)
         .unwrap()
@@ -999,12 +998,21 @@ async fn missed_commit_fails_fast() {
     settle(&mut be, || bob.group_info(&gid).unwrap().me_admin).await;
     stream.abort(); // Bob hears nothing from now on
     alice.rename_group(&gid, "Moved on").await.unwrap();
+
     let started = std::time::Instant::now();
-    assert_eq!(
-        bob.rename_group(&gid, "Stale").await.unwrap_err().code,
-        "group_out_of_sync"
-    );
+    bob.rename_group(&gid, "Back").await.unwrap();
     assert!(started.elapsed() < std::time::Duration::from_secs(15));
+    eventually(|| alice.group_info(&gid).unwrap().name == "Back").await;
+    assert_eq!(alice.group_info(&gid).unwrap().members.len(), 2);
+    bob.send_text(&gid, "made it", None).await.unwrap();
+    eventually(|| {
+        alice
+            .messages(&gid, 20)
+            .unwrap()
+            .iter()
+            .any(|m| m.text == "made it")
+    })
+    .await;
 }
 
 #[tokio::test]

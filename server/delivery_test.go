@@ -414,7 +414,7 @@ func TestInvites(t *testing.T) { // GRP-16
 	want(t, put(wk, "v1", week), "")
 	want(t, put(wk, "v2", week), "")                                               // members refresh it
 	want(t, put(bytes.Repeat([]byte{3}, 16), "evil", week), "invite_write_denied") // a link holder can't
-	want(t, put(wk, "v3", time.Now().Add(30*24*time.Hour).Unix()), "invite_invalid")
+	want(t, put(wk, "v3", time.Now().Add(90*24*time.Hour).Unix()), "invite_invalid")
 	res, err := inv.Get(e.ctx, connect.NewRequest(&siegelv1.InvitesServiceGetRequest{Id: id}))
 	if err != nil || string(res.Msg.Snapshot) != "v2" {
 		t.Fatal(res, err)
