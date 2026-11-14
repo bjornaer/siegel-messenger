@@ -204,6 +204,14 @@ abstract class Core implements RustOpaqueInterface {
   /// Name and size of the group a link leads to, before joining.
   Future<GroupPreviewView> previewGroupLink({required String link});
 
+  /// A text shown at once as sending; deliver it with `retry`.
+  MessageView queueText({
+    required List<int> groupId,
+    required String text,
+    Uint8List? replyTo,
+    required List<Uint8List> mentions,
+  });
+
   /// MSG-08: empty removes our reaction.
   Future<void> react({
     required List<int> groupId,

@@ -686,7 +686,44 @@ class _StickerMessageState extends State<StickerMessage> with _Fetch {
           ? Center(
               child: loading ? const CircularProgressIndicator() : Icon(Icons.image_outlined, semanticLabel: t.sticker),
             )
-          : Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true, semanticLabel: t.sticker),
+          : GestureDetector(
+              onTap: () => _preview(context, d),
+              child: Image.memory(d, fit: BoxFit.contain, gaplessPlayback: true, semanticLabel: t.sticker),
+            ),
+    );
+  }
+
+  /// Tap a sticker to see it big and keep it, as in WhatsApp.
+  void _preview(BuildContext context, Uint8List d) {
+    final t = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (s) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.memory(d, height: 220, fit: BoxFit.contain, semanticLabel: t.sticker),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                icon: const Icon(Icons.add_reaction_outlined),
+                label: Text(t.addToMyStickers),
+                onPressed: () {
+                  Navigator.pop(s);
+                  try {
+                    widget.core.addSticker(data: d, mimeType: widget.message.attachment!.mimeType, pack: '');
+                    messenger.showSnackBar(SnackBar(content: Text(t.stickerAdded)));
+                  } on CoreError catch (e) {
+                    if (context.mounted) showError(context, e);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

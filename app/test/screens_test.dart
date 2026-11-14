@@ -438,6 +438,19 @@ class FakeCore implements Core {
   }
 
   @override
+  MessageView queueText({
+    required List<int> groupId,
+    required String text,
+    Uint8List? replyTo,
+    required List<Uint8List> mentions,
+  }) {
+    sentMentions.addAll(mentions);
+    final m = copy(msg(groupId, text, outgoing: true, replyTo: replyTo), status: MessageStatus.sending);
+    (history[base64Encode(groupId)] ??= []).add(m);
+    return m;
+  }
+
+  @override
   Future<MessageView> sendAttachment({
     required List<int> groupId,
     required List<int> data,
@@ -542,9 +555,17 @@ class FakeCore implements Core {
 
   final versionsOf = <String, List<String>>{};
 
+  Completer<void>? holdSends; // a slow network: queued texts wait for it
   @override
   Future<void> retry({required List<int> messageId}) async {
-    await _maybeFail('retry');
+    await holdSends?.future;
+    final m = history.values.expand((l) => l).firstWhere((m) => listEquals(m.messageId, messageId));
+    try {
+      await _maybeFail(m.status == MessageStatus.sending ? 'sendText ${m.text}' : 'retry');
+    } on CoreError {
+      _update(messageId, (v) => copy(v, status: MessageStatus.failed));
+      rethrow;
+    }
     _update(messageId, (v) => copy(v, status: MessageStatus.sent));
   }
 
@@ -1148,6 +1169,30 @@ void main() {
     expect(find.text('typing…'), findsOneWidget);
     await t.pump(const Duration(seconds: 6));
     expect(find.text('typing…'), findsNothing);
+  });
+
+  testWidgets('a sent text shows at once with a clock, then a tick', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    core.holdSends = Completer();
+    for (final text in ['one', 'two']) {
+      await t.enterText(find.widgetWithText(TextField, 'Message'), text);
+      await t.pump();
+      await t.tap(find.byTooltip('Send'));
+      await t.pump();
+    }
+    expect(find.text('one'), findsOneWidget);
+    expect(find.text('two'), findsOneWidget);
+    expect(find.byIcon(Icons.schedule), findsNWidgets(2));
+    expect(find.byType(LinearProgressIndicator), findsNothing, reason: 'no busy bar for texts');
+    core.holdSends!.complete();
+    await t.pumpAndSettle();
+    expect(find.byIcon(Icons.schedule), findsNothing);
+    expect(find.byIcon(Icons.check), findsNWidgets(2));
   });
 
   testWidgets('swipe a bubble right to reply, own messages too; short drags do nothing (MSG-18)', (t) async {
@@ -2034,6 +2079,16 @@ void main() {
     expect(core.stickers().single.pack, '');
     expect(find.text('Added to your stickers.'), findsOneWidget);
     await t.pump(const Duration(seconds: 5)); // the snackbar covers the composer
+    await t.pumpAndSettle();
+
+    // A tap shows it big, with the same button (as in WhatsApp).
+    await t.tap(find.byType(StickerMessage));
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(FilledButton, 'Add to my stickers'));
+    await t.pumpAndSettle();
+    expect(core.stickers(), hasLength(1), reason: 'the same sticker is kept once');
+    expect(find.text('Added to your stickers.'), findsOneWidget);
+    await t.pump(const Duration(seconds: 5));
     await t.pumpAndSettle();
 
     // With stickers of their own, Mine opens first; what they send most goes on top.

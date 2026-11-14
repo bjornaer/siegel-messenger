@@ -1155,8 +1155,25 @@ class _ChatScreenState extends State<ChatScreen> {
     _text.clear();
     _mentioned.clear();
     setState(() => _replyTo = null);
-    await _run(() => core.sendText(groupId: _group, text: text, replyTo: reply?.messageId, mentions: mentions));
+    final MessageView m;
+    try {
+      // Shown at once with a clock; delivered behind it, in the order they were written.
+      m = core.queueText(groupId: _group, text: text, replyTo: reply?.messageId, mentions: mentions);
+    } on CoreError catch (e) {
+      return showError(context, e);
+    }
+    final service = widget.service..refresh();
+    _sending = _sending.then((_) async {
+      try {
+        await core.retry(messageId: m.messageId);
+      } on CoreError {
+        // Marked failed in the chat, with a retry (MSG-04).
+      }
+      service.refresh();
+    });
   }
+
+  Future<void> _sending = Future.value();
 
   Future<void> _block(ChatSummary c) async {
     final t = AppLocalizations.of(context)!;

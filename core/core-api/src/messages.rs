@@ -129,6 +129,30 @@ impl SiegelCore {
         reply_to: Option<&[u8]>,
         mentions: &[Vec<u8>],
     ) -> Result<ChatMessage, CoreError> {
+        let mut msg = self.queue(group_id, text, reply_to, mentions)?;
+        self.deliver_stored(&mut msg).await?;
+        chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
+    }
+
+    /// A text stored as sending, so the chat shows it at once; `retry` then delivers it.
+    pub fn queue_text(
+        &self,
+        group_id: &[u8],
+        text: &str,
+        reply_to: Option<&[u8]>,
+        mentions: &[Vec<u8>],
+    ) -> Result<ChatMessage, CoreError> {
+        let msg = self.queue(group_id, text, reply_to, mentions)?;
+        chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
+    }
+
+    fn queue(
+        &self,
+        group_id: &[u8],
+        text: &str,
+        reply_to: Option<&[u8]>,
+        mentions: &[Vec<u8>],
+    ) -> Result<Message, CoreError> {
         if text.is_empty() || text.len() > MAX_TEXT {
             return Err(CoreError::new("text_invalid"));
         }
@@ -138,7 +162,7 @@ impl SiegelCore {
             reply_to: reply_to.unwrap_or_default().to_vec(),
             mentions: mentions.iter().take(256).cloned().collect(),
         }));
-        let mut msg = Message {
+        let msg = Message {
             message_id: content.message_id.clone(),
             group_id: group_id.to_vec(),
             sender_account: self.me()?,
@@ -150,8 +174,7 @@ impl SiegelCore {
             deleted: false,
         };
         self.with_store(|s| storage(s.save_message(&msg)))?;
-        self.deliver_stored(&mut msg).await?;
-        chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
+        Ok(msg)
     }
 
     pub(crate) fn check_can_send(&self, group_id: &[u8]) -> Result<(), CoreError> {
@@ -165,10 +188,11 @@ impl SiegelCore {
     }
 
     /// Sends a Failed message again with the same ID; receivers deduplicate (MSG-03).
+    /// Sends a failed message again, or a queued one (`queue_text`) for the first time.
     pub async fn retry(&self, message_id: &[u8]) -> Result<(), CoreError> {
         let mut msg = self
             .with_store(|s| storage(s.message(message_id)))?
-            .filter(|m| m.outgoing && m.status == Status::Failed)
+            .filter(|m| m.outgoing && matches!(m.status, Status::Failed | Status::Sending))
             .ok_or(CoreError::new("not_allowed"))?;
         self.deliver_stored(&mut msg).await
     }

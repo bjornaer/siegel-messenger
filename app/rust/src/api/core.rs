@@ -953,6 +953,21 @@ impl Core {
             .into())
     }
 
+    /// A text shown at once as sending; deliver it with `retry`.
+    #[frb(sync)]
+    pub fn queue_text(
+        &self,
+        group_id: Vec<u8>,
+        text: String,
+        reply_to: Option<Vec<u8>>,
+        mentions: Vec<Vec<u8>>,
+    ) -> Result<MessageView, CoreError> {
+        Ok(self
+            .0
+            .queue_text(&group_id, &text, reply_to.as_deref(), &mentions)?
+            .into())
+    }
+
     /// MED-09: a voice note or audio file (and, later, any file). Fails without storing a
     /// message if the upload fails.
     #[allow(clippy::too_many_arguments)]
