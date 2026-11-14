@@ -1008,6 +1008,32 @@ func TestLinkedDevices(t *testing.T) { // M8 part 1
 	want(t, errMsg(err), "device_not_found")
 }
 
+func TestReviewAccount(t *testing.T) { // which account the store reviewers use
+	e := setup(t)
+	var out strings.Builder
+	if err := e.s.admin(e.ctx, []string{"review-account"}, &out); err == nil {
+		t.Fatal("needs SIEGEL_REVIEW_PHONE")
+	}
+	e.s.cfg.reviewPhone, e.s.cfg.reviewCode = "+34600000177", "123456"
+	e.s.admin(e.ctx, []string{"review-account"}, &out)
+	want(t, out.String(), "no account uses the review number\n")
+	if err := e.otp("+34600000177"); err != nil {
+		t.Fatal(err)
+	}
+	r, _, err := e.verify("+34600000177", "123456", "") // the fixed code, no SMS
+	if err != nil {
+		t.Fatal(err)
+	}
+	want(t, e.setUsername(r.DeviceToken, "explorer123"), "")
+	out.Reset()
+	if err := e.s.admin(e.ctx, []string{"review-account"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(out.String(), "@explorer123, account since ") {
+		t.Fatal(out.String())
+	}
+}
+
 func TestIssueCode(t *testing.T) { // SMS didn't arrive: an operator issues the code
 	e := setup(t)
 	var out strings.Builder

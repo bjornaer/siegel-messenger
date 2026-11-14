@@ -38,6 +38,7 @@ const adminUsage = `usage: /server admin <command> [flags] <target>
   console-enrol <operator name>                         (a single-use link to add a passkey)
   issue-code --reason "…" <+E.164 number>               (a 10-minute sign-up code when SMS doesn't arrive;
                                                          only after confirming the person owns the number)
+  review-account                                        (who signed up with SIEGEL_REVIEW_PHONE: the store reviewers)
   vapid-keygen                                          (once: the Web Push key line for /opt/siegel/.env)
 lawful requests and appeals (docs/law-enforcement.md):
   export --order REF --reason "…" <account>             (prints what we hold, as JSON)
@@ -233,6 +234,29 @@ func (s *server) admin(ctx context.Context, args []string, out io.Writer) error 
 		return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 			return audit(ctx, tx, a, "appeal: "+*outcome, target)
 		})
+	case "review-account":
+		if s.cfg.reviewPhone == "" {
+			return errors.New("SIEGEL_REVIEW_PHONE isn't set")
+		}
+		h, err := s.hmacPhone(ctx, s.cfg.reviewPhone)
+		if err != nil {
+			return err
+		}
+		var name, since string
+		err = s.db.QueryRow(ctx, `SELECT coalesce((SELECT name FROM usernames WHERE account_id = a.id AND quarantined_until IS NULL), ''),
+			created_day::text FROM accounts a WHERE phone_hmac = $1`, h).Scan(&name, &since)
+		if errors.Is(err, pgx.ErrNoRows) {
+			fmt.Fprintln(out, "no account uses the review number")
+			return nil
+		} else if err != nil {
+			return err
+		}
+		if name == "" {
+			name = "(no username)"
+		} else {
+			name = "@" + name
+		}
+		fmt.Fprintf(out, "%s, account since %s\n", name, since)
 	case "vapid-keygen": // M8 part 6: once; the line goes in /opt/siegel/.env
 		k, err := vapidKeygen()
 		if err != nil {
