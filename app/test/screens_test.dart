@@ -1759,6 +1759,28 @@ void main() {
     expect(find.text('Block @bob?'), findsOneWidget);
   });
 
+  testWidgets('new group suggests the people they chat with, narrowed as they type', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await core.startChat(username: 'bob');
+    await core.startChat(username: 'carol');
+    await t.pumpWidget(wrap(NewGroupScreen(core: core, service: service)));
+    await t.pumpAndSettle();
+    await enter(t, 'Group name', 'Hikers');
+    expect(find.widgetWithText(ListTile, '@bob'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, '@carol'), findsOneWidget);
+    await enter(t, 'Add people', 'car');
+    expect(find.widgetWithText(ListTile, '@bob'), findsNothing);
+    await t.tap(find.widgetWithText(ListTile, '@carol'));
+    await t.pump();
+    expect(find.widgetWithText(InputChip, '@carol'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, '@carol'), findsNothing, reason: 'added: no longer suggested');
+    expect(find.widgetWithText(ListTile, '@bob'), findsOneWidget, reason: 'the field cleared');
+    await tapText(t, 'Create');
+    expect(core.groupInfo(groupId: core.chatList.last.groupId).members, hasLength(2));
+  });
+
   testWidgets('groups: create, sender names, system lines, rename, leave (M3)', (t) async {
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();

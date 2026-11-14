@@ -76,8 +76,8 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   final _people = <String>[];
   bool _busy = false;
 
-  void _add() {
-    final u = _clean(_person.text);
+  void _add([String? username]) {
+    final u = _clean(username ?? _person.text);
     if (u.isEmpty || _people.contains(u)) return;
     setState(() => _people.add(u));
     _person.clear();
@@ -101,6 +101,19 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     );
   }
 
+  List<ChatSummary> _suggestions() {
+    final q = _clean(_person.text);
+    return [
+      for (final c in widget.core.chats())
+        if (!c.isGroup &&
+            !c.request &&
+            c.peerUsername != null &&
+            !_people.contains(c.peerUsername) &&
+            (c.peerUsername!.contains(q) || (c.peerDisplayName ?? '').toLowerCase().contains(q)))
+          c,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -117,7 +130,7 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
             decoration: InputDecoration(labelText: t.groupName),
             onChanged: (_) => setState(() {}),
           ),
-          _AddPerson(controller: _person, onAdd: _add),
+          _AddPerson(controller: _person, onAdd: _add, onChanged: () => setState(() {})),
           Wrap(
             spacing: 8,
             children: [
@@ -132,6 +145,16 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
                 : _create,
             child: Text(t.create),
           ),
+          const SizedBox(height: 8),
+          // The people they chat with, narrowed as they type: no usernames to remember.
+          for (final c in _suggestions())
+            ListTile(
+              leading: Avatar(core: widget.core, account: c.peerAccount),
+              title: Text(chatTitle(t, c), maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: (c.peerDisplayName ?? '').isEmpty ? null : Text('@${c.peerUsername}'),
+              trailing: const Icon(Icons.add),
+              onTap: () => _add(c.peerUsername),
+            ),
         ],
       ),
     );
@@ -139,9 +162,10 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
 }
 
 class _AddPerson extends StatelessWidget {
-  const _AddPerson({required this.controller, required this.onAdd});
+  const _AddPerson({required this.controller, required this.onAdd, this.onChanged});
   final TextEditingController controller;
   final VoidCallback onAdd;
+  final VoidCallback? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +177,7 @@ class _AddPerson extends StatelessWidget {
             controller: controller,
             autocorrect: false,
             decoration: InputDecoration(labelText: t.addPeople, hintText: t.addPeopleHint),
+            onChanged: (_) => onChanged?.call(),
             onSubmitted: (_) => onAdd(),
           ),
         ),
