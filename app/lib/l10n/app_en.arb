@@ -430,6 +430,7 @@
   "file": "File",
   "attach": "Attach",
   "download": "Download",
+  "open": "Open",
   "saveToDevice": "Save to device",
   "forward": "Forward",
   "forwardTo": "Forward to…",

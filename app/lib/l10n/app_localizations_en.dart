@@ -804,6 +804,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get download => 'Download';
 
   @override
+  String get open => 'Open';
+
+  @override
   String get saveToDevice => 'Save to device';
 
   @override

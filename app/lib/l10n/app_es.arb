@@ -226,6 +226,7 @@
   "file": "Archivo",
   "attach": "Adjuntar",
   "download": "Descargar",
+  "open": "Abrir",
   "saveToDevice": "Guardar en el dispositivo",
   "forward": "Reenviar",
   "forwardTo": "Reenviar a…",

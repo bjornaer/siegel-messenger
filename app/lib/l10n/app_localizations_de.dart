@@ -815,6 +815,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get download => 'Herunterladen';
 
   @override
+  String get open => 'Öffnen';
+
+  @override
   String get saveToDevice => 'Auf dem Gerät speichern';
 
   @override

@@ -492,7 +492,8 @@ class FakeCore implements Core {
   }
 
   @override
-  bool attachmentDownloaded({required List<int> messageId}) => false;
+  bool attachmentDownloaded({required List<int> messageId}) => // ours stay on the device
+      history.values.expand((l) => l).any((m) => listEquals(m.messageId, messageId) && m.outgoing);
 
   final forwards = <String>[];
   @override
@@ -1577,17 +1578,26 @@ void main() {
     );
     final pdf = FakeCore.msg(id, '', outgoing: false, attachment: att('application/pdf', 'plan.pdf'));
     core.blobs[base64Encode(pdf.messageId)] = Uint8List.fromList(utf8.encode('%PDF'));
+    final mine = FakeCore.msg(id, '', outgoing: true, attachment: att('application/pdf', 'mine.pdf'));
+    core.blobs[base64Encode(mine.messageId)] = Uint8List.fromList(utf8.encode('%PDF'));
     (core.history[base64Encode(id)] ??= []).addAll([
       FakeCore.msg(id, '', outgoing: false, attachment: att('image/jpeg', '')),
       pdf,
+      mine,
     ]);
     await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
     await t.pumpAndSettle();
     expect(find.byType(ImageMessage), findsOneWidget);
     expect(find.text('plan.pdf'), findsOneWidget);
-    expect(find.text('2.0 MB'), findsOneWidget);
+    expect(find.text('2.0 MB'), findsNWidgets(2));
 
-    // A tap opens the file in another app, every time; the button saves it.
+    // Theirs shows a download button until downloaded; ours opens straight away.
+    Finder button(String file, String tip) =>
+        find.descendant(of: find.widgetWithText(FileMessage, file), matching: find.byTooltip(tip));
+    expect(button('plan.pdf', 'Download'), findsOneWidget);
+    expect(button('mine.pdf', 'Open'), findsOneWidget);
+
+    // A tap opens the file in another app, every time.
     final opened = <List<Object?>>[];
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (c) async {
       if (c.method == 'openFile') opened.add(c.arguments as List<Object?>);
@@ -1599,7 +1609,10 @@ void main() {
     await t.tap(find.text('plan.pdf'));
     await t.pumpAndSettle();
     expect(opened.map((a) => (a[0], a[2])), [('plan.pdf', 'application/pdf'), ('plan.pdf', 'application/pdf')]);
-    expect(find.byTooltip('Save to device'), findsOneWidget);
+    expect(button('plan.pdf', 'Open'), findsOneWidget, reason: 'downloaded now');
+    await t.tap(button('mine.pdf', 'Open'));
+    await t.pumpAndSettle();
+    expect(opened.last[0], 'mine.pdf');
 
     await t.longPress(find.text('plan.pdf'));
     await t.pumpAndSettle();

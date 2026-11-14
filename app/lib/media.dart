@@ -1002,6 +1002,7 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final a = widget.message.attachment!;
+    final here = data != null || widget.core.attachmentDownloaded(messageId: widget.message.messageId);
     return GestureDetector(
       onTap: () async {
         final d = await fetch(widget.core, widget.message);
@@ -1024,15 +1025,27 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
                 ],
               ),
             ),
-            IconButton(
-              tooltip: t.saveToDevice,
-              icon: const Icon(Icons.download),
-              onPressed: () async {
-                if (await fetch(widget.core, widget.message) != null && context.mounted) {
-                  await saveToDevice(context, widget.core, widget.message);
-                }
-              },
-            ),
+            // Ours, or downloaded already: open it. Otherwise download it first (Save to device
+            // stays in the message menu). The browser can only save.
+            if (here && !kIsWeb)
+              IconButton(
+                tooltip: t.open,
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () async {
+                  final d = await fetch(widget.core, widget.message);
+                  if (d != null && context.mounted) await _open(context, widget.core, widget.message, d);
+                },
+              )
+            else
+              IconButton(
+                tooltip: kIsWeb ? t.saveToDevice : t.download,
+                icon: const Icon(Icons.download),
+                onPressed: () async {
+                  if (await fetch(widget.core, widget.message) != null && kIsWeb && context.mounted) {
+                    await saveToDevice(context, widget.core, widget.message);
+                  }
+                },
+              ),
           ],
         ),
       ),

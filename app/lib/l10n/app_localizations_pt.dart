@@ -806,6 +806,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get download => 'Baixar';
 
   @override
+  String get open => 'Abrir';
+
+  @override
   String get saveToDevice => 'Salvar no aparelho';
 
   @override
