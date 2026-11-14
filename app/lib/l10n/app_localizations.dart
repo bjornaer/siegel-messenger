@@ -690,6 +690,18 @@ abstract class AppLocalizations {
   /// **'If you turn these off, you won\'t see when others read your messages either.'**
   String get readReceiptsHelp;
 
+  /// No description provided for @linkPreviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Link previews'**
+  String get linkPreviews;
+
+  /// No description provided for @linkPreviewsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your phone fetches a card for the first link you send, so that site sees your connection. Siegel\'s server never sees the link, and the people you send it to don\'t load anything.'**
+  String get linkPreviewsHelp;
+
   /// No description provided for @typingIndicators.
   ///
   /// In en, this message translates to:

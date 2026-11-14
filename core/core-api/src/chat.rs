@@ -173,6 +173,8 @@ pub struct ChatMessage {
     pub mentions: Vec<Vec<u8>>,
     /// MED-04: a file instead of text; fetch it with `attachment_data`.
     pub attachment: Option<crate::AttachmentInfo>,
+    /// The first link's card, when it still matches the text.
+    pub preview: Option<pb::LinkPreview>,
 }
 
 /// Lowercase without accents, so "cancion" finds "Canción" and "uber" finds "Über".
@@ -208,7 +210,12 @@ pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Opt
             _ => return None, // unknown types skipped (MSG-01)
         }
     }
+    let preview = t
+        .preview
+        .take()
+        .filter(|p| crate::messages::preview_ok(p, &t.body));
     Some(ChatMessage {
+        preview,
         group_id: m.group_id,
         message_id: m.message_id,
         sender_account: m.sender_account,

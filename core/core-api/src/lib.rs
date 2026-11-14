@@ -24,7 +24,7 @@ mod sync;
 mod view_once;
 pub use chat::{ChatMessage, Event};
 pub use core_crypto::pin::{unwrap as unwrap_db_key, wrap as wrap_db_key};
-pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice};
+pub use core_net::pb::{AccountServiceExportResponse as ServerData, ExportedDevice, LinkPreview};
 pub use core_store::{Contact, ContactState, Conversation, Status};
 pub use devices::DeviceInfo;
 pub use discovery::Found;

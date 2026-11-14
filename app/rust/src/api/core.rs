@@ -508,6 +508,16 @@ pub struct MessageView {
     pub mentions: Vec<Vec<u8>>,
     /// MED-04: a file instead of text; its bytes come from `attachment_data`.
     pub attachment: Option<AttachmentView>,
+    /// The first link's card, made by the sender's phone.
+    pub preview: Option<LinkPreviewView>,
+}
+
+pub struct LinkPreviewView {
+    pub url: String,
+    pub title: String,
+    pub description: String,
+    /// JPEG; empty when the page has no image.
+    pub image: Vec<u8>,
 }
 
 pub struct AttachmentView {
@@ -568,6 +578,12 @@ impl From<core_api::ChatMessage> for MessageView {
                 .map(|(account, emoji)| Reaction { account, emoji })
                 .collect(),
             key_change: m.key_change,
+            preview: m.preview.map(|p| LinkPreviewView {
+                url: p.url,
+                title: p.title,
+                description: p.description,
+                image: p.image,
+            }),
             mentions: m.mentions,
             attachment: m.attachment.map(|a| AttachmentView {
                 mime_type: a.mime_type,
@@ -966,6 +982,24 @@ impl Core {
             .0
             .queue_text(&group_id, &text, reply_to.as_deref(), &mentions)?
             .into())
+    }
+
+    /// Adds a link card to a queued text before `retry` sends it.
+    #[frb(sync)]
+    pub fn set_link_preview(
+        &self,
+        message_id: Vec<u8>,
+        preview: LinkPreviewView,
+    ) -> Result<(), CoreError> {
+        Ok(self.0.set_link_preview(
+            &message_id,
+            core_api::LinkPreview {
+                url: preview.url,
+                title: preview.title,
+                description: preview.description,
+                image: preview.image,
+            },
+        )?)
     }
 
     /// MED-09: a voice note or audio file (and, later, any file). Fails without storing a

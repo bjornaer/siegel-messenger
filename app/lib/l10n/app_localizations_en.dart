@@ -353,6 +353,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'If you turn these off, you won\'t see when others read your messages either.';
 
   @override
+  String get linkPreviews => 'Link previews';
+
+  @override
+  String get linkPreviewsHelp =>
+      'Your phone fetches a card for the first link you send, so that site sees your connection. Siegel\'s server never sees the link, and the people you send it to don\'t load anything.';
+
+  @override
   String get typingIndicators => 'Typing indicators';
 
   @override

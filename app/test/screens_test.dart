@@ -37,6 +37,8 @@ import 'package:siegel/stickers.dart';
 import 'package:siegel/suspended.dart';
 import 'package:siegel/themes.dart';
 import 'package:siegel/src/rust/api/core.dart';
+import 'package:siegel/format.dart' show firstLink;
+import 'package:siegel/preview.dart';
 
 class FakeCore implements Core {
   bool registered = false;
@@ -438,6 +440,11 @@ class FakeCore implements Core {
   }
 
   @override
+  @override
+  void setLinkPreview({required List<int> messageId, required LinkPreviewView preview}) =>
+      _update(messageId, (v) => copy(v, preview: preview));
+
+  @override
   MessageView queueText({
     required List<int> groupId,
     required String text,
@@ -790,7 +797,9 @@ class FakeCore implements Core {
     GroupEventView? event,
     Uint8List? sender,
     AttachmentView? attachment,
+    LinkPreviewView? preview,
   }) => MessageView(
+    preview: preview,
     groupId: Uint8List.fromList(groupId),
     messageId: Uint8List.fromList([_n++]),
     senderAccount: sender ?? Uint8List(16),
@@ -815,7 +824,9 @@ class FakeCore implements Core {
     bool? edited,
     bool? deleted,
     List<Reaction>? reactions,
+    LinkPreviewView? preview,
   }) => MessageView(
+    preview: preview ?? m.preview,
     groupId: m.groupId,
     messageId: m.messageId,
     senderAccount: m.senderAccount,
@@ -850,6 +861,8 @@ Widget wrap(Widget child) => MaterialApp(
 );
 
 Future<void> tapText(WidgetTester t, String text) async {
+  await t.ensureVisible(find.text(text)); // a tile scrolled to the edge can be tapped half off screen
+  await t.pumpAndSettle();
   await t.tap(find.text(text));
   await t.pumpAndSettle();
 }
@@ -1199,6 +1212,38 @@ void main() {
     expect(find.byIcon(Icons.check), findsNWidgets(2));
   });
 
+  testWidgets('a link card shows above the text; pages are read for title, description, image', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final card = LinkPreviewView(
+      url: 'www.example.com/a',
+      title: 'Example',
+      description: 'A page',
+      image: Uint8List(0),
+    );
+    (core.history[base64Encode(id)] ??= []).add(
+      FakeCore.msg(id, 'see www.example.com/a', outgoing: false, preview: card),
+    );
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.text('Example'), findsOneWidget);
+    expect(find.text('A page'), findsOneWidget);
+    expect(find.text('www.example.com'), findsOneWidget, reason: 'the host');
+
+    final page = readPage('''<html><head><title>Fallback</title>
+      <meta content="Tom &amp; Jerry&#39;s" property="og:title">
+      <META name='description' content='Cats &#x26; mice'>
+      <meta property="og:image" content="/i.png"></head>''')!;
+    expect(page.title, "Tom & Jerry's");
+    expect(page.description, 'Cats & mice');
+    expect(page.image, '/i.png');
+    expect(readPage('<title>Only</title>')!.title, 'Only');
+    expect(readPage('<p>no head</p>'), isNull);
+    expect(firstLink('a (https://x.org/b_c). end'), 'https://x.org/b_c');
+  });
+
   testWidgets('stickers from WhatsApp: picked from a grid, all ticked; none there says where to look', (t) async {
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();
@@ -1206,8 +1251,14 @@ void main() {
     final id = await core.startChat(username: 'bob');
     var found = <List<Object>>[
       ['a.webp', FakeCore.tinyPng],
-      ['b.webp', Uint8List.fromList([...FakeCore.tinyPng, 0])],
-      ['c.webp', Uint8List.fromList([...FakeCore.tinyPng, 0, 0])],
+      [
+        'b.webp',
+        Uint8List.fromList([...FakeCore.tinyPng, 0]),
+      ],
+      [
+        'c.webp',
+        Uint8List.fromList([...FakeCore.tinyPng, 0, 0]),
+      ],
     ];
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       appChannel,

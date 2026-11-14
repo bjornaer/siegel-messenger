@@ -1588,6 +1588,56 @@ async fn stickers_arrive_as_stickers() {
 }
 
 #[tokio::test]
+async fn link_previews_travel_with_the_text() {
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, LinkPreview};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+    let m = alice
+        .queue_text(&chat, "look https://example.com/a", None, &[])
+        .unwrap();
+    let card = |url: &str| LinkPreview {
+        url: url.into(),
+        title: "Example".into(),
+        description: "A page".into(),
+        image: vec![1, 2, 3],
+    };
+    assert!(
+        alice
+            .set_link_preview(&m.message_id, card("https://other.example"))
+            .is_err()
+    );
+    alice
+        .set_link_preview(&m.message_id, card("https://example.com/a"))
+        .unwrap();
+    alice.retry(&m.message_id).await.unwrap();
+    assert!(
+        alice
+            .set_link_preview(&m.message_id, card("https://example.com/a"))
+            .is_err()
+    ); // sent
+    let Event::Message(got) = until(&mut be, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    assert_eq!(got.preview, Some(card("https://example.com/a")));
+    alice
+        .edit(&chat, &m.message_id, "never mind")
+        .await
+        .unwrap();
+    let edited = alice
+        .messages(&chat, 50)
+        .unwrap()
+        .into_iter()
+        .find(|x| x.message_id == m.message_id);
+    assert_eq!(edited.unwrap().preview, None); // the card went with its link
+}
+
+#[tokio::test]
 async fn reports_reach_the_server_sealed_to_the_moderators() {
     // CMP-03, M7 part 3. Needs the server started with the test key's public half.
     let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {

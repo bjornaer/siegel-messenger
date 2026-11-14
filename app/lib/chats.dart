@@ -20,6 +20,7 @@ import 'groups.dart';
 import 'links.dart';
 import 'location.dart';
 import 'media.dart';
+import 'preview.dart';
 import 'update.dart';
 import 'profile.dart';
 import 'report.dart';
@@ -1163,7 +1164,15 @@ class _ChatScreenState extends State<ChatScreen> {
       return showError(context, e);
     }
     final service = widget.service..refresh();
+    final card = core.setting(key: previewsSetting) == 'off' ? null : fetchPreview(text);
     _sending = _sending.then((_) async {
+      if (await card case final p?) {
+        try {
+          core.setLinkPreview(messageId: m.messageId, preview: p);
+        } on CoreError {
+          // sent without it
+        }
+      }
       try {
         await core.retry(messageId: m.messageId);
       } on CoreError {
@@ -1745,8 +1754,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                 : null,
                           ),
                         )
-                      else
+                      else ...[
+                        if (m.preview case final p?) LinkPreviewCard(p),
                         Text.rich(formatText(m.text, onLink: openUrl)),
+                      ],
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [

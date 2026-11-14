@@ -361,6 +361,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Wenn du sie ausschaltest, siehst du auch nicht, wann andere deine Nachrichten lesen.';
 
   @override
+  String get linkPreviews => 'Linkvorschauen';
+
+  @override
+  String get linkPreviewsHelp =>
+      'Dein Telefon lädt eine Karte für den ersten Link, den du sendest, also sieht diese Seite deine Verbindung. Der Siegel-Server sieht den Link nie, und die Empfänger laden nichts.';
+
+  @override
   String get typingIndicators => 'Tippanzeige';
 
   @override

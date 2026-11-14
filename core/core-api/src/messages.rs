@@ -21,6 +21,20 @@ fn is_location(text: &str) -> bool {
             && !url.contains(char::is_whitespace)
     })
 }
+/// A link card fits the text it came with: limits as in content.proto, and an edit that drops
+/// the link drops its card.
+pub(crate) fn preview_ok(p: &pb::LinkPreview, text: &str) -> bool {
+    let scheme = p.url.get(..8).unwrap_or(&p.url).to_ascii_lowercase(); // keyboards write "Https://"
+    ["https://", "http://", "www."]
+        .iter()
+        .any(|s| scheme.starts_with(s))
+        && text.contains(&p.url)
+        && !p.title.is_empty()
+        && p.title.len() <= 300
+        && p.description.len() <= 1000
+        && p.image.len() <= 20 << 10
+}
+
 const DELETE_WINDOW_MS: i64 = 48 * 60 * 60 * 1000;
 /// One emoji, any picker can produce: the longest (a couple with two skin tones) is 35 bytes.
 const MAX_REACTION: usize = 64;
@@ -146,6 +160,30 @@ impl SiegelCore {
         chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
     }
 
+    /// Adds a link card to a text still waiting in `queue_text`, before `retry` sends it.
+    pub fn set_link_preview(
+        &self,
+        message_id: &[u8],
+        preview: pb::LinkPreview,
+    ) -> Result<(), CoreError> {
+        self.with_store(|s| {
+            let mut m = storage(s.message(message_id))?
+                .filter(|m| m.outgoing && m.status == Status::Sending)
+                .ok_or(CoreError::new("not_allowed"))?;
+            let mut c =
+                pb::Content::decode(m.body.as_slice()).map_err(|_| CoreError::new("storage"))?;
+            let Some(pb::content::Body::Text(t)) = &mut c.body else {
+                return Err(CoreError::new("not_allowed"));
+            };
+            if !preview_ok(&preview, &t.body) {
+                return Err(CoreError::new("preview_invalid"));
+            }
+            t.preview = Some(preview);
+            m.body = c.encode_to_vec();
+            storage(s.update_message(&m))
+        })
+    }
+
     fn queue(
         &self,
         group_id: &[u8],
@@ -161,6 +199,7 @@ impl SiegelCore {
             body: text.into(),
             reply_to: reply_to.unwrap_or_default().to_vec(),
             mentions: mentions.iter().take(256).cloned().collect(),
+            preview: None,
         }));
         let msg = Message {
             message_id: content.message_id.clone(),

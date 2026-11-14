@@ -72,6 +72,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GroupEventView dco_decode_box_autoadd_group_event_view(dynamic raw);
 
   @protected
+  LinkPreviewView dco_decode_box_autoadd_link_preview_view(dynamic raw);
+
+  @protected
   MessageView dco_decode_box_autoadd_message_view(dynamic raw);
 
   @protected
@@ -121,6 +124,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  LinkPreviewView dco_decode_link_preview_view(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -184,6 +190,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GroupEventView? dco_decode_opt_box_autoadd_group_event_view(dynamic raw);
+
+  @protected
+  LinkPreviewView? dco_decode_opt_box_autoadd_link_preview_view(dynamic raw);
 
   @protected
   MessageView? dco_decode_opt_box_autoadd_message_view(dynamic raw);
@@ -276,6 +285,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LinkPreviewView sse_decode_box_autoadd_link_preview_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   MessageView sse_decode_box_autoadd_message_view(SseDeserializer deserializer);
 
   @protected
@@ -325,6 +339,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  LinkPreviewView sse_decode_link_preview_view(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -402,6 +419,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GroupEventView? sse_decode_opt_box_autoadd_group_event_view(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LinkPreviewView? sse_decode_opt_box_autoadd_link_preview_view(
     SseDeserializer deserializer,
   );
 
@@ -515,6 +537,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_link_preview_view(
+    LinkPreviewView self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_message_view(
     MessageView self,
     SseSerializer serializer,
@@ -585,6 +613,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_link_preview_view(
+    LinkPreviewView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -688,6 +722,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_group_event_view(
     GroupEventView? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_link_preview_view(
+    LinkPreviewView? self,
     SseSerializer serializer,
   );
 

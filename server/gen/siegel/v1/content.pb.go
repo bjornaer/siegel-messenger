@@ -140,7 +140,7 @@ func (x Receipt_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Receipt_Kind.Descriptor instead.
 func (Receipt_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{15, 0}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{16, 0}
 }
 
 // MSG-01: the plaintext inside every MLS application message. Only clients see it; the
@@ -1080,6 +1080,7 @@ type Text struct {
 	Body          string                 `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`                      // MSG-05: up to 64 KB UTF-8
 	ReplyTo       []byte                 `protobuf:"bytes,2,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"` // MSG-07 reply: the quoted message_id, empty when not a reply
 	Mentions      [][]byte               `protobuf:"bytes,3,rep,name=mentions,proto3" json:"mentions,omitempty"`              // GRP-15: accounts @mentioned in the text
+	Preview       *LinkPreview           `protobuf:"bytes,4,opt,name=preview,proto3" json:"preview,omitempty"`                // the first link's card, fetched by the sender's phone
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1135,6 +1136,82 @@ func (x *Text) GetMentions() [][]byte {
 	return nil
 }
 
+func (x *Text) GetPreview() *LinkPreview {
+	if x != nil {
+		return x.Preview
+	}
+	return nil
+}
+
+// Made on the sender's phone, so the server never sees the address and recipients never fetch it.
+type LinkPreview struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`                 // as written in the text
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`             // at most 300 bytes
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"` // at most 1000 bytes
+	Image         []byte                 `protobuf:"bytes,4,opt,name=image,proto3" json:"image,omitempty"`             // JPEG, at most 20 KB; empty when the page has none
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LinkPreview) Reset() {
+	*x = LinkPreview{}
+	mi := &file_siegel_v1_content_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LinkPreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LinkPreview) ProtoMessage() {}
+
+func (x *LinkPreview) ProtoReflect() protoreflect.Message {
+	mi := &file_siegel_v1_content_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
+func (*LinkPreview) Descriptor() ([]byte, []int) {
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *LinkPreview) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *LinkPreview) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *LinkPreview) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *LinkPreview) GetImage() []byte {
+	if x != nil {
+		return x.Image
+	}
+	return nil
+}
+
 // MSG-08: one emoji per sender per message; a new one replaces it, empty removes it.
 type Reaction struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1146,7 +1223,7 @@ type Reaction struct {
 
 func (x *Reaction) Reset() {
 	*x = Reaction{}
-	mi := &file_siegel_v1_content_proto_msgTypes[12]
+	mi := &file_siegel_v1_content_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1235,7 @@ func (x *Reaction) String() string {
 func (*Reaction) ProtoMessage() {}
 
 func (x *Reaction) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[12]
+	mi := &file_siegel_v1_content_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1248,7 @@ func (x *Reaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reaction.ProtoReflect.Descriptor instead.
 func (*Reaction) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{12}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Reaction) GetMessageId() []byte {
@@ -1199,7 +1276,7 @@ type Edit struct {
 
 func (x *Edit) Reset() {
 	*x = Edit{}
-	mi := &file_siegel_v1_content_proto_msgTypes[13]
+	mi := &file_siegel_v1_content_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1211,7 +1288,7 @@ func (x *Edit) String() string {
 func (*Edit) ProtoMessage() {}
 
 func (x *Edit) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[13]
+	mi := &file_siegel_v1_content_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1224,7 +1301,7 @@ func (x *Edit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Edit.ProtoReflect.Descriptor instead.
 func (*Edit) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{13}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Edit) GetMessageId() []byte {
@@ -1251,7 +1328,7 @@ type Delete struct {
 
 func (x *Delete) Reset() {
 	*x = Delete{}
-	mi := &file_siegel_v1_content_proto_msgTypes[14]
+	mi := &file_siegel_v1_content_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1340,7 @@ func (x *Delete) String() string {
 func (*Delete) ProtoMessage() {}
 
 func (x *Delete) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[14]
+	mi := &file_siegel_v1_content_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1353,7 @@ func (x *Delete) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Delete.ProtoReflect.Descriptor instead.
 func (*Delete) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{14}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Delete) GetMessageId() []byte {
@@ -1297,7 +1374,7 @@ type Receipt struct {
 
 func (x *Receipt) Reset() {
 	*x = Receipt{}
-	mi := &file_siegel_v1_content_proto_msgTypes[15]
+	mi := &file_siegel_v1_content_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1309,7 +1386,7 @@ func (x *Receipt) String() string {
 func (*Receipt) ProtoMessage() {}
 
 func (x *Receipt) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[15]
+	mi := &file_siegel_v1_content_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1322,7 +1399,7 @@ func (x *Receipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Receipt.ProtoReflect.Descriptor instead.
 func (*Receipt) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{15}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Receipt) GetKind() Receipt_Kind {
@@ -1348,7 +1425,7 @@ type Typing struct {
 
 func (x *Typing) Reset() {
 	*x = Typing{}
-	mi := &file_siegel_v1_content_proto_msgTypes[16]
+	mi := &file_siegel_v1_content_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1437,7 @@ func (x *Typing) String() string {
 func (*Typing) ProtoMessage() {}
 
 func (x *Typing) ProtoReflect() protoreflect.Message {
-	mi := &file_siegel_v1_content_proto_msgTypes[16]
+	mi := &file_siegel_v1_content_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1450,7 @@ func (x *Typing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Typing.ProtoReflect.Descriptor instead.
 func (*Typing) Descriptor() ([]byte, []int) {
-	return file_siegel_v1_content_proto_rawDescGZIP(), []int{16}
+	return file_siegel_v1_content_proto_rawDescGZIP(), []int{17}
 }
 
 var File_siegel_v1_content_proto protoreflect.FileDescriptor
@@ -1462,11 +1539,17 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\bwaveform\x18\f \x01(\fR\bwaveform\x12\x19\n" +
 	"\breply_to\x18\r \x01(\fR\areplyTo\x12\x18\n" +
 	"\asticker\x18\x0e \x01(\bR\asticker\x12\x1b\n" +
-	"\tview_once\x18\x0f \x01(\bR\bviewOnce\"Q\n" +
+	"\tview_once\x18\x0f \x01(\bR\bviewOnce\"\x83\x01\n" +
 	"\x04Text\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
 	"\breply_to\x18\x02 \x01(\fR\areplyTo\x12\x1a\n" +
-	"\bmentions\x18\x03 \x03(\fR\bmentions\"?\n" +
+	"\bmentions\x18\x03 \x03(\fR\bmentions\x120\n" +
+	"\apreview\x18\x04 \x01(\v2\x16.siegel.v1.LinkPreviewR\apreview\"m\n" +
+	"\vLinkPreview\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05image\x18\x04 \x01(\fR\x05image\"?\n" +
 	"\bReaction\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x14\n" +
@@ -1502,7 +1585,7 @@ func file_siegel_v1_content_proto_rawDescGZIP() []byte {
 }
 
 var file_siegel_v1_content_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_siegel_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_siegel_v1_content_proto_goTypes = []any{
 	(GroupEvent_Kind)(0),     // 0: siegel.v1.GroupEvent.Kind
 	(Receipt_Kind)(0),        // 1: siegel.v1.Receipt.Kind
@@ -1518,20 +1601,21 @@ var file_siegel_v1_content_proto_goTypes = []any{
 	(*Profile)(nil),          // 11: siegel.v1.Profile
 	(*Attachment)(nil),       // 12: siegel.v1.Attachment
 	(*Text)(nil),             // 13: siegel.v1.Text
-	(*Reaction)(nil),         // 14: siegel.v1.Reaction
-	(*Edit)(nil),             // 15: siegel.v1.Edit
-	(*Delete)(nil),           // 16: siegel.v1.Delete
-	(*Receipt)(nil),          // 17: siegel.v1.Receipt
-	(*Typing)(nil),           // 18: siegel.v1.Typing
+	(*LinkPreview)(nil),      // 14: siegel.v1.LinkPreview
+	(*Reaction)(nil),         // 15: siegel.v1.Reaction
+	(*Edit)(nil),             // 16: siegel.v1.Edit
+	(*Delete)(nil),           // 17: siegel.v1.Delete
+	(*Receipt)(nil),          // 18: siegel.v1.Receipt
+	(*Typing)(nil),           // 19: siegel.v1.Typing
 }
 var file_siegel_v1_content_proto_depIdxs = []int32{
 	13, // 0: siegel.v1.Content.text:type_name -> siegel.v1.Text
 	10, // 1: siegel.v1.Content.profile_key_update:type_name -> siegel.v1.ProfileKeyUpdate
-	14, // 2: siegel.v1.Content.reaction:type_name -> siegel.v1.Reaction
-	15, // 3: siegel.v1.Content.edit:type_name -> siegel.v1.Edit
-	16, // 4: siegel.v1.Content.delete:type_name -> siegel.v1.Delete
-	17, // 5: siegel.v1.Content.receipt:type_name -> siegel.v1.Receipt
-	18, // 6: siegel.v1.Content.typing:type_name -> siegel.v1.Typing
+	15, // 2: siegel.v1.Content.reaction:type_name -> siegel.v1.Reaction
+	16, // 3: siegel.v1.Content.edit:type_name -> siegel.v1.Edit
+	17, // 4: siegel.v1.Content.delete:type_name -> siegel.v1.Delete
+	18, // 5: siegel.v1.Content.receipt:type_name -> siegel.v1.Receipt
+	19, // 6: siegel.v1.Content.typing:type_name -> siegel.v1.Typing
 	9,  // 7: siegel.v1.Content.key_change:type_name -> siegel.v1.KeyChange
 	8,  // 8: siegel.v1.Content.group_event:type_name -> siegel.v1.GroupEvent
 	7,  // 9: siegel.v1.Content.contact_link:type_name -> siegel.v1.ContactLinkProof
@@ -1542,12 +1626,13 @@ var file_siegel_v1_content_proto_depIdxs = []int32{
 	6,  // 14: siegel.v1.Sync.setting:type_name -> siegel.v1.SyncSetting
 	0,  // 15: siegel.v1.GroupEvent.kind:type_name -> siegel.v1.GroupEvent.Kind
 	12, // 16: siegel.v1.Profile.avatar:type_name -> siegel.v1.Attachment
-	1,  // 17: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	14, // 17: siegel.v1.Text.preview:type_name -> siegel.v1.LinkPreview
+	1,  // 18: siegel.v1.Receipt.kind:type_name -> siegel.v1.Receipt.Kind
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_siegel_v1_content_proto_init() }
@@ -1580,7 +1665,7 @@ func file_siegel_v1_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_siegel_v1_content_proto_rawDesc), len(file_siegel_v1_content_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

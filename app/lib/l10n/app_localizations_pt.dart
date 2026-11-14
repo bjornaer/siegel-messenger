@@ -356,6 +356,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'Se você desativar, também não verá quando outras pessoas lerem suas mensagens.';
 
   @override
+  String get linkPreviews => 'Prévias de links';
+
+  @override
+  String get linkPreviewsHelp =>
+      'Seu telefone carrega um cartão do primeiro link que você envia, então esse site vê sua conexão. O servidor do Siegel nunca vê o link, e quem recebe não carrega nada.';
+
+  @override
   String get typingIndicators => 'Indicador de digitação';
 
   @override

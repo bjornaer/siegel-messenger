@@ -98,6 +98,8 @@
   "statusRead": "Leído",
   "readReceipts": "Confirmaciones de lectura",
   "readReceiptsHelp": "Si las desactivas, tampoco verás cuándo leen otros tus mensajes.",
+  "linkPreviews": "Vistas previas de enlaces",
+  "linkPreviewsHelp": "Tu teléfono carga una tarjeta del primer enlace que envías, así que ese sitio ve tu conexión. El servidor de Siegel nunca ve el enlace y quienes lo reciben no cargan nada.",
   "typingIndicators": "Indicador de escritura",
   "typingIndicatorsHelp": "Si lo desactivas, tampoco verás cuándo escriben otros.",
   "errNotAllowed": "Eso ya no es posible para este mensaje.",

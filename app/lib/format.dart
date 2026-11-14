@@ -63,6 +63,14 @@ const _styles = {
 
 final _link = RegExp(r'(https?://|www\.)[^\s<>"]+', caseSensitive: false);
 
+/// The first web address in [s], as shown (see [formatText]).
+String? firstLink(String s) {
+  for (final m in _link.allMatches(s)) {
+    if (!_word(s, m.start - 1)) return _trimEnd(m[0]!);
+  }
+  return null;
+}
+
 /// Sentence punctuation after an address isn't part of it; a ) is, if the address opened one.
 String _trimEnd(String u) {
   while (u.isNotEmpty) {

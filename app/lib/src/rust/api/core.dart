@@ -322,6 +322,12 @@ abstract class Core implements RustOpaqueInterface {
     required bool adminsOnlyAdd,
   });
 
+  /// Adds a link card to a queued text before `retry` sends it.
+  void setLinkPreview({
+    required List<int> messageId,
+    required LinkPreviewView preview,
+  });
+
   /// M7: under 18, as the app worked out from the birth date it keeps.
   Future<void> setMinor({required bool minor});
 
@@ -873,6 +879,36 @@ class GroupPreviewView {
           members == other.members;
 }
 
+class LinkPreviewView {
+  final String url;
+  final String title;
+  final String description;
+
+  /// JPEG; empty when the page has no image.
+  final Uint8List image;
+
+  const LinkPreviewView({
+    required this.url,
+    required this.title,
+    required this.description,
+    required this.image,
+  });
+
+  @override
+  int get hashCode =>
+      url.hashCode ^ title.hashCode ^ description.hashCode ^ image.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LinkPreviewView &&
+          runtimeType == other.runtimeType &&
+          url == other.url &&
+          title == other.title &&
+          description == other.description &&
+          image == other.image;
+}
+
 /// MSG-04. Incoming messages are Delivered until read.
 enum MessageStatus {
   failed,
@@ -916,6 +952,9 @@ class MessageView {
   /// MED-04: a file instead of text; its bytes come from `attachment_data`.
   final AttachmentView? attachment;
 
+  /// The first link's card, made by the sender's phone.
+  final LinkPreviewView? preview;
+
   const MessageView({
     required this.groupId,
     required this.messageId,
@@ -932,6 +971,7 @@ class MessageView {
     this.event,
     required this.mentions,
     this.attachment,
+    this.preview,
   });
 
   @override
@@ -950,7 +990,8 @@ class MessageView {
       keyChange.hashCode ^
       event.hashCode ^
       mentions.hashCode ^
-      attachment.hashCode;
+      attachment.hashCode ^
+      preview.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -971,7 +1012,8 @@ class MessageView {
           keyChange == other.keyChange &&
           event == other.event &&
           mentions == other.mentions &&
-          attachment == other.attachment;
+          attachment == other.attachment &&
+          preview == other.preview;
 }
 
 /// M7: what a moderator did, why (the rule: ReportCategory number), and until when.
