@@ -1195,6 +1195,41 @@ void main() {
     expect(find.byIcon(Icons.check), findsNWidgets(2));
   });
 
+  testWidgets('stickers from WhatsApp: picked from a grid, all ticked; none there says where to look', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    var found = <List<Object>>[
+      ['a.webp', FakeCore.tinyPng],
+      ['b.webp', Uint8List.fromList([...FakeCore.tinyPng, 0])],
+      ['c.webp', Uint8List.fromList([...FakeCore.tinyPng, 0, 0])],
+    ];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      appChannel,
+      (c) async => c.method == 'whatsappStickers' ? found : null,
+    );
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await t.tap(find.byTooltip('Stickers'));
+    await t.pumpAndSettle();
+    await tapText(t, 'From WhatsApp');
+    expect(find.text('WhatsApp stickers'), findsOneWidget);
+    expect(find.text('Import (3)'), findsOneWidget);
+    await t.tap(find.byIcon(Icons.check_circle).first); // leave one out
+    await t.pump();
+    await tapText(t, 'Import (2)');
+    expect(core.stickers(), hasLength(2));
+    expect(find.text('2 stickers added.'), findsOneWidget);
+    await t.pump(const Duration(seconds: 5));
+    await t.pumpAndSettle();
+
+    found = [];
+    await tapText(t, 'From WhatsApp');
+    expect(find.textContaining('choose the folder named “WhatsApp Stickers”'), findsOneWidget);
+  });
+
   testWidgets('swipe a bubble right to reply, own messages too; short drags do nothing (MSG-18)', (t) async {
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();

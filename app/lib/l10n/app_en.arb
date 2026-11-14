@@ -712,6 +712,9 @@
   "textSize": "Text size",
   "removeText": "Remove text",
   "importStickers": "Import",
+  "fromWhatsApp": "From WhatsApp",
+  "whatsappStickers": "WhatsApp stickers",
+  "noWhatsAppStickers": "No WhatsApp stickers there. Next time, choose the folder named “WhatsApp Stickers”.",
   "stickersAdded": "{count, plural, =0{No stickers found there.} =1{1 sticker added.} other{{count} stickers added.}}",
   "@stickersAdded": {
     "placeholders": {

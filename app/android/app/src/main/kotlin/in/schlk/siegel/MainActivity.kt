@@ -125,6 +125,21 @@ class MainActivity : FlutterFragmentActivity() {
                         result.error("no_app", null, null)
                     }
                 }
+                // Stickers received in WhatsApp, newest first: [[name, bytes], ...], or null if the
+                // user backs out. The first time, Android's folder screen opens on WhatsApp's
+                // sticker folder; the grant is kept, so later imports go straight to the stickers.
+                "whatsappStickers" -> {
+                    val granted = contentResolver.persistedUriPermissions.firstOrNull { it.isReadPermission }?.uri
+                    if (granted != null) readStickerFolder(granted, result) else {
+                        stickersResult = result
+                        val start = android.provider.DocumentsContract.buildDocumentUri(
+                            "com.android.externalstorage.documents", "primary:$WHATSAPP_STICKERS")
+                        startActivityForResult(
+                            android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE)
+                                .putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, start),
+                            STICKERS_REQUEST)
+                    }
+                }
                 "openStore" -> {
                     val page = android.net.Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
                     val market = android.content.Intent(android.content.Intent.ACTION_VIEW,
@@ -156,6 +171,58 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private var pendingLink: String? = null
+    private var stickersResult: MethodChannel.Result? = null
+
+    @Deprecated("FlutterFragmentActivity still routes results here")
+    override fun onActivityResult(code: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(code, resultCode, data)
+        if (code != STICKERS_REQUEST) return
+        val result = stickersResult ?: return
+        stickersResult = null
+        val tree = data?.data
+        if (resultCode != RESULT_OK || tree == null) return result.success(null)
+        contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        readStickerFolder(tree, result)
+    }
+
+    /** The newest WebP files in a granted folder. None there: the grant goes, so next time asks again. */
+    private fun readStickerFolder(tree: android.net.Uri, result: MethodChannel.Result) {
+        Thread {
+            val files = try {
+                val docs = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(
+                    tree, android.provider.DocumentsContract.getTreeDocumentId(tree))
+                val found = mutableListOf<Triple<String, String, Long>>() // id, name, modified
+                val cols = arrayOf(
+                    android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                    android.provider.DocumentsContract.Document.COLUMN_SIZE)
+                contentResolver.query(docs, cols, null, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        val name = c.getString(1) ?: continue
+                        if (!name.lowercase().endsWith(".webp") || c.getLong(3) > MAX_STICKER) continue
+                        found.add(Triple(c.getString(0), name, c.getLong(2)))
+                    }
+                }
+                found.sortedByDescending { it.third }.take(MAX_STICKERS).mapNotNull { (id, name, _) ->
+                    try {
+                        val uri = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, id)
+                        contentResolver.openInputStream(uri)?.use { listOf(name, it.readBytes()) }
+                    } catch (e: Exception) {
+                        null // unreadable: skip it, keep the rest
+                    }
+                }
+            } catch (e: Exception) {
+                emptyList() // the folder is gone
+            }
+            if (files.isEmpty()) {
+                try {
+                    contentResolver.releasePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: SecurityException) {}
+            }
+            runOnUiThread { result.success(files) }
+        }.start()
+    }
     private var contactsResult: MethodChannel.Result? = null
 
     override fun onRequestPermissionsResult(code: Int, permissions: Array<out String>, grants: IntArray) {
@@ -272,6 +339,10 @@ class MainActivity : FlutterFragmentActivity() {
         const val CLOUD_PROJECT = 779364744809L // Google Cloud project linked in Play Console
         const val CONTACTS_REQUEST = 7
         const val LOCATION_REQUEST = 8
+        const val STICKERS_REQUEST = 9
+        const val WHATSAPP_STICKERS = "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Stickers"
+        const val MAX_STICKERS = 120
+        const val MAX_STICKER = 1L shl 20 // WhatsApp's are at most 500 KB
         const val PERMISSION_GRANTED = android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 }

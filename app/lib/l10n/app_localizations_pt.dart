@@ -1323,6 +1323,16 @@ class AppLocalizationsPt extends AppLocalizations {
   String get importStickers => 'Importar';
 
   @override
+  String get fromWhatsApp => 'Do WhatsApp';
+
+  @override
+  String get whatsappStickers => 'Figurinhas do WhatsApp';
+
+  @override
+  String get noWhatsAppStickers =>
+      'Nenhuma figurinha do WhatsApp aí. Da próxima vez, escolha a pasta chamada “WhatsApp Stickers”.';
+
+  @override
   String stickersAdded(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -2340,6 +2340,24 @@ abstract class AppLocalizations {
   /// **'Import'**
   String get importStickers;
 
+  /// No description provided for @fromWhatsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'From WhatsApp'**
+  String get fromWhatsApp;
+
+  /// No description provided for @whatsappStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp stickers'**
+  String get whatsappStickers;
+
+  /// No description provided for @noWhatsAppStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'No WhatsApp stickers there. Next time, choose the folder named “WhatsApp Stickers”.'**
+  String get noWhatsAppStickers;
+
   /// No description provided for @stickersAdded.
   ///
   /// In en, this message translates to:

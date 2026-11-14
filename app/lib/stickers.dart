@@ -13,6 +13,7 @@ import 'media.dart' show reencode;
 import 'package:image_picker/image_picker.dart';
 
 import 'l10n/app_localizations.dart';
+import 'links.dart' show appChannel, isAndroid;
 import 'onboarding.dart' show showError;
 import 'src/rust/api/core.dart';
 import 'sticker_editor.dart';
@@ -121,6 +122,23 @@ class _StickerSheetState extends State<_StickerSheet> {
     }
   });
 
+  /// Android: the stickers WhatsApp keeps, picked from a grid, no folders to find.
+  Future<void> _fromWhatsApp() => _run(() async {
+    final t = AppLocalizations.of(context)!;
+    final found = await appChannel.invokeListMethod<List<Object?>>('whatsappStickers');
+    if (found == null || !mounted) return; // backed out
+    if (found.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.noWhatsAppStickers)));
+      return;
+    }
+    final files = [for (final f in found) (f[0] as String, f[1] as Uint8List)];
+    final chosen = await Navigator.of(context)
+        .push<List<(String, Uint8List)>>(MaterialPageRoute(builder: (_) => WhatsAppStickers(files: files)));
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+    final added = importStickerFiles(core, chosen);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stickersAdded(added))));
+  });
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -178,6 +196,12 @@ class _StickerSheetState extends State<_StickerSheet> {
                 label: Text(t.stickerFromPhoto),
                 onPressed: _fromPhoto,
               ),
+              if (isAndroid)
+                TextButton.icon(
+                  icon: const Icon(Icons.chat_outlined),
+                  label: Text(t.fromWhatsApp),
+                  onPressed: _fromWhatsApp,
+                ),
               TextButton.icon(
                 icon: const Icon(Icons.download_outlined),
                 label: Text(t.importStickers),
@@ -814,6 +838,72 @@ class SiegelSticker extends CustomPainter {
         ..lineTo(36, 36)
         ..close(),
       Paint()..color = Colors.white,
+    );
+  }
+}
+
+/// WhatsApp's stickers, all ticked: untick what to leave out, then import.
+class WhatsAppStickers extends StatefulWidget {
+  const WhatsAppStickers({super.key, required this.files});
+  final List<(String, Uint8List)> files;
+
+  @override
+  State<WhatsAppStickers> createState() => _WhatsAppStickersState();
+}
+
+class _WhatsAppStickersState extends State<WhatsAppStickers> {
+  late final _on = List.filled(widget.files.length, true);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final n = _on.where((x) => x).length;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(t.whatsappStickers),
+        actions: [
+          TextButton(
+            onPressed: n == 0
+                ? null
+                : () => Navigator.pop(context, [
+                    for (var i = 0; i < _on.length; i++)
+                      if (_on[i]) widget.files[i],
+                  ]),
+            child: Text('${t.importStickers} ($n)'),
+          ),
+        ],
+      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 96,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+        ),
+        itemCount: widget.files.length,
+        itemBuilder: (context, i) => Semantics(
+          checked: _on[i],
+          label: t.sticker,
+          child: InkWell(
+            onTap: () => setState(() => _on[i] = !_on[i]),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: _on[i] ? 1 : 0.35,
+                    child: Image.memory(widget.files[i].$2, cacheWidth: 192, fit: BoxFit.contain),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Icon(_on[i] ? Icons.check_circle : Icons.radio_button_unchecked, size: 20),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
