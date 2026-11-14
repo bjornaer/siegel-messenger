@@ -19,8 +19,8 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 # Smaller app download: the core ships once per CPU architecture.
 [profile.release]
 strip = true
-lto = true
-codegen-units = 1
+# Thin: most of fat LTO's size and speed, built in parallel (fat took minutes per ABI per release).
+lto = "thin"
 
 # openmls_sqlite_storage 0.3 wants rusqlite 0.37, which can't build for the browser (vendor/…/VENDORED.md).
 [patch.crates-io]

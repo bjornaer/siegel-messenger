@@ -50,6 +50,15 @@ android {
         versionName = flutter.versionName
     }
 
+    // ARM only (phones; Apple-silicon emulators). The release builds Flutter for these alone
+    // (--target-platform), so plugins' x86 libraries would let Play install an app that can't
+    // start there. abiFilters doesn't drop them under this AGP; excluding the files does.
+    packaging {
+        jniLibs {
+            excludes += setOf("lib/x86/**", "lib/x86_64/**")
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")

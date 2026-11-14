@@ -34,7 +34,7 @@ jobs:
           channel: stable
           flutter-version: 3.47.7 # pinned: newer stables deprecate package:flutter/material.dart
           cache: true
-      - run: rustup toolchain install stable --profile minimal -t aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - run: rustup toolchain install stable --profile minimal -t aarch64-linux-android,armv7-linux-androideabi
       # Cargokit builds into app/build/rust_lib_siegel/build/<target>, not app/rust/target. The
       # last build's dependencies are reused even when Cargo.lock changed; ours always rebuild.
       - uses: actions/cache@v4
@@ -58,7 +58,8 @@ jobs:
           printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
             "$RUNNER_TEMP/upload.jks" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
       - run: flutter pub get
-      - run: flutter build appbundle --release --build-number "$BUILD"
+      # ARM phones only: x86_64 is for emulators and a few Intel Chromebooks, and cost 6 minutes.
+      - run: flutter build appbundle --release --build-number "$BUILD" --target-platform android-arm,android-arm64
       - name: signed with the upload key, not the debug key
         run: |
           certs=$(jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab)
