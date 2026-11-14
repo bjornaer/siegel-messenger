@@ -28,18 +28,22 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: 3.47.7 # pinned: newer stables deprecate package:flutter/material.dart
           cache: true
       - run: rustup toolchain install stable --profile minimal -t aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      # Cargokit builds into app/build/rust_lib_siegel/build/<target>, not app/rust/target. The
+      # last build's dependencies are reused even when Cargo.lock changed; ours always rebuild.
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
-            app/rust/target
-          key: release-${{ hashFiles('app/rust/Cargo.lock') }}
+            app/build/rust_lib_siegel/build/*/release
+          key: release-rust-${{ hashFiles('app/rust/Cargo.lock') }}
+          restore-keys: release-rust-
       - name: upload key
         env:
           KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
