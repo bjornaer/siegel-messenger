@@ -25,9 +25,17 @@ var fcmBase = "https://fcm.googleapis.com"
 // errPushTokenGone: the push service no longer knows the token (app uninstalled).
 var errPushTokenGone = errors.New("push token gone")
 
+// silentNote ends a queue notification for a payload that shows nothing.
+const silentNote = ":s"
+
 type pushes struct {
 	mu   sync.Mutex
-	sent map[[16]byte]time.Time
+	sent map[[16]byte]pushed
+}
+
+type pushed struct {
+	at     time.Time
+	urgent bool
 }
 
 // connected resets collapsing: the next message after this connection pushes again.
@@ -37,23 +45,24 @@ func (p *pushes) connected(device [16]byte) {
 	p.mu.Unlock()
 }
 
-// due records a push for the device unless one went out recently.
-func (p *pushes) due(device [16]byte, now time.Time) bool {
+// due records a push for the device unless one went out recently. An urgent one still goes
+// after a recent low-priority one, which Android may hold back for a while.
+func (p *pushes) due(device [16]byte, now time.Time, urgent bool) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if t, ok := p.sent[device]; ok && now.Sub(t) < pushRepeat {
+	if last, ok := p.sent[device]; ok && now.Sub(last.at) < pushRepeat && (last.urgent || !urgent) {
 		return false
 	}
 	if p.sent == nil {
-		p.sent = map[[16]byte]time.Time{}
+		p.sent = map[[16]byte]pushed{}
 	}
-	p.sent[device] = now
+	p.sent[device] = pushed{now, urgent}
 	return true
 }
 
 // wakeDevice sends a content-free push (MSG-17) when the device has no live stream (SRV-06).
-func (s *server) wakeDevice(device [16]byte) {
-	if s.hub.online(device) || !s.pushes.due(device, time.Now()) {
+func (s *server) wakeDevice(device [16]byte, urgent bool) {
+	if s.hub.online(device) || !s.pushes.due(device, time.Now(), urgent) {
 		return
 	}
 	go func() {
@@ -69,7 +78,7 @@ func (s *server) wakeDevice(device [16]byte) {
 			slog.Error("push lookup", "err", err)
 			return
 		}
-		err = s.sendPush(ctx, platform, token)
+		err = s.sendPush(ctx, platform, token, urgent)
 		if errors.Is(err, errPushTokenGone) {
 			_, err = s.db.Exec(ctx, `UPDATE devices SET push_token = NULL WHERE device_id = $1 AND push_token = $2`, device, token)
 		}
@@ -99,11 +108,12 @@ func (s *server) SetPushToken(ctx context.Context, req *connect.Request[siegelv1
 	return connect.NewResponse(&siegelv1.SetPushTokenResponse{}), nil
 }
 
-// fcm sends Android wake-ups through FCM HTTP v1 (SRV-05): a high-priority data message with
-// no payload. ponytail: iOS (APNs) devices are skipped until the iOS app exists.
-func fcm(g *googleAccount) func(context.Context, siegelv1.Platform, string) error {
+// fcm sends Android wake-ups through FCM HTTP v1 (SRV-05): a data message with no payload, high
+// priority when it may show a notification. ponytail: iOS (APNs) devices are skipped until the
+// iOS app exists.
+func fcm(g *googleAccount) func(context.Context, siegelv1.Platform, string, bool) error {
 	send := fcmBase + "/v1/projects/" + g.project + "/messages:send"
-	return func(ctx context.Context, platform siegelv1.Platform, token string) error {
+	return func(ctx context.Context, platform siegelv1.Platform, token string, urgent bool) error {
 		if platform != siegelv1.Platform_PLATFORM_ANDROID {
 			return nil
 		}
@@ -111,10 +121,14 @@ func fcm(g *googleAccount) func(context.Context, siegelv1.Platform, string) erro
 		if err != nil {
 			return err
 		}
+		priority := "NORMAL"
+		if urgent {
+			priority = "HIGH"
+		}
 		// A constant marker, no content or sender (MSG-17): some devices drop a data message
 		// with an empty payload instead of handing it to the app.
 		msg := map[string]any{"message": map[string]any{
-			"token": token, "android": map[string]any{"priority": "HIGH"}, "data": map[string]string{"wake": "1"},
+			"token": token, "android": map[string]any{"priority": priority}, "data": map[string]string{"wake": "1"},
 		}}
 		err = postJSON(ctx, send, http.Header{"Authorization": {"Bearer " + b}}, msg, nil)
 		if se := new(statusError); errors.As(err, &se) && se.code == http.StatusNotFound {

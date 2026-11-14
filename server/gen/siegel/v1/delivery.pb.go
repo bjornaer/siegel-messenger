@@ -421,9 +421,12 @@ func (x *SealedRecipient) GetDeliveryToken() []byte {
 }
 
 type MessagesServiceSendSealedRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Recipients    []*SealedRecipient     `protobuf:"bytes,1,rep,name=recipients,proto3" json:"recipients,omitempty"`
-	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Recipients []*SealedRecipient     `protobuf:"bytes,1,rep,name=recipients,proto3" json:"recipients,omitempty"`
+	Payload    []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	// Nothing to show (receipts, typing, keys): a low-priority wake, no web push. Unset from older
+	// apps, so they stay urgent. Android lowers apps whose urgent pushes show no notification.
+	Silent        bool `protobuf:"varint,3,opt,name=silent,proto3" json:"silent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -470,6 +473,13 @@ func (x *MessagesServiceSendSealedRequest) GetPayload() []byte {
 		return x.Payload
 	}
 	return nil
+}
+
+func (x *MessagesServiceSendSealedRequest) GetSilent() bool {
+	if x != nil {
+		return x.Silent
+	}
+	return false
 }
 
 type MessagesServiceSendSealedResponse struct {
@@ -530,6 +540,7 @@ type MessagesServiceSendIdentifiedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Recipients    []*DeviceAddress       `protobuf:"bytes,1,rep,name=recipients,proto3" json:"recipients,omitempty"`
 	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	Silent        bool                   `protobuf:"varint,3,opt,name=silent,proto3" json:"silent,omitempty"` // as in MessagesServiceSendSealedRequest
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -576,6 +587,13 @@ func (x *MessagesServiceSendIdentifiedRequest) GetPayload() []byte {
 		return x.Payload
 	}
 	return nil
+}
+
+func (x *MessagesServiceSendIdentifiedRequest) GetSilent() bool {
+	if x != nil {
+		return x.Silent
+	}
+	return false
 }
 
 type MessagesServiceSendIdentifiedResponse struct {
@@ -1677,20 +1695,22 @@ const file_siegel_v1_delivery_proto_rawDesc = "" +
 	"\fkey_packages\x18\x01 \x03(\v2\x1c.siegel.v1.ClaimedKeyPackageR\vkeyPackages\"l\n" +
 	"\x0fSealedRecipient\x122\n" +
 	"\aaddress\x18\x01 \x01(\v2\x18.siegel.v1.DeviceAddressR\aaddress\x12%\n" +
-	"\x0edelivery_token\x18\x02 \x01(\fR\rdeliveryToken\"x\n" +
+	"\x0edelivery_token\x18\x02 \x01(\fR\rdeliveryToken\"\x90\x01\n" +
 	" MessagesServiceSendSealedRequest\x12:\n" +
 	"\n" +
 	"recipients\x18\x01 \x03(\v2\x1a.siegel.v1.SealedRecipientR\n" +
 	"recipients\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayload\"\x8d\x01\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12\x16\n" +
+	"\x06silent\x18\x03 \x01(\bR\x06silent\"\x8d\x01\n" +
 	"!MessagesServiceSendSealedResponse\x122\n" +
 	"\arevoked\x18\x01 \x03(\v2\x18.siegel.v1.DeviceAddressR\arevoked\x124\n" +
-	"\brejected\x18\x02 \x03(\v2\x18.siegel.v1.DeviceAddressR\brejected\"z\n" +
+	"\brejected\x18\x02 \x03(\v2\x18.siegel.v1.DeviceAddressR\brejected\"\x92\x01\n" +
 	"$MessagesServiceSendIdentifiedRequest\x128\n" +
 	"\n" +
 	"recipients\x18\x01 \x03(\v2\x18.siegel.v1.DeviceAddressR\n" +
 	"recipients\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayload\"[\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12\x16\n" +
+	"\x06silent\x18\x03 \x01(\bR\x06silent\"[\n" +
 	"%MessagesServiceSendIdentifiedResponse\x122\n" +
 	"\arevoked\x18\x01 \x03(\v2\x18.siegel.v1.DeviceAddressR\arevoked\"\x82\x02\n" +
 	"\x1aGroupsServiceCommitRequest\x12\x19\n" +

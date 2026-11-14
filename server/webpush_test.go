@@ -60,10 +60,14 @@ func TestWebPush(t *testing.T) { // M8 part 6
 
 	// Android pushes still go the old way; a web device's empty push is sent signed.
 	var android int
-	send := v.webPushOr(func(context.Context, siegelv1.Platform, string) error { android++; return nil })
-	send(context.Background(), siegelv1.Platform_PLATFORM_ANDROID, "fcm-token")
+	send := v.webPushOr(func(context.Context, siegelv1.Platform, string, bool) error { android++; return nil })
+	send(context.Background(), siegelv1.Platform_PLATFORM_ANDROID, "fcm-token", false)
 	want(t, fmt.Sprint(android), "1")
-	if err := send(context.Background(), siegelv1.Platform_PLATFORM_WEB, `{"endpoint":"https://openbao:8200/x"}`); err != errPushTokenGone {
+	// A browser must show something for every push: nothing to show, no push.
+	if err := send(context.Background(), siegelv1.Platform_PLATFORM_WEB, `{"endpoint":"https://openbao:8200/x"}`, false); err != nil {
+		t.Fatal("a silent web push is skipped", err)
+	}
+	if err := send(context.Background(), siegelv1.Platform_PLATFORM_WEB, `{"endpoint":"https://openbao:8200/x"}`, true); err != errPushTokenGone {
 		t.Fatal("a stored bad endpoint is dropped, never called", err)
 	}
 

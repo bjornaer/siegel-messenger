@@ -292,8 +292,12 @@ func TestProfilesAndSealedSender(t *testing.T) { // MSG-10, CMP-04
 func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 	e := setup(t)
 	pushed := make(chan string, 10)
-	e.s.sendPush = func(_ context.Context, p siegelv1.Platform, token string) error {
-		pushed <- token
+	e.s.sendPush = func(_ context.Context, p siegelv1.Platform, token string, urgent bool) error {
+		if urgent {
+			pushed <- token
+		} else {
+			pushed <- token + " (low)"
+		}
 		if token == "gone" {
 			return errPushTokenGone
 		}
@@ -304,12 +308,13 @@ func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 	if _, err := acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "tok-b"})); err != nil {
 		t.Fatal(err)
 	}
-	send := func() {
+	sendAs := func(silent bool) {
 		if _, err := a.msgs.SendIdentified(e.ctx, connect.NewRequest(&siegelv1.MessagesServiceSendIdentifiedRequest{
-			Recipients: []*siegelv1.DeviceAddress{b.addr()}, Payload: []byte("x")})); err != nil {
+			Recipients: []*siegelv1.DeviceAddress{b.addr()}, Payload: []byte("x"), Silent: silent})); err != nil {
 			t.Fatal(err)
 		}
 	}
+	send := func() { sendAs(false) }
 	waitPush := func() string {
 		select {
 		case tok := <-pushed:
@@ -346,6 +351,19 @@ func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 	send()
 	want(t, waitPush(), "tok-b") // collapsing resets once the device has connected
 
+	// A receipt wakes at low priority; a message right after still goes urgently, once.
+	e.s.db.Exec(e.ctx, `DELETE FROM queue`)
+	e.s.pushes.connected([16]byte(b.DeviceId))
+	sendAs(true)
+	want(t, waitPush(), "tok-b (low)")
+	sendAs(true)
+	quiet()
+	send()
+	want(t, waitPush(), "tok-b")
+	send()
+	sendAs(true)
+	quiet()
+
 	// A token the push service no longer knows is cleared.
 	acct.SetPushToken(e.ctx, connect.NewRequest(&siegelv1.SetPushTokenRequest{PushToken: "gone"}))
 	e.s.pushes.connected([16]byte(b.DeviceId))
@@ -367,7 +385,7 @@ func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 func TestInactiveAccounts(t *testing.T) { // section 10 retention, SRV-01
 	e := setup(t)
 	pushed := make(chan string, 10)
-	e.s.sendPush = func(_ context.Context, _ siegelv1.Platform, token string) error { pushed <- token; return nil }
+	e.s.sendPush = func(_ context.Context, _ siegelv1.Platform, token string, _ bool) error { pushed <- token; return nil }
 	old, idle, fresh := e.device("+34600000091"), e.device("+34600000092"), e.device("+34600000093")
 	name := "oldtimer"
 	want(t, e.setUsername(old.DeviceToken, name), "")

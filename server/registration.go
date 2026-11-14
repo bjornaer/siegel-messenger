@@ -32,7 +32,7 @@ type server struct {
 	hmacPhone func(ctx context.Context, phone string) ([]byte, error)
 	signAS    func(ctx context.Context, msg []byte) ([]byte, error)
 	hub       *hub
-	sendPush  func(ctx context.Context, platform siegelv1.Platform, token string) error
+	sendPush  func(ctx context.Context, platform siegelv1.Platform, token string, urgent bool) error
 	vapid     *vapid // M8 part 6: Web Push; nil without SIEGEL_VAPID_KEY
 	pushes    pushes
 	blobs     blobStore

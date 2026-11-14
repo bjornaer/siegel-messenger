@@ -622,14 +622,17 @@ impl Client {
     }
 
     /// Sealed sender (MSG-10): sent without credentials. Returns (revoked, rejected) devices.
+    /// `silent`: nothing for the recipient to see (a receipt, a reaction): a low-priority wake.
     pub async fn send_sealed(
         &self,
         recipients: Vec<pb::SealedRecipient>,
         payload: Vec<u8>,
+        silent: bool,
     ) -> Result<(Vec<pb::DeviceAddress>, Vec<pb::DeviceAddress>), Error> {
         let req = pb::MessagesServiceSendSealedRequest {
             recipients,
             payload,
+            silent,
         };
         let res: pb::MessagesServiceSendSealedResponse =
             self.call("MessagesService/SendSealed", &req, None).await?;
@@ -642,10 +645,12 @@ impl Client {
         token: &str,
         recipients: Vec<pb::DeviceAddress>,
         payload: Vec<u8>,
+        silent: bool,
     ) -> Result<Vec<pb::DeviceAddress>, Error> {
         let req = pb::MessagesServiceSendIdentifiedRequest {
             recipients,
             payload,
+            silent,
         };
         let res: pb::MessagesServiceSendIdentifiedResponse = self
             .call("MessagesService/SendIdentified", &req, Some(token))

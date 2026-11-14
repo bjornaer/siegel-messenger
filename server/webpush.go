@@ -107,10 +107,13 @@ func (v *vapid) jwt(aud string, now time.Time) (string, error) {
 }
 
 // webPushOr sends web devices' pushes itself and hands the others to next.
-func (v *vapid) webPushOr(next func(context.Context, siegelv1.Platform, string) error) func(context.Context, siegelv1.Platform, string) error {
-	return func(ctx context.Context, platform siegelv1.Platform, token string) error {
+func (v *vapid) webPushOr(next func(context.Context, siegelv1.Platform, string, bool) error) func(context.Context, siegelv1.Platform, string, bool) error {
+	return func(ctx context.Context, platform siegelv1.Platform, token string, urgent bool) error {
 		if platform != siegelv1.Platform_PLATFORM_WEB {
-			return next(ctx, platform, token)
+			return next(ctx, platform, token, urgent)
+		}
+		if !urgent {
+			return nil // a browser must show a notification for every push: only for messages
 		}
 		u, err := webPushEndpoint(token)
 		if err != nil {

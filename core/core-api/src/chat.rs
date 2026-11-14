@@ -548,7 +548,13 @@ impl SiegelCore {
             m.encrypt(&mls_group, &content.encode_to_vec())
                 .map_err(mls_err)
         })?;
-        self.send_payload(group_id, payload, only).await
+        // Only what shows a notification wakes phones urgently: Android holds back apps whose
+        // urgent pushes show nothing.
+        let silent = !matches!(
+            content.body,
+            Some(pb::content::Body::Text(_) | pb::content::Body::Attachment(_))
+        );
+        self.send_payload(group_id, payload, only, silent).await
     }
 
     /// GRP-10: a leave proposal is an MLS message of its own.
@@ -557,7 +563,9 @@ impl SiegelCore {
         group_id: &[u8],
         payload: Vec<u8>,
     ) -> Result<(), CoreError> {
-        self.send_payload(group_id, payload, None).await.map(|_| ())
+        self.send_payload(group_id, payload, None, true)
+            .await
+            .map(|_| ())
     }
 
     /// Sends one MLS payload: sealed to contacts whose profile key we hold (MSG-10), identified
@@ -569,6 +577,7 @@ impl SiegelCore {
         group_id: &[u8],
         payload: Vec<u8>,
         only: Option<&[[u8; 16]]>,
+        silent: bool,
     ) -> Result<(Vec<[u8; 16]>, usize), CoreError> {
         let token = self.token()?;
         let mls_group = self.conversation(group_id)?.mls_group;
@@ -601,14 +610,17 @@ impl SiegelCore {
         })?;
         let mut revoked = Vec::new();
         if !sealed.is_empty() {
-            let (r, rejected) = self.net.send_sealed(sealed, payload.clone()).await?;
+            let (r, rejected) = self
+                .net
+                .send_sealed(sealed, payload.clone(), silent)
+                .await?;
             revoked.extend(r);
             identified.extend(rejected);
         }
         if !identified.is_empty() {
             revoked.extend(
                 self.net
-                    .send_identified(&token, identified, payload)
+                    .send_identified(&token, identified, payload, silent)
                     .await?,
             );
         }

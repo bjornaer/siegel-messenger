@@ -105,7 +105,8 @@ func TestFCM(t *testing.T) { // SRV-05
 				}
 			}
 			json.NewDecoder(r.Body).Decode(&m)
-			if r.Header.Get("Authorization") != "Bearer at" || m.Message.Android.Priority != "HIGH" || len(m.Message.Data) != 1 || m.Message.Data["wake"] != "1" {
+			priority := map[bool]string{true: "NORMAL", false: "HIGH"}[m.Message.Token == "low"]
+			if r.Header.Get("Authorization") != "Bearer at" || m.Message.Android.Priority != priority || len(m.Message.Data) != 1 || m.Message.Data["wake"] != "1" {
 				t.Errorf("bad send: %+v", m)
 			}
 			if m.Message.Token == "gone" {
@@ -123,14 +124,17 @@ func TestFCM(t *testing.T) { // SRV-05
 	}
 	send := fcm(g)
 	ctx := context.Background()
-	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "t1"); err != nil {
+	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "t1", true); err != nil {
 		t.Fatal(err)
 	}
-	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "gone"); !errors.Is(err, errPushTokenGone) {
+	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "low", false); err != nil { // nothing to show
+		t.Fatal(err)
+	}
+	if err := send(ctx, siegelv1.Platform_PLATFORM_ANDROID, "gone", true); !errors.Is(err, errPushTokenGone) {
 		t.Fatal("404 must mean token gone", err)
 	}
-	send(ctx, siegelv1.Platform_PLATFORM_IOS, "ios") // not until APNs ships
-	if tokenCalls != 1 || sends != 2 {
+	send(ctx, siegelv1.Platform_PLATFORM_IOS, "ios", true) // not until APNs ships
+	if tokenCalls != 1 || sends != 3 {
 		t.Fatal("token not cached or iOS sent", tokenCalls, sends)
 	}
 }

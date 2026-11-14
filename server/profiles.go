@@ -103,7 +103,7 @@ func (s *server) SendSealed(ctx context.Context, req *connect.Request[siegelv1.M
 		allowed = append(allowed, r.Address)
 	}
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) (err error) {
-		res.Revoked, err = enqueue(ctx, tx, allowed, m.Payload)
+		res.Revoked, err = enqueue(ctx, tx, allowed, m.Payload, !m.Silent)
 		return err
 	})
 	if err != nil {

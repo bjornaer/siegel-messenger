@@ -242,7 +242,7 @@ func (s *server) expireInactive(ctx context.Context) {
 	if err == nil {
 		devices, _ := pgx.CollectRows(rows, pgx.RowTo[[16]byte])
 		for _, d := range devices {
-			s.wakeDevice(d)
+			s.wakeDevice(d, false) // only to see whether the app is still there
 		}
 	}
 	rows, err = s.db.Query(ctx, `SELECT id FROM accounts a WHERE NOT EXISTS (SELECT 1 FROM devices d

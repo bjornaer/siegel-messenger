@@ -66,6 +66,9 @@ message SealedRecipient {
 message MessagesServiceSendSealedRequest {
   repeated SealedRecipient recipients = 1;
   bytes payload = 2;
+  // Nothing to show (receipts, typing, keys): a low-priority wake, no web push. Unset from older
+  // apps, so they stay urgent. Android lowers apps whose urgent pushes show no notification.
+  bool silent = 3;
 }
 
 message MessagesServiceSendSealedResponse {
@@ -78,6 +81,7 @@ message MessagesServiceSendSealedResponse {
 message MessagesServiceSendIdentifiedRequest {
   repeated DeviceAddress recipients = 1;
   bytes payload = 2;
+  bool silent = 3; // as in MessagesServiceSendSealedRequest
 }
 
 message MessagesServiceSendIdentifiedResponse {

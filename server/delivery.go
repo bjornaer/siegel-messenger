@@ -111,7 +111,7 @@ func (s *server) SendIdentified(ctx context.Context, req *connect.Request[siegel
 	}
 	var revoked []*siegelv1.DeviceAddress
 	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) (err error) {
-		revoked, err = enqueue(ctx, tx, req.Msg.Recipients, req.Msg.Payload)
+		revoked, err = enqueue(ctx, tx, req.Msg.Recipients, req.Msg.Payload, !req.Msg.Silent)
 		return err
 	})
 	if err != nil {
@@ -151,11 +151,12 @@ func (s *server) Commit(ctx context.Context, req *connect.Request[siegelv1.Group
 		if tag.RowsAffected() == 0 {
 			return cerr(connect.CodeAborted, "epoch_conflict")
 		}
-		if revoked, err = enqueue(ctx, tx, m.Recipients, m.Commit); err != nil {
+		// Group changes show nothing by themselves: messages that follow are what notify.
+		if revoked, err = enqueue(ctx, tx, m.Recipients, m.Commit, false); err != nil {
 			return err
 		}
 		if len(m.Welcome) > 0 {
-			gone, err := enqueue(ctx, tx, m.WelcomeRecipients, m.Welcome)
+			gone, err := enqueue(ctx, tx, m.WelcomeRecipients, m.Welcome, false)
 			revoked = append(revoked, gone...)
 			return err
 		}
@@ -169,7 +170,8 @@ func (s *server) Commit(ctx context.Context, req *connect.Request[siegelv1.Group
 
 // enqueue queues payload for every recipient device that still exists and wakes their streams.
 // Devices that no longer exist are returned as revoked (ID-13).
-func enqueue(ctx context.Context, tx pgx.Tx, to []*siegelv1.DeviceAddress, payload []byte) ([]*siegelv1.DeviceAddress, error) {
+// enqueue queues the payload for each device and wakes it; `urgent`: it may show a notification.
+func enqueue(ctx context.Context, tx pgx.Tx, to []*siegelv1.DeviceAddress, payload []byte, urgent bool) ([]*siegelv1.DeviceAddress, error) {
 	if len(to) > maxRecipients {
 		return nil, cerr(connect.CodeInvalidArgument, "too_many_recipients")
 	}
@@ -180,8 +182,8 @@ func enqueue(ctx context.Context, tx pgx.Tx, to []*siegelv1.DeviceAddress, paylo
 		if !ok1 || !ok2 {
 			return nil, cerr(connect.CodeInvalidArgument, "recipient_invalid")
 		}
-		tag, err := tx.Exec(ctx, `INSERT INTO queue (account_id, device_id, payload)
-			SELECT $1, $2, $3 WHERE EXISTS (SELECT 1 FROM devices WHERE account_id = $1 AND device_id = $2)`, a, d, payload)
+		tag, err := tx.Exec(ctx, `INSERT INTO queue (account_id, device_id, payload, urgent)
+			SELECT $1, $2, $3, $4 WHERE EXISTS (SELECT 1 FROM devices WHERE account_id = $1 AND device_id = $2)`, a, d, payload, urgent)
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +191,11 @@ func enqueue(ctx context.Context, tx pgx.Tx, to []*siegelv1.DeviceAddress, paylo
 			revoked = append(revoked, r)
 			continue
 		}
-		if _, err := tx.Exec(ctx, `SELECT pg_notify('queue', $1)`, hex.EncodeToString(d[:])); err != nil {
+		note := hex.EncodeToString(d[:])
+		if !urgent {
+			note += silentNote
+		}
+		if _, err := tx.Exec(ctx, `SELECT pg_notify('queue', $1)`, note); err != nil {
 			return nil, err
 		}
 	}

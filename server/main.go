@@ -240,7 +240,7 @@ func main() {
 	case google != nil:
 		s.sendPush = fcm(google)
 	case cfg.dev:
-		s.sendPush = func(context.Context, siegelv1.Platform, string) error {
+		s.sendPush = func(context.Context, siegelv1.Platform, string, bool) error {
 			slog.Info("dev push stub") // never the token
 			return nil
 		}
