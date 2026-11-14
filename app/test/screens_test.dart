@@ -405,7 +405,7 @@ class FakeCore implements Core {
     chatList.add(
       ChatSummary(
         groupId: id,
-        peerAccount: Uint8List(16),
+        peerAccount: _account(username),
         peerUsername: username,
         request: false,
         peerVerified: false,
@@ -645,6 +645,9 @@ class FakeCore implements Core {
   final groups = <String, GroupInfoView>{};
   final names = <String, String>{};
   Uint8List _account(String username) {
+    for (final e in names.entries) {
+      if (e.value == '@$username') return base64Decode(e.key); // one account per username
+    }
     final a = Uint8List.fromList([names.length + 1]);
     names[base64Encode(a)] = '@$username';
     return a;
@@ -1779,6 +1782,27 @@ void main() {
     expect(find.widgetWithText(ListTile, '@bob'), findsOneWidget, reason: 'the field cleared');
     await tapText(t, 'Create');
     expect(core.groupInfo(groupId: core.chatList.last.groupId).members, hasLength(2));
+  });
+
+  testWidgets('adding people to a group suggests the people they chat with who are not in it yet', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await core.startChat(username: 'bob');
+    await core.startChat(username: 'carol');
+    await core.startChat(username: 'dave');
+    final id = await core.createGroup(name: 'Hikers', usernames: ['bob']);
+    await t.pumpWidget(wrap(GroupInfoScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    await tapText(t, 'Add people');
+    expect(find.widgetWithText(ListTile, '@bob'), findsNothing, reason: 'in the group already');
+    await t.tap(find.widgetWithText(ListTile, '@carol'));
+    await t.pump();
+    await t.tap(find.widgetWithText(ListTile, '@dave'));
+    await t.pump();
+    await t.tap(find.widgetWithText(TextButton, 'Add'));
+    await t.pumpAndSettle();
+    expect(core.calls, contains('addMembers carol,dave'));
   });
 
   testWidgets('groups: create, sender names, system lines, rename, leave (M3)', (t) async {

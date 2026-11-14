@@ -101,19 +101,6 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
     );
   }
 
-  List<ChatSummary> _suggestions() {
-    final q = _clean(_person.text);
-    return [
-      for (final c in widget.core.chats())
-        if (!c.isGroup &&
-            !c.request &&
-            c.peerUsername != null &&
-            !_people.contains(c.peerUsername) &&
-            (c.peerUsername!.contains(q) || (c.peerDisplayName ?? '').toLowerCase().contains(q)))
-          c,
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -146,15 +133,94 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
             child: Text(t.create),
           ),
           const SizedBox(height: 8),
-          // The people they chat with, narrowed as they type: no usernames to remember.
-          for (final c in _suggestions())
-            ListTile(
-              leading: Avatar(core: widget.core, account: c.peerAccount),
-              title: Text(chatTitle(t, c), maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: (c.peerDisplayName ?? '').isEmpty ? null : Text('@${c.peerUsername}'),
-              trailing: const Icon(Icons.add),
-              onTap: () => _add(c.peerUsername),
-            ),
+          ..._suggested(t, widget.core, _person.text, _people, const [], _add),
+        ],
+      ),
+    );
+  }
+}
+
+/// The people they chat with, narrowed as they type, so no usernames to remember. Leaves out
+/// who's [picked] already and accounts [inGroup].
+List<Widget> _suggested(
+  AppLocalizations t,
+  Core core,
+  String typed,
+  List<String> picked,
+  List<List<int>> inGroup,
+  void Function(String) add,
+) {
+  final q = _clean(typed);
+  return [
+    for (final c in core.chats())
+      if (!c.isGroup &&
+          !c.request &&
+          c.peerUsername != null &&
+          !picked.contains(c.peerUsername) &&
+          !inGroup.any((a) => listEquals(a, c.peerAccount)) &&
+          (c.peerUsername!.contains(q) || (c.peerDisplayName ?? '').toLowerCase().contains(q)))
+        ListTile(
+          leading: Avatar(core: core, account: c.peerAccount),
+          title: Text(chatTitle(t, c), maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: (c.peerDisplayName ?? '').isEmpty ? null : Text('@${c.peerUsername}'),
+          trailing: const Icon(Icons.add),
+          onTap: () => add(c.peerUsername!),
+        ),
+  ];
+}
+
+/// GRP-09: who to add to a group: typed usernames or suggestions. Pops the usernames.
+class _AddPeopleScreen extends StatefulWidget {
+  const _AddPeopleScreen({required this.core, required this.members});
+  final Core core;
+  final List<List<int>> members;
+
+  @override
+  State<_AddPeopleScreen> createState() => _AddPeopleScreenState();
+}
+
+class _AddPeopleScreenState extends State<_AddPeopleScreen> {
+  final _person = TextEditingController();
+  final _people = <String>[];
+
+  void _add([String? username]) {
+    final u = _clean(username ?? _person.text);
+    if (u.isEmpty || _people.contains(u)) return;
+    setState(() => _people.add(u));
+    _person.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return Scaffold(
+      appBar: SiegelBar(
+        title: Text(t.addPeople),
+        actions: [
+          TextButton(
+            onPressed: _people.isEmpty && _person.text.trim().isEmpty
+                ? null
+                : () {
+                    _add();
+                    Navigator.pop(context, _people);
+                  },
+            child: Text(t.add),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _AddPerson(controller: _person, onAdd: _add, onChanged: () => setState(() {})),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final p in _people)
+                InputChip(label: Text('@$p'), onDeleted: () => setState(() => _people.remove(p))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._suggested(t, widget.core, _person.text, _people, widget.members, _add),
         ],
       ),
     );
@@ -373,9 +439,14 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   title: Text(t.addPeople),
                   enabled: !_busy,
                   onTap: () async {
-                    final u = await _ask(t.addPeople, t.usernameLabel);
-                    if (u != null && _clean(u).isNotEmpty) {
-                      await _run(() => core.addMembers(groupId: widget.groupId, usernames: [_clean(u)]));
+                    final members = [for (final m in g!.members) m.account];
+                    final picked = await Navigator.of(context).push<List<String>>(
+                      MaterialPageRoute(
+                        builder: (_) => _AddPeopleScreen(core: core, members: members),
+                      ),
+                    );
+                    if (picked != null && picked.isNotEmpty) {
+                      await _run(() => core.addMembers(groupId: widget.groupId, usernames: picked));
                     }
                   },
                 ),
