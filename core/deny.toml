@@ -16,6 +16,10 @@ ignore = [
   # 0.13 for P-256/P-384/K-256 under OpenMLS. We only use X25519/Ed25519 (CIPHERSUITE in
   # core-crypto/src/mls.rs), so no secret goes through it. Revisit when OpenMLS moves to 0.7.
   { id = "RUSTSEC-2026-0387", reason = "NIST/secp curves unused: X25519/Ed25519 suite only" },
+  # SQLite < 3.54 with a crafted database and -wal pair (local). Ours live in app-private storage:
+  # whoever can plant files there has the data already. The fix (sqlcipher-src 420) needs
+  # rusqlite 0.42, which refinery 0.10.1 doesn't take yet: bump both together.
+  { id = "RUSTSEC-2026-0502", reason = "local crafted db/wal pair; app-private storage; fix blocked on refinery" },
 ]
 
 [licenses]
