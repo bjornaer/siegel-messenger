@@ -30,7 +30,7 @@ import 'package:siegel/media.dart';
 import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/phone_field.dart';
-import 'package:siegel/push.dart' show notificationStrings;
+import 'package:siegel/push.dart' show notificationId, notificationStrings;
 import 'package:siegel/report.dart';
 import 'package:siegel/sticker_editor.dart';
 import 'package:siegel/stickers.dart';
@@ -1624,6 +1624,11 @@ void main() {
     await tapText(t, '@carol');
     expect(core.forwards, [base64Encode(other)]);
     expect(core.history[base64Encode(other)]!.last.attachment?.fileName, 'plan.pdf');
+  });
+
+  test('a chat\'s notification ID is the same in every isolate and run, so opening the chat clears it', () {
+    expect(notificationId([1, 2, 3, 250]), 2033456259); // fixed: computed, not seeded
+    expect(notificationId([1, 2, 3, 251]), isNot(2033456259));
   });
 
   test('auto-download defaults: photos on Wi-Fi and mobile data, video and files manual (MED-12)', () {

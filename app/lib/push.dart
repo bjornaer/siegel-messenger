@@ -52,12 +52,21 @@ bool appVisible() => switch (WidgetsBinding.instance.lifecycleState) {
   _ => true,
 };
 
-int _notificationId(List<int> groupId) => Object.hashAll(groupId) & 0x7fffffff;
+/// One per chat, the same in every isolate and every run (FNV-1a): the background isolate shows
+/// it, the app clears it. Object.hashAll is seeded per isolate, so those never matched.
+@visibleForTesting
+int notificationId(List<int> groupId) {
+  var h = 0x811c9dc5;
+  for (final b in groupId) {
+    h = ((h ^ b) * 0x01000193) & 0x7fffffff;
+  }
+  return h;
+}
 
 /// The chat is on screen: its notification is stale.
 Future<void> clearNotification(List<int> groupId) async {
   if (kIsWeb) return; // M8: the browser gets notifications in part 6
-  await _notifications.cancel(id: _notificationId(groupId));
+  await _notifications.cancel(id: notificationId(groupId));
 }
 
 /// One notification per chat, replaced by its newest message. Hidden on the lock screen
@@ -74,9 +83,9 @@ Future<void> notifyMessage(Core core, MessageView m) async {
       ? '${memberName(t, core, m.senderAccount)}: ${messageText(t, m)}'
       : messageText(t, m);
   // M8: a hidden browser tab shows it itself; a closed one only gets the content-free push.
-  if (kIsWeb) return browser.notify(title ?? 'Siegel', body, '${_notificationId(m.groupId)}');
+  if (kIsWeb) return browser.notify(title ?? 'Siegel', body, '${notificationId(m.groupId)}');
   await _notifications.show(
-    id: _notificationId(m.groupId),
+    id: notificationId(m.groupId),
     title: title,
     body: body,
     notificationDetails: NotificationDetails(
