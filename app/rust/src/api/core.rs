@@ -1142,6 +1142,12 @@ impl Core {
         }
     }
 
+    /// Sends what was queued but never went (the app was closed or killed); uploads resume
+    /// where they stopped. The app runs it once it's open, apart from the stream.
+    pub async fn resume_sending(&self) -> Result<(), CoreError> {
+        Ok(self.0.resume_sending().await?)
+    }
+
     /// MED-12: downloads an attachment ahead of time, without opening it.
     pub async fn fetch_attachment(&self, message_id: Vec<u8>) -> Result<(), CoreError> {
         Ok(self.0.fetch_attachment(&message_id).await?)

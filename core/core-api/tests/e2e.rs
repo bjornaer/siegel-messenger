@@ -1678,9 +1678,8 @@ async fn big_files_go_in_parts_and_resume() {
         tokio::time::sleep(std::time::Duration::from_millis(1)).await;
     }
     sending.abort();
-    if !matches!(sending.await, Ok(Ok(()))) {
-        alice.retry(&m.message_id).await.unwrap();
-    }
+    let _ = sending.await;
+    alice.resume_sending().await.unwrap(); // as the app does when it next opens
     let Event::Message(got) = until(&mut be, |e| matches!(e, Event::Message(_))).await else {
         unreachable!()
     };

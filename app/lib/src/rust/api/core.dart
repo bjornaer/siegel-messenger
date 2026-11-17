@@ -269,6 +269,10 @@ abstract class Core implements RustOpaqueInterface {
   /// A new secret: links shared before lead to ordinary message requests.
   void resetContactLink();
 
+  /// Sends what was queued but never went (the app was closed or killed); uploads resume
+  /// where they stopped. The app runs it once it's open, apart from the stream.
+  Future<void> resumeSending();
+
   Future<void> retry({required List<int> messageId});
 
   Future<void> revokeGroupLink({

@@ -170,6 +170,10 @@ pub struct SiegelCore {
     media_dir: std::path::PathBuf,
     /// Uploads and downloads under way, by message: (bytes done, bytes in all).
     transfers: Mutex<std::collections::HashMap<Vec<u8>, (u64, u64)>>,
+    /// Messages a `retry` is sending right now: a second one for the same waits its turn out.
+    sending: Mutex<std::collections::HashSet<Vec<u8>>>,
+    /// Attachments being downloaded right now.
+    fetching: Mutex<std::collections::HashSet<Vec<u8>>>,
 }
 
 impl SiegelCore {
@@ -190,6 +194,8 @@ impl SiegelCore {
                 dir
             },
             transfers: Mutex::default(),
+            sending: Mutex::default(),
+            fetching: Mutex::default(),
         })
     }
 
@@ -500,5 +506,30 @@ impl SiegelCore {
             Some(s) => storage(Box::new(s).wipe()),
             None => Ok(()),
         }
+    }
+}
+
+/// A message's place in a set of those being worked on, given up when dropped: also when the
+/// work is cancelled half-way (the app closed, a task aborted), so none stays stuck.
+pub(crate) struct Claim<'a> {
+    set: &'a Mutex<std::collections::HashSet<Vec<u8>>>,
+    id: Vec<u8>,
+}
+
+impl<'a> Claim<'a> {
+    pub(crate) fn take(
+        set: &'a Mutex<std::collections::HashSet<Vec<u8>>>,
+        id: &[u8],
+    ) -> Option<Self> {
+        set.lock().unwrap().insert(id.to_vec()).then(|| Self {
+            set,
+            id: id.to_vec(),
+        })
+    }
+}
+
+impl Drop for Claim<'_> {
+    fn drop(&mut self) {
+        self.set.lock().unwrap().remove(&self.id);
     }
 }

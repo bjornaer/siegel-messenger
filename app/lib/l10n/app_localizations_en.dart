@@ -353,6 +353,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'If you turn these off, you won\'t see when others read your messages either.';
 
   @override
+  String get sendingFiles => 'Sending files…';
+
+  @override
   String get linkPreviews => 'Link previews';
 
   @override

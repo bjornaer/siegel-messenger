@@ -95,6 +95,16 @@ class ChatService extends ChangeNotifier {
     // frozen connection looks online to it, and nothing arrives until its ping fails (~40 s).
     _lifecycle = AppLifecycleListener(onHide: pause, onShow: resume);
     unawaited(_loop());
+    // What the app was sending when it was last closed goes now; uploads carry on where they were.
+    final t = lookupAppLocalizations(
+      AppLocalizations.supportedLocales.firstWhere(
+        (l) => l.languageCode == WidgetsBinding.instance.platformDispatcher.locale.languageCode,
+        orElse: () => const Locale('en'),
+      ),
+    );
+    unawaited(
+      keepingAlive(t.sendingFiles, core.resumeSending).then((_) => refresh(), onError: (Object _) => refresh()),
+    );
   }
 
   void pause() {
@@ -1091,6 +1101,10 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _replyTo = null);
     if (o.path.isNotEmpty) {
       // Big ones (phones): shown at once with a progress bar, uploaded behind it, resumable.
+      // The app stays up from now (encrypting a big video takes a while) until it's uploaded:
+      // Android only lets the app start that while it's in front.
+      final done = Completer<void>();
+      unawaited(keepingAlive(AppLocalizations.of(context)!.sendingFiles, () => done.future));
       final MessageView m;
       try {
         m = await core.queueAttachmentFile(
@@ -1105,8 +1119,12 @@ class _ChatScreenState extends State<ChatScreen> {
           replyTo: reply?.messageId,
         );
       } on CoreError catch (e) {
+        done.complete();
         if (mounted) showError(context, e);
         return;
+      } catch (_) {
+        done.complete(); // never leave the notification up
+        rethrow;
       } finally {
         if (o.temp) File(o.path).delete().ignore(); // encrypted into the chat's own copy
       }
@@ -1116,6 +1134,8 @@ class _ChatScreenState extends State<ChatScreen> {
           await core.retry(messageId: m.messageId);
         } on CoreError {
           // Marked failed, with a retry that carries on where it stopped (MSG-04).
+        } finally {
+          done.complete();
         }
         service.refresh();
       });

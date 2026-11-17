@@ -426,19 +426,15 @@ impl SiegelCore {
             return Ok(());
         }
         // One download per attachment: a second caller waits for the first.
-        loop {
-            {
-                let mut t = self.transfers.lock().unwrap();
-                if !t.contains_key(message_id) {
-                    t.insert(message_id.to_vec(), (0, 1));
-                    break;
-                }
+        let _going = loop {
+            if let Some(c) = crate::Claim::take(&self.fetching, message_id) {
+                break c;
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             if path.exists() {
                 return Ok(());
             }
-        }
+        };
         let result = async {
             let io = |_| CoreError::new("storage");
             let len = core_media::blob_len(a.size as usize) as u64;
@@ -474,7 +470,7 @@ impl SiegelCore {
             std::fs::rename(&part_path, &path).map_err(io)
         }
         .await;
-        self.transfers.lock().unwrap().remove(message_id);
+        self.track(message_id, 1, 1); // done or failed: no bar
         result
     }
 
@@ -641,6 +637,14 @@ impl SiegelCore {
                 Err(e)
             }
         }
+    }
+
+    /// Whether a queued file still has (some of) its upload to do.
+    pub(crate) fn upload_pending(&self, message_id: &[u8]) -> bool {
+        self.get(&upload_key(message_id))
+            .ok()
+            .flatten()
+            .is_some_and(|s| !s.is_empty())
     }
 
     fn attachment_of(&self, message_id: &[u8]) -> Result<pb::Attachment, CoreError> {

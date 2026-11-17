@@ -358,6 +358,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Si las desactivas, tampoco verás cuándo leen otros tus mensajes.';
 
   @override
+  String get sendingFiles => 'Enviando archivos…';
+
+  @override
   String get linkPreviews => 'Vistas previas de enlaces';
 
   @override

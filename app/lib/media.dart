@@ -1487,3 +1487,20 @@ class _TransferBarState extends State<TransferBar> {
     );
   }
 }
+
+int _uploading = 0;
+
+/// Phones: while files upload, a foreground service and its notification keep the app running with
+/// the screen off or another app open (TransferService). Off when the last one is done.
+Future<T> keepingAlive<T>(String note, Future<T> Function() f) async {
+  if (isAndroid && _uploading++ == 0) {
+    await appChannel.invokeMethod<void>('transfersStart', note).catchError((Object _) {});
+  }
+  try {
+    return await f();
+  } finally {
+    if (isAndroid && --_uploading == 0) {
+      appChannel.invokeMethod<void>('transfersStop').catchError((Object _) {}).ignore();
+    }
+  }
+}

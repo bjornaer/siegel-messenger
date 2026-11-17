@@ -690,6 +690,12 @@ abstract class AppLocalizations {
   /// **'If you turn these off, you won\'t see when others read your messages either.'**
   String get readReceiptsHelp;
 
+  /// No description provided for @sendingFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending files…'**
+  String get sendingFiles;
+
   /// No description provided for @linkPreviews.
   ///
   /// In en, this message translates to:

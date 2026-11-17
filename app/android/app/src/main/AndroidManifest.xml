@@ -17,6 +17,8 @@
     <!-- Live location (up to 15 minutes): an ongoing notification keeps the app running while shared. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <!-- Videos and files up to 1 GB: an ongoing notification keeps the app running while they upload. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
@@ -83,7 +85,11 @@
             android:name=".LiveLocationService"
             android:exported="false"
             android:foregroundServiceType="location"/>
-        <!-- Opening a received file in another app: a content:// link to its decrypted copy in the cache. -->
+        <service
+            android:name=".TransferService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"/>
+        <!-- Opening a received file in another app: a content:// link to the core's decrypted copy. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

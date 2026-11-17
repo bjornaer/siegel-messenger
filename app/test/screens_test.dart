@@ -545,6 +545,10 @@ class FakeCore implements Core {
     fetched.add(base64Encode(messageId));
   }
 
+  @override
+  Future<void> resumeSending() async => resumed++;
+  int resumed = 0;
+
   /// Downloaded ahead of time (fetchAttachment).
   final fetched = <String>{};
 

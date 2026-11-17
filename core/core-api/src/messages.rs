@@ -229,6 +229,29 @@ impl SiegelCore {
     /// Sends a Failed message again with the same ID; receivers deduplicate (MSG-03).
     /// Sends a failed message again, or a queued one (`queue_text`) for the first time.
     pub async fn retry(&self, message_id: &[u8]) -> Result<(), CoreError> {
+        let Some(_going) = crate::Claim::take(&self.sending, message_id) else {
+            return Ok(()); // already going (the app's send and `resume_sending` can meet)
+        };
+        self.retry_once(message_id).await
+    }
+
+    /// Sends what the app queued but never got to send (it was closed or killed), and files
+    /// whose upload broke off (their uploads carry on where they stopped). Other failed
+    /// messages wait for the user's retry (MSG-04).
+    pub async fn resume_sending(&self) -> Result<(), CoreError> {
+        for m in self.with_store(|s| storage(s.unsent_messages()))? {
+            #[cfg(not(target_family = "wasm"))]
+            let uploading = self.upload_pending(&m.message_id);
+            #[cfg(target_family = "wasm")]
+            let uploading = false;
+            if m.status == Status::Sending || uploading {
+                let _ = self.retry(&m.message_id).await;
+            }
+        }
+        Ok(())
+    }
+
+    async fn retry_once(&self, message_id: &[u8]) -> Result<(), CoreError> {
         let mut msg = self
             .with_store(|s| storage(s.message(message_id)))?
             .filter(|m| m.outgoing && matches!(m.status, Status::Failed | Status::Sending))

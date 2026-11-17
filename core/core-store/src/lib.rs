@@ -127,6 +127,8 @@ pub trait Store: Send {
     fn message(&self, message_id: &[u8]) -> Result<Option<Message>>;
     /// CLI-05: every message not deleted for everyone, newest first, for search.
     fn all_messages(&self) -> Result<Vec<Message>>;
+    /// Ours not sent yet: still sending (the app stopped before they went) or failed.
+    fn unsent_messages(&self) -> Result<Vec<Message>>;
     /// Rewrites body, status and the edited/deleted flags; deleting also drops reactions
     /// and earlier versions.
     fn update_message(&self, m: &Message) -> Result<()>;
@@ -431,6 +433,13 @@ impl Store for SqlCipher {
 
     fn all_messages(&self) -> Result<Vec<Message>> {
         self.messages_where("WHERE deleted = 0 ORDER BY seq DESC", [])
+    }
+
+    fn unsent_messages(&self) -> Result<Vec<Message>> {
+        self.messages_where(
+            "WHERE outgoing = 1 AND deleted = 0 AND status IN (?1, ?2) ORDER BY seq",
+            [Status::Sending as i64, Status::Failed as i64],
+        )
     }
 
     fn update_message(&self, m: &Message) -> Result<()> {
