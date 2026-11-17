@@ -172,7 +172,8 @@ pub struct SiegelCore {
     transfers: Mutex<std::collections::HashMap<Vec<u8>, (u64, u64)>>,
     /// Messages a `retry` is sending right now: a second one for the same waits its turn out.
     sending: Mutex<std::collections::HashSet<Vec<u8>>>,
-    /// Attachments being downloaded right now.
+    /// Attachments being downloaded right now (phones: the browser downloads into memory).
+    #[cfg(not(target_family = "wasm"))]
     fetching: Mutex<std::collections::HashSet<Vec<u8>>>,
 }
 
@@ -195,6 +196,7 @@ impl SiegelCore {
             },
             transfers: Mutex::default(),
             sending: Mutex::default(),
+            #[cfg(not(target_family = "wasm"))]
             fetching: Mutex::default(),
         })
     }
