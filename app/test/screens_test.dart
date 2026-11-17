@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show Uint64List;
@@ -33,7 +34,7 @@ import 'package:siegel/media.dart';
 import 'package:siegel/minors.dart';
 import 'package:siegel/onboarding.dart';
 import 'package:siegel/phone_field.dart';
-import 'package:siegel/push.dart' show notificationId, notificationStrings;
+import 'package:siegel/push.dart' show askApp, notificationId, notificationStrings;
 import 'package:siegel/report.dart';
 import 'package:siegel/sticker_editor.dart';
 import 'package:siegel/stickers.dart';
@@ -1834,6 +1835,18 @@ void main() {
   test('a chat\'s notification ID is the same in every isolate and run, so opening the chat clears it', () {
     expect(notificationId([1, 2, 3, 250]), 2033456259); // fixed: computed, not seeded
     expect(notificationId([1, 2, 3, 251]), isNot(2033456259));
+  });
+
+  test('a push the app no longer answers is fetched in the background, not dropped', () async {
+    final gone = ReceivePort()..close(); // its name outlived it
+    expect(await askApp(gone.sendPort, answer: const Duration(milliseconds: 200)), isFalse);
+    final app = ReceivePort();
+    app.listen((r) {
+      (r as SendPort).send(false);
+      Timer(const Duration(milliseconds: 50), () => r.send(true));
+    });
+    expect(await askApp(app.sendPort), isTrue);
+    app.close();
   });
 
   test('auto-download defaults: photos on Wi-Fi and mobile data, video and files manual (MED-12)', () {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui' show IsolateNameServer, PlatformDispatcher;
 
@@ -103,19 +104,32 @@ Future<void> notifyMessage(Core core, MessageView m) async {
 
 Core? _backgroundCore;
 
+/// The app holds the database and stream: let it fetch, and stay until it is done (returning at
+/// once lets Android freeze the app again before anything arrives). False when nobody answers:
+/// the name outlives the app's isolate (Back, or Android closing the screen to save memory), and
+/// a message to a dead isolate just disappears, so this handler must fetch itself.
+@visibleForTesting
+Future<bool> askApp(SendPort app, {Duration answer = const Duration(seconds: 3)}) async {
+  final replies = ReceivePort();
+  final alive = Completer<void>(), done = Completer<void>();
+  replies.listen((m) => (m == true ? done : alive).complete());
+  app.send(replies.sendPort);
+  try {
+    await alive.future.timeout(answer);
+    await done.future.timeout(const Duration(seconds: 18), onTimeout: () {});
+    return true;
+  } on TimeoutException {
+    return false;
+  } finally {
+    replies.close();
+  }
+}
+
 /// Runs in a background isolate when a push arrives and the app isn't in the foreground.
 @pragma('vm:entry-point')
 Future<void> _onBackgroundPush(RemoteMessage _) async {
   final running = IsolateNameServer.lookupPortByName(_mainPort);
-  if (running != null) {
-    // The app holds the database and stream: let it fetch, and stay in this handler until it
-    // is done. Returning at once lets Android freeze the app again before anything arrives.
-    final done = ReceivePort();
-    running.send(done.sendPort);
-    await done.first.timeout(const Duration(seconds: 18), onTimeout: () => null);
-    done.close();
-    return;
-  }
+  if (running != null && await askApp(running)) return;
   // ponytail: if the user opens the app during these seconds, both isolates use the database
   // at once. SQLite locking serializes writes; move this into the core with a file lock if it bites.
   // A process woken for one push stays around for the next: open everything once.
@@ -137,8 +151,10 @@ Future<void> startPush(Core core, Future<void> Function() fetch) async {
   if (kIsWeb) return; // web push is M8 part 6
   final port = ReceivePort()
     ..listen((reply) async {
+      if (reply is! SendPort) return;
+      reply.send(false); // alive; see askApp
       await fetch();
-      if (reply is SendPort) reply.send(null);
+      reply.send(true);
     });
   IsolateNameServer.removePortNameMapping(_mainPort);
   IsolateNameServer.registerPortWithName(port.sendPort, _mainPort);
