@@ -1103,6 +1103,70 @@ impl Core {
         Ok(self.0.attachment_data(&message_id).await?)
     }
 
+    /// A file of up to 1 GB to send from `path` (phones): shown at once as sending; deliver it
+    /// with `retry`, which uploads it in parts and resumes a dropped upload.
+    #[allow(clippy::too_many_arguments)]
+    #[cfg_attr(target_family = "wasm", allow(unused_variables))]
+    pub async fn queue_attachment_file(
+        &self,
+        group_id: Vec<u8>,
+        path: String,
+        mime_type: String,
+        file_name: String,
+        duration_ms: u32,
+        width: u32,
+        height: u32,
+        thumbnail: Vec<u8>,
+        reply_to: Option<Vec<u8>>,
+    ) -> Result<MessageView, CoreError> {
+        #[cfg(target_family = "wasm")]
+        return Err(CoreError {
+            code: "not_supported".into(),
+        });
+        #[cfg(not(target_family = "wasm"))]
+        {
+            let a = core_api::OutgoingAttachment {
+                mime_type,
+                file_name,
+                duration_ms,
+                width,
+                height,
+                thumbnail,
+                ..Default::default()
+            };
+            Ok(self
+                .0
+                .queue_attachment_file(&group_id, &path, a, reply_to.as_deref())
+                .await?
+                .into())
+        }
+    }
+
+    /// MED-12: downloads an attachment ahead of time, without opening it.
+    pub async fn fetch_attachment(&self, message_id: Vec<u8>) -> Result<(), CoreError> {
+        Ok(self.0.fetch_attachment(&message_id).await?)
+    }
+
+    /// The attachment decrypted into a file to open or play (phones), downloading it first.
+    #[cfg_attr(target_family = "wasm", allow(unused_variables))]
+    pub async fn attachment_file(&self, message_id: Vec<u8>) -> Result<String, CoreError> {
+        #[cfg(target_family = "wasm")]
+        return Err(CoreError {
+            code: "not_supported".into(),
+        });
+        #[cfg(not(target_family = "wasm"))]
+        Ok(self.0.attachment_file(&message_id).await?)
+    }
+
+    /// An upload or download under way: [bytes done, bytes in all]; empty when none.
+    #[frb(sync)]
+    pub fn transfer_progress(&self, message_id: Vec<u8>) -> Vec<u64> {
+        self.0
+            .transfer_progress(&message_id)
+            .map(|(d, t)| vec![d, t])
+            .unwrap_or_default()
+    }
+
     pub async fn retry(&self, message_id: Vec<u8>) -> Result<(), CoreError> {
         Ok(self.0.retry(&message_id).await?)
     }

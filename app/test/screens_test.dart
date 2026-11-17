@@ -2,7 +2,10 @@
 // fake core. Real network and storage paths are covered by core-api/tests/e2e.rs.
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
+
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show Uint64List;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:archive/archive.dart';
@@ -500,6 +503,7 @@ class FakeCore implements Core {
 
   @override
   bool attachmentDownloaded({required List<int> messageId}) => // ours stay on the device
+      fetched.contains(base64Encode(messageId)) ||
       history.values.expand((l) => l).any((m) => listEquals(m.messageId, messageId) && m.outgoing);
 
   final forwards = <String>[];
@@ -522,6 +526,71 @@ class FakeCore implements Core {
 
   /// Attachments this fake can hand out, by message ID.
   final blobs = <String, Uint8List>{};
+
+  @override
+  Future<String> attachmentFile({required List<int> messageId}) async {
+    calls.add('attachmentFile');
+    fetched.add(base64Encode(messageId));
+    final d = blobs[base64Encode(messageId)];
+    if (d == null) throw const CoreError(code: 'attachment_expired');
+    final f = File('${Directory.systemTemp.createTempSync('siegel-test').path}/a');
+    f.writeAsBytesSync(d);
+    return f.path;
+  }
+
+  @override
+  Future<void> fetchAttachment({required List<int> messageId}) async {
+    calls.add('fetchAttachment');
+    if (blobs[base64Encode(messageId)] == null) throw const CoreError(code: 'attachment_expired');
+    fetched.add(base64Encode(messageId));
+  }
+
+  /// Downloaded ahead of time (fetchAttachment).
+  final fetched = <String>{};
+
+  @override
+  Future<MessageView> queueAttachmentFile({
+    required List<int> groupId,
+    required String path,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
+    Uint8List? replyTo,
+  }) async {
+    calls.add('queueAttachmentFile $fileName');
+    final m = copy(
+      msg(
+        groupId,
+        '',
+        outgoing: true,
+        replyTo: replyTo,
+        attachment: AttachmentView(
+          mimeType: mimeType,
+          fileName: fileName,
+          size: BigInt.from(File(path).lengthSync()),
+          durationMs: durationMs,
+          voiceNote: false,
+          waveform: Uint8List(0),
+          width: width,
+          height: height,
+          thumbnail: Uint8List.fromList(thumbnail),
+          sticker: false,
+          viewOnce: false,
+          gone: false,
+        ),
+      ),
+      status: MessageStatus.sending,
+    );
+    blobs[base64Encode(m.messageId)] = File(path).readAsBytesSync();
+    (history[base64Encode(groupId)] ??= []).add(m);
+    return m;
+  }
+
+  @override
+  Uint64List transferProgress({required List<int> messageId}) => Uint64List(0);
 
   Uint8List? mine;
   final avatars = <String, Uint8List>{};
@@ -1713,7 +1782,7 @@ void main() {
     // A tap opens the file in another app, every time.
     final opened = <List<Object?>>[];
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (c) async {
-      if (c.method == 'openFile') opened.add(c.arguments as List<Object?>);
+      if (c.method == 'openPath') opened.add(c.arguments as List<Object?>);
       return null;
     });
     addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
@@ -1721,11 +1790,14 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('plan.pdf'));
     await t.pumpAndSettle();
-    expect(opened.map((a) => (a[0], a[2])), [('plan.pdf', 'application/pdf'), ('plan.pdf', 'application/pdf')]);
+    expect(opened.map((a) => (File(a[0] as String).lengthSync(), a[1])), [
+      (4, 'application/pdf'),
+      (4, 'application/pdf'),
+    ], reason: 'the decrypted file, opened in place');
     expect(button('plan.pdf', 'Open'), findsOneWidget, reason: 'downloaded now');
     await t.tap(button('mine.pdf', 'Open'));
     await t.pumpAndSettle();
-    expect(opened.last[0], 'mine.pdf');
+    expect(opened.length, 3);
 
     await t.longPress(find.text('plan.pdf'));
     await t.pumpAndSettle();

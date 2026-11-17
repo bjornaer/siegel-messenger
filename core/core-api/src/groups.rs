@@ -661,6 +661,7 @@ impl SiegelCore {
         let r = pb::Attachment {
             blob_id: a.blob_id.to_vec(),
             sha256: a.sha256.to_vec(),
+            size: a.size as i64, // the blob's length follows from it
             ..Default::default()
         };
         let blob = self.download(&r).await?;

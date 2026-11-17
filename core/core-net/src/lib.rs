@@ -412,26 +412,41 @@ impl Client {
         .map(|_| ())
     }
 
-    pub async fn put_blob(&self, upload_path: &str, blob: Vec<u8>) -> Result<(), Error> {
+    /// Uploads part `n` of a blob (server/blobs.go). `Ok(Some(k))`: the server expects part `k`
+    /// instead (resume there). "upload_gone": the upload finished or expired.
+    pub async fn put_part(
+        &self,
+        upload_path: &str,
+        n: usize,
+        part: Vec<u8>,
+    ) -> Result<Option<usize>, Error> {
         let res = self
             .http
-            .put(format!("{}{upload_path}", self.base))
-            .body(blob)
+            .put(format!("{}{upload_path}&part={n}", self.base))
+            .body(part)
             .send()
             .await
             .map_err(|_| Error::new("network"))?;
-        if !res.status().is_success() {
-            return Err(Error::new("upload_failed"));
+        match res.status().as_u16() {
+            200..=299 => Ok(None),
+            409 => res
+                .headers()
+                .get("X-Next-Part")
+                .and_then(|v| v.to_str().ok()?.parse().ok())
+                .map(Some)
+                .ok_or(Error::new("upload_failed")),
+            404 => Err(Error::new("upload_gone")),
+            _ => Err(Error::new("upload_failed")),
         }
-        Ok(())
     }
 
-    /// The ciphertext, or "attachment_expired" once the server has deleted it (MED-13).
-    pub async fn get_blob(&self, token: &str, blob_id: &[u8]) -> Result<Vec<u8>, Error> {
+    /// Part `n` of a blob's ciphertext, or "attachment_expired" once the server has deleted it
+    /// (MED-13).
+    pub async fn get_part(&self, token: &str, blob_id: &[u8], n: usize) -> Result<Vec<u8>, Error> {
         let hex: String = blob_id.iter().map(|b| format!("{b:02x}")).collect();
         let res = self
             .http
-            .get(format!("{}/v1/blobs/{hex}", self.base))
+            .get(format!("{}/v1/blobs/{hex}?part={n}", self.base))
             .bearer_auth(token)
             .send()
             .await

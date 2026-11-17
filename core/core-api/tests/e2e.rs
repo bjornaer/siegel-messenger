@@ -1638,6 +1638,69 @@ async fn link_previews_travel_with_the_text() {
 }
 
 #[tokio::test]
+async fn big_files_go_in_parts_and_resume() {
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, OutgoingAttachment};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+    let dir = std::env::temp_dir().join(format!("siegel-big-{}", fresh_number()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let src = dir.join("clip.mp4");
+    let data: Vec<u8> = (0..20u32 << 20).map(|i| (i % 251) as u8).collect(); // three parts
+    std::fs::write(&src, &data).unwrap();
+    let meta = || OutgoingAttachment {
+        mime_type: "video/mp4".into(),
+        file_name: "clip.mp4".into(),
+        ..Default::default()
+    };
+    let m = alice
+        .queue_attachment_file(&chat, src.to_str().unwrap(), meta(), None)
+        .await
+        .unwrap();
+    // The upload is cut off after its first part; a retry carries on from there.
+    let sending = {
+        let (a, id) = (alice.clone(), m.message_id.clone());
+        tokio::spawn(async move { a.retry(&id).await })
+    };
+    for _ in 0..10_000 {
+        if sending.is_finished()
+            || alice
+                .transfer_progress(&m.message_id)
+                .is_some_and(|(done, _)| done > 0)
+        {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
+    sending.abort();
+    if !matches!(sending.await, Ok(Ok(()))) {
+        alice.retry(&m.message_id).await.unwrap();
+    }
+    let Event::Message(got) = until(&mut be, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    assert_eq!(got.attachment.as_ref().unwrap().size, data.len() as u64);
+    assert!(
+        bob.attachment_data(&got.message_id).await.is_ok(),
+        "20 MB still fits in memory"
+    );
+    let opened = bob.attachment_file(&got.message_id).await.unwrap();
+    assert!(opened.ends_with(".mp4"));
+    assert!(std::fs::read(&opened).unwrap() == data);
+    // Forwarded on, it goes through files too.
+    let fwd = bob
+        .forward(&got.message_id, &bob.conversations().unwrap()[0].group_id)
+        .await;
+    assert!(fwd.is_ok(), "{:?}", fwd.err());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test]
 async fn reports_reach_the_server_sealed_to_the_moderators() {
     // CMP-03, M7 part 3. Needs the server started with the test key's public half.
     let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {

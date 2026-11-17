@@ -105,16 +105,12 @@ class MainActivity : FlutterFragmentActivity() {
                         result.error("no_app", null, null)
                     }
                 }
-                // A received file, opened in whatever app handles its type. Only the newest stays
-                // decrypted in the cache: each open clears the folder first.
-                "openFile" -> {
-                    val (name, bytes, mime) = call.arguments as List<*>
-                    val dir = java.io.File(cacheDir, "open")
-                    dir.deleteRecursively()
-                    dir.mkdirs()
-                    val file = java.io.File(dir, (name as String).replace('/', '_').ifEmpty { "file" })
-                    file.writeBytes(bytes as ByteArray)
-                    val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", file)
+                // [path, mime]: a received file the core decrypted, opened in whatever app handles
+                // its type. The core clears those copies at each start.
+                "openPath" -> {
+                    val (path, mime) = call.arguments as List<*>
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        this, "$packageName.files", java.io.File(path as String))
                     val view = android.content.Intent(android.content.Intent.ACTION_VIEW)
                         .setDataAndType(uri, mime as String)
                         .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -124,6 +120,19 @@ class MainActivity : FlutterFragmentActivity() {
                     } catch (e: android.content.ActivityNotFoundException) {
                         result.error("no_app", null, null)
                     }
+                }
+                // [path, name, mime]: the system's save dialog, then the file streamed into the
+                // chosen place (a 1 GB video never in memory). True once saved, false if cancelled.
+                "saveFile" -> {
+                    val (path, name, mime) = call.arguments as List<*>
+                    saveFrom = path as String
+                    saveResult = result
+                    startActivityForResult(
+                        android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT)
+                            .addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                            .setType(mime as String)
+                            .putExtra(android.content.Intent.EXTRA_TITLE, name as String),
+                        SAVE_REQUEST)
                 }
                 // Stickers received in WhatsApp, newest first: [[name, bytes], ...], or null if the
                 // user backs out. The first time, Android's folder screen opens on WhatsApp's
@@ -174,8 +183,30 @@ class MainActivity : FlutterFragmentActivity() {
     private var stickersResult: MethodChannel.Result? = null
 
     @Deprecated("FlutterFragmentActivity still routes results here")
+    private var saveResult: MethodChannel.Result? = null
+    private var saveFrom: String? = null
+
     override fun onActivityResult(code: Int, resultCode: Int, data: android.content.Intent?) {
         super.onActivityResult(code, resultCode, data)
+        if (code == SAVE_REQUEST) {
+            val result = saveResult ?: return
+            val from = saveFrom
+            saveResult = null
+            val to = data?.data
+            if (resultCode != RESULT_OK || to == null || from == null) return result.success(false)
+            Thread {
+                val ok = try {
+                    java.io.File(from).inputStream().use { i ->
+                        contentResolver.openOutputStream(to)!!.use { o -> i.copyTo(o, 1 shl 16) }
+                    }
+                    true
+                } catch (e: Exception) {
+                    false
+                }
+                runOnUiThread { if (ok) result.success(true) else result.error("save_failed", null, null) }
+            }.start()
+            return
+        }
         if (code != STICKERS_REQUEST) return
         val result = stickersResult ?: return
         stickersResult = null
@@ -340,6 +371,7 @@ class MainActivity : FlutterFragmentActivity() {
         const val CONTACTS_REQUEST = 7
         const val LOCATION_REQUEST = 8
         const val STICKERS_REQUEST = 9
+        const val SAVE_REQUEST = 10
         const val WHATSAPP_STICKERS = "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Stickers"
         const val MAX_STICKERS = 120
         const val MAX_STICKER = 1L shl 20 // WhatsApp's are at most 500 KB

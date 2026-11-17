@@ -18,6 +18,7 @@ import 'package:video_player/video_player.dart';
 
 import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
 import 'app_lock.dart' show secureWhile;
+import 'format.dart' show asInt;
 import 'links.dart' show appChannel, isAndroid;
 import 'location.dart';
 import 'l10n/app_localizations.dart';
@@ -311,6 +312,9 @@ typedef Outgoing = ({
   Uint8List waveform,
   bool sticker,
   bool viewOnce,
+  // Phones: a big file sent from disk instead of [data] (empty then); [temp] once sent, delete it.
+  String path,
+  bool temp,
 });
 
 Outgoing outgoing(
@@ -325,6 +329,8 @@ Outgoing outgoing(
   Uint8List? waveform,
   bool sticker = false,
   bool viewOnce = false,
+  String path = '',
+  bool temp = false,
 }) => (
   data: data,
   mime: mime,
@@ -337,9 +343,15 @@ Outgoing outgoing(
   waveform: waveform ?? Uint8List(0),
   sticker: sticker,
   viewOnce: viewOnce,
+  path: path,
+  temp: temp,
 );
 
-const maxAttachment = 100 << 20; // MED-06
+/// MED-06: what goes in memory (photos, voice, the browser) …
+const maxAttachment = 100 << 20;
+
+/// … and what phones send from disk (videos and files).
+const maxFile = 1 << 30;
 
 class TooLarge implements Exception {}
 
@@ -450,7 +462,7 @@ Future<Outgoing?> pickVideo(Future<bool?> Function(bool mustCompress) askCompres
     if (await f.length() > maxAttachment) throw TooLarge();
     return outgoing(await f.readAsBytes(), mimeFor(f.name).startsWith('video/') ? mimeFor(f.name) : 'video/mp4');
   }
-  final compress = await askCompress(await f.length() > maxAttachment);
+  final compress = await askCompress(await f.length() > maxFile);
   if (compress == null) return null;
   // Length and size from the original: the compressed copy may lack them. The plugin fails on
   // some phones' formats (HDR, HEVC); then the original goes, when it fits.
@@ -464,12 +476,16 @@ Future<Outgoing?> pickVideo(Future<bool?> Function(bool mustCompress) askCompres
       if (out?.path != null) compressed = File(out!.path!);
     }
     final file = compressed ?? File(f.path);
-    if (await file.length() > maxAttachment) throw compress ? CompressFailed() : TooLarge();
+    if (await file.length() > maxFile) throw compress ? CompressFailed() : TooLarge();
     final still = await _orNull(() => VideoCompress.getByteThumbnail(f.path, quality: 60));
     final portrait = info?.orientation == 90 || info?.orientation == 270;
+    final sent = compressed;
+    compressed = null; // kept until queued: the chat deletes it then
     return outgoing(
-      await file.readAsBytes(),
-      mimeFor(f.path) == 'video/quicktime' && compressed == null ? 'video/quicktime' : 'video/mp4',
+      Uint8List(0),
+      path: file.path,
+      temp: sent != null,
+      mimeFor(f.path) == 'video/quicktime' && sent == null ? 'video/quicktime' : 'video/mp4',
       ms: (info?.duration ?? 0).round(),
       width: (portrait ? info?.height : info?.width) ?? 0,
       height: (portrait ? info?.width : info?.height) ?? 0,
@@ -496,11 +512,14 @@ Stream<Outgoing> pickFiles({bool audio = false}) async* {
   var skipped = false;
   try {
     for (final f in files) {
-      if ((f.lengthSync() ?? 0) > maxAttachment) {
+      final path = kIsWeb ? null : f.path;
+      if ((f.lengthSync() ?? 0) > (path == null ? maxAttachment : maxFile)) {
         skipped = true; // before reading it all
         continue;
       }
-      yield outgoing(await f.readAsBytes(), mimeFor(f.name), name: f.name);
+      yield path == null
+          ? outgoing(await f.readAsBytes(), mimeFor(f.name), name: f.name)
+          : outgoing(Uint8List(0), mimeFor(f.name), name: f.name, path: path);
     }
   } finally {
     unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
@@ -556,7 +575,7 @@ Future<void> autoDownload(Core core, MessageView m) async {
   };
   if (!autoDownloadKinds(core, metered: await isMetered()).contains(kind)) return;
   try {
-    await core.attachmentData(messageId: m.messageId);
+    await core.fetchAttachment(messageId: m.messageId);
   } on Object {
     // Shown as not downloaded; the user can tap to retry.
   }
@@ -565,14 +584,24 @@ Future<void> autoDownload(Core core, MessageView m) async {
 /// Lets the user keep a received file: the system's save dialog, nothing opened automatically.
 Future<void> saveToDevice(BuildContext context, Core core, MessageView m) async {
   try {
-    final data = await core.attachmentData(messageId: m.messageId);
     final a = m.attachment!;
     final name = a.fileName.isNotEmpty
         ? a.fileName
         : 'siegel-${DateTime.now().millisecondsSinceEpoch}.${_ext(a.mimeType)}';
-    await FilePicker.saveFile(fileName: name, bytes: data);
+    if (kIsWeb) {
+      await FilePicker.saveFile(
+        fileName: name,
+        bytes: await core.attachmentData(messageId: m.messageId),
+      );
+    } else {
+      // Streamed from the decrypted copy: a 1 GB video never in memory.
+      final path = await core.attachmentFile(messageId: m.messageId);
+      await appChannel.invokeMethod<bool>('saveFile', [path, name, a.mimeType]);
+    }
   } on CoreError catch (e) {
     if (context.mounted) showError(context, e);
+  } on PlatformException {
+    if (context.mounted) showError(context, const CoreError(code: 'storage'));
   }
 }
 
@@ -583,6 +612,19 @@ String _ext(String mime) =>
 mixin _Fetch<T extends StatefulWidget> on State<T> {
   Uint8List? data;
   bool loading = false;
+
+  /// Phones: the attachment as a decrypted file (videos and files up to 1 GB never go in memory).
+  Future<String?> fetchFile(Core core, MessageView m) async {
+    setState(() => loading = true);
+    try {
+      return await core.attachmentFile(messageId: m.messageId);
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+      return null;
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
   Future<Uint8List?> fetch(Core core, MessageView m) async {
     if (data != null) return data;
@@ -860,11 +902,13 @@ class _VideoMessageState extends State<VideoMessage> with _Fetch {
     final ready = data != null || widget.core.attachmentDownloaded(messageId: widget.message.messageId);
     return GestureDetector(
       onTap: () async {
-        final d = await fetch(widget.core, widget.message);
-        if (d != null && context.mounted) {
+        final (d, path) = kIsWeb
+            ? (await fetch(widget.core, widget.message), null)
+            : (null, await fetchFile(widget.core, widget.message));
+        if ((d != null || path != null) && context.mounted) {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => _VideoScreen(core: widget.core, message: widget.message, data: d),
+              builder: (_) => _VideoScreen(core: widget.core, message: widget.message, data: d, path: path),
             ),
           );
         }
@@ -905,6 +949,12 @@ class _VideoMessageState extends State<VideoMessage> with _Fetch {
                     style: const TextStyle(color: Colors.white, shadows: [Shadow(blurRadius: 4)]),
                   ),
                 ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: TransferBar(core: widget.core, messageId: widget.message.messageId),
+                ),
               ],
             ),
           ),
@@ -914,19 +964,19 @@ class _VideoMessageState extends State<VideoMessage> with _Fetch {
   }
 }
 
-/// Plays from a temporary file (the player can't read memory), deleted when the screen closes.
+/// Plays the core's decrypted copy on phones; in the browser, from memory through a blob: URL.
 class _VideoScreen extends StatefulWidget {
-  const _VideoScreen({required this.core, required this.message, required this.data});
+  const _VideoScreen({required this.core, required this.message, this.data, this.path});
   final Core core;
   final MessageView message;
-  final Uint8List data;
+  final Uint8List? data;
+  final String? path;
 
   @override
   State<_VideoScreen> createState() => _VideoScreenState();
 }
 
 class _VideoScreenState extends State<_VideoScreen> {
-  File? _file;
   String? _url; // the browser's blob: URL
   VideoPlayerController? _player;
 
@@ -935,15 +985,11 @@ class _VideoScreenState extends State<_VideoScreen> {
     super.initState();
     () async {
       final VideoPlayerController p;
-      if (kIsWeb) {
-        _url = browser.objectUrl(widget.data, widget.message.attachment!.mimeType);
-        p = VideoPlayerController.networkUrl(Uri.parse(_url!));
+      if (widget.path case final path?) {
+        p = VideoPlayerController.file(File(path));
       } else {
-        final dir = await getTemporaryDirectory();
-        final f = File('${dir.path}/play-${DateTime.now().microsecondsSinceEpoch}');
-        await f.writeAsBytes(widget.data, flush: true);
-        _file = f;
-        p = VideoPlayerController.file(f);
+        _url = browser.objectUrl(widget.data!, widget.message.attachment!.mimeType);
+        p = VideoPlayerController.networkUrl(Uri.parse(_url!));
       }
       await p.initialize();
       if (!mounted) return p.dispose();
@@ -955,7 +1001,6 @@ class _VideoScreenState extends State<_VideoScreen> {
   @override
   void dispose() {
     _player?.dispose();
-    _file?.delete().ignore();
     if (_url != null) browser.revokeUrl(_url!);
     super.dispose();
   }
@@ -1012,49 +1057,57 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
     final t = AppLocalizations.of(context)!;
     final a = widget.message.attachment!;
     final here = data != null || widget.core.attachmentDownloaded(messageId: widget.message.messageId);
+    Future<void> open() async {
+      if (kIsWeb) return saveToDevice(context, widget.core, widget.message);
+      final path = await fetchFile(widget.core, widget.message);
+      if (path != null && context.mounted) await _open(context, widget.message, path);
+    }
+
     return GestureDetector(
-      onTap: () async {
-        final d = await fetch(widget.core, widget.message);
-        if (d != null && context.mounted) await _open(context, widget.core, widget.message, d);
-      },
+      onTap: open,
       child: SizedBox(
         width: 240,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            loading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.insert_drive_file_outlined),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(a.fileName, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  Text(formatSize(a.size.toInt()), style: Theme.of(context).textTheme.labelSmall),
-                ],
-              ),
+            Row(
+              children: [
+                loading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.insert_drive_file_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(a.fileName, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(formatSize(a.size.toInt()), style: Theme.of(context).textTheme.labelSmall),
+                    ],
+                  ),
+                ),
+                // Ours, or downloaded already: open it. Otherwise download it first (Save to device
+                // stays in the message menu). The browser can only save.
+                if (here && !kIsWeb)
+                  IconButton(tooltip: t.open, icon: const Icon(Icons.open_in_new), onPressed: open)
+                else
+                  IconButton(
+                    tooltip: kIsWeb ? t.saveToDevice : t.download,
+                    icon: const Icon(Icons.download),
+                    onPressed: () async {
+                      if (kIsWeb) return saveToDevice(context, widget.core, widget.message);
+                      setState(() => loading = true);
+                      try {
+                        await widget.core.fetchAttachment(messageId: widget.message.messageId);
+                      } on CoreError catch (e) {
+                        if (context.mounted) showError(context, e);
+                      } finally {
+                        if (mounted) setState(() => loading = false);
+                      }
+                    },
+                  ),
+              ],
             ),
-            // Ours, or downloaded already: open it. Otherwise download it first (Save to device
-            // stays in the message menu). The browser can only save.
-            if (here && !kIsWeb)
-              IconButton(
-                tooltip: t.open,
-                icon: const Icon(Icons.open_in_new),
-                onPressed: () async {
-                  final d = await fetch(widget.core, widget.message);
-                  if (d != null && context.mounted) await _open(context, widget.core, widget.message, d);
-                },
-              )
-            else
-              IconButton(
-                tooltip: kIsWeb ? t.saveToDevice : t.download,
-                icon: const Icon(Icons.download),
-                onPressed: () async {
-                  if (await fetch(widget.core, widget.message) != null && kIsWeb && context.mounted) {
-                    await saveToDevice(context, widget.core, widget.message);
-                  }
-                },
-              ),
+            TransferBar(core: widget.core, messageId: widget.message.messageId),
           ],
         ),
       ),
@@ -1064,11 +1117,9 @@ class _FileMessageState extends State<FileMessage> with _Fetch {
 
 /// Opens a file in another app; with none for its type, says to save it instead. In the browser it
 /// downloads: opened in a tab, a received HTML file would run with Siegel Web's origin and keys.
-Future<void> _open(BuildContext context, Core core, MessageView m, Uint8List data) async {
-  if (kIsWeb) return saveToDevice(context, core, m);
-  final a = m.attachment!;
+Future<void> _open(BuildContext context, MessageView m, String path) async {
   try {
-    await appChannel.invokeMethod<void>('openFile', [a.fileName, data, a.mimeType]);
+    await appChannel.invokeMethod<void>('openPath', [path, m.attachment!.mimeType]);
   } on PlatformException {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noAppToOpen)));
@@ -1390,4 +1441,49 @@ class AlbumScreen extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// An upload or download under way for this message: a thin bar, gone when it's done.
+class TransferBar extends StatefulWidget {
+  const TransferBar({super.key, required this.core, required this.messageId});
+  final Core core;
+  final Uint8List messageId;
+
+  @override
+  State<TransferBar> createState() => _TransferBarState();
+}
+
+class _TransferBarState extends State<TransferBar> {
+  Timer? _poll;
+  List<double>? _p; // [done, total]
+
+  void _read() {
+    final p = [for (final v in widget.core.transferProgress(messageId: widget.messageId)) asInt(v).toDouble()];
+    if (mounted) setState(() => _p = p.length == 2 ? p : null);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _read();
+    // ponytail: polls while the bubble is on screen; an event per part if this ever shows.
+    _poll = Timer.periodic(const Duration(milliseconds: 500), (_) => _read());
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _p;
+    if (p == null || p[1] == 0) return const SizedBox.shrink();
+    final v = p[0] / p[1];
+    return Semantics(
+      value: '${(v * 100).round()}%',
+      child: LinearProgressIndicator(value: v, minHeight: 3),
+    );
+  }
 }

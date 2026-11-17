@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <cache-path name="open" path="open/"/>
+    <!-- The core's decrypted copies of attachments, opened in place (cleared at each start) -->
+    <files-path name="media" path="siegel.db.media/open/"/>
 </paths>

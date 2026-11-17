@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
@@ -1088,6 +1089,38 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     final reply = _replyTo;
     setState(() => _replyTo = null);
+    if (o.path.isNotEmpty) {
+      // Big ones (phones): shown at once with a progress bar, uploaded behind it, resumable.
+      final MessageView m;
+      try {
+        m = await core.queueAttachmentFile(
+          groupId: _group,
+          path: o.path,
+          mimeType: o.mime,
+          fileName: o.name,
+          durationMs: o.ms,
+          width: o.width,
+          height: o.height,
+          thumbnail: o.thumbnail,
+          replyTo: reply?.messageId,
+        );
+      } on CoreError catch (e) {
+        if (mounted) showError(context, e);
+        return;
+      } finally {
+        if (o.temp) File(o.path).delete().ignore(); // encrypted into the chat's own copy
+      }
+      final service = widget.service..refresh();
+      _uploads = _uploads.then((_) async {
+        try {
+          await core.retry(messageId: m.messageId);
+        } on CoreError {
+          // Marked failed, with a retry that carries on where it stopped (MSG-04).
+        }
+        service.refresh();
+      });
+      return;
+    }
     await _run(
       () => core.sendAttachment(
         groupId: _group,
@@ -1191,6 +1224,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sending = Future.value();
+
+  /// Files go one after another, apart from texts, so a long upload doesn't hold them up.
+  Future<void> _uploads = Future.value();
 
   Future<void> _block(ChatSummary c) async {
     final t = AppLocalizations.of(context)!;

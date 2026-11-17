@@ -58,6 +58,9 @@ abstract class Core implements RustOpaqueInterface {
   /// Whether the attachment is on this device (no download needed).
   bool attachmentDownloaded({required List<int> messageId});
 
+  /// The attachment decrypted into a file to open or play (phones), downloading it first.
+  Future<String> attachmentFile({required List<int> messageId});
+
   /// A contact's picture, once fetched with their profile.
   Uint8List? avatar({required List<int> account});
 
@@ -119,6 +122,9 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> messageId,
     required String text,
   });
+
+  /// MED-12: downloads an attachment ahead of time, without opening it.
+  Future<void> fetchAttachment({required List<int> messageId});
 
   /// DISC-05: which of these E.164 numbers can be found, with their @usernames.
   Future<List<FoundContact>> findContacts({required List<String> numbers});
@@ -203,6 +209,20 @@ abstract class Core implements RustOpaqueInterface {
 
   /// Name and size of the group a link leads to, before joining.
   Future<GroupPreviewView> previewGroupLink({required String link});
+
+  /// A file of up to 1 GB to send from `path` (phones): shown at once as sending; deliver it
+  /// with `retry`, which uploads it in parts and resumes a dropped upload.
+  Future<MessageView> queueAttachmentFile({
+    required List<int> groupId,
+    required String path,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
+    Uint8List? replyTo,
+  });
 
   /// A text shown at once as sending; deliver it with `retry`.
   MessageView queueText({
@@ -364,6 +384,9 @@ abstract class Core implements RustOpaqueInterface {
   List<StickerView> stickers();
 
   int takeReportsReviewed();
+
+  /// An upload or download under way: [bytes done, bytes in all]; empty when none.
+  Uint64List transferProgress({required List<int> messageId});
 
   /// They become a contact again and get our profile key.
   Future<void> unblock({required List<int> account});

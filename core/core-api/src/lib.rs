@@ -168,6 +168,8 @@ pub struct SiegelCore {
     server_url: String,
     /// Attachment blobs, as ciphertext, one file per message.
     media_dir: std::path::PathBuf,
+    /// Uploads and downloads under way, by message: (bytes done, bytes in all).
+    transfers: Mutex<std::collections::HashMap<Vec<u8>, (u64, u64)>>,
 }
 
 impl SiegelCore {
@@ -181,7 +183,13 @@ impl SiegelCore {
             store: Mutex::new(Some(store)),
             net: Client::new(server_url),
             server_url: server_url.trim_end_matches('/').to_string(),
-            media_dir: format!("{db_path}.media").into(),
+            media_dir: {
+                let dir: std::path::PathBuf = format!("{db_path}.media").into();
+                #[cfg(not(target_family = "wasm"))]
+                let _ = std::fs::remove_dir_all(dir.join(crate::media::OPEN)); // last run's plaintext
+                dir
+            },
+            transfers: Mutex::default(),
         })
     }
 

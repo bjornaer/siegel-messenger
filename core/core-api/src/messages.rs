@@ -233,6 +233,12 @@ impl SiegelCore {
             .with_store(|s| storage(s.message(message_id)))?
             .filter(|m| m.outgoing && matches!(m.status, Status::Failed | Status::Sending))
             .ok_or(CoreError::new("not_allowed"))?;
+        #[cfg(not(target_family = "wasm"))]
+        if let Err(e) = self.finish_upload(&mut msg).await {
+            msg.status = Status::Failed; // shown with a retry, which resumes the upload
+            self.with_store(|s| storage(s.update_message(&msg)))?;
+            return Err(e);
+        }
         self.deliver_stored(&mut msg).await
     }
 
