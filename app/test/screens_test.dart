@@ -546,6 +546,13 @@ class FakeCore implements Core {
   }
 
   @override
+  Future<Uint8List> attachmentRange({required List<int> messageId, required BigInt offset, required BigInt len}) async {
+    final d = blobs[base64Encode(messageId)]!;
+    final from = math.min(offset.toInt(), d.length);
+    return d.sublist(from, math.min(from + len.toInt(), d.length));
+  }
+
+  @override
   Future<void> resumeSending() async => resumed++;
   int resumed = 0;
 
@@ -1341,6 +1348,18 @@ void main() {
     expect(tint().a, greaterThan(0), reason: 'the bubble is tinted a moment');
     await t.pumpAndSettle(const Duration(seconds: 2));
     expect(tint().a, 0);
+  });
+
+  test('video ranges: what a player asks for, clamped to the file', () {
+    expect(byteRange(null, 100), (0, 99));
+    expect(byteRange('bytes=0-', 100), (0, 99));
+    expect(byteRange('bytes=10-19', 100), (10, 19));
+    expect(byteRange('bytes=90-500', 100), (90, 99));
+    expect(byteRange('bytes=-10', 100), (90, 99));
+    expect(byteRange('bytes=-500', 100), (0, 99));
+    expect(byteRange('bytes=100-', 100), isNull);
+    expect(byteRange('bytes=20-10', 100), isNull);
+    expect(byteRange('items=0-1', 100), isNull);
   });
 
   testWidgets('a link card shows above the text; pages are read for title, description, image', (t) async {

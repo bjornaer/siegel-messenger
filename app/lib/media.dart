@@ -13,7 +13,6 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:video_compress/video_compress.dart';
 import 'package:video_player/video_player.dart';
 
 import 'browser.dart' if (dart.library.js_interop) 'browser_web.dart' as browser;
@@ -453,8 +452,12 @@ Future<Outgoing> photoOf(Uint8List raw, {bool gif = false}) async {
   return outgoing(data, mime, width: w, height: h, thumbnail: await thumbnailOf(data));
 }
 
-/// MED-08: a video from the gallery, compressed when the sender chooses or must (over 100 MB).
-Future<Outgoing?> pickVideo(Future<bool?> Function(bool mustCompress) askCompress) async {
+/// MED-08: how a video goes. Standard and HD are re-encoded on the phone (never upscaled).
+enum VideoQuality { standard, hd, original }
+
+/// MED-08: a video from the gallery, at the quality the sender picks; over 1 GB it must be made
+/// smaller. [ask] gets the original's size in bytes.
+Future<Outgoing?> pickVideo(Future<VideoQuality?> Function(int size) ask) async {
   final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
   if (f == null) return null;
   if (kIsWeb) {
@@ -462,47 +465,41 @@ Future<Outgoing?> pickVideo(Future<bool?> Function(bool mustCompress) askCompres
     if (await f.length() > maxAttachment) throw TooLarge();
     return outgoing(await f.readAsBytes(), mimeFor(f.name).startsWith('video/') ? mimeFor(f.name) : 'video/mp4');
   }
-  final compress = await askCompress(await f.length() > maxFile);
-  if (compress == null) return null;
-  // Length and size from the original: the compressed copy may lack them. The plugin fails on
-  // some phones' formats (HDR, HEVC); then the original goes, when it fits.
-  final info = await _orNull(() => VideoCompress.getMediaInfo(f.path));
-  File? compressed;
-  try {
-    if (compress) {
-      final out = await _orNull(
-        () => VideoCompress.compressVideo(f.path, quality: VideoQuality.MediumQuality, includeAudio: true),
-      );
-      if (out?.path != null) compressed = File(out!.path!);
+  final quality = await ask(await f.length());
+  if (quality == null) return null;
+  final info = await appChannel.invokeMapMethod<String, Object?>('videoInfo', f.path).catchError((Object _) => null);
+  final (w, h) = ((info?['width'] as int?) ?? 0, (info?['height'] as int?) ?? 0);
+  var (path, temp) = (f.path, false);
+  if (quality != VideoQuality.original) {
+    final target = quality == VideoQuality.hd ? 1080 : 720;
+    final short = min(w, h);
+    try {
+      path = (await appChannel.invokeMethod<String>('transcodeVideo', [
+        f.path,
+        short > 0 ? min(target, short) : target,
+        quality == VideoQuality.hd ? 5000000 : 2000000,
+      ]))!;
+      temp = true;
+    } on PlatformException catch (e) {
+      debugPrint('video: ${e.message}');
+      throw CompressFailed();
     }
-    final file = compressed ?? File(f.path);
-    if (await file.length() > maxFile) throw compress ? CompressFailed() : TooLarge();
-    final still = await _orNull(() => VideoCompress.getByteThumbnail(f.path, quality: 60));
-    final portrait = info?.orientation == 90 || info?.orientation == 270;
-    final sent = compressed;
-    compressed = null; // kept until queued: the chat deletes it then
-    return outgoing(
-      Uint8List(0),
-      path: file.path,
-      temp: sent != null,
-      mimeFor(f.path) == 'video/quicktime' && sent == null ? 'video/quicktime' : 'video/mp4',
-      ms: (info?.duration ?? 0).round(),
-      width: (portrait ? info?.height : info?.width) ?? 0,
-      height: (portrait ? info?.width : info?.height) ?? 0,
-      thumbnail: still == null ? null : await thumbnailOf(still),
-    );
-  } finally {
-    compressed?.delete().ignore(); // the plugin's deleteAllCache crashes (video_compress 3.1.4)
   }
-}
-
-Future<T?> _orNull<T>(Future<T?> Function() f) async {
-  try {
-    return await f();
-  } on Object catch (e) {
-    debugPrint('video: $e');
-    return null;
+  if (await File(path).length() > maxFile) {
+    if (temp) File(path).delete().ignore();
+    throw quality == VideoQuality.original ? TooLarge() : CompressFailed();
   }
+  final still = info?['still'] as Uint8List?;
+  return outgoing(
+    Uint8List(0),
+    path: path,
+    temp: temp,
+    !temp && mimeFor(f.path) == 'video/quicktime' ? 'video/quicktime' : 'video/mp4',
+    ms: (info?['ms'] as int?) ?? 0,
+    width: w,
+    height: h,
+    thumbnail: still == null || still.isEmpty ? null : await thumbnailOf(still),
+  );
 }
 
 /// MED-10 (and MED-09 audio files): any files, sent unchanged, read one at a time as each goes.
@@ -902,13 +899,20 @@ class _VideoMessageState extends State<VideoMessage> with _Fetch {
     final ready = data != null || widget.core.attachmentDownloaded(messageId: widget.message.messageId);
     return GestureDetector(
       onTap: () async {
-        final (d, path) = kIsWeb
-            ? (await fetch(widget.core, widget.message), null)
-            : (null, await fetchFile(widget.core, widget.message));
-        if ((d != null || path != null) && context.mounted) {
+        // Phones play as it downloads, decrypted as it plays (no decrypted copy on disk).
+        Uri? url;
+        if (!kIsWeb) {
+          final core = widget.core;
+          core.fetchAttachment(messageId: widget.message.messageId).catchError((Object e) {
+            if (e is CoreError && context.mounted) showError(context, e);
+          }).ignore();
+          url = (await VideoServer.get()).url(core, widget.message);
+        }
+        final d = kIsWeb ? await fetch(widget.core, widget.message) : null;
+        if ((d != null || url != null) && context.mounted) {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => _VideoScreen(core: widget.core, message: widget.message, data: d, path: path),
+              builder: (_) => _VideoScreen(core: widget.core, message: widget.message, data: d, url: url),
             ),
           );
         }
@@ -964,13 +968,13 @@ class _VideoMessageState extends State<VideoMessage> with _Fetch {
   }
 }
 
-/// Plays the core's decrypted copy on phones; in the browser, from memory through a blob: URL.
+/// Plays through [VideoServer] on phones; in the browser, from memory through a blob: URL.
 class _VideoScreen extends StatefulWidget {
-  const _VideoScreen({required this.core, required this.message, this.data, this.path});
+  const _VideoScreen({required this.core, required this.message, this.data, this.url});
   final Core core;
   final MessageView message;
   final Uint8List? data;
-  final String? path;
+  final Uri? url;
 
   @override
   State<_VideoScreen> createState() => _VideoScreenState();
@@ -985,8 +989,8 @@ class _VideoScreenState extends State<_VideoScreen> {
     super.initState();
     () async {
       final VideoPlayerController p;
-      if (widget.path case final path?) {
-        p = VideoPlayerController.file(File(path));
+      if (widget.url case final url?) {
+        p = VideoPlayerController.networkUrl(url);
       } else {
         _url = browser.objectUrl(widget.data!, widget.message.attachment!.mimeType);
         p = VideoPlayerController.networkUrl(Uri.parse(_url!));
@@ -1503,4 +1507,82 @@ Future<T> keepingAlive<T>(String note, Future<T> Function() f) async {
       appChannel.invokeMethod<void>('transfersStop').catchError((Object _) {}).ignore();
     }
   }
+}
+
+/// Phones: plays videos straight from their encrypted copy. The player asks this loopback server
+/// for byte ranges and the core decrypts only those chunks, so there's no decrypted file and a
+/// video starts while it's still downloading. Other apps on the phone can reach the port, but
+/// every path starts with a secret made at start-up.
+class VideoServer {
+  VideoServer._(this._http, this._secret) {
+    _http.listen(_serve);
+  }
+  final HttpServer _http;
+  final String _secret;
+  final _videos = <String, (Core, MessageView)>{};
+
+  static Future<VideoServer>? _one;
+  static Future<VideoServer> get() => _one ??= () async {
+    final r = Random.secure();
+    final secret = [for (var i = 0; i < 16; i++) r.nextInt(256).toRadixString(16).padLeft(2, '0')].join();
+    return VideoServer._(await HttpServer.bind(InternetAddress.loopbackIPv4, 0), secret);
+  }();
+
+  Uri url(Core core, MessageView m) {
+    final id = [for (final b in m.messageId) b.toRadixString(16).padLeft(2, '0')].join();
+    _videos[id] = (core, m);
+    return Uri.parse('http://127.0.0.1:${_http.port}/$_secret/$id');
+  }
+
+  /// Answers ranges (the player seeks with them) a megabyte at a time.
+  Future<void> _serve(HttpRequest req) async {
+    final res = req.response;
+    final seg = req.uri.pathSegments;
+    final video = seg.length == 2 && seg[0] == _secret ? _videos[seg[1]] : null;
+    if (video == null) {
+      res.statusCode = HttpStatus.notFound;
+      return res.close().ignore();
+    }
+    final (core, m) = video;
+    final size = m.attachment!.size.toInt();
+    final (start, end) = byteRange(req.headers.value(HttpHeaders.rangeHeader), size) ?? (-1, -1);
+    if (start < 0) {
+      res.statusCode = HttpStatus.requestedRangeNotSatisfiable;
+      res.headers.set(HttpHeaders.contentRangeHeader, 'bytes */$size');
+      return res.close().ignore();
+    }
+    res.statusCode = req.headers.value(HttpHeaders.rangeHeader) == null ? HttpStatus.ok : HttpStatus.partialContent;
+    res.headers
+      ..contentType = ContentType.parse(m.attachment!.mimeType)
+      ..contentLength = end - start + 1
+      ..set(HttpHeaders.acceptRangesHeader, 'bytes')
+      ..set(HttpHeaders.contentRangeHeader, 'bytes $start-$end/$size');
+    try {
+      for (var at = start; at <= end; at += 1 << 20) {
+        res.add(
+          await core.attachmentRange(
+            messageId: m.messageId,
+            offset: BigInt.from(at),
+            len: BigInt.from(min(1 << 20, end - at + 1)),
+          ),
+        );
+        await res.flush(); // throws once the player has moved on
+      }
+    } on Object {
+      // The player seeked or closed, or the download failed: this answer ends here.
+    }
+    res.close().ignore();
+  }
+}
+
+/// The bytes a Range header asks for of [size], inclusive; the whole without one; null when it
+/// can't be met.
+@visibleForTesting
+(int, int)? byteRange(String? header, int size) {
+  if (header == null) return size > 0 ? (0, size - 1) : null;
+  final m = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(header.trim());
+  if (m == null || (m[1]!.isEmpty && m[2]!.isEmpty)) return null;
+  final (from, to) = (int.tryParse(m[1]!), int.tryParse(m[2]!));
+  final (start, end) = from == null ? (max(0, size - to!), size - 1) : (from, min(to ?? size - 1, size - 1));
+  return start < 0 || start > end || start >= size ? null : (start, end);
 }

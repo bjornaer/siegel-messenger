@@ -517,6 +517,70 @@ impl SiegelCore {
         Ok(out.to_string_lossy().into_owned())
     }
 
+    /// `len` bytes of an attachment's plaintext from `offset`, decrypting only the 64 KB chunks
+    /// they span (each is authenticated on its own): a video plays from anywhere with no
+    /// decrypted copy. While `fetch_attachment` is downloading it, waits for those bytes.
+    pub async fn attachment_range(
+        &self,
+        message_id: &[u8],
+        offset: u64,
+        len: u64,
+    ) -> Result<Vec<u8>, CoreError> {
+        use std::os::unix::fs::FileExt;
+        let a = self.attachment_of(message_id)?;
+        if a.view_once {
+            return Err(CoreError::new("view_once"));
+        }
+        let size = a.size as u64;
+        if offset >= size || len == 0 {
+            return Ok(vec![]);
+        }
+        let end = (offset + len).min(size);
+        let chunk = core_media::CHUNK as u64;
+        let (first, last) = (offset / chunk, (end - 1) / chunk);
+        let (from, _, _) = core_media::chunk_at(size, first);
+        let (last_at, last_len, _) = core_media::chunk_at(size, last);
+        let need = last_at + last_len as u64;
+        let path = self.media_path(message_id);
+        let part = path.with_extension("part");
+        let file = {
+            let mut waited = 0;
+            loop {
+                if let Ok(f) = std::fs::File::open(&path) {
+                    break f;
+                }
+                if part.metadata().is_ok_and(|m| m.len() >= need)
+                    && let Ok(f) = std::fs::File::open(&part)
+                {
+                    break f;
+                }
+                // Give the download a moment to start; then only wait while it runs.
+                let downloading = self.fetching.lock().unwrap().contains(message_id);
+                if waited > 3000 || (!downloading && waited > 20) {
+                    return Err(CoreError::new("network"));
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                waited += 1;
+            }
+        };
+        let io = |_| CoreError::new("storage");
+        let mut prefix = [0u8; core_media::PREFIX];
+        file.read_exact_at(&mut prefix, 0).map_err(io)?;
+        let mut ct = vec![0u8; (need - from) as usize];
+        file.read_exact_at(&mut ct, from).map_err(io)?;
+        let mut plain = Vec::with_capacity(((last - first + 1) * chunk) as usize);
+        let mut at = 0;
+        for i in first..=last {
+            let (_, n, is_last) = core_media::chunk_at(size, i);
+            let p = core_media::decrypt_chunk(&a.key, &prefix, i as u32, is_last, &ct[at..at + n])
+                .ok_or(CoreError::new("attachment_corrupt"))?;
+            plain.extend(p);
+            at += n;
+        }
+        let skip = (offset - first * chunk) as usize;
+        Ok(plain[skip..skip + (end - offset) as usize].to_vec())
+    }
+
     /// Like `queue_text` for a file of up to 1 GB, read from `path` and encrypted into the
     /// media directory a chunk at a time. The message shows at once as sending; `retry` uploads
     /// it (resuming where it stopped) and sends it.

@@ -944,10 +944,10 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         return;
       }
-      final o = await pickVideo((must) async {
-        final c = await _askCompress(must);
-        if (c != null && mounted) setState(() => _busy = true); // compressing takes a while
-        return c;
+      final o = await pickVideo((size) async {
+        final q = await _askQuality(size);
+        if (q != null && q != VideoQuality.original && mounted) setState(() => _busy = true); // a while
+        return q;
       });
       if (mounted) setState(() => _busy = false);
       if (o != null) await _sendAttachment(o);
@@ -1076,18 +1076,26 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// MED-08: compression is offered; over 100 MB it is the only way.
-  Future<bool?> _askCompress(bool must) {
+  /// MED-08: Standard (720p, quick to send), HD (1080p) or the original; over 1 GB the
+  /// original can't go.
+  Future<VideoQuality?> _askQuality(int size) {
     final t = AppLocalizations.of(context)!;
-    return showDialog<bool>(
+    final big = size > maxFile;
+    Widget option(BuildContext d, VideoQuality q, String title, String help) => ListTile(
+      enabled: q != VideoQuality.original || !big,
+      title: Text(title),
+      subtitle: Text(help),
+      onTap: () => Navigator.pop(d, q),
+    );
+    return showDialog<VideoQuality>(
       context: context,
-      builder: (d) => AlertDialog(
-        title: Text(t.compressVideo),
-        content: Text(must ? t.compressVideoMust : t.compressVideoBody),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d), child: Text(t.cancel)),
-          if (!must) TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.sendOriginal)),
-          FilledButton(onPressed: () => Navigator.pop(d, true), child: Text(t.compress)),
+      builder: (d) => SimpleDialog(
+        title: Text(t.videoQuality),
+        children: [
+          if (big) Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: Text(t.compressVideoMust)),
+          option(d, VideoQuality.standard, t.qualityStandard, t.qualityStandardHelp),
+          option(d, VideoQuality.hd, t.qualityHd, t.qualityHdHelp),
+          option(d, VideoQuality.original, t.qualityOriginal, t.qualityOriginalHelp(formatSize(size))),
         ],
       ),
     );

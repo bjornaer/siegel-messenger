@@ -27,7 +27,6 @@ dependencies:
   phone_numbers_parser: ^9.0.28
   qr_flutter: 4.1.0
   record: 7.1.1
-  video_compress: 3.1.4
   video_player: 2.14.0
   rust_lib_siegel:
     path: rust_builder

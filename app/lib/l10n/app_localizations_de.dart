@@ -840,21 +840,31 @@ class AppLocalizationsDe extends AppLocalizations {
   String get forwarded => 'Weitergeleitet';
 
   @override
-  String get compressVideo => 'Video komprimieren?';
-
-  @override
-  String get compressVideoBody =>
-      'Ein komprimiertes Video ist kleiner und schneller gesendet, aber in geringerer Qualität.';
-
-  @override
   String get compressVideoMust =>
-      'Dieses Video ist größer als 100 MB, das Maximum für Siegel. Komprimiere es, um es zu senden.';
+      'Dieses Video ist größer als 1 GB, mehr kann Siegel nicht senden. Wähle eine kleinere Qualität, um es zu senden.';
 
   @override
-  String get sendOriginal => 'Original senden';
+  String get videoQuality => 'Video senden in';
 
   @override
-  String get compress => 'Komprimieren';
+  String get qualityStandard => 'Standardqualität';
+
+  @override
+  String get qualityStandardHelp => 'Kleiner und am schnellsten gesendet';
+
+  @override
+  String get qualityHd => 'HD';
+
+  @override
+  String get qualityHdHelp => 'Schärfer, etwa doppelt so groß';
+
+  @override
+  String get qualityOriginal => 'Original';
+
+  @override
+  String qualityOriginalHelp(String size) {
+    return 'Unverändert: $size';
+  }
 
   @override
   String get autoDownload => 'Automatischer Download';
@@ -1508,7 +1518,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get errVideoCompress =>
-      'Dieses Video ließ sich nicht verkleinern und ist größer als 100 MB. Kürze es zuerst oder sende ein kürzeres.';
+      'Dieses Video ließ sich nicht verkleinern oder ist immer noch größer als 1 GB. Kürze es zuerst oder sende ein kürzeres.';
 
   @override
   String get mostUsedStickers => 'Am häufigsten';

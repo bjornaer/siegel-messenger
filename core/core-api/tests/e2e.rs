@@ -1688,6 +1688,22 @@ async fn big_files_go_in_parts_and_resume() {
         bob.attachment_data(&got.message_id).await.is_ok(),
         "20 MB still fits in memory"
     );
+    // Played from the middle: only the chunks asked for are decrypted.
+    let id = &got.message_id;
+    let n = data.len() as u64;
+    for (off, len) in [
+        (0, 10),
+        ((64 << 10) - 3, 10),
+        (5 << 20, 1 << 20),
+        (n - 7, 100),
+    ] {
+        let got = bob.attachment_range(id, off, len).await.unwrap();
+        assert!(
+            got == data[off as usize..(off + len).min(n) as usize],
+            "{off}+{len}"
+        );
+    }
+    assert!(bob.attachment_range(id, n, 5).await.unwrap().is_empty());
     let opened = bob.attachment_file(&got.message_id).await.unwrap();
     assert!(opened.ends_with(".mp4"));
     assert!(std::fs::read(&opened).unwrap() == data);

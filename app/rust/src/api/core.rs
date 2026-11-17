@@ -1148,6 +1148,23 @@ impl Core {
         Ok(self.0.resume_sending().await?)
     }
 
+    /// `len` bytes of an attachment's plaintext from `offset` (phones), decrypted chunk by
+    /// chunk, waiting for them while it downloads: for playing a video as it comes.
+    #[cfg_attr(target_family = "wasm", allow(unused_variables))]
+    pub async fn attachment_range(
+        &self,
+        message_id: Vec<u8>,
+        offset: u64,
+        len: u64,
+    ) -> Result<Vec<u8>, CoreError> {
+        #[cfg(target_family = "wasm")]
+        return Err(CoreError {
+            code: "not_supported".into(),
+        });
+        #[cfg(not(target_family = "wasm"))]
+        Ok(self.0.attachment_range(&message_id, offset, len).await?)
+    }
+
     /// MED-12: downloads an attachment ahead of time, without opening it.
     pub async fn fetch_attachment(&self, message_id: Vec<u8>) -> Result<(), CoreError> {
         Ok(self.0.fetch_attachment(&message_id).await?)

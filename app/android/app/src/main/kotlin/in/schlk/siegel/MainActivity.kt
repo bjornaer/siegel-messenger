@@ -90,6 +90,20 @@ class MainActivity : FlutterFragmentActivity() {
                     stopService(android.content.Intent(this, LiveLocationService::class.java))
                     result.success(null)
                 }
+                // [path]: a video's size (as shown, rotation applied), length and first frame.
+                "videoInfo" -> {
+                    val path = call.arguments as String
+                    Thread {
+                        val info = try { videoInfo(path) } catch (e: Exception) { null }
+                        runOnUiThread { result.success(info) }
+                    }.start()
+                }
+                // [path, short side, bitrate]: the video re-encoded as H.264/AAC MP4 at most that
+                // size, HDR toned down to SDR; the new file's path (in the cache, the app deletes it).
+                "transcodeVideo" -> {
+                    val (path, side, bitrate) = call.arguments as List<*>
+                    transcode(path as String, (side as Number).toInt(), (bitrate as Number).toInt(), result)
+                }
                 // Uploads under way: the ongoing notification while they go (TransferService).
                 "transfersStart" -> {
                     startForegroundService(android.content.Intent(this, TransferService::class.java)
@@ -193,6 +207,64 @@ class MainActivity : FlutterFragmentActivity() {
     private var stickersResult: MethodChannel.Result? = null
 
     @Deprecated("FlutterFragmentActivity still routes results here")
+    private fun videoInfo(path: String): Map<String, Any> {
+        val r = android.media.MediaMetadataRetriever()
+        try {
+            r.setDataSource(path)
+            fun num(key: Int) = r.extractMetadata(key)?.toLongOrNull() ?: 0L
+            var w = num(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+            var h = num(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+            val rotation = num(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+            if (rotation == 90L || rotation == 270L) w = h.also { h = w } // as it's shown
+            val still = java.io.ByteArrayOutputStream()
+            r.getFrameAtTime(0)?.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, still)
+            return mapOf(
+                "width" to w, "height" to h,
+                "ms" to num(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION),
+                "still" to still.toByteArray())
+        } finally {
+            r.release()
+        }
+    }
+
+    private fun transcode(src: String, side: Int, bitrate: Int, result: MethodChannel.Result) {
+        val out = java.io.File(cacheDir, "video-${System.nanoTime()}.mp4")
+        val item = androidx.media3.transformer.EditedMediaItem.Builder(
+            androidx.media3.common.MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(src))))
+            .setEffects(androidx.media3.transformer.Effects(
+                listOf(), listOf(androidx.media3.effect.Presentation.createForShortSide(side))))
+            .build()
+        val composition = androidx.media3.transformer.Composition.Builder(
+            androidx.media3.transformer.EditedMediaItemSequence.Builder(item).build())
+            .setHdrMode(androidx.media3.transformer.Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
+            .build()
+        val encoders = androidx.media3.transformer.DefaultEncoderFactory.Builder(this)
+            .setRequestedVideoEncoderSettings(
+                androidx.media3.transformer.VideoEncoderSettings.Builder().setBitrate(bitrate).build())
+            .build()
+        androidx.media3.transformer.Transformer.Builder(this)
+            .setVideoMimeType(androidx.media3.common.MimeTypes.VIDEO_H264)
+            .setAudioMimeType(androidx.media3.common.MimeTypes.AUDIO_AAC)
+            .setEncoderFactory(encoders)
+            .addListener(object : androidx.media3.transformer.Transformer.Listener {
+                override fun onCompleted(
+                    composition: androidx.media3.transformer.Composition,
+                    exportResult: androidx.media3.transformer.ExportResult,
+                ) = result.success(out.path)
+
+                override fun onError(
+                    composition: androidx.media3.transformer.Composition,
+                    exportResult: androidx.media3.transformer.ExportResult,
+                    exportException: androidx.media3.transformer.ExportException,
+                ) {
+                    out.delete()
+                    result.error("transcode_failed", exportException.message, null)
+                }
+            })
+            .build()
+            .start(composition, out.path)
+    }
+
     private var saveResult: MethodChannel.Result? = null
     private var saveFrom: String? = null
 

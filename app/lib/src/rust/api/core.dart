@@ -61,6 +61,14 @@ abstract class Core implements RustOpaqueInterface {
   /// The attachment decrypted into a file to open or play (phones), downloading it first.
   Future<String> attachmentFile({required List<int> messageId});
 
+  /// `len` bytes of an attachment's plaintext from `offset` (phones), decrypted chunk by
+  /// chunk, waiting for them while it downloads: for playing a video as it comes.
+  Future<Uint8List> attachmentRange({
+    required List<int> messageId,
+    required BigInt offset,
+    required BigInt len,
+  });
+
   /// A contact's picture, once fetched with their profile.
   Uint8List? avatar({required List<int> account});
 

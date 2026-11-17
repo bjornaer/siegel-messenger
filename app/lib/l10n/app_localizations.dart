@@ -1506,35 +1506,53 @@ abstract class AppLocalizations {
   /// **'Forwarded'**
   String get forwarded;
 
-  /// No description provided for @compressVideo.
-  ///
-  /// In en, this message translates to:
-  /// **'Compress the video?'**
-  String get compressVideo;
-
-  /// No description provided for @compressVideoBody.
-  ///
-  /// In en, this message translates to:
-  /// **'A compressed video is smaller and quicker to send, at a lower quality.'**
-  String get compressVideoBody;
-
   /// No description provided for @compressVideoMust.
   ///
   /// In en, this message translates to:
-  /// **'This video is over 100 MB, the most Siegel can send. Compress it to send it.'**
+  /// **'This video is over 1 GB, the most Siegel can send. Pick a smaller quality to send it.'**
   String get compressVideoMust;
 
-  /// No description provided for @sendOriginal.
+  /// No description provided for @videoQuality.
   ///
   /// In en, this message translates to:
-  /// **'Send original'**
-  String get sendOriginal;
+  /// **'Send the video in'**
+  String get videoQuality;
 
-  /// No description provided for @compress.
+  /// No description provided for @qualityStandard.
   ///
   /// In en, this message translates to:
-  /// **'Compress'**
-  String get compress;
+  /// **'Standard quality'**
+  String get qualityStandard;
+
+  /// No description provided for @qualityStandardHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller and quickest to send'**
+  String get qualityStandardHelp;
+
+  /// No description provided for @qualityHd.
+  ///
+  /// In en, this message translates to:
+  /// **'HD'**
+  String get qualityHd;
+
+  /// No description provided for @qualityHdHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharper, about twice the size'**
+  String get qualityHdHelp;
+
+  /// No description provided for @qualityOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get qualityOriginal;
+
+  /// No description provided for @qualityOriginalHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'As it is: {size}'**
+  String qualityOriginalHelp(String size);
 
   /// No description provided for @autoDownload.
   ///
@@ -2607,7 +2625,7 @@ abstract class AppLocalizations {
   /// No description provided for @errVideoCompress.
   ///
   /// In en, this message translates to:
-  /// **'This video couldn\'t be made smaller, and it\'s over 100 MB. Trim it first, or send a shorter one.'**
+  /// **'This video couldn\'t be made smaller, or it\'s still over 1 GB. Trim it first, or send a shorter one.'**
   String get errVideoCompress;
 
   /// No description provided for @mostUsedStickers.
