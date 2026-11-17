@@ -456,7 +456,101 @@ func (m memBlobs) put(_ context.Context, k string, r io.Reader, _ int64) error {
 func (m memBlobs) get(_ context.Context, k string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(m[k])), nil
 }
+func (m memBlobs) getRange(_ context.Context, k string, off, n int64) (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(m[k][off : off+n])), nil
+}
 func (m memBlobs) del(_ context.Context, k string) error { delete(m, k); return nil }
+
+func TestBlobParts(t *testing.T) { // large attachments: in order, resumable, 1 GB, shorter life
+	e := setup(t)
+	store := memBlobs{}
+	e.s.blobs, e.s.cfg.blobLife, e.s.cfg.largeLife, e.s.cfg.uploadsPerDay = store, 30*24*time.Hour, 7*24*time.Hour, 100
+	a := e.device("+34600000178")
+	auth := connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, r connect.AnyRequest) (connect.AnyResponse, error) {
+			r.Header().Set("Authorization", "Bearer "+a.DeviceToken)
+			return next(ctx, r)
+		}
+	}))
+	att := siegelv1connect.NewAttachmentsServiceClient(http.DefaultClient, e.url, auth)
+	create := func(size int64) (*siegelv1.AttachmentsServiceCreateUploadResponse, string) {
+		res, err := att.CreateUpload(e.ctx, connect.NewRequest(&siegelv1.AttachmentsServiceCreateUploadRequest{Size: size}))
+		if err != nil {
+			return nil, errMsg(err)
+		}
+		return res.Msg, ""
+	}
+	do := func(method, path, token string, body []byte) (int, []byte, http.Header) {
+		req, _ := http.NewRequest(method, e.url+path, bytes.NewReader(body))
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, b, res.Header
+	}
+	data := bytes.Repeat([]byte("0123456789abcdef"), partSize/16+1)[:partSize+3]
+	up, msg := create(int64(len(data)))
+	want(t, msg, "")
+	blob := fmt.Sprintf("/v1/blobs/%x", up.BlobId)
+	if code, _, h := do("PUT", up.UploadPath+"&part=1", "", data[partSize:]); code != 409 || h.Get("X-Next-Part") != "0" {
+		t.Fatal("parts go in order, and it says which is next", code, h.Get("X-Next-Part"))
+	}
+	if code, _, _ := do("PUT", up.UploadPath+"&part=0", "", data[:10]); code != 400 {
+		t.Fatal("a part is its full length", code)
+	}
+	if code, _, _ := do("PUT", up.UploadPath+"&part=0", "", data[:partSize]); code != 204 {
+		t.Fatal("part 0", code)
+	}
+	if code, _, _ := do("GET", blob, a.DeviceToken, nil); code != 404 {
+		t.Fatal("not there until the last part", code)
+	}
+	if code, _, _ := do("PUT", up.UploadPath+"&part=1", "", data[partSize:]); code != 204 {
+		t.Fatal("part 1", code)
+	}
+	if code, _, _ := do("PUT", up.UploadPath+"&part=1", "", data[partSize:]); code != 404 {
+		t.Fatal("finished: the URL is spent", code)
+	}
+	if code, b, _ := do("GET", blob+"?part=1", a.DeviceToken, nil); code != 200 || !bytes.Equal(b, data[partSize:]) {
+		t.Fatal("one part", code, len(b))
+	}
+	if code, b, _ := do("GET", blob, a.DeviceToken, nil); code != 200 || !bytes.Equal(b, data) {
+		t.Fatal("older apps get it whole", code, len(b))
+	}
+	// A blob an older app uploaded whole still comes in parts.
+	old, _ := create(int64(len(data)))
+	if code, _, _ := do("PUT", old.UploadPath, "", data); code != 204 {
+		t.Fatal("whole upload", code)
+	}
+	if code, b, _ := do("GET", fmt.Sprintf("/v1/blobs/%x?part=1", old.BlobId), a.DeviceToken, nil); code != 200 || !bytes.Equal(b, data[partSize:]) {
+		t.Fatal("a range of a whole blob", code, len(b))
+	}
+	e.s.db.Exec(e.ctx, `UPDATE attachments SET expires_at = now() - interval '1 second'`)
+	e.s.expireBlobs(e.ctx)
+	if len(store) != 0 {
+		t.Fatal("every part expires", len(store))
+	}
+
+	_, msg = create(maxBlob)
+	want(t, msg, "") // 1 GB
+	var days float64
+	create(5)
+	e.s.db.QueryRow(e.ctx, `SELECT extract(epoch FROM expires_at - now()) / 86400 FROM attachments WHERE size = 5`).Scan(&days)
+	if days < 29 {
+		t.Fatal("small blobs keep the usual life", days)
+	}
+	e.s.db.QueryRow(e.ctx, `SELECT extract(epoch FROM expires_at - now()) / 86400 FROM attachments WHERE size = $1`, maxBlob).Scan(&days)
+	if days > 7.01 {
+		t.Fatal("large ones go sooner", days)
+	}
+	e.s.cfg.uploadMBDay = 1200 + 2*9 + 1 // what it has used, give or take
+	_, msg = create(maxBlob)
+	want(t, msg, "rate_limited") // megabytes a day, not just uploads
+}
 
 func TestAttachments(t *testing.T) { // MED-03, MED-06, MED-13
 	e := setup(t)

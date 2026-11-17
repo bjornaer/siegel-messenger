@@ -79,7 +79,9 @@ type config struct {
 	reviewCode    string
 	s3            s3            // ARCH-06 attachment store
 	blobLife      time.Duration // MED-13
+	largeLife     time.Duration // MED-13 for blobs over 100 MB: they cost the most to keep
 	uploadsPerDay int           // per account
+	uploadMBDay   int           // per account, megabytes a day
 	discInitial   int           // DISC-06: OPRF evaluations per account per key period (first sync)
 	discDaily     int           // DISC-06: then per day
 	discPeriod    time.Duration // DISC-05: OPRF key rotation
@@ -142,7 +144,9 @@ func loadConfig() config {
 			secret:   os.Getenv("SIEGEL_S3_SECRET_KEY"),
 		},
 		blobLife:      time.Duration(env("SIEGEL_BLOB_DAYS", 30, strconv.Atoi)) * 24 * time.Hour,
+		largeLife:     time.Duration(env("SIEGEL_LARGE_BLOB_DAYS", 7, strconv.Atoi)) * 24 * time.Hour,
 		uploadsPerDay: env("SIEGEL_UPLOADS_PER_DAY", 1000, strconv.Atoi),
+		uploadMBDay:   env("SIEGEL_UPLOAD_MB_PER_DAY", 5000, strconv.Atoi),
 		discInitial:   env("SIEGEL_DISCOVERY_INITIAL", 5000, strconv.Atoi),
 		discDaily:     env("SIEGEL_DISCOVERY_PER_DAY", 100, strconv.Atoi),
 		discPeriod:    time.Duration(env("SIEGEL_DISCOVERY_KEY_DAYS", 90, strconv.Atoi)) * 24 * time.Hour,

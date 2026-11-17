@@ -70,10 +70,15 @@ func newUUID() [16]byte {
 // hit counts one event in a fixed window stored in PostgreSQL (SRV-04) and reports whether it is within max.
 // ponytail: fixed windows allow a 2x burst at the boundary; use sliding windows if that gets abused.
 func (s *server) hit(ctx context.Context, key string, window time.Duration, max int) (bool, error) {
+	return s.hitBy(ctx, key, window, 1, max)
+}
+
+// hitBy counts by more than one, for budgets like megabytes uploaded.
+func (s *server) hitBy(ctx context.Context, key string, window time.Duration, by, max int) (bool, error) {
 	var n int
-	err := s.db.QueryRow(ctx, `INSERT INTO rate_limits VALUES ($1, $2, 1)
-		ON CONFLICT (key, window_start) DO UPDATE SET count = rate_limits.count + 1 RETURNING count`,
-		key, time.Now().UTC().Truncate(window)).Scan(&n)
+	err := s.db.QueryRow(ctx, `INSERT INTO rate_limits VALUES ($1, $2, $3)
+		ON CONFLICT (key, window_start) DO UPDATE SET count = rate_limits.count + $3 RETURNING count`,
+		key, time.Now().UTC().Truncate(window), by).Scan(&n)
 	return n <= max, err
 }
 
