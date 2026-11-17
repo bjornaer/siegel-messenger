@@ -411,9 +411,15 @@ Future<(int, int)> sizeOf(Uint8List image) async {
   return s;
 }
 
-/// MED-07, MED-11: a photo from the gallery, compressed to at most 2048 px as JPEG with no EXIF
-/// (so no location). GIFs go as they are, to stay animated.
-Future<Outgoing?> pickPhoto() => _photo(ImageSource.gallery);
+/// MED-07, MED-11: photos from the gallery, several at once, each compressed to at most 2048 px
+/// as JPEG with no EXIF (so no location). GIFs go as they are, to stay animated.
+Future<List<Outgoing>> pickPhotos() async => [
+  for (final f in await ImagePicker().pickMultiImage(limit: maxPhotos))
+    await photoOf(await f.readAsBytes(), gif: f.name.toLowerCase().endsWith('.gif')),
+];
+
+/// How many photos go in one pick, as on WhatsApp.
+const maxPhotos = 30;
 
 /// M9: a photo taken now, with the phone's camera. It lands in the app's cache, never in the
 /// gallery, and the picker's copy is cleared once read.
@@ -730,9 +736,12 @@ class _StickerMessageState extends State<StickerMessage> with _Fetch {
 
 /// MED-07: a photo in a bubble: the preview until downloaded (auto or on tap), then the photo.
 class ImageMessage extends StatefulWidget {
-  const ImageMessage({super.key, required this.core, required this.message});
+  const ImageMessage({super.key, required this.core, required this.message, this.tile = false});
   final Core core;
   final MessageView message;
+
+  /// A square in an album grid, sized by its parent.
+  final bool tile;
 
   @override
   State<ImageMessage> createState() => _ImageMessageState();
@@ -767,9 +776,9 @@ class _ImageMessageState extends State<ImageMessage> with _Fetch {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: SizedBox(
-          width: 240,
+          width: widget.tile ? null : 240,
           child: AspectRatio(
-            aspectRatio: ratio,
+            aspectRatio: widget.tile ? 1 : ratio,
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -1275,10 +1284,11 @@ class _ViewOnceViewerState extends State<ViewOnceViewer> {
   }
 }
 
-/// M9: a photo before it goes, from the camera or the gallery: send it as it is, or view once.
+/// M9: photos before they go, from the camera or the gallery, swiped through when several. A
+/// single one can go as view once.
 class PhotoSendScreen extends StatefulWidget {
-  const PhotoSendScreen({super.key, required this.photo});
-  final Outgoing photo;
+  const PhotoSendScreen({super.key, required this.photos});
+  final List<Outgoing> photos;
 
   @override
   State<PhotoSendScreen> createState() => _PhotoSendScreenState();
@@ -1286,18 +1296,27 @@ class PhotoSendScreen extends StatefulWidget {
 
 class _PhotoSendScreenState extends State<PhotoSendScreen> {
   bool _viewOnce = false;
+  int _page = 0;
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final p = widget.photo;
+    final photos = widget.photos;
+    final one = photos.length == 1;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: one ? null : Text('${_page + 1} / ${photos.length}'),
+      ),
       body: Column(
         children: [
           Expanded(
-            child: Center(child: Image.memory(p.data, fit: BoxFit.contain)),
+            child: PageView(
+              onPageChanged: (i) => setState(() => _page = i),
+              children: [for (final p in photos) Center(child: Image.memory(p.data, fit: BoxFit.contain))],
+            ),
           ),
           if (_viewOnce)
             Padding(
@@ -1314,28 +1333,29 @@ class _PhotoSendScreenState extends State<PhotoSendScreen> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  IconButton(
-                    tooltip: t.viewOnce,
-                    isSelected: _viewOnce,
-                    color: Colors.white,
-                    selectedIcon: const Icon(Icons.looks_one),
-                    icon: const Icon(Icons.looks_one_outlined),
-                    onPressed: () => setState(() => _viewOnce = !_viewOnce),
-                  ),
+                  if (one)
+                    IconButton(
+                      tooltip: t.viewOnce,
+                      isSelected: _viewOnce,
+                      color: Colors.white,
+                      selectedIcon: const Icon(Icons.looks_one),
+                      icon: const Icon(Icons.looks_one_outlined),
+                      onPressed: () => setState(() => _viewOnce = !_viewOnce),
+                    ),
                   const Spacer(),
                   FloatingActionButton(
                     tooltip: t.send,
-                    onPressed: () => Navigator.pop(
-                      context,
-                      outgoing(
-                        p.data,
-                        p.mime,
-                        width: p.width,
-                        height: p.height,
-                        thumbnail: p.thumbnail,
-                        viewOnce: _viewOnce,
-                      ),
-                    ),
+                    onPressed: () => Navigator.pop(context, [
+                      for (final p in photos)
+                        outgoing(
+                          p.data,
+                          p.mime,
+                          width: p.width,
+                          height: p.height,
+                          thumbnail: p.thumbnail,
+                          viewOnce: one && _viewOnce,
+                        ),
+                    ]),
                     child: const Icon(Icons.send),
                   ),
                 ],
@@ -1346,4 +1366,28 @@ class _PhotoSendScreenState extends State<PhotoSendScreen> {
       ),
     );
   }
+}
+
+/// Every photo of an album, from its "+N" square.
+class AlbumScreen extends StatelessWidget {
+  const AlbumScreen({super.key, required this.core, required this.photos});
+  final Core core;
+  final List<MessageView> photos;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('${photos.length} ${AppLocalizations.of(context)!.photos.toLowerCase()}')),
+    body: ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        for (final p in photos)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Center(
+              child: ImageMessage(core: core, message: p),
+            ),
+          ),
+      ],
+    ),
+  );
 }

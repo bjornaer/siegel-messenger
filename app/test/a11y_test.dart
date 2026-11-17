@@ -109,12 +109,14 @@ Future<Map<String, Widget>> screens() async {
     'linked devices': LinkedDevicesScreen(core: core),
     'web PIN': PinScreen.create(onPin: (_) async => true),
     'photo send': PhotoSendScreen(
-      photo: outgoing(
-        base64Decode(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      photos: [
+        outgoing(
+          base64Decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          ),
+          'image/png',
         ),
-        'image/png',
-      ),
+      ],
     ),
     'web unlock': PinScreen.unlock(onPin: (_) async => false, triesLeft: () => 9, onForgot: () {}),
     'report': ReportScreen(core: core, chat: core.chats().firstWhere((c) => !c.isGroup)),

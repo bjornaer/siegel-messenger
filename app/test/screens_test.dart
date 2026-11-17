@@ -1212,6 +1212,64 @@ void main() {
     expect(find.byIcon(Icons.check), findsNWidgets(2));
   });
 
+  testWidgets('photos sent together show as an album; a quote shows who and what, and a tap tints the original', (
+    t,
+  ) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final photo = AttachmentView(
+      mimeType: 'image/png',
+      fileName: '',
+      size: BigInt.from(FakeCore.tinyPng.length),
+      durationMs: 0,
+      voiceNote: false,
+      waveform: Uint8List(0),
+      width: 1,
+      height: 1,
+      thumbnail: FakeCore.tinyPng,
+      sticker: false,
+      viewOnce: false,
+      gone: false,
+    );
+    final h = core.history[base64Encode(id)] ??= [];
+    final original = FakeCore.msg(id, 'the original', outgoing: false);
+    h.add(original);
+    for (var i = 0; i < 40; i++) {
+      h.add(FakeCore.msg(id, 'filler $i', outgoing: true));
+    }
+    for (var i = 0; i < 6; i++) {
+      h.add(FakeCore.msg(id, '', outgoing: false, attachment: photo));
+    }
+    h.add(FakeCore.msg(id, 'two photos', outgoing: false, attachment: photo)); // in a row with them
+    h.add(FakeCore.msg(id, 'a reply', outgoing: true, replyTo: original.messageId));
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.text('+3'), findsOneWidget, reason: 'seven photos: four squares, the last says three more');
+    expect(find.byType(ImageMessage), findsNWidgets(4));
+
+    expect(find.text('the original'), findsOneWidget, reason: 'quoted in the reply');
+    expect(find.text('@bob'), findsWidgets, reason: 'with who wrote it');
+    Color tint() =>
+        (t
+                    .widget<AnimatedContainer>(
+                      find.ancestor(of: find.text('the original').last, matching: find.byType(AnimatedContainer)).first,
+                    )
+                    .decoration
+                as BoxDecoration)
+            .color!;
+    await t.tap(find.text('the original'));
+    for (var i = 0; i < 30; i++) {
+      await t.pump(const Duration(milliseconds: 16)); // pages up a frame at a time
+    }
+    await t.pump(const Duration(milliseconds: 400));
+    expect(find.text('the original'), findsOneWidget, reason: 'scrolled to it');
+    expect(tint().a, greaterThan(0), reason: 'the bubble is tinted a moment');
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    expect(tint().a, 0);
+  });
+
   testWidgets('a link card shows above the text; pages are read for title, description, image', (t) async {
     final core = FakeCore()..registered = true;
     final service = ChatService(core, onDeregistered: () {})..start();
@@ -1398,6 +1456,7 @@ void main() {
     await t.tap(find.text('m0')); // the quote
     await t.pumpAndSettle();
     expect(find.text('m1'), findsOneWidget);
+    await t.pump(const Duration(seconds: 2)); // the tint fades
   });
 
   testWidgets('search finds a message in any chat and opens the chat at it (CLI-05)', (t) async {
@@ -2690,29 +2749,41 @@ void main() {
     final png = base64Decode(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     );
-    Outgoing? sent;
-    await t.pumpWidget(
-      wrap(
-        Builder(
-          builder: (c) => TextButton(
-            onPressed: () async => sent = await Navigator.of(c).push<Outgoing>(
-              MaterialPageRoute(
-                builder: (_) => PhotoSendScreen(photo: outgoing(png, 'image/png', width: 1, height: 1)),
+    List<Outgoing>? sent;
+    Future<void> pick(int n) async {
+      await t.pumpWidget(
+        wrap(
+          Builder(
+            builder: (c) => TextButton(
+              onPressed: () async => sent = await Navigator.of(c).push<List<Outgoing>>(
+                MaterialPageRoute(
+                  builder: (_) => PhotoSendScreen(
+                    photos: [for (var i = 0; i < n; i++) outgoing(png, 'image/png', width: 1, height: 1)],
+                  ),
+                ),
               ),
+              child: const Text('pick'),
             ),
-            child: const Text('pick'),
           ),
         ),
-      ),
-    );
-    await tapText(t, 'pick');
+      );
+      await tapText(t, 'pick');
+    }
+
+    await pick(3); // several: swiped through, all sent, none view once
+    expect(find.text('1 / 3'), findsOneWidget);
+    expect(find.byTooltip('View once'), findsNothing);
+    await t.tap(find.byTooltip('Send'));
+    await t.pumpAndSettle();
+    expect(sent?.length, 3);
+    await pick(1);
     expect(find.textContaining('14 days'), findsNothing);
     await t.tap(find.byTooltip('View once'));
     await t.pump();
     expect(find.textContaining('14 days'), findsOneWidget, reason: 'says what view once does, and its limit');
     await t.tap(find.byTooltip('Send'));
     await t.pumpAndSettle();
-    expect(sent?.viewOnce, isTrue);
+    expect(sent?.single.viewOnce, isTrue);
 
     AttachmentView once({bool gone = false}) => AttachmentView(
       mimeType: 'image/jpeg',

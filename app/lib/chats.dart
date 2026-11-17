@@ -927,14 +927,17 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         return;
       }
-      final o = await switch (choice) {
-        0 || 4 => _photo(choice == 4 ? takePhoto : pickPhoto),
-        _ => pickVideo((must) async {
-          final c = await _askCompress(must);
-          if (c != null && mounted) setState(() => _busy = true); // compressing takes a while
-          return c;
-        }),
-      };
+      if (choice == 0 || choice == 4) {
+        for (final o in await _photos(choice == 4 ? _shot : pickPhotos)) {
+          await _sendAttachment(o); // one by one, in order; they show as an album
+        }
+        return;
+      }
+      final o = await pickVideo((must) async {
+        final c = await _askCompress(must);
+        if (c != null && mounted) setState(() => _busy = true); // compressing takes a while
+        return c;
+      });
       if (mounted) setState(() => _busy = false);
       if (o != null) await _sendAttachment(o);
     } on TooLarge {
@@ -1037,20 +1040,25 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// M9: a photo (camera or gallery) goes through a look before sending, where it can be made
-  /// view once.
-  Future<Outgoing?> _photo(Future<Outgoing?> Function() pick) async {
-    final p = await pick();
-    if (p == null || !mounted) return null;
-    if (mounted) setState(() => _busy = false);
-    return Navigator.of(context).push<Outgoing>(MaterialPageRoute(builder: (_) => PhotoSendScreen(photo: p)));
+  /// M9: photos (camera or gallery) go through a look before sending, where one alone can be
+  /// made view once.
+  Future<List<Outgoing>> _photos(Future<List<Outgoing>> Function() pick) async {
+    final ps = await pick();
+    if (ps.isEmpty || !mounted) return const [];
+    setState(() => _busy = false);
+    return await Navigator.of(context)
+            .push<List<Outgoing>>(MaterialPageRoute(builder: (_) => PhotoSendScreen(photos: ps))) ??
+        const [];
   }
+
+  static Future<List<Outgoing>> _shot() async => [?await takePhoto()];
 
   /// M9: the composer's camera button.
   Future<void> _camera() async {
     try {
-      final o = await _photo(takePhoto);
-      if (o != null) await _sendAttachment(o);
+      for (final o in await _photos(_shot)) {
+        await _sendAttachment(o);
+      }
     } on Exception catch (e) {
       debugPrint('camera: $e');
       if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
@@ -1600,7 +1608,132 @@ class _ChatScreenState extends State<ChatScreen> {
     final ctx = _keys[key]?.currentContext;
     if (ctx != null && ctx.mounted) {
       await Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5);
+      // A moment's tint says which bubble it is (an album's photo: the album).
+      final shown = _inAlbum[key] ?? key;
+      if (!mounted) return;
+      setState(() => _flash = shown);
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      if (mounted && _flash == shown) setState(() => _flash = null);
     }
+  }
+
+  String? _flash;
+
+  /// Each album photo's ID → the album's newest, where the album shows.
+  final _inAlbum = <String, String>{};
+
+  static bool _albumPhoto(MessageView m) => switch (m.attachment) {
+    final a? => !m.deleted && !a.sticker && !a.viewOnce && kindOf(a) == AttachmentKind.image,
+    null => false,
+  };
+
+  /// Four or more photos in a row from one sender, each within a minute of the last, show as one
+  /// album, as on WhatsApp. Keyed by the newest; the photos oldest first.
+  Map<String, List<MessageView>> _albums(List<MessageView> messages) {
+    final albums = <String, List<MessageView>>{};
+    _inAlbum.clear();
+    var run = <MessageView>[];
+    void close() {
+      if (run.length >= 4) {
+        final head = base64Encode(run.last.messageId);
+        albums[head] = run;
+        for (final p in run) {
+          _inAlbum[base64Encode(p.messageId)] = head;
+        }
+      }
+      run = [];
+    }
+
+    for (final m in messages) {
+      final joins =
+          run.isNotEmpty &&
+          _albumPhoto(m) &&
+          m.replyTo == null &&
+          m.outgoing == run.last.outgoing &&
+          listEquals(m.senderAccount, run.last.senderAccount) &&
+          asInt(m.sentAt) - asInt(run.last.sentAt) <= 60000;
+      if (joins) {
+        run.add(m);
+      } else {
+        close();
+        if (_albumPhoto(m)) run = [m];
+      }
+    }
+    close();
+    return albums;
+  }
+
+  /// An album: a 2×2 grid; the last square says how many more and opens them all.
+  Widget _album(List<MessageView> photos, ChatSummary c) {
+    final more = photos.length - 4;
+    // Two squares a row, inside the bubble's padding on narrow phones.
+    final side = min(118.0, (MediaQuery.sizeOf(context).width * 0.78 - 24 - 4) / 2);
+    return SizedBox(
+      width: side * 2 + 4,
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: [
+          for (final (i, p) in photos.take(4).indexed)
+            SizedBox.square(
+              dimension: side,
+              child: GestureDetector(
+                onLongPress: () => _actions(p, c),
+                child: i < 3 || more <= 0
+                    ? ImageMessage(core: core, message: p, tile: true)
+                    : GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => AlbumScreen(core: core, photos: photos),
+                          ),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            AbsorbPointer(
+                              child: ImageMessage(core: core, message: p, tile: true),
+                            ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: ColoredBox(
+                                color: Colors.black54,
+                                child: Center(
+                                  child: Text('+$more', style: const TextStyle(color: Colors.white, fontSize: 24)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// MSG-07: the quoted message, in a bubble or above the composer: who, what, and its picture.
+  Widget _quoteOf(AppLocalizations t, ChatSummary c, MessageView? q) {
+    final colors = Theme.of(context).colorScheme;
+    final a = q?.attachment;
+    return _Quote(
+      who: q == null
+          ? null
+          : q.outgoing
+          ? t.you
+          : c.isGroup
+          ? memberName(t, core, q.senderAccount)
+          : chatTitle(t, c),
+      text: q == null
+          ? t.originalMissing
+          : q.deleted
+          ? t.messageDeleted
+          : messageText(t, q),
+      thumb: q == null || q.deleted || a == null || a.viewOnce || a.thumbnail.isEmpty ? null : a.thumbnail,
+      accent: q == null || q.outgoing || !c.isGroup
+          ? colors.primary
+          : memberColor(q.senderAccount, colors.surfaceContainerHighest),
+    );
   }
 
   // ponytail: the newest 500 messages; paginate if chats get long.
@@ -1613,6 +1746,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = _cached;
     final byId = {for (final m in messages) base64Encode(m.messageId): m};
     final index = {for (final (i, m) in messages.reversed.indexed) _keys[base64Encode(m.messageId)]: i};
+    final albums = c.request ? const <String, List<MessageView>>{} : _albums(messages);
     // Built lazily, newest at the bottom: only what's on screen is laid out.
     return ListView.builder(
       controller: _scroll,
@@ -1622,11 +1756,15 @@ class _ChatScreenState extends State<ChatScreen> {
       findChildIndexCallback: (key) => index[key], // a new message keeps the others' state
       itemBuilder: (context, i) {
         final m = messages[messages.length - 1 - i];
+        final id = base64Encode(m.messageId);
+        if (_inAlbum[id] case final head? when head != id) {
+          return SizedBox.shrink(key: _keys.putIfAbsent(id, GlobalKey.new)); // shown in its album
+        }
         return m.event != null
             ? _systemLine(context, m)
             : m.keyChange
             ? _keyChange(context, m, c)
-            : _bubble(context, m, byId, c);
+            : _bubble(context, m, byId, c, album: albums[id]);
       },
     );
   }
@@ -1637,160 +1775,148 @@ class _ChatScreenState extends State<ChatScreen> {
     _focus.requestFocus();
   });
 
-  Widget _bubble(BuildContext context, MessageView m, Map<String, MessageView> byId, ChatSummary c) {
+  Widget _bubble(
+    BuildContext context,
+    MessageView m,
+    Map<String, MessageView> byId,
+    ChatSummary c, {
+    List<MessageView>? album,
+  }) {
     final t = AppLocalizations.of(context)!;
     final colors = Theme.of(context).colorScheme;
     final sticker = m.attachment?.sticker == true && !m.deleted; // large, no bubble
     final grad = m.outgoing && !sticker ? Theme.of(context).extension<SiegelGradient>() : null; // gradient themes
     final small = Theme.of(context).textTheme.labelSmall?.copyWith(color: grad?.on);
     final id = base64Encode(m.messageId);
-    final quoted = m.replyTo == null ? null : byId[base64Encode(m.replyTo!)];
+    final first = album?.first ?? m; // an album's quote is on its first photo
+    final quoted = first.replyTo == null ? null : byId[base64Encode(first.replyTo!)];
     final failed = m.status == MessageStatus.failed;
 
     final counts = <String, int>{};
-    for (final r in m.reactions) {
+    for (final r in [
+      for (final p in album ?? [m]) ...p.reactions,
+    ]) {
       counts[r.emoji] = (counts[r.emoji] ?? 0) + 1;
     }
-    return Align(
+    return AnimatedContainer(
       key: _keys.putIfAbsent(id, GlobalKey.new),
-      alignment: m.outgoing ? Alignment.centerRight : Alignment.centerLeft,
-      // CMP-05: read as one message with its sender; Reply stands in for the swipe.
-      child: Semantics(
-        container: true,
-        label: m.outgoing ? t.you : (c.isGroup ? memberName(t, core, m.senderAccount) : chatTitle(t, c)),
-        onLongPressHint: t.messageOptions,
-        customSemanticsActions: m.deleted || c.request
-            ? null
-            : {CustomSemanticsAction(label: t.reply): () => _reply(m)},
-        child: _SwipeToReply(
-          onReply: m.deleted || c.request ? null : () => _reply(m),
-          outgoing: m.outgoing,
-          child: GestureDetector(
-            onLongPress: () => _actions(m, c),
-            onSecondaryTap: webUi ? () => _actions(m, c) : null, // a right click, in the browser
+      duration: const Duration(milliseconds: 400),
+      color: colors.primary.withValues(alpha: _flash == id ? 0.2 : 0),
+      child: Align(
+        alignment: m.outgoing ? Alignment.centerRight : Alignment.centerLeft,
+        // CMP-05: read as one message with its sender; Reply stands in for the swipe.
+        child: Semantics(
+          container: true,
+          label: m.outgoing ? t.you : (c.isGroup ? memberName(t, core, m.senderAccount) : chatTitle(t, c)),
+          onLongPressHint: t.messageOptions,
+          customSemanticsActions: m.deleted || c.request
+              ? null
+              : {CustomSemanticsAction(label: t.reply): () => _reply(m)},
+          child: _SwipeToReply(
+            onReply: m.deleted || c.request ? null : () => _reply(m),
+            outgoing: m.outgoing,
+            child: GestureDetector(
+              onLongPress: () => _actions(m, c),
+              onSecondaryTap: webUi ? () => _actions(m, c) : null, // a right click, in the browser
 
-            onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 3),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
-              decoration: BoxDecoration(
-                color: grad != null || sticker
-                    ? null
-                    : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
-                gradient: grad?.linear,
-                borderRadius: BorderRadius.circular(16),
-                // GRP-15: messages that @mention us stand out.
-                border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
-                    ? Border.all(color: colors.primary, width: 2)
-                    : null,
-              ),
-              // As wide as its widest line; text starts left, time and ticks end right.
-              child: onGradient(
-                context,
-                grad,
-                IntrinsicWidth(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (c.isGroup && !m.outgoing)
-                        ExcludeSemantics(
-                          // the bubble already says who sent it
-                          child: Text(
-                            memberName(t, core, m.senderAccount),
-                            style: small?.copyWith(
-                              color: memberColor(m.senderAccount, colors.surfaceContainerHighest),
-                              fontWeight: FontWeight.bold,
+              onTap: failed ? () => _run(() => core.retry(messageId: m.messageId)) : null,
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+                decoration: BoxDecoration(
+                  color: grad != null || sticker
+                      ? null
+                      : (m.outgoing ? colors.primaryContainer : colors.surfaceContainerHighest),
+                  gradient: grad?.linear,
+                  borderRadius: BorderRadius.circular(16),
+                  // GRP-15: messages that @mention us stand out.
+                  border: !m.outgoing && m.mentions.any((a) => listEquals(a, _me))
+                      ? Border.all(color: colors.primary, width: 2)
+                      : null,
+                ),
+                // As wide as its widest line; text starts left, time and ticks end right.
+                child: onGradient(
+                  context,
+                  grad,
+                  IntrinsicWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (c.isGroup && !m.outgoing)
+                          ExcludeSemantics(
+                            // the bubble already says who sent it
+                            child: Text(
+                              memberName(t, core, m.senderAccount),
+                              style: small?.copyWith(
+                                color: memberColor(m.senderAccount, colors.surfaceContainerHighest),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      if (m.replyTo != null && !m.deleted)
-                        GestureDetector(
-                          onTap: () => _jumpTo(m.replyTo!),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 4),
-                            padding: const EdgeInsets.only(left: 8),
-                            decoration: BoxDecoration(
-                              border: Border(left: BorderSide(color: colors.primary, width: 3)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (quoted != null)
-                                  Text(
-                                    quoted.outgoing
-                                        ? t.you
-                                        : c.isGroup
-                                        ? memberName(t, core, quoted.senderAccount)
-                                        : chatTitle(t, c),
-                                    style: small,
-                                  ),
-                                Text(
-                                  quoted == null
-                                      ? t.originalMissing
-                                      : quoted.deleted
-                                      ? t.messageDeleted
-                                      : messageText(t, quoted),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
+                        if (first.replyTo != null && !m.deleted)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: GestureDetector(onTap: () => _jumpTo(first.replyTo!), child: _quoteOf(t, c, quoted)),
                           ),
-                        ),
-                      if (m.deleted)
-                        Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
-                      else if (m.attachment != null)
-                        attachmentView(core, m, held: c.request)
-                      else if (locationOf(m.text) case final l?)
-                        ValueListenableBuilder(
-                          valueListenable: liveSharing,
-                          builder: (_, sharing, _) => LocationMessage(
-                            l,
-                            until: liveUntil(m.text),
-                            onStop: sharing.contains(id)
-                                ? () => stopLive(core, m.messageId, early: true, changed: widget.service.refresh)
-                                : null,
-                          ),
-                        )
-                      else ...[
-                        if (m.preview case final p?) LinkPreviewCard(p),
-                        Text.rich(formatText(m.text, onLink: openUrl)),
-                      ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (m.edited && !m.deleted && locationOf(m.text) == null) // live locations update by editing
-                            GestureDetector(
-                              onTap: () => _history(m),
-                              child: Text('${t.edited} ', style: small),
+                        if (m.deleted)
+                          Text(t.messageDeleted, style: const TextStyle(fontStyle: FontStyle.italic))
+                        else if (album != null)
+                          _album(album, c)
+                        else if (m.attachment != null)
+                          attachmentView(core, m, held: c.request)
+                        else if (locationOf(m.text) case final l?)
+                          ValueListenableBuilder(
+                            valueListenable: liveSharing,
+                            builder: (_, sharing, _) => LocationMessage(
+                              l,
+                              until: liveUntil(m.text),
+                              onStop: sharing.contains(id)
+                                  ? () => stopLive(core, m.messageId, early: true, changed: widget.service.refresh)
+                                  : null,
                             ),
-                          Text(_time(context, asInt(m.sentAt)), style: small),
-                          if (m.outgoing) ...[
-                            const SizedBox(width: 4),
-                            _status(
-                              t,
-                              m.status,
-                              colors,
-                              read: readTickColor(Theme.of(context)),
-                              muted: grad?.on.withValues(alpha: 0.75) ?? colors.onSurfaceVariant,
-                            ),
-                          ],
+                          )
+                        else ...[
+                          if (m.preview case final p?) LinkPreviewCard(p),
+                          Text.rich(formatText(m.text, onLink: openUrl)),
                         ],
-                      ),
-                      if (failed)
-                        Text(
-                          t.notSentRetry,
-                          textAlign: TextAlign.end,
-                          style: small?.copyWith(color: colors.error),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (m.edited &&
+                                !m.deleted &&
+                                locationOf(m.text) == null) // live locations update by editing
+                              GestureDetector(
+                                onTap: () => _history(m),
+                                child: Text('${t.edited} ', style: small),
+                              ),
+                            Text(_time(context, asInt(m.sentAt)), style: small),
+                            if (m.outgoing) ...[
+                              const SizedBox(width: 4),
+                              _status(
+                                t,
+                                m.status,
+                                colors,
+                                read: readTickColor(Theme.of(context)),
+                                muted: grad?.on.withValues(alpha: 0.75) ?? colors.onSurfaceVariant,
+                              ),
+                            ],
+                          ],
                         ),
-                      if (counts.isNotEmpty)
-                        Text(
-                          [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
-                          textAlign: TextAlign.end,
-                        ),
-                    ],
+                        if (failed)
+                          Text(
+                            t.notSentRetry,
+                            textAlign: TextAlign.end,
+                            style: small?.copyWith(color: colors.error),
+                          ),
+                        if (counts.isNotEmpty)
+                          Text(
+                            [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
+                            textAlign: TextAlign.end,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1921,13 +2047,7 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 Icon(_editing != null ? Icons.edit_outlined : Icons.reply, size: 18),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _editing != null ? t.editing : messageText(t, target),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+                Expanded(child: _editing != null ? Text(t.editing) : _quoteOf(t, c, target)),
                 IconButton(
                   tooltip: t.cancel,
                   icon: const Icon(Icons.close),
@@ -2084,6 +2204,55 @@ class _SwipeToReplyState extends State<_SwipeToReply> {
           ),
           Transform.translate(offset: Offset(_dx, 0), child: widget.child),
         ],
+      ),
+    );
+  }
+}
+
+/// A quoted message: a bar in the sender's colour, who and what, and a thumbnail for a picture.
+/// Tinted from the text colour, so it reads in any bubble or theme.
+class _Quote extends StatelessWidget {
+  const _Quote({required this.who, required this.text, required this.thumb, required this.accent});
+  final String? who;
+  final String text;
+  final Uint8List? thumb;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = DefaultTextStyle.of(context).style.color ?? Theme.of(context).colorScheme.onSurface;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: ColoredBox(
+        color: ink.withValues(alpha: 0.08),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 4, color: accent),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (who != null)
+                        Text(
+                          who!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+              if (thumb != null) Image.memory(thumb!, width: 48, fit: BoxFit.cover, excludeFromSemantics: true),
+            ],
+          ),
+        ),
       ),
     );
   }
