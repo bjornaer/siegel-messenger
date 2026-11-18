@@ -465,5 +465,7 @@
   "savedToGallery": "In deiner Galerie gespeichert",
   "viewPhoto": "Foto ansehen",
   "forwarded": "Weitergeleitet",
-  "archivedHint": "Archiviert. Zieh die Chatliste nach unten, um archivierte Chats zu sehen."
+  "archivedHint": "Archiviert. Zieh die Chatliste nach unten, um archivierte Chats zu sehen.",
+  "sendTo": "Senden an…",
+  "addToStickers": "Zu meinen Stickern hinzufügen"
 }

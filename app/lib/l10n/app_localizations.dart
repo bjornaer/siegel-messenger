@@ -2891,6 +2891,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Archived. Pull down the chat list to see archived chats.'**
   String get archivedHint;
+
+  /// No description provided for @sendTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to…'**
+  String get sendTo;
+
+  /// No description provided for @addToStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to my stickers'**
+  String get addToStickers;
 }
 
 class _AppLocalizationsDelegate

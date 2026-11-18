@@ -370,6 +370,70 @@ List<ChatSummary> listedChats(Core core, {required bool archived, List<ChatSumma
       c,
 ];
 
+typedef SharedFile = ({String name, String path, String mime});
+
+/// What another app shared to Siegel: text (a link, say) and copies of its files in our cache.
+typedef Shared = ({String text, List<SharedFile> files});
+
+/// Shared to Siegel: which chat it goes to. WebP images can go to my stickers instead.
+class ShareScreen extends StatelessWidget {
+  const ShareScreen({super.key, required this.core, required this.service, required this.shared});
+  final Core core;
+  final ChatService service;
+  final Shared shared;
+
+  /// Backing out: our copies of the files go.
+  static void discard(Shared s) {
+    for (final f in s.files) {
+      File(f.path).delete().ignore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final stickers = shared.files.isNotEmpty && shared.files.every((f) => f.mime == 'image/webp');
+    final chats = listedChats(core, archived: false).where((c) => !c.request && !c.left).toList();
+    return PopScope(
+      onPopInvokedWithResult: (popped, sent) {
+        if (popped && sent != true) discard(shared);
+      },
+      child: Scaffold(
+        appBar: SiegelBar(title: Text(t.sendTo)),
+        body: ListView(
+          children: [
+            if (stickers)
+              ListTile(
+                leading: const Icon(Icons.emoji_emotions_outlined),
+                title: Text(t.addToStickers),
+                onTap: () {
+                  final added = importStickerFiles(core, [
+                    for (final f in shared.files) (f.name, File(f.path).readAsBytesSync()),
+                  ]);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stickersAdded(added))));
+                  Navigator.pop(context);
+                },
+              ),
+            for (final c in chats)
+              ListTile(
+                leading: c.isGroup
+                    ? Avatar(core: core, groupId: c.groupId)
+                    : Avatar(core: core, account: c.peerAccount),
+                title: Text(chatTitle(t, c)),
+                onTap: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ChatScreen(core: core, service: service, groupId: c.groupId, shared: shared),
+                  ),
+                  result: true, // handed on: the chat sends or deletes the copies
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ArchivedScreen extends StatelessWidget {
   const ArchivedScreen({super.key, required this.core, required this.service});
   final Core core;
@@ -740,11 +804,22 @@ class _NewChatScreenState extends State<NewChatScreen> {
 bool webUi = kIsWeb;
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.core, required this.service, required this.groupId, this.jumpTo});
+  const ChatScreen({
+    super.key,
+    required this.core,
+    required this.service,
+    required this.groupId,
+    this.jumpTo,
+    this.shared,
+  });
   final Core core;
   final ChatService service;
   final Uint8List groupId;
   final Uint8List? jumpTo;
+
+  /// Shared in from another app: photos go through the usual look before sending, text waits in
+  /// the composer, videos ask their quality, other files go as they are.
+  final Shared? shared;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -782,6 +857,49 @@ class _ChatScreenState extends State<ChatScreen> {
     _scroll.addListener(() => _away.value = _scroll.offset > 400);
     final to = widget.jumpTo;
     if (to != null) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _jumpTo(to) : null);
+    final shared = widget.shared;
+    if (shared != null) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? _takeShared(shared) : null);
+  }
+
+  Future<void> _takeShared(Shared s) async {
+    if (s.text.isNotEmpty) _text.text = s.text;
+    bool photo(SharedFile f) => f.mime.startsWith('image/') && f.mime != 'image/svg+xml';
+    try {
+      final photos = <Outgoing>[];
+      for (final f in s.files.where(photo)) {
+        try {
+          photos.add(await photoOf(await File(f.path).readAsBytes(), gif: f.mime == 'image/gif'));
+        } finally {
+          File(f.path).delete().ignore(); // our copy; the photo is re-encoded in memory
+        }
+      }
+      if (photos.isNotEmpty) {
+        for (final o in await _photos(() async => photos)) {
+          await _sendAttachment(o);
+        }
+      }
+      for (final f in s.files.where((f) => !photo(f))) {
+        if (!mounted) return;
+        final o = f.mime.startsWith('video/')
+            ? await videoFrom(f.path, (size) async {
+                final q = await _askQuality(size);
+                if (q != null && q != VideoQuality.original && mounted) setState(() => _busy = true);
+                return q;
+              }, copy: true)
+            : outgoing(Uint8List(0), f.mime, name: f.name, path: f.path, temp: true);
+        if (mounted) setState(() => _busy = false);
+        if (o != null) await _sendAttachment(o);
+      }
+    } on TooLarge {
+      if (mounted) showError(context, const CoreError(code: 'attachment_too_large'));
+    } on CompressFailed {
+      if (mounted) showError(context, const CoreError(code: 'video_compress_failed'));
+    } on Exception catch (e) {
+      debugPrint('share: $e');
+      if (mounted) showError(context, const CoreError(code: 'attachment_invalid'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -793,7 +911,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final service = widget.service;
     Future.microtask(service.refresh);
     _recTimer?.cancel();
-    _recorder?.dispose();
+    _voice?.dispose();
     _text.dispose();
     _focus.dispose();
     _scroll.dispose();
@@ -896,29 +1014,31 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // MED-09: a voice note being recorded; the timer redraws the elapsed time.
-  VoiceRecorder? _recorder;
+  // The bar shows at the tap; the red dot once the microphone is live. One recorder per chat:
+  // a fresh one takes a noticeable moment to start each time.
+  VoiceRecorder? _recorder, _voice;
+  Future<bool>? _starting;
   Timer? _recTimer;
 
   Future<void> _startRecording() async {
-    final r = VoiceRecorder();
-    if (!await r.start()) {
-      r.dispose();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.micDenied)));
-      }
-      return;
-    }
+    final r = _voice ??= VoiceRecorder();
     HapticFeedback.mediumImpact();
     setState(() => _recorder = r);
     _recTimer = Timer.periodic(const Duration(milliseconds: 250), (_) => setState(() {}));
+    final ok = await (_starting = r.start());
+    _starting = null;
+    if (ok || !mounted) return;
+    _recTimer?.cancel();
+    setState(() => _recorder = null);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.micDenied)));
   }
 
   Future<void> _stopRecording({required bool send}) async {
     final r = _recorder!;
     _recTimer?.cancel();
     setState(() => _recorder = null);
+    if (!await (_starting ?? Future.value(true))) return; // tapped again before it began
     final rec = await r.stop(keep: send);
-    r.dispose();
     if (rec == null || rec.ms < 500) return; // a slip of the finger, not a message
     await _sendAttachment(outgoing(rec.data, r.mime, ms: rec.ms, voice: true, waveform: rec.waveform));
   }
@@ -2152,7 +2272,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   icon: const Icon(Icons.delete_outline),
                   onPressed: () => _stopRecording(send: false),
                 ),
-                Icon(Icons.fiber_manual_record, color: Theme.of(context).colorScheme.error, size: 16),
+                Icon(
+                  Icons.fiber_manual_record,
+                  color: _recorder!.live ? Theme.of(context).colorScheme.error : Theme.of(context).disabledColor,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(child: Text('${t.recording} ${formatDuration(_recorder!.elapsed.inMilliseconds)}')),
                 IconButton(tooltip: t.send, icon: const Icon(Icons.send), onPressed: () => _stopRecording(send: true)),

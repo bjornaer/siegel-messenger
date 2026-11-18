@@ -1663,4 +1663,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get archivedHint =>
       'Archivado. Desliza hacia abajo la lista de chats para ver los archivados.';
+
+  @override
+  String get sendTo => 'Enviar a…';
+
+  @override
+  String get addToStickers => 'Añadir a mis stickers';
 }

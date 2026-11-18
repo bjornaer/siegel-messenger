@@ -1472,6 +1472,42 @@ void main() {
     expect(find.text('Forwarded'), findsOneWidget);
   });
 
+  testWidgets('shared from another app: pick a chat; the link waits in the composer, the file is sent', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await core.startChat(username: 'bob');
+    final dir = Directory.systemTemp.createTempSync('share');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final pdf = File('${dir.path}/1-0-plan.pdf')..writeAsBytesSync([1, 2, 3, 4]);
+    final Shared shared = (
+      text: 'look https://example.com',
+      files: [(name: 'plan.pdf', path: pdf.path, mime: 'application/pdf')],
+    );
+    await t.pumpWidget(wrap(ShareScreen(core: core, service: service, shared: shared)));
+    await t.pumpAndSettle();
+    expect(find.text('Add to my stickers'), findsNothing, reason: 'only for WebP images');
+    await t.tap(find.text('@bob'));
+    await t.pumpAndSettle();
+    expect(find.byType(ChatScreen), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'look https://example.com'), findsOneWidget);
+    expect(core.calls, contains('queueAttachmentFile plan.pdf'));
+
+    final webp = File('${dir.path}/1-0-s.webp')..writeAsBytesSync(FakeCore.tinyPng);
+    await t.pumpWidget(const SizedBox());
+    await t.pumpWidget(
+      wrap(
+        ShareScreen(
+          core: core,
+          service: service,
+          shared: (text: '', files: [(name: 's.webp', path: webp.path, mime: 'image/webp')]),
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+    expect(find.text('Add to my stickers'), findsOneWidget);
+  });
+
   test('video ranges: what a player asks for, clamped to the file', () {
     expect(byteRange(null, 100), (0, 99));
     expect(byteRange('bytes=0-', 100), (0, 99));

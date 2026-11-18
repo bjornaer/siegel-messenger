@@ -885,5 +885,7 @@
   "savedToGallery": "Saved to your gallery",
   "viewPhoto": "View photo",
   "forwarded": "Forwarded",
-  "archivedHint": "Archived. Pull down the chat list to see archived chats."
+  "archivedHint": "Archived. Pull down the chat list to see archived chats.",
+  "sendTo": "Send to…",
+  "addToStickers": "Add to my stickers"
 }

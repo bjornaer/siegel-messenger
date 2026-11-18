@@ -66,11 +66,15 @@ typedef Recording = ({Uint8List data, int ms, Uint8List waveform});
 /// until it is sent or cancelled.
 class VoiceRecorder {
   final _rec = AudioRecorder();
+  Directory? _dir;
   final _levels = <double>[];
   final _watch = Stopwatch();
   StreamSubscription<Amplitude>? _sub;
 
   Duration get elapsed => _watch.elapsed;
+
+  /// The microphone is recording (start can take a moment).
+  bool get live => _watch.isRunning;
 
   /// The screen stays on while recording: a lock would cut a long voice note off.
   static Future<void> _keepOn(bool on) async {
@@ -95,7 +99,7 @@ class VoiceRecorder {
       mime = aac ? 'audio/mp4' : 'audio/webm';
       await _rec.start(RecordConfig(encoder: aac ? AudioEncoder.aacLc : AudioEncoder.opus), path: '');
     } else {
-      final dir = await getTemporaryDirectory();
+      final dir = _dir ??= await getTemporaryDirectory();
       await _rec.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
         path: '${dir.path}/voice-${DateTime.now().microsecondsSinceEpoch}.m4a',
@@ -466,17 +470,26 @@ Future<Outgoing?> pickVideo(Future<VideoQuality?> Function(int size) ask) async 
     if (await f.length() > maxAttachment) throw TooLarge();
     return outgoing(await f.readAsBytes(), mimeFor(f.name).startsWith('video/') ? mimeFor(f.name) : 'video/mp4');
   }
-  final quality = await ask(await f.length());
-  if (quality == null) return null;
-  final info = await appChannel.invokeMapMethod<String, Object?>('videoInfo', f.path).catchError((Object _) => null);
+  return videoFrom(f.path, ask);
+}
+
+/// A video file on the phone, at the quality the sender picks. [copy]: the file is ours (shared
+/// in from another app), deleted once sent or re-encoded.
+Future<Outgoing?> videoFrom(String file, Future<VideoQuality?> Function(int size) ask, {bool copy = false}) async {
+  final quality = await ask(await File(file).length());
+  if (quality == null) {
+    if (copy) File(file).delete().ignore();
+    return null;
+  }
+  final info = await appChannel.invokeMapMethod<String, Object?>('videoInfo', file).catchError((Object _) => null);
   final (w, h) = ((info?['width'] as int?) ?? 0, (info?['height'] as int?) ?? 0);
-  var (path, temp) = (f.path, false);
+  var (path, temp) = (file, copy);
   if (quality != VideoQuality.original) {
     final target = quality == VideoQuality.hd ? 1080 : 720;
     final short = min(w, h);
     try {
       path = (await appChannel.invokeMethod<String>('transcodeVideo', [
-        f.path,
+        file,
         short > 0 ? min(target, short) : target,
         quality == VideoQuality.hd ? 5000000 : 2000000,
       ]))!;
@@ -484,6 +497,8 @@ Future<Outgoing?> pickVideo(Future<VideoQuality?> Function(int size) ask) async 
     } on PlatformException catch (e) {
       debugPrint('video: ${e.message}');
       throw CompressFailed();
+    } finally {
+      if (copy) File(file).delete().ignore();
     }
   }
   if (await File(path).length() > maxFile) {
@@ -495,7 +510,7 @@ Future<Outgoing?> pickVideo(Future<VideoQuality?> Function(int size) ask) async 
     Uint8List(0),
     path: path,
     temp: temp,
-    !temp && mimeFor(f.path) == 'video/quicktime' ? 'video/quicktime' : 'video/mp4',
+    path == file && mimeFor(file) == 'video/quicktime' ? 'video/quicktime' : 'video/mp4',
     ms: (info?['ms'] as int?) ?? 0,
     width: w,
     height: h,

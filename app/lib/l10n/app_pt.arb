@@ -465,5 +465,7 @@
   "savedToGallery": "Salva na sua galeria",
   "viewPhoto": "Ver foto",
   "forwarded": "Encaminhada",
-  "archivedHint": "Arquivada. Puxe a lista de conversas para baixo para ver as arquivadas."
+  "archivedHint": "Arquivada. Puxe a lista de conversas para baixo para ver as arquivadas.",
+  "sendTo": "Enviar para…",
+  "addToStickers": "Adicionar às minhas figurinhas"
 }

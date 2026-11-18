@@ -465,5 +465,7 @@
   "savedToGallery": "Guardada en tu galería",
   "viewPhoto": "Ver foto",
   "forwarded": "Reenviado",
-  "archivedHint": "Archivado. Desliza hacia abajo la lista de chats para ver los archivados."
+  "archivedHint": "Archivado. Desliza hacia abajo la lista de chats para ver los archivados.",
+  "sendTo": "Enviar a…",
+  "addToStickers": "Añadir a mis stickers"
 }

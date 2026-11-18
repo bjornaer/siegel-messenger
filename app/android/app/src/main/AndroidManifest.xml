@@ -61,15 +61,16 @@
                 <data android:scheme="https" android:host="siegel.schlk.in" android:pathPrefix="/u/"/>
                 <data android:scheme="https" android:host="siegel.schlk.in" android:pathPrefix="/g/"/>
             </intent-filter>
-            <!-- Stickers shared from other apps, and WhatsApp sticker packs (.wastickers) opened with Siegel. -->
+            <!-- Anything shared from another app (photos, videos, files, links, text): sent to a chat
+                 picked in Siegel. WebP stickers and .wastickers packs can go to my stickers. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
                 <action android:name="android.intent.action.SEND_MULTIPLE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="image/webp"/>
+                <data android:mimeType="*/*"/>
             </intent-filter>
+            <!-- WhatsApp sticker packs (.wastickers) opened with Siegel. -->
             <intent-filter>
-                <action android:name="android.intent.action.SEND"/>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="application/octet-stream"/>

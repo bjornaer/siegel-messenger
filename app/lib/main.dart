@@ -85,6 +85,7 @@ class _SiegelAppState extends State<SiegelApp> {
     appChannel.setMethodCallHandler((call) async {
       if (call.method == 'link') _openLink(call.arguments as String);
       if (call.method == 'shared') _importShared(call.arguments as List<Object?>);
+      if (call.method == 'shareIn') _shareIn(call.arguments as Map<Object?, Object?>);
     });
     appChannel.invokeMethod<String>('takeLink').then((l) {
       if (l != null) _openLink(l);
@@ -92,6 +93,28 @@ class _SiegelAppState extends State<SiegelApp> {
     appChannel.invokeMethod<List<Object?>>('takeShared').then((f) {
       if (f != null) _importShared(f);
     }, onError: (Object _) {});
+    appChannel.invokeMethod<Map<Object?, Object?>>('takeShareIn').then((s) {
+      if (s != null) _shareIn(s);
+    }, onError: (Object _) {});
+  }
+
+  /// Shared to Siegel by another app (Android's share sheet): pick the chat it goes to.
+  void _shareIn(Map<Object?, Object?> m) {
+    final Shared shared = (
+      text: (m['text'] as String?) ?? '',
+      files: [
+        for (final f in (m['files'] as List<Object?>? ?? const []).cast<List<Object?>>())
+          (name: f[0] as String, path: f[1] as String, mime: f[2] as String),
+      ],
+    );
+    if (!(core.isRegistered() && core.username() != null)) return ShareScreen.discard(shared);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigator.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => ShareScreen(core: core, service: _service(), shared: shared),
+        ),
+      );
+    });
   }
 
   /// Stickers or packs shared to Siegel by another app: straight into my stickers.

@@ -56,6 +56,11 @@ class MainActivity : FlutterFragmentActivity() {
                     result.success(pendingShared)
                     pendingShared = null
                 }
+                // Shared to Siegel to send, once: {text, files: [[name, path, mime], ...]}.
+                "takeShareIn" -> {
+                    result.success(pendingShareIn)
+                    pendingShareIn = null
+                }
                 // DISC-08: the link the app was opened with, once.
                 "takeLink" -> {
                     result.success(pendingLink)
@@ -427,9 +432,12 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private var pendingShared: List<List<Any>>? = null
+    private var pendingShareIn: Map<String, Any?>? = null
 
-    /// Stickers (WebP) or a sticker pack (.wastickers) shared or opened with Siegel. Read off the
-    /// UI thread from the sender's content URIs; at most 64 files of 64 MB each.
+    /// Shared or opened with Siegel. A WhatsApp sticker pack (.wastickers) goes to my stickers as
+    /// bytes ("shared"); anything else is copied into the cache for the app to send to a chat it
+    /// picks ("shareIn": text, and [name, path, mime] per file, at most 64 of up to 1 GB). Read off
+    /// the UI thread from the sender's content URIs.
     @Suppress("DEPRECATION") // the typed getParcelableExtra needs Android 13; we support 9+
     private fun readShared(intent: android.content.Intent?): Boolean {
         val uris: List<android.net.Uri> = when (intent?.action) {
@@ -440,11 +448,14 @@ class MainActivity : FlutterFragmentActivity() {
             android.content.Intent.ACTION_VIEW -> listOfNotNull(intent.data?.takeIf { it.scheme == "content" || it.scheme == "file" })
             else -> emptyList()
         }
-        if (uris.isEmpty()) return false
+        val text = if (intent?.action == android.content.Intent.ACTION_SEND)
+            intent.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotBlank() } else null
+        if (uris.isEmpty() && text == null) return false
+        val view = intent?.action == android.content.Intent.ACTION_VIEW
         Thread {
-            val files = uris.take(64).mapNotNull { uri ->
+            val named = uris.take(64).mapNotNull { uri ->
                 try {
-                    var name = uri.lastPathSegment ?: ""
+                    var name = uri.lastPathSegment ?: "file"
                     var size = -1L
                     contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME,
                         android.provider.OpenableColumns.SIZE), null, null, null)?.use { c ->
@@ -453,16 +464,42 @@ class MainActivity : FlutterFragmentActivity() {
                             if (!c.isNull(1)) size = c.getLong(1)
                         }
                     }
-                    if (size > 64L shl 20) return@mapNotNull null
-                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@mapNotNull null
-                    listOf(name, bytes)
+                    Triple(uri, name.substringAfterLast('/'), size)
                 } catch (e: Exception) {
                     null // unreadable: skip it, keep the rest
                 }
             }
+            if (view || named.any { it.second.endsWith(".wastickers", ignoreCase = true) }) {
+                val files = named.filter { it.third <= 64L shl 20 }.mapNotNull { (uri, name, _) ->
+                    try {
+                        contentResolver.openInputStream(uri)?.use { listOf(name, it.readBytes()) }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                runOnUiThread {
+                    val channel = appChannel
+                    if (channel != null) channel.invokeMethod("shared", files) else pendingShared = files
+                }
+                return@Thread
+            }
+            val dir = java.io.File(cacheDir, "shared").apply { mkdirs() }
+            // Copies the app never sent (the share was abandoned) go after a day.
+            dir.listFiles()?.filter { it.lastModified() < System.currentTimeMillis() - 86_400_000 }?.forEach { it.delete() }
+            val files = named.filter { it.third <= 1L shl 30 }.mapIndexedNotNull { i, (uri, name, _) ->
+                try {
+                    val out = java.io.File(dir, "${System.nanoTime()}-$i-$name")
+                    contentResolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
+                        ?: return@mapIndexedNotNull null
+                    listOf(name, out.path, contentResolver.getType(uri) ?: intent?.type ?: "application/octet-stream")
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            val shared = mapOf("text" to text, "files" to files)
             runOnUiThread {
                 val channel = appChannel
-                if (channel != null) channel.invokeMethod("shared", files) else pendingShared = files
+                if (channel != null) channel.invokeMethod("shareIn", shared) else pendingShareIn = shared
             }
         }.start()
         return true

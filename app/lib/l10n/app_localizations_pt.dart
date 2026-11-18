@@ -1659,4 +1659,10 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get archivedHint =>
       'Arquivada. Puxe a lista de conversas para baixo para ver as arquivadas.';
+
+  @override
+  String get sendTo => 'Enviar para…';
+
+  @override
+  String get addToStickers => 'Adicionar às minhas figurinhas';
 }
