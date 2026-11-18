@@ -90,7 +90,12 @@ func (s *server) listen(ctx context.Context) {
 				if b, err := hex.DecodeString(note); err == nil && len(b) == 16 {
 					copy(d[:], b)
 					s.hub.wake(d, false)
-					s.wakeDevice(d, !silent)
+					// What shows nothing (receipts, typing, reactions, edits, group changes) waits
+					// for the next time the app opens or a message wakes it: waking a phone for
+					// each one drains its battery.
+					if !silent {
+						s.wakeDevice(d, true)
+					}
 				}
 			}
 		}()
@@ -161,11 +166,10 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 		unsub()
 		// Messages that came in while this connection was already dead (pings find out within
 		// 40 s) were never delivered and got no push: wake the device now (SRV-06).
-		var pending, urgent bool
-		if s.db.QueryRow(context.Background(), `SELECT EXISTS (SELECT 1 FROM queue WHERE account_id = $1 AND device_id = $2),
-			EXISTS (SELECT 1 FROM queue WHERE account_id = $1 AND device_id = $2 AND urgent)`,
-			c.account, c.device).Scan(&pending, &urgent) == nil && pending {
-			s.wakeDevice(c.device, urgent)
+		var urgent bool
+		if s.db.QueryRow(context.Background(), `SELECT EXISTS (SELECT 1 FROM queue WHERE account_id = $1 AND device_id = $2 AND urgent)`,
+			c.account, c.device).Scan(&urgent) == nil && urgent {
+			s.wakeDevice(c.device, true)
 		}
 	}()
 	s.pushes.connected(c.device)

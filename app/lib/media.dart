@@ -1602,25 +1602,24 @@ class TransferBar extends StatefulWidget {
 }
 
 class _TransferBarState extends State<TransferBar> {
-  Timer? _poll;
   List<double>? _p; // [done, total]
 
   void _read() {
     final p = [for (final v in widget.core.transferProgress(messageId: widget.messageId)) asInt(v).toDouble()];
-    if (mounted) setState(() => _p = p.length == 2 ? p : null);
+    final now = p.length == 2 ? p : null;
+    if (mounted && !listEquals(now, _p)) setState(() => _p = now);
   }
 
   @override
   void initState() {
     super.initState();
     _read();
-    // ponytail: polls while the bubble is on screen; an event per part if this ever shows.
-    _poll = Timer.periodic(const Duration(milliseconds: 500), (_) => _read());
+    _transferTick.addListener(_read);
   }
 
   @override
   void dispose() {
-    _poll?.cancel();
+    _transferTick.removeListener(_read);
     super.dispose();
   }
 
@@ -1633,6 +1632,42 @@ class _TransferBarState extends State<TransferBar> {
       value: '${(v * 100).round()}%',
       child: LinearProgressIndicator(value: v, minHeight: 3),
     );
+  }
+}
+
+/// One 500 ms tick for every progress bar on screen (a timer per bubble was two wake-ups a
+/// second each, transfer or not), and none while the app is hidden.
+// ponytail: polls; an event per part from the core if this ever shows up in battery use.
+final _transferTick = _Tick();
+
+class _Tick extends ChangeNotifier {
+  Timer? _timer;
+  AppLifecycleListener? _life;
+  bool _shown = true;
+
+  void _shownSet(bool shown) {
+    _shown = shown;
+    _set();
+  }
+
+  void _set() {
+    final run = _shown && hasListeners;
+    if (run == (_timer != null)) return;
+    _timer?.cancel();
+    _timer = run ? Timer.periodic(const Duration(milliseconds: 500), (_) => notifyListeners()) : null;
+  }
+
+  @override
+  void addListener(VoidCallback l) {
+    super.addListener(l);
+    _life ??= AppLifecycleListener(onShow: () => _shownSet(true), onHide: () => _shownSet(false));
+    _set();
+  }
+
+  @override
+  void removeListener(VoidCallback l) {
+    super.removeListener(l);
+    _set();
   }
 }
 

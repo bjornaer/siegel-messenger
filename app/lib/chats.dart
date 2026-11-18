@@ -126,9 +126,21 @@ class ChatService extends ChangeNotifier {
 
   DateTime _lastEvent = DateTime(0);
 
-  /// After a push (MSG-17): reconnect, then wait until messages stop arriving (2 s quiet, at least
-  /// 4 s, at most 15 s), so notifications are shown before Android freezes the app again.
+  /// After a push (MSG-17): fetch what's waiting, so notifications show before Android freezes
+  /// the app again. In the background, only that: a short drain (at most 20 s), without the
+  /// upkeep a full connection does (keys, pictures, profiles), which would cost battery on every
+  /// message. On screen: reconnect, then wait until messages stop (2 s quiet, 4 s to 15 s).
   Future<void> fetchNow() async {
+    if (_paused) {
+      try {
+        await for (final e in core.drain()) {
+          if (_onEvent(e)) return;
+        }
+      } on Object catch (e) {
+        debugPrint('drain: ${e is CoreError ? e.code : e}');
+      }
+      return;
+    }
     final start = DateTime.now();
     wake();
     while (true) {
@@ -137,7 +149,7 @@ class ChatService extends ChangeNotifier {
       final quiet = now.difference(_lastEvent) > const Duration(seconds: 2);
       if ((quiet && now.difference(start) > const Duration(seconds: 4)) ||
           now.difference(start) > const Duration(seconds: 15)) {
-        if (_paused) _drop(); // back to sleep, so the next message pushes again
+        if (_paused) _drop(); // hidden meanwhile: back to sleep, so the next message pushes again
         return;
       }
     }
@@ -156,6 +168,32 @@ class ChatService extends ChangeNotifier {
     if (_waiting?.isCompleted == false) _waiting!.complete();
   }
 
+  /// One event from the server; true once this device was deregistered.
+  bool _onEvent(CoreEvent e) {
+    _lastEvent = DateTime.now();
+    if (e.kind == CoreEventKind.deregistered) {
+      _stopped = true;
+      onDeregistered(); // ID-12: the core already wiped local data
+      return true;
+    }
+    if (e.kind == CoreEventKind.numberRemoved) onNumberRemoved?.call();
+    if (e.kind == CoreEventKind.enforcement) onEnforcement?.call();
+    if (e.kind == CoreEventKind.reportsReviewed) onReportsReviewed?.call(core.takeReportsReviewed());
+    if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
+      _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
+    }
+    if (e.kind == CoreEventKind.message && e.message != null) {
+      onMessage?.call(e.message!);
+      unawaited(autoDownload(core, e.message!)); // MED-12
+    }
+    if (e.kind != CoreEventKind.typing) {
+      final g = e.groupId;
+      g == null ? _changedAll++ : _changed.update(base64Encode(g), (n) => n + 1, ifAbsent: () => 1);
+    }
+    notifyListeners();
+    return false;
+  }
+
   Future<void> _loop() async {
     var backoff = const Duration(seconds: 1);
     while (!_stopped) {
@@ -169,28 +207,7 @@ class ChatService extends ChangeNotifier {
       _sub = core.runStream().listen(
         (e) {
           backoff = const Duration(seconds: 1);
-          _lastEvent = DateTime.now();
-          if (e.kind == CoreEventKind.deregistered) {
-            _stopped = true;
-            finish();
-            onDeregistered(); // ID-12: the core already wiped local data
-            return;
-          }
-          if (e.kind == CoreEventKind.numberRemoved) onNumberRemoved?.call();
-          if (e.kind == CoreEventKind.enforcement) onEnforcement?.call();
-          if (e.kind == CoreEventKind.reportsReviewed) onReportsReviewed?.call(core.takeReportsReviewed());
-          if (e.kind case CoreEventKind.typing || CoreEventKind.message) {
-            _setTyping(e.groupId!, e.kind == CoreEventKind.typing, e.account);
-          }
-          if (e.kind == CoreEventKind.message && e.message != null) {
-            onMessage?.call(e.message!);
-            unawaited(autoDownload(core, e.message!)); // MED-12
-          }
-          if (e.kind != CoreEventKind.typing) {
-            final g = e.groupId;
-            g == null ? _changedAll++ : _changed.update(base64Encode(g), (n) => n + 1, ifAbsent: () => 1);
-          }
-          notifyListeners();
+          if (_onEvent(e)) finish();
         },
         onError: (Object e) {
           // Network error or server restart: reconnect below. The code says which (web console).

@@ -726,7 +726,10 @@ class FakeCore implements Core {
   }
 
   @override
-  Stream<CoreEvent> drain() => const Stream.empty();
+  Stream<CoreEvent> drain() {
+    calls.add('drain');
+    return const Stream.empty();
+  }
 
   // Groups: one GroupInfoView per group; member accounts are [n] bytes, names in [names].
   static final me = Uint8List.fromList([0]);
@@ -1506,6 +1509,19 @@ void main() {
     );
     await t.pumpAndSettle();
     expect(find.text('Add to my stickers'), findsOneWidget);
+  });
+
+  testWidgets('a push while the app is hidden only drains: no full connection and its upkeep (battery)', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    await t.pump();
+    final before = core.connects;
+    service.pause();
+    await t.pump();
+    await service.fetchNow();
+    expect(core.calls, contains('drain'));
+    expect(core.connects, before, reason: 'the stream stays closed');
   });
 
   test('video ranges: what a player asks for, clamped to the file', () {

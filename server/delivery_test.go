@@ -351,11 +351,10 @@ func TestPush(t *testing.T) { // MSG-17, SRV-05, SRV-06
 	send()
 	want(t, waitPush(), "tok-b") // collapsing resets once the device has connected
 
-	// A receipt wakes at low priority; a message right after still goes urgently, once.
+	// Receipts and the like wake nobody (battery); a message after them still pushes, once.
 	e.s.db.Exec(e.ctx, `DELETE FROM queue`)
 	e.s.pushes.connected([16]byte(b.DeviceId))
 	sendAs(true)
-	want(t, waitPush(), "tok-b (low)")
 	sendAs(true)
 	quiet()
 	send()
