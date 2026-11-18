@@ -459,5 +459,9 @@
   "stopSharing": "Dejar de compartir",
   "currentLocation": "Ubicación actual",
   "liveFor": "En tiempo real, {minutes} min",
-  "sharingLiveLocation": "Compartiendo tu ubicación en tiempo real"
+  "sharingLiveLocation": "Compartiendo tu ubicación en tiempo real",
+  "savePhotos": "Guardar fotos descargadas",
+  "savePhotosHelp": "Una foto que descargas con su flecha también se guarda en la galería del teléfono (Pictures/Siegel).",
+  "savedToGallery": "Guardada en tu galería",
+  "viewPhoto": "Ver foto"
 }

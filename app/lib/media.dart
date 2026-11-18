@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -605,6 +606,34 @@ Future<void> saveToDevice(BuildContext context, Core core, MessageView m) async 
 String _ext(String mime) =>
     _mimes.entries.firstWhere((e) => e.value == mime, orElse: () => const MapEntry('bin', '')).key;
 
+/// Settings key: a photo downloaded with its arrow also goes to the gallery; on unless 'off'.
+const savePhotosSetting = 'save_photos';
+
+/// A photo with its own bubble and full-screen view (not a sticker, GIF-like sticker or view-once).
+bool isPhoto(MessageView m) => switch (m.attachment) {
+  final a? => !m.deleted && !a.sticker && !a.viewOnce && kindOf(a) == AttachmentKind.image,
+  null => false,
+};
+
+/// Phones: the photo straight into Pictures/Siegel; Android 9 asks where instead (saveToDevice).
+Future<void> saveToGallery(BuildContext context, Core core, MessageView m, Uint8List data) async {
+  final a = m.attachment!;
+  final name = a.fileName.isNotEmpty
+      ? a.fileName
+      : 'siegel-${DateTime.now().millisecondsSinceEpoch}.${_ext(a.mimeType)}';
+  try {
+    if (await appChannel.invokeMethod<bool>('saveToGallery', [data, name, a.mimeType]) != true) {
+      if (context.mounted) await saveToDevice(context, core, m);
+      return;
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.savedToGallery)));
+    }
+  } on PlatformException {
+    if (context.mounted) showError(context, const CoreError(code: 'storage'));
+  }
+}
+
 /// Fetches an attachment for a bubble: spinner while loading, errors as snackbars.
 mixin _Fetch<T extends StatefulWidget> on State<T> {
   Uint8List? data;
@@ -804,12 +833,15 @@ class _ImageMessageState extends State<ImageMessage> with _Fetch {
         // The first tap only downloads, into the bubble; a downloaded photo opens full screen.
         final had = data != null;
         final d = await fetch(widget.core, widget.message);
-        if (had && d != null && context.mounted) {
+        if (d == null || !context.mounted) return;
+        if (had) {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => _PhotoScreen(core: widget.core, message: widget.message, data: d),
+              builder: (_) => PhotoScreen(core: widget.core, message: widget.message),
             ),
           );
+        } else if (!kIsWeb && widget.core.setting(key: savePhotosSetting) != 'off') {
+          await saveToGallery(context, widget.core, widget.message, d);
         }
       },
       child: ClipRRect(
@@ -853,11 +885,40 @@ class _ImageMessageState extends State<ImageMessage> with _Fetch {
   }
 }
 
-class _PhotoScreen extends StatelessWidget {
-  const _PhotoScreen({required this.core, required this.message, required this.data});
+/// Full screen, swiping sideways through the chat's photos (the newest 500 messages, as the chat).
+class PhotoScreen extends StatefulWidget {
+  const PhotoScreen({super.key, required this.core, required this.message});
   final Core core;
   final MessageView message;
-  final Uint8List data;
+
+  @override
+  State<PhotoScreen> createState() => _PhotoScreenState();
+}
+
+class _PhotoScreenState extends State<PhotoScreen> {
+  late final List<MessageView> _photos;
+  late final PageController _pages;
+  late int _at;
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final all = [
+      for (final m in widget.core.messages(groupId: widget.message.groupId, limit: 500))
+        if (isPhoto(m)) m,
+    ];
+    final i = all.indexWhere((m) => listEquals(m.messageId, widget.message.messageId));
+    _photos = i < 0 ? [widget.message] : all;
+    _at = max(i, 0);
+    _pages = PageController(initialPage: _at);
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -867,15 +928,83 @@ class _PhotoScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        title: _photos.length > 1 ? Text('${_at + 1} / ${_photos.length}') : null,
         actions: [
           IconButton(
             tooltip: t.saveToDevice,
             icon: const Icon(Icons.download),
-            onPressed: () => saveToDevice(context, core, message),
+            onPressed: () => saveToDevice(context, widget.core, _photos[_at]),
           ),
         ],
       ),
-      body: InteractiveViewer(maxScale: 6, child: Center(child: Image.memory(data))),
+      body: PageView.builder(
+        controller: _pages,
+        physics: _zoomed ? const NeverScrollableScrollPhysics() : null, // a zoomed photo pans instead
+        itemCount: _photos.length,
+        onPageChanged: (i) => setState(() => _at = i),
+        itemBuilder: (_, i) => _Photo(
+          key: ValueKey(base64Encode(_photos[i].messageId)),
+          core: widget.core,
+          message: _photos[i],
+          onZoom: (z) => setState(() => _zoomed = z),
+        ),
+      ),
+    );
+  }
+}
+
+/// One photo of [PhotoScreen]: downloaded when swiped to, its preview meanwhile; pinch to zoom.
+class _Photo extends StatefulWidget {
+  const _Photo({super.key, required this.core, required this.message, required this.onZoom});
+  final Core core;
+  final MessageView message;
+  final ValueChanged<bool> onZoom;
+
+  @override
+  State<_Photo> createState() => _PhotoState();
+}
+
+class _PhotoState extends State<_Photo> with _Fetch {
+  final _zoom = TransformationController();
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    fetch(widget.core, widget.message);
+    _zoom.addListener(() {
+      final z = _zoom.value.getMaxScaleOnAxis() > 1.01;
+      if (z != _zoomed) {
+        setState(() => _zoomed = z);
+        widget.onZoom(z);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _zoom.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = data ?? widget.message.attachment!.thumbnail;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        InteractiveViewer(
+          transformationController: _zoom,
+          maxScale: 6,
+          panEnabled: _zoomed, // unzoomed, a sideways drag goes to the next photo
+          child: Center(
+            child: shown.isEmpty
+                ? null
+                : Image.memory(shown, gaplessPlayback: true, semanticLabel: AppLocalizations.of(context)!.photo),
+          ),
+        ),
+        if (loading) const Center(child: CircularProgressIndicator()),
+      ],
     );
   }
 }

@@ -333,6 +333,7 @@ class SettingsScreen extends StatelessWidget {
           AutoDownloadTile(core: core),
           _Toggle(core: core, setting: 'read_receipts', title: t.readReceipts, help: t.readReceiptsHelp),
           _Toggle(core: core, setting: 'typing_indicators', title: t.typingIndicators, help: t.typingIndicatorsHelp),
+          if (!kIsWeb) _Toggle(core: core, setting: savePhotosSetting, title: t.savePhotos, help: t.savePhotosHelp),
           if (!kIsWeb) _Toggle(core: core, setting: 'link_previews', title: t.linkPreviews, help: t.linkPreviewsHelp),
           _GroupAdds(core: core),
           ListTile(

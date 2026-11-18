@@ -879,5 +879,9 @@
         "type": "int"
       }
     }
-  }
+  },
+  "savePhotos": "Save downloaded photos",
+  "savePhotosHelp": "A photo you download with its arrow also goes to your phone's gallery (Pictures/Siegel).",
+  "savedToGallery": "Saved to your gallery",
+  "viewPhoto": "View photo"
 }

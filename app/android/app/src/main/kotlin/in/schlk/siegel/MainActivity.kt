@@ -144,6 +144,27 @@ class MainActivity : FlutterFragmentActivity() {
                         result.error("no_app", null, null)
                     }
                 }
+                // [bytes, name, mime]: a photo straight into Pictures/Siegel, no dialog. Android 10+;
+                // false on 9, where that needs a storage permission (the app uses saveFile then).
+                "saveToGallery" -> {
+                    val (bytes, name, mime) = call.arguments as List<*>
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name as String)
+                        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime as String)
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/Siegel")
+                    }
+                    try {
+                        val uri = contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)!!
+                        contentResolver.openOutputStream(uri)!!.use { it.write(bytes as ByteArray) }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("storage", e.message, null)
+                    }
+                }
                 // [path, name, mime]: the system's save dialog, then the file streamed into the
                 // chosen place (a 1 GB video never in memory). True once saved, false if cancelled.
                 "saveFile" -> {

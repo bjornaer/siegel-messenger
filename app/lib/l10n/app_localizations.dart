@@ -2861,6 +2861,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sharing your live location'**
   String get sharingLiveLocation;
+
+  /// No description provided for @savePhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Save downloaded photos'**
+  String get savePhotos;
+
+  /// No description provided for @savePhotosHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A photo you download with its arrow also goes to your phone\'s gallery (Pictures/Siegel).'**
+  String get savePhotosHelp;
+
+  /// No description provided for @savedToGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your gallery'**
+  String get savedToGallery;
+
+  /// No description provided for @viewPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'View photo'**
+  String get viewPhoto;
 }
 
 class _AppLocalizationsDelegate

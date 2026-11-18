@@ -459,5 +459,9 @@
   "stopSharing": "Teilen beenden",
   "currentLocation": "Aktueller Standort",
   "liveFor": "Live, {minutes} Min.",
-  "sharingLiveLocation": "Dein Live-Standort wird geteilt"
+  "sharingLiveLocation": "Dein Live-Standort wird geteilt",
+  "savePhotos": "Heruntergeladene Fotos speichern",
+  "savePhotosHelp": "Ein Foto, das du mit dem Pfeil herunterlädst, landet auch in der Galerie deines Handys (Pictures/Siegel).",
+  "savedToGallery": "In deiner Galerie gespeichert",
+  "viewPhoto": "Foto ansehen"
 }

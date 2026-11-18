@@ -128,7 +128,7 @@ class _ContactProfileScreenState extends State<ContactProfileScreen> {
         children: [
           const SizedBox(height: 16),
           Center(
-            child: Avatar(core: widget.core, account: c.peerAccount, radius: 40),
+            child: Avatar(core: widget.core, account: c.peerAccount, radius: 40, viewable: true),
           ),
           const SizedBox(height: 12),
           Text(name, textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),

@@ -1652,4 +1652,17 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get sharingLiveLocation => 'Dein Live-Standort wird geteilt';
+
+  @override
+  String get savePhotos => 'Heruntergeladene Fotos speichern';
+
+  @override
+  String get savePhotosHelp =>
+      'Ein Foto, das du mit dem Pfeil herunterlädst, landet auch in der Galerie deines Handys (Pictures/Siegel).';
+
+  @override
+  String get savedToGallery => 'In deiner Galerie gespeichert';
+
+  @override
+  String get viewPhoto => 'Foto ansehen';
 }

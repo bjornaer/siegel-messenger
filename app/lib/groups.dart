@@ -407,7 +407,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               Center(
                 child: canEdit
                     ? AvatarEditor(core: core, groupId: widget.groupId, onChanged: widget.service.refresh)
-                    : Avatar(core: core, groupId: widget.groupId, radius: 40),
+                    : Avatar(core: core, groupId: widget.groupId, radius: 40, viewable: true),
               ),
               const SizedBox(height: 12),
               Text(

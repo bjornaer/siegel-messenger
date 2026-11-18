@@ -459,5 +459,9 @@
   "stopSharing": "Parar de compartilhar",
   "currentLocation": "Localização atual",
   "liveFor": "Em tempo real, {minutes} min",
-  "sharingLiveLocation": "Compartilhando sua localização em tempo real"
+  "sharingLiveLocation": "Compartilhando sua localização em tempo real",
+  "savePhotos": "Salvar fotos baixadas",
+  "savePhotosHelp": "Uma foto que você baixa pela seta também vai para a galeria do celular (Pictures/Siegel).",
+  "savedToGallery": "Salva na sua galeria",
+  "viewPhoto": "Ver foto"
 }

@@ -1642,4 +1642,17 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get sharingLiveLocation =>
       'Compartilhando sua localização em tempo real';
+
+  @override
+  String get savePhotos => 'Salvar fotos baixadas';
+
+  @override
+  String get savePhotosHelp =>
+      'Uma foto que você baixa pela seta também vai para a galeria do celular (Pictures/Siegel).';
+
+  @override
+  String get savedToGallery => 'Salva na sua galeria';
+
+  @override
+  String get viewPhoto => 'Ver foto';
 }

@@ -1351,6 +1351,111 @@ void main() {
     expect(tint().a, 0);
   });
 
+  testWidgets('a photo downloaded with its arrow goes to the gallery (unless turned off); full screen swipes through', (
+    t,
+  ) async {
+    final core = FakeCore()..registered = true;
+    final id = await core.startChat(username: 'bob');
+    final photo = AttachmentView(
+      mimeType: 'image/png',
+      fileName: '',
+      size: BigInt.from(FakeCore.tinyPng.length),
+      durationMs: 0,
+      voiceNote: false,
+      waveform: Uint8List(0),
+      width: 1,
+      height: 1,
+      thumbnail: FakeCore.tinyPng,
+      sticker: false,
+      viewOnce: false,
+      gone: false,
+    );
+    final h = core.history[base64Encode(id)] ??= [];
+    for (var i = 0; i < 3; i++) {
+      final m = FakeCore.msg(id, '', outgoing: false, attachment: photo);
+      h.add(m);
+      core.blobs[base64Encode(m.messageId)] = FakeCore.tinyPng;
+    }
+    h.add(FakeCore.msg(id, 'not a photo', outgoing: false));
+    final saved = <String>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, (c) async {
+      saved.add(c.method);
+      return true;
+    });
+    addTearDown(() => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(appChannel, null));
+
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: ImageMessage(core: core, message: h[0]),
+        ),
+      ),
+    );
+    await t.tap(find.byType(ImageMessage));
+    await t.pumpAndSettle();
+    expect(saved, ['saveToGallery']);
+    expect(find.text('Saved to your gallery'), findsOneWidget);
+
+    core.setSetting(key: savePhotosSetting, value: 'off');
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: ImageMessage(key: const ValueKey(1), core: core, message: h[1]),
+        ),
+      ),
+    );
+    await t.tap(find.byType(ImageMessage));
+    await t.pumpAndSettle();
+    expect(saved, ['saveToGallery'], reason: 'turned off: only downloaded');
+
+    await t.pumpWidget(wrap(PhotoScreen(core: core, message: h[1])));
+    await t.pumpAndSettle();
+    expect(find.text('2 / 3'), findsOneWidget, reason: 'the chat\'s photos only');
+    await t.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+    await t.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
+    for (var i = 0; i < 2; i++) {
+      await t.fling(find.byType(PageView), const Offset(300, 0), 1000);
+      await t.pumpAndSettle();
+    }
+    await t.pumpAndSettle();
+    expect(find.text('1 / 3'), findsOneWidget);
+  });
+
+  testWidgets('a profile or group picture opens full screen; our own from its menu', (t) async {
+    final core = FakeCore()..registered = true;
+    final id = await core.startChat(username: 'bob');
+    final group = await core.createGroup(name: 'Climbers', usernames: ['bob']);
+    core.groupAvatars[base64Encode(group)] = FakeCore.tinyPng;
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: Avatar(core: core, groupId: group, viewable: true),
+        ),
+      ),
+    );
+    await t.tap(find.byType(Avatar));
+    await t.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+
+    await t.pumpWidget(const SizedBox()); // a fresh navigator
+    await t.pumpWidget(
+      wrap(
+        Scaffold(
+          body: Avatar(core: core, groupId: id, viewable: true),
+        ),
+      ),
+    );
+    expect(find.bySemanticsLabel('View photo'), findsNothing, reason: 'no picture, nothing to view');
+
+    await core.setAvatar(image: FakeCore.tinyPng);
+    await t.pumpWidget(wrap(Scaffold(body: AvatarEditor(core: core))));
+    await t.tap(find.byType(AvatarEditor));
+    await t.pumpAndSettle();
+    await tapText(t, 'View photo');
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+  });
+
   test('video ranges: what a player asks for, clamped to the file', () {
     expect(byteRange(null, 100), (0, 99));
     expect(byteRange('bytes=0-', 100), (0, 99));

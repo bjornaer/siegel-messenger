@@ -1636,4 +1636,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sharingLiveLocation => 'Sharing your live location';
+
+  @override
+  String get savePhotos => 'Save downloaded photos';
+
+  @override
+  String get savePhotosHelp =>
+      'A photo you download with its arrow also goes to your phone\'s gallery (Pictures/Siegel).';
+
+  @override
+  String get savedToGallery => 'Saved to your gallery';
+
+  @override
+  String get viewPhoto => 'View photo';
 }

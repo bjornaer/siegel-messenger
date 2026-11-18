@@ -1686,11 +1686,6 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Each album photo's ID → the album's newest, where the album shows.
   final _inAlbum = <String, String>{};
 
-  static bool _albumPhoto(MessageView m) => switch (m.attachment) {
-    final a? => !m.deleted && !a.sticker && !a.viewOnce && kindOf(a) == AttachmentKind.image,
-    null => false,
-  };
-
   /// Four or more photos in a row from one sender, each within a minute of the last, show as one
   /// album, as on WhatsApp. Keyed by the newest; the photos oldest first.
   Map<String, List<MessageView>> _albums(List<MessageView> messages) {
@@ -1711,7 +1706,7 @@ class _ChatScreenState extends State<ChatScreen> {
     for (final m in messages) {
       final joins =
           run.isNotEmpty &&
-          _albumPhoto(m) &&
+          isPhoto(m) &&
           m.replyTo == null &&
           m.outgoing == run.last.outgoing &&
           listEquals(m.senderAccount, run.last.senderAccount) &&
@@ -1720,7 +1715,7 @@ class _ChatScreenState extends State<ChatScreen> {
         run.add(m);
       } else {
         close();
-        if (_albumPhoto(m)) run = [m];
+        if (isPhoto(m)) run = [m];
       }
     }
     close();

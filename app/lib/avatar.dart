@@ -29,13 +29,24 @@ ImageProvider? _image(String key, Uint8List? bytes) {
 /// MED-15: a group's picture ([groupId]), someone's ([account]) or ours (neither); an icon
 /// when there is none.
 class Avatar extends StatelessWidget {
-  const Avatar({super.key, required this.core, this.account, this.groupId, this.radius = 20, this.icon});
+  const Avatar({
+    super.key,
+    required this.core,
+    this.account,
+    this.groupId,
+    this.radius = 20,
+    this.icon,
+    this.viewable = false,
+  });
 
   final Core core;
   final List<int>? account;
   final List<int>? groupId;
   final double radius;
   final IconData? icon;
+
+  /// Tapping the picture shows it full screen.
+  final bool viewable;
 
   @override
   Widget build(BuildContext context) {
@@ -46,13 +57,35 @@ class Avatar extends StatelessWidget {
         ? _image('', core.myAvatar())
         : _image(a.join(','), core.avatar(account: Uint8List.fromList(a)));
     final icon = this.icon ?? (g != null ? Icons.group_outlined : Icons.person_outline);
-    return CircleAvatar(
+    final avatar = CircleAvatar(
       radius: radius,
       backgroundImage: img,
       child: img == null ? Icon(icon, size: radius) : null,
     );
+    if (!viewable || img == null) return avatar;
+    return Semantics(
+      button: true,
+      label: AppLocalizations.of(context)!.viewPhoto,
+      child: InkWell(customBorder: const CircleBorder(), onTap: () => viewPicture(context, img), child: avatar),
+    );
   }
 }
+
+/// A profile or group picture, full screen; pinch to zoom.
+void viewPicture(BuildContext context, ImageProvider img) => Navigator.of(context).push(
+  MaterialPageRoute<void>(
+    builder: (_) => Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+      body: InteractiveViewer(
+        maxScale: 6,
+        child: Center(
+          child: Image(image: img, width: double.infinity, fit: BoxFit.contain),
+        ),
+      ),
+    ),
+  ),
+);
 
 /// The picture square, cropped from the middle, as PNG: re-encoding also drops any EXIF data
 /// (location included, MED-11).
@@ -104,31 +137,37 @@ class _AvatarEditorState extends State<AvatarEditor> {
   Future<void> _choose() async {
     final t = AppLocalizations.of(context)!;
     final g = widget.groupId;
-    final has = (g == null ? widget.core.myAvatar() : widget.core.groupAvatar(groupId: g)) != null;
-    final remove = has
-        ? await showModalBottomSheet<bool>(
+    final current = g == null ? widget.core.myAvatar() : widget.core.groupAvatar(groupId: g);
+    final pick = current != null
+        ? await showModalBottomSheet<String>(
             context: context,
             builder: (c) => SafeArea(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ListTile(
+                    leading: const Icon(Icons.zoom_in),
+                    title: Text(t.viewPhoto),
+                    onTap: () => Navigator.pop(c, 'view'),
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.photo_library_outlined),
                     title: Text(t.choosePhoto),
-                    onTap: () => Navigator.pop(c, false),
+                    onTap: () => Navigator.pop(c, 'choose'),
                   ),
                   ListTile(
                     leading: const Icon(Icons.delete_outline),
                     title: Text(t.removePhoto),
-                    onTap: () => Navigator.pop(c, true),
+                    onTap: () => Navigator.pop(c, 'remove'),
                   ),
                 ],
               ),
             ),
           )
-        : false;
-    if (remove == null) return;
-    if (remove) return _set(null);
+        : 'choose';
+    if (pick == null || !mounted) return;
+    if (pick == 'view') return viewPicture(context, MemoryImage(current!));
+    if (pick == 'remove') return _set(null);
     final file = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (file == null) return;
     await _set(await squarePng(await file.readAsBytes()));
