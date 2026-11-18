@@ -21,20 +21,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     required super.portManager,
   });
 
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_CorePtr =>
-      wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCorePtr;
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_CorePtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCorePtr;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
-  Core dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(dynamic raw);
+  Core
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+    dynamic raw,
+  );
 
   @protected
-  Core dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(dynamic raw);
+  Core
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+    dynamic raw,
+  );
 
   @protected
-  Core dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(dynamic raw);
+  Core
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+    dynamic raw,
+  );
 
   @protected
   RustStreamSink<CoreEvent> dco_decode_StreamSink_core_event_Sse(dynamic raw);
@@ -229,20 +238,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
-  Core sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  Core
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     SseDeserializer deserializer,
   );
 
   @protected
-  Core sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  Core
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     SseDeserializer deserializer,
   );
 
   @protected
-  Core sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(SseDeserializer deserializer);
+  Core
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  RustStreamSink<CoreEvent> sse_decode_StreamSink_core_event_Sse(SseDeserializer deserializer);
+  RustStreamSink<CoreEvent> sse_decode_StreamSink_core_event_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
@@ -260,13 +276,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  AttachmentView sse_decode_box_autoadd_attachment_view(SseDeserializer deserializer);
+  AttachmentView sse_decode_box_autoadd_attachment_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  GroupEventView sse_decode_box_autoadd_group_event_view(SseDeserializer deserializer);
+  GroupEventView sse_decode_box_autoadd_group_event_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  LinkPreviewView sse_decode_box_autoadd_link_preview_view(SseDeserializer deserializer);
+  LinkPreviewView sse_decode_box_autoadd_link_preview_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MessageView sse_decode_box_autoadd_message_view(SseDeserializer deserializer);
@@ -326,7 +348,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
-  List<BlockedContact> sse_decode_list_blocked_contact(SseDeserializer deserializer);
+  List<BlockedContact> sse_decode_list_blocked_contact(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ChatSummary> sse_decode_list_chat_summary(SseDeserializer deserializer);
@@ -335,16 +359,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DeviceView> sse_decode_list_device_view(SseDeserializer deserializer);
 
   @protected
-  List<FoundContact> sse_decode_list_found_contact(SseDeserializer deserializer);
+  List<FoundContact> sse_decode_list_found_contact(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  List<GroupLinkView> sse_decode_list_group_link_view(SseDeserializer deserializer);
+  List<GroupLinkView> sse_decode_list_group_link_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  List<GroupMemberView> sse_decode_list_group_member_view(SseDeserializer deserializer);
+  List<GroupMemberView> sse_decode_list_group_member_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  List<Uint8List> sse_decode_list_list_prim_u_8_strict(SseDeserializer deserializer);
+  List<Uint8List> sse_decode_list_list_prim_u_8_strict(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<MessageView> sse_decode_list_message_view(SseDeserializer deserializer);
@@ -365,7 +397,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ReceiptView> sse_decode_list_receipt_view(SseDeserializer deserializer);
 
   @protected
-  List<ServerDevice> sse_decode_list_server_device(SseDeserializer deserializer);
+  List<ServerDevice> sse_decode_list_server_device(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<StickerView> sse_decode_list_sticker_view(SseDeserializer deserializer);
@@ -383,19 +417,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
-  AttachmentView? sse_decode_opt_box_autoadd_attachment_view(SseDeserializer deserializer);
+  AttachmentView? sse_decode_opt_box_autoadd_attachment_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  GroupEventView? sse_decode_opt_box_autoadd_group_event_view(SseDeserializer deserializer);
+  GroupEventView? sse_decode_opt_box_autoadd_group_event_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  LinkPreviewView? sse_decode_opt_box_autoadd_link_preview_view(SseDeserializer deserializer);
+  LinkPreviewView? sse_decode_opt_box_autoadd_link_preview_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  MessageView? sse_decode_opt_box_autoadd_message_view(SseDeserializer deserializer);
+  MessageView? sse_decode_opt_box_autoadd_message_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
-  NoticeView? sse_decode_opt_box_autoadd_notice_view(SseDeserializer deserializer);
+  NoticeView? sse_decode_opt_box_autoadd_notice_view(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -431,28 +475,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
-  void sse_encode_AnyhowException(AnyhowException self, SseSerializer serializer);
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     Core self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     Core self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     Core self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_StreamSink_core_event_Sse(RustStreamSink<CoreEvent> self, SseSerializer serializer);
+  void sse_encode_StreamSink_core_event_Sse(
+    RustStreamSink<CoreEvent> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -461,28 +514,49 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_app_version(AppVersion self, SseSerializer serializer);
 
   @protected
-  void sse_encode_attachment_view(AttachmentView self, SseSerializer serializer);
+  void sse_encode_attachment_view(
+    AttachmentView self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_blocked_contact(BlockedContact self, SseSerializer serializer);
+  void sse_encode_blocked_contact(
+    BlockedContact self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_attachment_view(AttachmentView self, SseSerializer serializer);
+  void sse_encode_box_autoadd_attachment_view(
+    AttachmentView self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_box_autoadd_group_event_view(GroupEventView self, SseSerializer serializer);
+  void sse_encode_box_autoadd_group_event_view(
+    GroupEventView self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_box_autoadd_link_preview_view(LinkPreviewView self, SseSerializer serializer);
+  void sse_encode_box_autoadd_link_preview_view(
+    LinkPreviewView self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_box_autoadd_message_view(MessageView self, SseSerializer serializer);
+  void sse_encode_box_autoadd_message_view(
+    MessageView self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_box_autoadd_notice_view(NoticeView self, SseSerializer serializer);
+  void sse_encode_box_autoadd_notice_view(
+    NoticeView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_chat_summary(ChatSummary self, SseSerializer serializer);
@@ -497,7 +571,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_core_event_kind(CoreEventKind self, SseSerializer serializer);
 
   @protected
-  void sse_encode_device_platform(DevicePlatform self, SseSerializer serializer);
+  void sse_encode_device_platform(
+    DevicePlatform self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_device_view(DeviceView self, SseSerializer serializer);
@@ -506,10 +583,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_found_contact(FoundContact self, SseSerializer serializer);
 
   @protected
-  void sse_encode_group_event_kind(GroupEventKind self, SseSerializer serializer);
+  void sse_encode_group_event_kind(
+    GroupEventKind self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_group_event_view(GroupEventView self, SseSerializer serializer);
+  void sse_encode_group_event_view(
+    GroupEventView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_group_info_view(GroupInfoView self, SseSerializer serializer);
@@ -518,10 +601,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_group_link_view(GroupLinkView self, SseSerializer serializer);
 
   @protected
-  void sse_encode_group_member_view(GroupMemberView self, SseSerializer serializer);
+  void sse_encode_group_member_view(
+    GroupMemberView self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_group_preview_view(GroupPreviewView self, SseSerializer serializer);
+  void sse_encode_group_preview_view(
+    GroupPreviewView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -530,55 +619,97 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
-  void sse_encode_link_preview_view(LinkPreviewView self, SseSerializer serializer);
+  void sse_encode_link_preview_view(
+    LinkPreviewView self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_blocked_contact(List<BlockedContact> self, SseSerializer serializer);
+  void sse_encode_list_blocked_contact(
+    List<BlockedContact> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_chat_summary(List<ChatSummary> self, SseSerializer serializer);
+  void sse_encode_list_chat_summary(
+    List<ChatSummary> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_device_view(List<DeviceView> self, SseSerializer serializer);
+  void sse_encode_list_device_view(
+    List<DeviceView> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_found_contact(List<FoundContact> self, SseSerializer serializer);
+  void sse_encode_list_found_contact(
+    List<FoundContact> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_group_link_view(List<GroupLinkView> self, SseSerializer serializer);
+  void sse_encode_list_group_link_view(
+    List<GroupLinkView> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_group_member_view(List<GroupMemberView> self, SseSerializer serializer);
+  void sse_encode_list_group_member_view(
+    List<GroupMemberView> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_list_prim_u_8_strict(List<Uint8List> self, SseSerializer serializer);
+  void sse_encode_list_list_prim_u_8_strict(
+    List<Uint8List> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_message_view(List<MessageView> self, SseSerializer serializer);
+  void sse_encode_list_message_view(
+    List<MessageView> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_prim_u_64_strict(Uint64List self, SseSerializer serializer);
+  void sse_encode_list_prim_u_64_strict(
+    Uint64List self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_prim_u_8_strict(Uint8List self, SseSerializer serializer);
+  void sse_encode_list_prim_u_8_strict(
+    Uint8List self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_reaction(List<Reaction> self, SseSerializer serializer);
 
   @protected
-  void sse_encode_list_receipt_view(List<ReceiptView> self, SseSerializer serializer);
+  void sse_encode_list_receipt_view(
+    List<ReceiptView> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_server_device(List<ServerDevice> self, SseSerializer serializer);
+  void sse_encode_list_server_device(
+    List<ServerDevice> self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_list_sticker_view(List<StickerView> self, SseSerializer serializer);
+  void sse_encode_list_sticker_view(
+    List<StickerView> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_message_status(MessageStatus self, SseSerializer serializer);
@@ -593,22 +724,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
-  void sse_encode_opt_box_autoadd_attachment_view(AttachmentView? self, SseSerializer serializer);
+  void sse_encode_opt_box_autoadd_attachment_view(
+    AttachmentView? self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_opt_box_autoadd_group_event_view(GroupEventView? self, SseSerializer serializer);
+  void sse_encode_opt_box_autoadd_group_event_view(
+    GroupEventView? self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_opt_box_autoadd_link_preview_view(LinkPreviewView? self, SseSerializer serializer);
+  void sse_encode_opt_box_autoadd_link_preview_view(
+    LinkPreviewView? self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_opt_box_autoadd_message_view(MessageView? self, SseSerializer serializer);
+  void sse_encode_opt_box_autoadd_message_view(
+    MessageView? self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_opt_box_autoadd_notice_view(NoticeView? self, SseSerializer serializer);
+  void sse_encode_opt_box_autoadd_notice_view(
+    NoticeView? self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_opt_list_prim_u_8_strict(Uint8List? self, SseSerializer serializer);
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_reaction(Reaction self, SseSerializer serializer);
@@ -644,18 +793,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 // Section: wire_class
 
 class RustLibWire implements BaseWire {
-  factory RustLibWire.fromExternalLibrary(ExternalLibrary lib) => RustLibWire(lib.ffiDynamicLibrary);
+  factory RustLibWire.fromExternalLibrary(ExternalLibrary lib) =>
+      RustLibWire(lib.ffiDynamicLibrary);
 
   /// Holds the symbol lookup function.
-  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) _lookup;
+  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
+  _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
-  RustLibWire(ffi.DynamicLibrary dynamicLibrary) : _lookup = dynamicLibrary.lookup;
+  RustLibWire(ffi.DynamicLibrary dynamicLibrary)
+    : _lookup = dynamicLibrary.lookup;
 
-  void rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(ptr);
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+      ptr,
+    );
   }
 
   late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCorePtr =
@@ -666,10 +821,13 @@ class RustLibWire implements BaseWire {
       _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCorePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
-  void rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(ptr);
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCore(
+      ptr,
+    );
   }
 
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCorePtr =

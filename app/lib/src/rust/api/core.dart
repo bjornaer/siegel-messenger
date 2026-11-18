@@ -11,28 +11,39 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
 
 /// M8, the browser: puts the database in IndexedDB. Await once before `Core.open`.
-Future<void> prepareStorage() => RustLib.instance.api.crateApiCorePrepareStorage();
+Future<void> prepareStorage() =>
+    RustLib.instance.api.crateApiCorePrepareStorage();
 
 /// M8, the browser: drops a database that can't be opened any more.
-void forgetStorage({required String dbPath}) => RustLib.instance.api.crateApiCoreForgetStorage(dbPath: dbPath);
+void forgetStorage({required String dbPath}) =>
+    RustLib.instance.api.crateApiCoreForgetStorage(dbPath: dbPath);
 
 /// M8 (W3): the browser's database key sealed under its PIN.
 Future<Uint8List> wrapDbKey({required String pin, required List<int> key}) =>
     RustLib.instance.api.crateApiCoreWrapDbKey(pin: pin, key: key);
 
 /// The key, or null for a wrong PIN.
-Future<Uint8List?> unwrapDbKey({required String pin, required List<int> wrapped}) =>
-    RustLib.instance.api.crateApiCoreUnwrapDbKey(pin: pin, wrapped: wrapped);
+Future<Uint8List?> unwrapDbKey({
+  required String pin,
+  required List<int> wrapped,
+}) => RustLib.instance.api.crateApiCoreUnwrapDbKey(pin: pin, wrapped: wrapped);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Core>>
 abstract class Core implements RustOpaqueInterface {
   /// Accepts a message request: they get our profile key and we can reply (MSG-15).
   Future<void> accept({required List<int> groupId});
 
-  Future<void> addMembers({required List<int> groupId, required List<String> usernames});
+  Future<void> addMembers({
+    required List<int> groupId,
+    required List<String> usernames,
+  });
 
   /// Adds a WebP or PNG sticker to a pack ("" = my stickers).
-  StickerView addSticker({required List<int> data, required String mimeType, required String pack});
+  StickerView addSticker({
+    required List<int> data,
+    required String mimeType,
+    required String pack,
+  });
 
   /// Sends our current name and picture to every chat (after editing the profile).
   Future<void> announceProfile();
@@ -52,7 +63,11 @@ abstract class Core implements RustOpaqueInterface {
 
   /// `len` bytes of an attachment's plaintext from `offset` (phones), decrypted chunk by
   /// chunk, waiting for them while it downloads: for playing a video as it comes.
-  Future<Uint8List> attachmentRange({required List<int> messageId, required BigInt offset, required BigInt len});
+  Future<Uint8List> attachmentRange({
+    required List<int> messageId,
+    required BigInt offset,
+    required BigInt len,
+  });
 
   /// A contact's picture, once fetched with their profile.
   Uint8List? avatar({required List<int> account});
@@ -64,7 +79,11 @@ abstract class Core implements RustOpaqueInterface {
   List<BlockedContact> blocked();
 
   /// Moves the account to a new number proven with an OTP from `request_otp`.
-  Future<void> changeNumber({required String phoneE164, required String otp, required String pin});
+  Future<void> changeNumber({
+    required String phoneE164,
+    required String otp,
+    required String pin,
+  });
 
   /// All chats except blocked ones, newest first.
   List<ChatSummary> chats();
@@ -76,7 +95,10 @@ abstract class Core implements RustOpaqueInterface {
   String? contactLink();
 
   /// GRP-01: a new group with these @usernames; returns its chat ID.
-  Future<Uint8List> createGroup({required String name, required List<String> usernames});
+  Future<Uint8List> createGroup({
+    required String name,
+    required List<String> usernames,
+  });
 
   /// GRP-16: a new invite link for the group (admins only), valid for a week.
   Future<String> createGroupLink({required List<int> groupId});
@@ -86,7 +108,10 @@ abstract class Core implements RustOpaqueInterface {
   /// Deletes a chat from this device.
   void deleteChat({required List<int> groupId});
 
-  Future<void> deleteForEveryone({required List<int> groupId, required List<int> messageId});
+  Future<void> deleteForEveryone({
+    required List<int> groupId,
+    required List<int> messageId,
+  });
 
   void deleteForMe({required List<int> messageId});
 
@@ -100,7 +125,11 @@ abstract class Core implements RustOpaqueInterface {
   /// After a push wake-up: streams what was queued, then ends (MSG-17).
   Stream<CoreEvent> drain();
 
-  Future<void> edit({required List<int> groupId, required List<int> messageId, required String text});
+  Future<void> edit({
+    required List<int> groupId,
+    required List<int> messageId,
+    required String text,
+  });
 
   /// MED-12: downloads an attachment ahead of time, without opening it.
   Future<void> fetchAttachment({required List<int> messageId});
@@ -109,7 +138,10 @@ abstract class Core implements RustOpaqueInterface {
   Future<List<FoundContact>> findContacts({required List<String> numbers});
 
   /// MED-14: sends a message on to another chat; attachments are encrypted and uploaded again.
-  Future<MessageView> forward({required List<int> messageId, required List<int> to});
+  Future<MessageView> forward({
+    required List<int> messageId,
+    required List<int> to,
+  });
 
   /// A GIF's small preview (WebP), or with `full` the GIF to send.
   Future<Uint8List> gif({required String id, required bool full});
@@ -166,8 +198,15 @@ abstract class Core implements RustOpaqueInterface {
 
   bool numberRemoved();
 
-  static Core open({required String dbPath, required List<int> dbKey, required String serverUrl}) =>
-      RustLib.instance.api.crateApiCoreCoreOpen(dbPath: dbPath, dbKey: dbKey, serverUrl: serverUrl);
+  static Core open({
+    required String dbPath,
+    required List<int> dbKey,
+    required String serverUrl,
+  }) => RustLib.instance.api.crateApiCoreCoreOpen(
+    dbPath: dbPath,
+    dbKey: dbKey,
+    serverUrl: serverUrl,
+  );
 
   /// Opens someone's contact link; returns the chat (already accepted on their side).
   Future<Uint8List> openContactLink({required String link});
@@ -202,9 +241,16 @@ abstract class Core implements RustOpaqueInterface {
   });
 
   /// MSG-08: empty removes our reaction.
-  Future<void> react({required List<int> groupId, required List<int> messageId, required String emoji});
+  Future<void> react({
+    required List<int> groupId,
+    required List<int> messageId,
+    required String emoji,
+  });
 
-  Future<void> removeMember({required List<int> groupId, required List<int> account});
+  Future<void> removeMember({
+    required List<int> groupId,
+    required List<int> account,
+  });
 
   /// One sticker, or a whole pack when `id` is empty.
   void removeStickers({required String pack, required String id});
@@ -237,7 +283,10 @@ abstract class Core implements RustOpaqueInterface {
 
   Future<void> retry({required List<int> messageId});
 
-  Future<void> revokeGroupLink({required List<int> groupId, required List<int> id});
+  Future<void> revokeGroupLink({
+    required List<int> groupId,
+    required List<int> id,
+  });
 
   /// Streams events until the connection closes; the caller reconnects with backoff.
   Stream<CoreEvent> runStream();
@@ -280,7 +329,11 @@ abstract class Core implements RustOpaqueInterface {
 
   Future<ServerData> serverData();
 
-  Future<void> setAdmin({required List<int> groupId, required List<int> account, required bool admin});
+  Future<void> setAdmin({
+    required List<int> groupId,
+    required List<int> account,
+    required bool admin,
+  });
 
   /// MED-15: sets (PNG bytes) or removes (None) our picture and tells our contacts.
   Future<void> setAvatar({Uint8List? image});
@@ -302,7 +355,10 @@ abstract class Core implements RustOpaqueInterface {
   });
 
   /// Adds a link card to a queued text before `retry` sends it.
-  void setLinkPreview({required List<int> messageId, required LinkPreviewView preview});
+  void setLinkPreview({
+    required List<int> messageId,
+    required LinkPreviewView preview,
+  });
 
   /// M7: under 18, as the app worked out from the birth date it keeps.
   Future<void> setMinor({required bool minor});
@@ -321,12 +377,19 @@ abstract class Core implements RustOpaqueInterface {
   String? setting({required String key});
 
   /// M8: tells our other devices about a per-chat setting (archive, mute, hidden).
-  Future<void> shareChatSetting({required List<int> groupId, required String name, required String value});
+  Future<void> shareChatSetting({
+    required List<int> groupId,
+    required String name,
+    required String value,
+  });
 
   Future<Uint8List> startChat({required String username});
 
   /// Starts (or reopens) a 1:1 chat with @username; returns its ID.
-  Future<Uint8List> startChatByNumber({required String username, required List<int> proof});
+  Future<Uint8List> startChatByNumber({
+    required String username,
+    required List<int> proof,
+  });
 
   Uint8List? stickerData({required String id});
 
@@ -356,7 +419,10 @@ abstract class Core implements RustOpaqueInterface {
   });
 
   /// A scanned code that matches marks the contact verified; false on mismatch.
-  bool verifySafetyNumber({required List<int> groupId, required String scanned});
+  bool verifySafetyNumber({
+    required List<int> groupId,
+    required String scanned,
+  });
 
   /// Earlier texts of an edited message, oldest first (MSG-09).
   List<String> versions({required List<int> messageId});
@@ -374,7 +440,10 @@ class AppVersion {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is AppVersion && runtimeType == other.runtimeType && latest == other.latest && minimum == other.minimum;
+      other is AppVersion &&
+          runtimeType == other.runtimeType &&
+          latest == other.latest &&
+          minimum == other.minimum;
 }
 
 class AttachmentView {
@@ -461,10 +530,15 @@ class BlockedContact {
   final String? displayName;
   final String? username;
 
-  const BlockedContact({required this.account, this.displayName, this.username});
+  const BlockedContact({
+    required this.account,
+    this.displayName,
+    this.username,
+  });
 
   @override
-  int get hashCode => account.hashCode ^ displayName.hashCode ^ username.hashCode;
+  int get hashCode =>
+      account.hashCode ^ displayName.hashCode ^ username.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -559,7 +633,10 @@ class CoreError implements FrbException {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is CoreError && runtimeType == other.runtimeType && code == other.code;
+      identical(this, other) ||
+      other is CoreError &&
+          runtimeType == other.runtimeType &&
+          code == other.code;
 }
 
 /// Flat on purpose: data-carrying enums would need an extra Dart codegen (freezed).
@@ -571,10 +648,16 @@ class CoreEvent {
   /// Typing: who is typing (groups show the name).
   final Uint8List? account;
 
-  const CoreEvent({required this.kind, this.groupId, this.message, this.account});
+  const CoreEvent({
+    required this.kind,
+    this.groupId,
+    this.message,
+    this.account,
+  });
 
   @override
-  int get hashCode => kind.hashCode ^ groupId.hashCode ^ message.hashCode ^ account.hashCode;
+  int get hashCode =>
+      kind.hashCode ^ groupId.hashCode ^ message.hashCode ^ account.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -630,7 +713,12 @@ class DeviceView {
   });
 
   @override
-  int get hashCode => id.hashCode ^ name.hashCode ^ linked.hashCode ^ lastSeenDay.hashCode ^ thisDevice.hashCode;
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      linked.hashCode ^
+      lastSeenDay.hashCode ^
+      thisDevice.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -651,7 +739,11 @@ class FoundContact {
   /// Starts a chat even with someone under 18 (`start_chat_by_number`).
   final Uint8List proof;
 
-  const FoundContact({required this.phone, required this.username, required this.proof});
+  const FoundContact({
+    required this.phone,
+    required this.username,
+    required this.proof,
+  });
 
   @override
   int get hashCode => phone.hashCode ^ username.hashCode ^ proof.hashCode;
@@ -667,7 +759,17 @@ class FoundContact {
 }
 
 /// GRP-12 system lines.
-enum GroupEventKind { created, added, removed, left, renamed, adminAdded, adminRemoved, settings, avatar }
+enum GroupEventKind {
+  created,
+  added,
+  removed,
+  left,
+  renamed,
+  adminAdded,
+  adminRemoved,
+  settings,
+  avatar,
+}
 
 class GroupEventView {
   final GroupEventKind kind;
@@ -675,10 +777,16 @@ class GroupEventView {
   final List<Uint8List> targets;
   final String name;
 
-  const GroupEventView({required this.kind, required this.actor, required this.targets, required this.name});
+  const GroupEventView({
+    required this.kind,
+    required this.actor,
+    required this.targets,
+    required this.name,
+  });
 
   @override
-  int get hashCode => kind.hashCode ^ actor.hashCode ^ targets.hashCode ^ name.hashCode;
+  int get hashCode =>
+      kind.hashCode ^ actor.hashCode ^ targets.hashCode ^ name.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -709,7 +817,11 @@ class GroupInfoView {
 
   @override
   int get hashCode =>
-      name.hashCode ^ members.hashCode ^ adminsOnlyInfo.hashCode ^ adminsOnlyAdd.hashCode ^ meAdmin.hashCode;
+      name.hashCode ^
+      members.hashCode ^
+      adminsOnlyInfo.hashCode ^
+      adminsOnlyAdd.hashCode ^
+      meAdmin.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -730,7 +842,11 @@ class GroupLinkView {
   final PlatformInt64 expires;
   final Uint8List id;
 
-  const GroupLinkView({required this.link, required this.expires, required this.id});
+  const GroupLinkView({
+    required this.link,
+    required this.expires,
+    required this.id,
+  });
 
   @override
   int get hashCode => link.hashCode ^ expires.hashCode ^ id.hashCode;
@@ -761,7 +877,12 @@ class GroupMemberView {
   });
 
   @override
-  int get hashCode => account.hashCode ^ displayName.hashCode ^ username.hashCode ^ admin.hashCode ^ me.hashCode;
+  int get hashCode =>
+      account.hashCode ^
+      displayName.hashCode ^
+      username.hashCode ^
+      admin.hashCode ^
+      me.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -787,7 +908,10 @@ class GroupPreviewView {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is GroupPreviewView && runtimeType == other.runtimeType && name == other.name && members == other.members;
+      other is GroupPreviewView &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          members == other.members;
 }
 
 class LinkPreviewView {
@@ -798,10 +922,16 @@ class LinkPreviewView {
   /// JPEG; empty when the page has no image.
   final Uint8List image;
 
-  const LinkPreviewView({required this.url, required this.title, required this.description, required this.image});
+  const LinkPreviewView({
+    required this.url,
+    required this.title,
+    required this.description,
+    required this.image,
+  });
 
   @override
-  int get hashCode => url.hashCode ^ title.hashCode ^ description.hashCode ^ image.hashCode;
+  int get hashCode =>
+      url.hashCode ^ title.hashCode ^ description.hashCode ^ image.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -928,10 +1058,16 @@ class NoticeView {
   final String reason;
   final PlatformInt64 untilMs;
 
-  const NoticeView({required this.suspended, required this.rule, required this.reason, required this.untilMs});
+  const NoticeView({
+    required this.suspended,
+    required this.rule,
+    required this.reason,
+    required this.untilMs,
+  });
 
   @override
-  int get hashCode => suspended.hashCode ^ rule.hashCode ^ reason.hashCode ^ untilMs.hashCode;
+  int get hashCode =>
+      suspended.hashCode ^ rule.hashCode ^ reason.hashCode ^ untilMs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -956,7 +1092,10 @@ class Reaction {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Reaction && runtimeType == other.runtimeType && account == other.account && emoji == other.emoji;
+      other is Reaction &&
+          runtimeType == other.runtimeType &&
+          account == other.account &&
+          emoji == other.emoji;
 }
 
 /// GRP-13: one member's state for one of our messages.
@@ -972,7 +1111,10 @@ class ReceiptView {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ReceiptView && runtimeType == other.runtimeType && account == other.account && status == other.status;
+      other is ReceiptView &&
+          runtimeType == other.runtimeType &&
+          account == other.account &&
+          status == other.status;
 }
 
 /// RM-01: what the server holds about us. Ids and hashes are hex; days are YYYY-MM-DD.
@@ -1099,7 +1241,11 @@ class StickerView {
   final String pack;
   final String mimeType;
 
-  const StickerView({required this.id, required this.pack, required this.mimeType});
+  const StickerView({
+    required this.id,
+    required this.pack,
+    required this.mimeType,
+  });
 
   @override
   int get hashCode => id.hashCode ^ pack.hashCode ^ mimeType.hashCode;
