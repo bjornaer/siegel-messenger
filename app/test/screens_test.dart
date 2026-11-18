@@ -512,7 +512,7 @@ class FakeCore implements Core {
   Future<MessageView> forward({required List<int> messageId, required List<int> to}) async {
     forwards.add(base64Encode(to));
     final src = history.values.expand((l) => l).firstWhere((m) => listEquals(m.messageId, messageId));
-    final m = msg(to, src.text, outgoing: true, attachment: src.attachment);
+    final m = msg(to, src.text, outgoing: true, attachment: src.attachment, forwarded: true);
     (history[base64Encode(to)] ??= []).add(m);
     return m;
   }
@@ -879,7 +879,9 @@ class FakeCore implements Core {
     Uint8List? sender,
     AttachmentView? attachment,
     LinkPreviewView? preview,
+    bool forwarded = false,
   }) => MessageView(
+    forwarded: forwarded,
     preview: preview,
     groupId: Uint8List.fromList(groupId),
     messageId: Uint8List.fromList([_n++]),
@@ -907,6 +909,7 @@ class FakeCore implements Core {
     List<Reaction>? reactions,
     LinkPreviewView? preview,
   }) => MessageView(
+    forwarded: m.forwarded,
     preview: preview ?? m.preview,
     groupId: m.groupId,
     messageId: m.messageId,
@@ -1454,6 +1457,19 @@ void main() {
     await t.pumpAndSettle();
     await tapText(t, 'View photo');
     expect(find.byType(InteractiveViewer), findsOneWidget);
+  });
+
+  testWidgets('a forwarded message says so', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    (core.history[base64Encode(id)] ??= [])
+      ..add(FakeCore.msg(id, 'passed on', outgoing: false, forwarded: true))
+      ..add(FakeCore.msg(id, 'my own words', outgoing: false));
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.text('Forwarded'), findsOneWidget);
   });
 
   test('video ranges: what a player asks for, clamped to the file', () {
@@ -2380,6 +2396,10 @@ void main() {
     await tapText(t, 'Archive');
     expect(core.calls, contains('share archive=1'), reason: 'M8: our other devices archive it too');
     expect(find.text('@bob'), findsNothing);
+    expect(find.textContaining('Pull down the chat list'), findsOneWidget, reason: 'where it went');
+    expect(find.text('Archived'), findsNothing, reason: 'out of sight until the list is pulled down');
+    await t.fling(find.text('Hikers'), const Offset(0, 400), 1000);
+    await t.pumpAndSettle();
     expect(find.text('Archived'), findsOneWidget);
     expect(find.text('1'), findsWidgets, reason: 'archived chats with unread messages');
     await tapText(t, 'Archived');

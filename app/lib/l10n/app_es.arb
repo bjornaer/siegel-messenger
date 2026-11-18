@@ -463,5 +463,7 @@
   "savePhotos": "Guardar fotos descargadas",
   "savePhotosHelp": "Una foto que descargas con su flecha también se guarda en la galería del teléfono (Pictures/Siegel).",
   "savedToGallery": "Guardada en tu galería",
-  "viewPhoto": "Ver foto"
+  "viewPhoto": "Ver foto",
+  "forwarded": "Reenviado",
+  "archivedHint": "Archivado. Desliza hacia abajo la lista de chats para ver los archivados."
 }

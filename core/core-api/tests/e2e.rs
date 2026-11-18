@@ -1259,7 +1259,29 @@ async fn voice_notes_upload_download_and_delete() {
         unreachable!()
     };
     assert_eq!(bob.attachment_data(&m2.message_id).await.unwrap(), audio);
+    assert!(
+        fwd.forwarded && m2.forwarded && !m.forwarded,
+        "shown as forwarded"
+    );
     bob.delete_for_me(&m2.message_id).unwrap();
+
+    // A text forwards with the mark too.
+    let hi = alice.send_text(&chat, "pass it on", None).await.unwrap();
+    assert!(!hi.forwarded);
+    until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await;
+    alice.forward(&hi.message_id, &chat).await.unwrap();
+    let core_api::Event::Message(t) = until(&mut bob_events, |e| {
+        matches!(e, core_api::Event::Message(_))
+    })
+    .await
+    else {
+        unreachable!()
+    };
+    assert!(t.text == "pass it on" && t.forwarded);
+    bob.delete_for_me(&t.message_id).unwrap();
 
     // Delete for everyone removes the blob from the receiver's device too.
     let media = std::env::temp_dir()

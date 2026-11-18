@@ -175,6 +175,8 @@ pub struct ChatMessage {
     pub attachment: Option<crate::AttachmentInfo>,
     /// The first link's card, when it still matches the text.
     pub preview: Option<pb::LinkPreview>,
+    /// Passed on from another chat (`forward`).
+    pub forwarded: bool,
 }
 
 /// Lowercase without accents, so "cancion" finds "Canción" and "uber" finds "Über".
@@ -197,9 +199,11 @@ fn fold(s: &str) -> String {
 
 pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Option<ChatMessage> {
     let (mut t, mut key_change, mut event) = (pb::Text::default(), false, None);
-    let mut attachment = None;
+    let (mut attachment, mut forwarded) = (None, false);
     if !m.deleted {
-        match pb::Content::decode(m.body.as_slice()).ok()?.body? {
+        let c = pb::Content::decode(m.body.as_slice()).ok()?;
+        forwarded = c.forwarded;
+        match c.body? {
             pb::content::Body::Text(x) => t = x,
             pb::content::Body::Attachment(a) => {
                 attachment = Some(crate::media::info(&a));
@@ -231,6 +235,7 @@ pub(crate) fn chat_message(m: Message, reactions: Vec<(Vec<u8>, String)>) -> Opt
         event,
         mentions: t.mentions,
         attachment,
+        forwarded,
     })
 }
 
@@ -1136,6 +1141,7 @@ pub(crate) fn note_identity(s: &SqlCipher, peer: &[u8], identity: &[u8]) -> Resu
         let content = pb::Content {
             message_id: id.clone(),
             sent_at: now_ms(),
+            forwarded: false,
             body: Some(pb::content::Body::KeyChange(pb::KeyChange {})),
         };
         storage(s.save_message(&Message {

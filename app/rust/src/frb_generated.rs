@@ -6558,6 +6558,7 @@ impl SseDecode for crate::api::core::MessageView {
         let mut var_attachment =
             <Option<crate::api::core::AttachmentView>>::sse_decode(deserializer);
         let mut var_preview = <Option<crate::api::core::LinkPreviewView>>::sse_decode(deserializer);
+        let mut var_forwarded = <bool>::sse_decode(deserializer);
         return crate::api::core::MessageView {
             group_id: var_groupId,
             message_id: var_messageId,
@@ -6575,6 +6576,7 @@ impl SseDecode for crate::api::core::MessageView {
             mentions: var_mentions,
             attachment: var_attachment,
             preview: var_preview,
+            forwarded: var_forwarded,
         };
     }
 }
@@ -7421,6 +7423,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::MessageView {
             self.mentions.into_into_dart().into_dart(),
             self.attachment.into_into_dart().into_dart(),
             self.preview.into_into_dart().into_dart(),
+            self.forwarded.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -8026,6 +8029,7 @@ impl SseEncode for crate::api::core::MessageView {
         <Vec<Vec<u8>>>::sse_encode(self.mentions, serializer);
         <Option<crate::api::core::AttachmentView>>::sse_encode(self.attachment, serializer);
         <Option<crate::api::core::LinkPreviewView>>::sse_encode(self.preview, serializer);
+        <bool>::sse_encode(self.forwarded, serializer);
     }
 }
 

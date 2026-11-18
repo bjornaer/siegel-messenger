@@ -510,6 +510,8 @@ pub struct MessageView {
     pub attachment: Option<AttachmentView>,
     /// The first link's card, made by the sender's phone.
     pub preview: Option<LinkPreviewView>,
+    /// Passed on from another chat.
+    pub forwarded: bool,
 }
 
 pub struct LinkPreviewView {
@@ -584,6 +586,7 @@ impl From<core_api::ChatMessage> for MessageView {
                 description: p.description,
                 image: p.image,
             }),
+            forwarded: m.forwarded,
             mentions: m.mentions,
             attachment: m.attachment.map(|a| AttachmentView {
                 mime_type: a.mime_type,

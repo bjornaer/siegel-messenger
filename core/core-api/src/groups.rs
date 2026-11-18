@@ -102,6 +102,7 @@ fn system_line(
     let content = pb::Content {
         message_id: id.clone(),
         sent_at: now_ms(),
+        forwarded: false,
         body: Some(pb::content::Body::GroupEvent(pb::GroupEvent {
             kind: kind as i32,
             actor: actor.to_vec(),

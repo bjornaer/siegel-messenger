@@ -4933,8 +4933,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageView dco_decode_message_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 16)
-      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    if (arr.length != 17)
+      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
     return MessageView(
       groupId: dco_decode_list_prim_u_8_strict(arr[0]),
       messageId: dco_decode_list_prim_u_8_strict(arr[1]),
@@ -4952,6 +4952,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mentions: dco_decode_list_list_prim_u_8_strict(arr[13]),
       attachment: dco_decode_opt_box_autoadd_attachment_view(arr[14]),
       preview: dco_decode_opt_box_autoadd_link_preview_view(arr[15]),
+      forwarded: dco_decode_bool(arr[16]),
     );
   }
 
@@ -5688,6 +5689,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_preview = sse_decode_opt_box_autoadd_link_preview_view(
       deserializer,
     );
+    var var_forwarded = sse_decode_bool(deserializer);
     return MessageView(
       groupId: var_groupId,
       messageId: var_messageId,
@@ -5705,6 +5707,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mentions: var_mentions,
       attachment: var_attachment,
       preview: var_preview,
+      forwarded: var_forwarded,
     );
   }
 
@@ -6448,6 +6451,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_list_prim_u_8_strict(self.mentions, serializer);
     sse_encode_opt_box_autoadd_attachment_view(self.attachment, serializer);
     sse_encode_opt_box_autoadd_link_preview_view(self.preview, serializer);
+    sse_encode_bool(self.forwarded, serializer);
   }
 
   @protected

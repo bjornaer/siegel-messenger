@@ -165,6 +165,7 @@ type Content struct {
 	//	*Content_Attachment
 	//	*Content_Sync
 	Body          isContent_Body `protobuf_oneof:"body"`
+	Forwarded     bool           `protobuf:"varint,20,opt,name=forwarded,proto3" json:"forwarded,omitempty"` // a text or attachment passed on from another chat: shown as forwarded
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -326,6 +327,13 @@ func (x *Content) GetSync() *Sync {
 		}
 	}
 	return nil
+}
+
+func (x *Content) GetForwarded() bool {
+	if x != nil {
+		return x.Forwarded
+	}
+	return false
 }
 
 type isContent_Body interface {
@@ -1457,7 +1465,7 @@ var File_siegel_v1_content_proto protoreflect.FileDescriptor
 
 const file_siegel_v1_content_proto_rawDesc = "" +
 	"\n" +
-	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\xb4\x05\n" +
+	"\x17siegel/v1/content.proto\x12\tsiegel.v1\"\xd2\x05\n" +
 	"\aContent\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\fR\tmessageId\x12\x17\n" +
@@ -1477,7 +1485,8 @@ const file_siegel_v1_content_proto_rawDesc = "" +
 	"\n" +
 	"attachment\x18\x12 \x01(\v2\x15.siegel.v1.AttachmentH\x00R\n" +
 	"attachment\x12%\n" +
-	"\x04sync\x18\x13 \x01(\v2\x0f.siegel.v1.SyncH\x00R\x04syncB\x06\n" +
+	"\x04sync\x18\x13 \x01(\v2\x0f.siegel.v1.SyncH\x00R\x04sync\x12\x1c\n" +
+	"\tforwarded\x18\x14 \x01(\bR\tforwardedB\x06\n" +
 	"\x04body\"\xa1\x01\n" +
 	"\x04Sync\x12)\n" +
 	"\x04read\x18\x01 \x01(\v2\x13.siegel.v1.SyncReadH\x00R\x04read\x122\n" +

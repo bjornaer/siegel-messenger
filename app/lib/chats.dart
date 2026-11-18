@@ -317,6 +317,9 @@ Future<void> _chatActions(BuildContext context, Core core, ChatService service, 
   if (pick == 'archive') {
     setArchived(core, c.groupId, !archived);
     service.refresh();
+    if (!archived && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.archivedHint)));
+    }
   } else if (pick == 'delete' && context.mounted) {
     await deleteChat(context, core, service, c);
   }
@@ -482,11 +485,23 @@ class _ChatsHomeState extends State<ChatsHome> {
   }
 }
 
-class ChatListScreen extends StatelessWidget {
+class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key, required this.core, required this.service, required this.settings});
   final Core core;
   final ChatService service;
   final WidgetBuilder settings;
+
+  @override
+  State<ChatListScreen> createState() => _ChatListScreenState();
+}
+
+class _ChatListScreenState extends State<ChatListScreen> {
+  Core get core => widget.core;
+  ChatService get service => widget.service;
+  WidgetBuilder get settings => widget.settings;
+
+  /// The archived row stays out of sight until the list is pulled down, as on WhatsApp.
+  bool _archivedShown = false;
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +546,7 @@ class ChatListScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            if (archived.isNotEmpty)
+            if (archived.isNotEmpty && (_archivedShown || chats.isEmpty))
               ListTile(
                 leading: const Icon(Icons.archive_outlined),
                 title: Text(t.archived),
@@ -550,9 +565,10 @@ class ChatListScreen extends StatelessWidget {
                 child: Text(t.noChats, textAlign: TextAlign.center),
               ),
           ];
-          // Pull down to reconnect at once and fetch anything waiting.
+          // Pull down to reconnect at once and fetch anything waiting, and to show the archived row.
           return RefreshIndicator(
             onRefresh: () async {
+              setState(() => _archivedShown = true);
               service.wake();
               await Future<void>.delayed(const Duration(seconds: 1));
               service.refresh();
@@ -1913,6 +1929,15 @@ class _ChatScreenState extends State<ChatScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                          ),
+                        if (m.forwarded && !m.deleted)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.shortcut, size: 14, color: small?.color),
+                              const SizedBox(width: 4),
+                              Text(t.forwarded, style: small?.copyWith(fontStyle: FontStyle.italic)),
+                            ],
                           ),
                         if (first.replyTo != null && !m.deleted)
                           Padding(

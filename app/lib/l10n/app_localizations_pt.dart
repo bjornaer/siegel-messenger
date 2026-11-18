@@ -51,8 +51,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pinTitle => 'Bloqueio de registro';
 
   @override
-  String get pinHelp =>
-      'Este número está protegido por um PIN. Digite-o para continuar.';
+  String get pinHelp => 'Este número está protegido por um PIN. Digite-o para continuar.';
 
   @override
   String get pinLabel => 'PIN de 4 dígitos';
@@ -124,8 +123,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errPhoneInvalid => 'Esse número de telefone não parece válido.';
 
   @override
-  String get errRateLimited =>
-      'Tentativas demais. Aguarde e tente de novo mais tarde.';
+  String get errRateLimited => 'Tentativas demais. Aguarde e tente de novo mais tarde.';
 
   @override
   String get errOtpInvalid => 'Código errado ou expirado.';
@@ -134,8 +132,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errLockInvalid => 'PIN errado.';
 
   @override
-  String get errLockLocked =>
-      'PIN errado vezes demais. Tente de novo em 24 horas.';
+  String get errLockLocked => 'PIN errado vezes demais. Tente de novo em 24 horas.';
 
   @override
   String get errUsernameInvalid => 'Esse nome de usuário não é permitido.';
@@ -144,8 +141,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errUsernameTaken => 'Esse nome de usuário já está em uso.';
 
   @override
-  String get errUsernameTooSoon =>
-      'Você pode mudar seu nome de usuário uma vez a cada 30 dias.';
+  String get errUsernameTooSoon => 'Você pode mudar seu nome de usuário uma vez a cada 30 dias.';
 
   @override
   String get errPinInvalid => 'O PIN deve ter exatamente 4 dígitos.';
@@ -154,8 +150,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errDisplayNameInvalid => 'Digite um nome de 1 a 64 caracteres.';
 
   @override
-  String get errNetwork =>
-      'Não foi possível acessar o servidor. Verifique sua conexão.';
+  String get errNetwork => 'Não foi possível acessar o servidor. Verifique sua conexão.';
 
   @override
   String get errGeneric => 'Algo deu errado. Tente de novo.';
@@ -164,8 +159,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get appLock => 'Bloqueio do app';
 
   @override
-  String get appLockSubtitle =>
-      'Pedir sua digital, seu rosto ou a senha do celular para abrir o Siegel.';
+  String get appLockSubtitle => 'Pedir sua digital, seu rosto ou a senha do celular para abrir o Siegel.';
 
   @override
   String get lockAfter => 'Bloquear após';
@@ -175,23 +169,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String lockMinutes(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count minutos',
-      one: '1 minuto',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count minutos', one: '1 minuto');
     return '$_temp0';
   }
 
   @override
   String lockHours(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count horas',
-      one: '1 hora',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count horas', one: '1 hora');
     return '$_temp0';
   }
 
@@ -199,8 +183,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get screenSecurity => 'Segurança de tela';
 
   @override
-  String get screenSecuritySubtitle =>
-      'Bloquear capturas e gravações de tela do Siegel.';
+  String get screenSecuritySubtitle => 'Bloquear capturas e gravações de tela do Siegel.';
 
   @override
   String get lockedTitle => 'O Siegel está bloqueado';
@@ -225,8 +208,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get newChat => 'Nova conversa';
 
   @override
-  String get noChats =>
-      'Nenhuma conversa ainda. Comece uma com o @usuário de alguém.';
+  String get noChats => 'Nenhuma conversa ainda. Comece uma com o @usuário de alguém.';
 
   @override
   String get newContact => 'Novo contato';
@@ -244,8 +226,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errUsernameNotFound => 'Ninguém tem esse nome de usuário.';
 
   @override
-  String get errNoKeyPackages =>
-      'Essa conta não pode receber mensagens agora. Tente mais tarde.';
+  String get errNoKeyPackages => 'Essa conta não pode receber mensagens agora. Tente mais tarde.';
 
   @override
   String get errTextInvalid => 'As mensagens podem ter até 64 KB de texto.';
@@ -352,8 +333,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get readReceipts => 'Confirmações de leitura';
 
   @override
-  String get readReceiptsHelp =>
-      'Se você desativar, também não verá quando outras pessoas lerem suas mensagens.';
+  String get readReceiptsHelp => 'Se você desativar, também não verá quando outras pessoas lerem suas mensagens.';
 
   @override
   String get sendingFiles => 'Enviando arquivos…';
@@ -369,8 +349,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get typingIndicators => 'Indicador de digitação';
 
   @override
-  String get typingIndicatorsHelp =>
-      'Se você desativar, também não verá quando outras pessoas estiverem digitando.';
+  String get typingIndicatorsHelp => 'Se você desativar, também não verá quando outras pessoas estiverem digitando.';
 
   @override
   String get errNotAllowed => 'Isso não é mais possível para esta mensagem.';
@@ -387,8 +366,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get safetyNumberUnavailable =>
-      'O número de segurança ainda não está disponível.';
+  String get safetyNumberUnavailable => 'O número de segurança ainda não está disponível.';
 
   @override
   String get scanCode => 'Escanear o código';
@@ -441,8 +419,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get themeLoewe => 'Leão. Ouro velho, como um brasão.';
 
   @override
-  String get themeLindwurm =>
-      'O dragão-serpente das lendas alpinas. Verde-azulado e escamas.';
+  String get themeLindwurm => 'O dragão-serpente das lendas alpinas. Verde-azulado e escamas.';
 
   @override
   String get themeSchnee => 'Neve. Azul-claro e tranquilo.';
@@ -490,12 +467,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String membersCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count membros',
-      one: '1 membro',
-    );
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count membros', one: '1 membro');
     return '$_temp0';
   }
 
@@ -518,15 +490,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get leaveGroup => 'Sair do grupo';
 
   @override
-  String get leaveGroupBody =>
-      'Você não vai receber novas mensagens deste grupo. A conversa fica neste celular.';
+  String get leaveGroupBody => 'Você não vai receber novas mensagens deste grupo. A conversa fica neste celular.';
 
   @override
   String get leftGroup => 'Você não está mais neste grupo.';
 
   @override
-  String get onlyAdminsEditInfo =>
-      'Só admins podem mudar o nome e a foto do grupo';
+  String get onlyAdminsEditInfo => 'Só admins podem mudar o nome e a foto do grupo';
 
   @override
   String get onlyAdminsAdd => 'Só admins podem adicionar membros';
@@ -599,8 +569,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get groupAddsContacts => 'Meus contatos';
 
   @override
-  String get groupAddsHelp =>
-      'As demais pessoas enviam um convite para você aceitar ou recusar.';
+  String get groupAddsHelp => 'As demais pessoas enviam um convite para você aceitar ou recusar.';
 
   @override
   String get muteFor8h => 'Por 8 horas';
@@ -653,8 +622,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get codeResent => 'Código reenviado.';
 
   @override
-  String get errResendTooSoon =>
-      'Aguarde um pouco antes de pedir outro código.';
+  String get errResendTooSoon => 'Aguarde um pouco antes de pedir outro código.';
 
   @override
   String get updateAvailable => 'Há uma nova versão do Siegel.';
@@ -666,15 +634,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get later => 'Depois';
 
   @override
-  String get updateRequired =>
-      'Esta versão do Siegel não é mais compatível. Atualize para continuar usando.';
+  String get updateRequired => 'Esta versão do Siegel não é mais compatível. Atualize para continuar usando.';
 
   @override
   String get myLink => 'Meu link';
 
   @override
-  String get myLinkSubtitle =>
-      'Quem abrir conversa com você na hora, sem pedido.';
+  String get myLinkSubtitle => 'Quem abrir conversa com você na hora, sem pedido.';
 
   @override
   String get myLinkHelp =>
@@ -730,8 +696,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get revoke => 'Revogar';
 
   @override
-  String get errLinkStale =>
-      'O grupo acabou de mudar. Tente o link de novo daqui a pouco.';
+  String get errLinkStale => 'O grupo acabou de mudar. Tente o link de novo daqui a pouco.';
 
   @override
   String get errGroupOutOfSync =>
@@ -766,12 +731,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get pause => 'Pausar';
 
   @override
-  String get errAttachmentExpired =>
-      'Este anexo não está mais no servidor. Peça para quem enviou mandar de novo.';
+  String get errAttachmentExpired => 'Este anexo não está mais no servidor. Peça para quem enviou mandar de novo.';
 
   @override
-  String get errAttachmentCorrupt =>
-      'Este anexo foi danificado no caminho e não pode ser aberto.';
+  String get errAttachmentCorrupt => 'Este anexo foi danificado no caminho e não pode ser aberto.';
 
   @override
   String get errAttachmentTooLarge => 'Os arquivos podem ter até 100 MB.';
@@ -797,8 +760,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get themeEdelweiss =>
-      'Edelvais, a flor-estrela dos Alpes. Branco neve até prata.';
+  String get themeEdelweiss => 'Edelvais, a flor-estrela dos Alpes. Branco neve até prata.';
 
   @override
   String get photo => 'Foto';
@@ -861,8 +823,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get autoDownload => 'Download automático';
 
   @override
-  String get autoDownloadHelp =>
-      'O que é baixado sozinho ao chegar. Mensagens de voz são baixadas ao tocar.';
+  String get autoDownloadHelp => 'O que é baixado sozinho ao chegar. Mensagens de voz são baixadas ao tocar.';
 
   @override
   String get onWifi => 'No Wi-Fi';
@@ -917,8 +878,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get myNumberHelp => 'O número com que você se cadastrou';
 
   @override
-  String get errPhoneMismatch =>
-      'Este não é o número com que esta conta foi cadastrada.';
+  String get errPhoneMismatch => 'Este não é o número com que esta conta foi cadastrada.';
 
   @override
   String get sourceCode => 'Código-fonte';
@@ -942,8 +902,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get noNumber =>
-      'Sem número de celular: adicione um para poder recuperar sua conta';
+  String get noNumber => 'Sem número de celular: adicione um para poder recuperar sua conta';
 
   @override
   String get numberRemovedTitle => 'Seu número passou para outra conta';
@@ -953,8 +912,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Seu número foi verificado em outra conta do Siegel. Sua conta continua funcionando; adicione um número em Configurações para poder recuperá-la depois.';
 
   @override
-  String get errNumberChangeTooSoon =>
-      'Você pode mudar seu número uma vez a cada 7 dias.';
+  String get errNumberChangeTooSoon => 'Você pode mudar seu número uma vez a cada 7 dias.';
 
   @override
   String get errNumberSame => 'Esse já é o seu número.';
@@ -995,8 +953,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get skReleased =>
-      'Nomes de usuário antigos que você ainda pode recuperar';
+  String get skReleased => 'Nomes de usuário antigos que você ainda pode recuperar';
 
   @override
   String get skIdentityKey => 'Chave de identidade';
@@ -1023,8 +980,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get skProfilePicture => 'Foto do perfil';
 
   @override
-  String get skPictureStored =>
-      'Criptografada. Só as pessoas com quem você conversa podem vê-la.';
+  String get skPictureStored => 'Criptografada. Só as pessoas com quem você conversa podem vê-la.';
 
   @override
   String get skChecked => 'Números de contatos verificados recentemente';
@@ -1137,8 +1093,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get leaveAndDeleteBody =>
-      'Os membros verão que você saiu. As mensagens são apagadas deste telefone.';
+  String get leaveAndDeleteBody => 'Os membros verão que você saiu. As mensagens são apagadas deste telefone.';
 
   @override
   String get moreReactions => 'Mais reações';
@@ -1177,8 +1132,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get stickerAdded => 'Adicionada às suas figurinhas.';
 
   @override
-  String get errStickerInvalid =>
-      'Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB.';
+  String get errStickerInvalid => 'Isso não pode ser uma figurinha: WebP ou PNG, até 1 MB.';
 
   @override
   String get termsAndGuidelines => 'Termos e diretrizes da comunidade';
@@ -1316,8 +1270,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Acha que é um erro? Escreva para o endereço na nossa página de Termos. Uma pessoa analisa cada recurso.';
 
   @override
-  String get usernameRemoved =>
-      'Nossos moderadores removeram seu @usuário. Escolha um novo.';
+  String get usernameRemoved => 'Nossos moderadores removeram seu @usuário. Escolha um novo.';
 
   @override
   String get errNumberBanned =>
@@ -1333,8 +1286,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get addText => 'Adicionar texto';
 
   @override
-  String get stickerTextHelp =>
-      'Arraste o texto para movê-lo; toque duas vezes para alterá-lo.';
+  String get stickerTextHelp => 'Arraste o texto para movê-lo; toque duas vezes para alterá-lo.';
 
   @override
   String get textSize => 'Tamanho do texto';
@@ -1389,8 +1341,7 @@ class AppLocalizationsPt extends AppLocalizations {
       'Use o Siegel em até 4 outros dispositivos, como um navegador em web.siegel.schlk.in. Eles recebem as mensagens novas a partir da conexão, não o seu histórico.';
 
   @override
-  String get thisIsLinked =>
-      'Este é um dispositivo conectado. Conecte ou desconecte dispositivos pelo seu telefone.';
+  String get thisIsLinked => 'Este é um dispositivo conectado. Conecte ou desconecte dispositivos pelo seu telefone.';
 
   @override
   String get mainPhone => 'Telefone';
@@ -1429,16 +1380,13 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get unlinkBody =>
-      'Ele para de receber suas mensagens na hora e apaga tudo o que tinha.';
+  String get unlinkBody => 'Ele para de receber suas mensagens na hora e apaga tudo o que tinha.';
 
   @override
-  String get tooManyDevices =>
-      'Você pode conectar até 4 dispositivos. Desconecte um primeiro.';
+  String get tooManyDevices => 'Você pode conectar até 4 dispositivos. Desconecte um primeiro.';
 
   @override
-  String get errLinkExpired =>
-      'Esse código expirou. Mostre um novo no dispositivo e escaneie de novo.';
+  String get errLinkExpired => 'Esse código expirou. Mostre um novo no dispositivo e escaneie de novo.';
 
   @override
   String get searchCountry => 'Procure um país ou código';
@@ -1492,8 +1440,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get webLinkWaiting => 'Esperando seu celular…';
 
   @override
-  String get webExpired =>
-      'Este navegador ficou 14 dias sem uso e foi desconectado. Conecte de novo pelo celular.';
+  String get webExpired => 'Este navegador ficou 14 dias sem uso e foi desconectado. Conecte de novo pelo celular.';
 
   @override
   String get unlinkThisBrowser => 'Desconectar este navegador';
@@ -1545,16 +1492,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get viewOnceOpenHint => 'Abre uma vez e some';
 
   @override
-  String get viewOnceOnPhone =>
-      'Fotos de visualização única abrem só no celular.';
+  String get viewOnceOnPhone => 'Fotos de visualização única abrem só no celular.';
 
   @override
   String get viewOnceHelp =>
       'A pessoa pode abrir uma vez, no celular, com capturas de tela bloqueadas; depois some para os dois. Se não for aberta em 14 dias, também some. Ainda assim, alguém poderia fotografar a tela com outra câmera.';
 
   @override
-  String get errViewOnceGone =>
-      'Esta foto de visualização única não pode ser aberta de novo.';
+  String get errViewOnceGone => 'Esta foto de visualização única não pode ser aberta de novo.';
 
   @override
   String get gifs => 'GIFs';
@@ -1566,8 +1511,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get noGifs => 'Nenhum GIF encontrado.';
 
   @override
-  String get gifsUnavailable =>
-      'Os GIFs não estão disponíveis agora. Tente mais tarde.';
+  String get gifsUnavailable => 'Os GIFs não estão disponíveis agora. Tente mais tarde.';
 
   @override
   String get gifsPrivacy =>
@@ -1614,8 +1558,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get noMessagesFound => 'Nenhuma mensagem encontrada';
 
   @override
-  String get noAppToOpen =>
-      'Nenhum app deste telefone abre esse tipo de arquivo. Salve-o com o botão de download.';
+  String get noAppToOpen => 'Nenhum app deste telefone abre esse tipo de arquivo. Salve-o com o botão de download.';
 
   @override
   String get liveLocation => 'Localização em tempo real';
@@ -1640,8 +1583,7 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get sharingLiveLocation =>
-      'Compartilhando sua localização em tempo real';
+  String get sharingLiveLocation => 'Compartilhando sua localização em tempo real';
 
   @override
   String get savePhotos => 'Salvar fotos baixadas';
@@ -1655,4 +1597,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get viewPhoto => 'Ver foto';
+
+  @override
+  String get archivedHint => 'Arquivada. Puxe a lista de conversas para baixo para ver as arquivadas.';
 }

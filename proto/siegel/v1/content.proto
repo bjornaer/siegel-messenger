@@ -24,6 +24,7 @@ message Content {
     Attachment attachment = 18;
     Sync sync = 19; // M8: only to our own other devices, never to anyone else
   }
+  bool forwarded = 20; // a text or attachment passed on from another chat: shown as forwarded
 }
 
 // M8 part 2: keeps our own devices in step. Sent in the conversation it's about, addressed to our

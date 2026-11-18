@@ -990,6 +990,9 @@ class MessageView {
   /// The first link's card, made by the sender's phone.
   final LinkPreviewView? preview;
 
+  /// Passed on from another chat.
+  final bool forwarded;
+
   const MessageView({
     required this.groupId,
     required this.messageId,
@@ -1007,6 +1010,7 @@ class MessageView {
     required this.mentions,
     this.attachment,
     this.preview,
+    required this.forwarded,
   });
 
   @override
@@ -1026,7 +1030,8 @@ class MessageView {
       event.hashCode ^
       mentions.hashCode ^
       attachment.hashCode ^
-      preview.hashCode;
+      preview.hashCode ^
+      forwarded.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1048,7 +1053,8 @@ class MessageView {
           event == other.event &&
           mentions == other.mentions &&
           attachment == other.attachment &&
-          preview == other.preview;
+          preview == other.preview &&
+          forwarded == other.forwarded;
 }
 
 /// M7: what a moderator did, why (the rule: ReportCategory number), and until when.

@@ -463,5 +463,7 @@
   "savePhotos": "Heruntergeladene Fotos speichern",
   "savePhotosHelp": "Ein Foto, das du mit dem Pfeil herunterlädst, landet auch in der Galerie deines Handys (Pictures/Siegel).",
   "savedToGallery": "In deiner Galerie gespeichert",
-  "viewPhoto": "Foto ansehen"
+  "viewPhoto": "Foto ansehen",
+  "forwarded": "Weitergeleitet",
+  "archivedHint": "Archiviert. Zieh die Chatliste nach unten, um archivierte Chats zu sehen."
 }

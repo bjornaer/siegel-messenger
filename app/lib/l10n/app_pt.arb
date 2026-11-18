@@ -463,5 +463,7 @@
   "savePhotos": "Salvar fotos baixadas",
   "savePhotosHelp": "Uma foto que você baixa pela seta também vai para a galeria do celular (Pictures/Siegel).",
   "savedToGallery": "Salva na sua galeria",
-  "viewPhoto": "Ver foto"
+  "viewPhoto": "Ver foto",
+  "forwarded": "Encaminhada",
+  "archivedHint": "Arquivada. Puxe a lista de conversas para baixo para ver as arquivadas."
 }

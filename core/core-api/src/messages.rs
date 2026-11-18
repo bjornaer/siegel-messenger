@@ -184,7 +184,7 @@ impl SiegelCore {
         })
     }
 
-    fn queue(
+    pub(crate) fn queue(
         &self,
         group_id: &[u8],
         text: &str,
@@ -436,6 +436,7 @@ impl SiegelCore {
         pb::Content {
             message_id: uuid::Uuid::now_v7().as_bytes().to_vec(), // MSG-01
             sent_at: now_ms(),
+            forwarded: false,
             body: Some(body),
         }
     }

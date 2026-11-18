@@ -241,6 +241,16 @@ impl SiegelCore {
         a: OutgoingAttachment,
         reply_to: Option<&[u8]>,
     ) -> Result<ChatMessage, CoreError> {
+        self.send_attachment_as(group_id, a, reply_to, false).await
+    }
+
+    async fn send_attachment_as(
+        &self,
+        group_id: &[u8],
+        a: OutgoingAttachment,
+        reply_to: Option<&[u8]>,
+        forwarded: bool,
+    ) -> Result<ChatMessage, CoreError> {
         if a.data.len() > MAX_ATTACHMENT {
             return Err(CoreError::new("attachment_too_large"));
         }
@@ -250,7 +260,7 @@ impl SiegelCore {
         self.check_can_send(group_id)?;
         let (uploaded, blob) = self.upload(&a.data, false).await?;
         let view_once = a.view_once;
-        let content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
+        let mut content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
             view_once,
             mime_type: a.mime_type,
             file_name: a.file_name,
@@ -265,6 +275,7 @@ impl SiegelCore {
             reply_to: reply_to.unwrap_or_default().to_vec(),
             ..uploaded
         }));
+        content.forwarded = forwarded;
         if !view_once {
             self.media_write(&content.message_id, &blob)?; // a view-once one isn't kept here
         }
@@ -324,7 +335,12 @@ impl SiegelCore {
             .ok()
             .and_then(|c| c.body)
         {
-            Some(pb::content::Body::Text(t)) => self.send_text(to, &t.body, None).await,
+            Some(pb::content::Body::Text(t)) => {
+                let mut msg = self.queue(to, &t.body, None, &[])?;
+                self.mark_forwarded(&mut msg)?;
+                self.deliver_stored(&mut msg).await?;
+                chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
+            }
             #[cfg(not(target_family = "wasm"))]
             Some(pb::content::Body::Attachment(a)) if !a.view_once => {
                 let path = self.attachment_file(message_id).await?;
@@ -341,6 +357,10 @@ impl SiegelCore {
                     ..Default::default()
                 };
                 let m = self.queue_attachment_file(to, &path, out, None).await?;
+                let mut msg = self
+                    .with_store(|s| storage(s.message(&m.message_id)))?
+                    .ok_or(CoreError::new("storage"))?;
+                self.mark_forwarded(&mut msg)?;
                 self.retry(&m.message_id).await?;
                 self.with_store(|s| storage(s.message(&m.message_id)))?
                     .and_then(|m| chat_message(m, vec![]))
@@ -361,10 +381,19 @@ impl SiegelCore {
                     sticker: a.sticker,
                     view_once: false, // never reached: a view-once one can't be read here
                 };
-                self.send_attachment(to, out, None).await
+                self.send_attachment_as(to, out, None, true).await
             }
             _ => Err(CoreError::new("not_allowed")),
         }
+    }
+
+    /// Flags a message still waiting to send as forwarded, before it goes out.
+    fn mark_forwarded(&self, msg: &mut Message) -> Result<(), CoreError> {
+        let mut c =
+            pb::Content::decode(msg.body.as_slice()).map_err(|_| CoreError::new("storage"))?;
+        c.forwarded = true;
+        msg.body = c.encode_to_vec();
+        self.with_store(|s| storage(s.update_message(msg)))
     }
 
     /// The attachment's plaintext, downloading it first if needed. "attachment_expired" once
