@@ -32,13 +32,34 @@ class TransferService : Service() {
         } else {
             startForeground(2, n)
         }
+        running = true
+        if (stopWanted) stopSelf()
         return START_NOT_STICKY // if Android kills the app, the upload resumes when it's next open
     }
 
     // Android 15 caps data-sync services at 6 hours a day: past that, stop; the upload resumes later.
     override fun onTimeout(startId: Int, fgsType: Int) = stopSelf()
 
-    private companion object {
-        const val CHANNEL = "transfers"
+    override fun onDestroy() {
+        running = false
+        super.onDestroy()
+    }
+
+    // Stopping a service between startForegroundService and its startForeground crashes the app
+    // (an upload that ends at once, like the check at every start). Then it stops itself once in
+    // the foreground. All on the main thread.
+    companion object {
+        private const val CHANNEL = "transfers"
+        private var running = false
+        private var stopWanted = false
+
+        fun start(c: android.content.Context, title: String) {
+            stopWanted = false
+            c.startForegroundService(Intent(c, TransferService::class.java).putExtra("title", title))
+        }
+
+        fun stop(c: android.content.Context) {
+            if (running) c.stopService(Intent(c, TransferService::class.java)) else stopWanted = true
+        }
     }
 }

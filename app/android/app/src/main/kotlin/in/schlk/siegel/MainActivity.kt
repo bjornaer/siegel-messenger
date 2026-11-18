@@ -106,12 +106,11 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 // Uploads under way: the ongoing notification while they go (TransferService).
                 "transfersStart" -> {
-                    startForegroundService(android.content.Intent(this, TransferService::class.java)
-                        .putExtra("title", call.arguments as String))
+                    TransferService.start(this, call.arguments as String)
                     result.success(null)
                 }
                 "transfersStop" -> {
-                    stopService(android.content.Intent(this, TransferService::class.java))
+                    TransferService.stop(this)
                     result.success(null)
                 }
                 "share" -> {
