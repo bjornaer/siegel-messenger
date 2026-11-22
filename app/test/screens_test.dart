@@ -399,11 +399,18 @@ class FakeCore implements Core {
   @override
   List<MessageView> messages({required List<int> groupId, required int limit}) => history[base64Encode(groupId)] ?? [];
   @override
-  Future<List<MessageView>> search({required String query, required int limit}) async => [
+  Future<List<MessageView>> search({required String query, Uint8List? groupId, required int limit}) async => [
     for (final h in history.values)
       for (final m in h.reversed)
-        if (m.text.toLowerCase().contains(query.toLowerCase())) m,
+        if (m.text.toLowerCase().contains(query.toLowerCase()) && (groupId == null || listEquals(m.groupId, groupId)))
+          m,
   ].take(limit).toList();
+  @override
+  Future<int> repairChat({required List<int> groupId}) async {
+    calls.add('repairChat');
+    return 2;
+  }
+
   @override
   Future<Uint8List> startChat({required String username}) async {
     await _maybeFail('startChat $username');
@@ -1522,6 +1529,61 @@ void main() {
     await service.fetchNow();
     expect(core.calls, contains('drain'));
     expect(core.connects, before, reason: 'the stream stays closed');
+  });
+
+  testWidgets('a chat shows its days, searches itself, repairs, and says who reacted', (t) async {
+    final core = FakeCore()..registered = true;
+    final service = ChatService(core, onDeregistered: () {})..start();
+    addTearDown(service.dispose);
+    final id = await core.startChat(username: 'bob');
+    final h = core.history[base64Encode(id)] ??= [];
+    final now = DateTime.now();
+    final saved = FakeCore.sentAt;
+    addTearDown(() => FakeCore.sentAt = saved);
+    FakeCore.sentAt = DateTime(2024, 3, 5, 10).millisecondsSinceEpoch;
+    h.add(FakeCore.msg(id, 'long ago', outgoing: false));
+    FakeCore.sentAt = now.subtract(const Duration(days: 1)).millisecondsSinceEpoch;
+    h.add(FakeCore.msg(id, 'the needle', outgoing: true));
+    FakeCore.sentAt = now.millisecondsSinceEpoch;
+    h.add(
+      FakeCore.copy(
+        FakeCore.msg(id, 'react to me', outgoing: false),
+        reactions: [
+          Reaction(account: Uint8List(1), emoji: '👍'), // ours: not the peer's account
+          Reaction(account: core.chatList.first.peerAccount, emoji: '❤️'),
+        ],
+      ),
+    );
+    await t.pumpWidget(wrap(ChatScreen(core: core, service: service, groupId: id)));
+    await t.pumpAndSettle();
+    expect(find.text('Today'), findsOneWidget);
+    expect(find.text('Yesterday'), findsOneWidget);
+    expect(find.textContaining('2024'), findsOneWidget, reason: 'another year: the full date');
+
+    await t.tap(find.textContaining('👍'));
+    await t.pumpAndSettle();
+    expect(find.text('Reactions'), findsOneWidget);
+    expect(find.text('Tap to remove'), findsOneWidget, reason: 'only ours');
+    await t.tap(find.text('Tap to remove'));
+    await t.pumpAndSettle();
+    expect(h.last.reactions, isEmpty);
+
+    await t.tap(find.byTooltip('Search this chat'));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField), 'needle');
+    await t.pump(const Duration(milliseconds: 300));
+    await t.pumpAndSettle();
+    await t.tap(find.text('the needle').last);
+    await t.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.byType(ChatScreen), findsOneWidget, reason: 'back in the chat, at the message');
+
+    await t.tap(find.byType(PopupMenuButton<void>));
+    await t.pumpAndSettle();
+    await tapText(t, 'Repair chat');
+    await t.tap(find.widgetWithText(TextButton, 'Repair chat'));
+    await t.pumpAndSettle();
+    expect(core.calls, contains('repairChat'));
+    expect(find.text('Chat repaired. 2 messages sent again.'), findsOneWidget);
   });
 
   test('video ranges: what a player asks for, clamped to the file', () {

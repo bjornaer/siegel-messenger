@@ -1669,4 +1669,38 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get addToStickers => 'Añadir a mis stickers';
+
+  @override
+  String get reactions => 'Reacciones';
+
+  @override
+  String get today => 'Hoy';
+
+  @override
+  String get yesterday => 'Ayer';
+
+  @override
+  String get searchInChat => 'Buscar en este chat';
+
+  @override
+  String get repairChat => 'Reparar chat';
+
+  @override
+  String get repairChatHelp =>
+      'Si tus mensajes dejan de llegarle a esta persona pero los suyos te siguen llegando, esto inicia una nueva sesión segura con ella y reenvía los mensajes que no recibió. Tu historial se mantiene.';
+
+  @override
+  String chatRepaired(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Chat reparado. $count mensajes reenviados.',
+      one: 'Chat reparado. 1 mensaje reenviado.',
+      zero: 'Chat reparado.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get tapToRemove => 'Toca para quitar';
 }

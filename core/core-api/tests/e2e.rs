@@ -225,14 +225,50 @@ async fn two_users_chat_over_mls() {
         .await
         .unwrap();
     let found: Vec<_> = bob
-        .search("CANCION", 10)
+        .search("CANCION", None, 10)
         .unwrap()
         .into_iter()
         .map(|m| m.text)
         .collect();
     assert_eq!(found, vec!["Vamos a la canción".to_string()]);
-    assert_eq!(bob.search("hi", 10).unwrap()[0].text, "hi alice");
-    assert!(bob.search("  ", 10).unwrap().is_empty());
+    assert_eq!(bob.search("hi", None, 10).unwrap()[0].text, "hi alice");
+    assert!(bob.search("  ", None, 10).unwrap().is_empty());
+    assert_eq!(
+        bob.search("cancion", Some(&chat), 10).unwrap().len(),
+        1,
+        "in this chat"
+    );
+    assert!(
+        bob.search("cancion", Some(&[0u8; 16]), 10)
+            .unwrap()
+            .is_empty()
+    );
+
+    // Repair: a fresh session for the chat; it keeps its ID, and resent messages arrive once.
+    alice.repair_chat(&chat).await.unwrap();
+    alice.send_text(&chat, "after repair", None).await.unwrap();
+    let core_api::Event::Message(m) = until(
+        &mut bob_events,
+        |e| matches!(e, core_api::Event::Message(m) if m.text == "after repair"),
+    )
+    .await
+    else {
+        unreachable!()
+    };
+    assert_eq!(m.group_id, chat);
+    let hellos = bob
+        .messages(&chat, 50)
+        .unwrap()
+        .iter()
+        .filter(|m| m.text.starts_with("hello bob"))
+        .count();
+    assert_eq!(hellos, 1, "a resent message isn't shown twice");
+    bob.send_text(&chat, "still here", None).await.unwrap();
+    until(
+        &mut alice_events,
+        |e| matches!(e, core_api::Event::Message(m) if m.text == "still here"),
+    )
+    .await;
 
     // Nothing the server stored contains the plaintext.
     let dump = std::process::Command::new("docker")

@@ -467,5 +467,13 @@
   "forwarded": "Reenviado",
   "archivedHint": "Archivado. Desliza hacia abajo la lista de chats para ver los archivados.",
   "sendTo": "Enviar a…",
-  "addToStickers": "Añadir a mis stickers"
+  "addToStickers": "Añadir a mis stickers",
+  "reactions": "Reacciones",
+  "today": "Hoy",
+  "yesterday": "Ayer",
+  "searchInChat": "Buscar en este chat",
+  "repairChat": "Reparar chat",
+  "repairChatHelp": "Si tus mensajes dejan de llegarle a esta persona pero los suyos te siguen llegando, esto inicia una nueva sesión segura con ella y reenvía los mensajes que no recibió. Tu historial se mantiene.",
+  "chatRepaired": "{count, plural, =0{Chat reparado.} =1{Chat reparado. 1 mensaje reenviado.} other{Chat reparado. {count} mensajes reenviados.}}",
+  "tapToRemove": "Toca para quitar"
 }

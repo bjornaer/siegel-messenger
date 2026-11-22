@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -13,9 +14,12 @@ import 'src/rust/api/core.dart';
 
 /// CLI-05: every chat's messages, searched on this device only (the server can't read them).
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.core, required this.service});
+  const SearchScreen({super.key, required this.core, required this.service, this.groupId});
   final Core core;
   final ChatService service;
+
+  /// Only this chat: a result pops back with its message ID, for the chat to scroll to.
+  final Uint8List? groupId;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -38,7 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 250), () async {
       final n = ++_asked;
-      final found = q.trim().isEmpty ? null : await widget.core.search(query: q, limit: 100);
+      final found = q.trim().isEmpty ? null : await widget.core.search(query: q, groupId: widget.groupId, limit: 100);
       if (mounted && n == _asked) setState(() => _found = found);
     });
   }
@@ -54,7 +58,10 @@ class _SearchScreenState extends State<SearchScreen> {
           controller: _query,
           autofocus: true,
           textInputAction: TextInputAction.search,
-          decoration: InputDecoration(hintText: t.searchMessages, border: InputBorder.none),
+          decoration: InputDecoration(
+            hintText: widget.groupId == null ? t.searchMessages : t.searchInChat,
+            border: InputBorder.none,
+          ),
           onChanged: _changed,
         ),
       ),
@@ -73,7 +80,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   title: Text(chatTitle(t, c), maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text.rich(_highlight(messageText(t, m), _query.text.trim()), maxLines: 2),
                   trailing: Text(DateFormat.yMd(Localizations.localeOf(context).toString()).format(sent)),
-                  onTap: () => openChat(context, widget.core, widget.service, m.groupId, jumpTo: m.messageId),
+                  onTap: () => widget.groupId != null
+                      ? Navigator.pop(context, m.messageId)
+                      : openChat(context, widget.core, widget.service, m.groupId, jumpTo: m.messageId),
                 );
               },
             ),

@@ -467,5 +467,13 @@
   "forwarded": "Weitergeleitet",
   "archivedHint": "Archiviert. Zieh die Chatliste nach unten, um archivierte Chats zu sehen.",
   "sendTo": "Senden an…",
-  "addToStickers": "Zu meinen Stickern hinzufügen"
+  "addToStickers": "Zu meinen Stickern hinzufügen",
+  "reactions": "Reaktionen",
+  "today": "Heute",
+  "yesterday": "Gestern",
+  "searchInChat": "In diesem Chat suchen",
+  "repairChat": "Chat reparieren",
+  "repairChatHelp": "Wenn deine Nachrichten diese Person nicht mehr erreichen, ihre dich aber schon, startet dies eine neue sichere Sitzung mit ihr und sendet die Nachrichten erneut, die sie nicht erhalten hat. Dein Verlauf bleibt.",
+  "chatRepaired": "{count, plural, =0{Chat repariert.} =1{Chat repariert. 1 Nachricht erneut gesendet.} other{Chat repariert. {count} Nachrichten erneut gesendet.}}",
+  "tapToRemove": "Zum Entfernen tippen"
 }

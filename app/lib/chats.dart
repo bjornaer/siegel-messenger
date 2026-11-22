@@ -1743,10 +1743,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             actions: [
+              if (!c.request) IconButton(tooltip: t.searchInChat, icon: const Icon(Icons.search), onPressed: _search),
               if (!c.request && !c.isGroup)
                 PopupMenuButton<void>(
                   itemBuilder: (_) => [
                     PopupMenuItem(onTap: () => _safety(c), child: Text(t.safetyNumber)),
+                    if (!c.left) PopupMenuItem(onTap: _repair, child: Text(t.repairChat)),
                     PopupMenuItem(onTap: () => _report(c), child: Text(t.report)),
                     PopupMenuItem(onTap: () => _block(c), child: Text(t.block)),
                   ],
@@ -1814,6 +1816,86 @@ class _ChatScreenState extends State<ChatScreen> {
   );
 
   /// Older bubbles aren't built until scrolled to: page up until the quoted one is.
+  /// Search this chat only; the message found is scrolled to and tinted.
+  Future<void> _search() async {
+    final found = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute(
+        builder: (_) => SearchScreen(core: core, service: widget.service, groupId: _group),
+      ),
+    );
+    if (found != null && mounted) await _jumpTo(found);
+  }
+
+  /// Our messages stopped reaching them (their app fell out of step with this chat's keys): a
+  /// fresh session, and what they never confirmed goes again.
+  Future<void> _repair() async {
+    final t = AppLocalizations.of(context)!;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(t.repairChat),
+        content: Text(t.repairChatHelp),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: Text(t.cancel)),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: Text(t.repairChat)),
+        ],
+      ),
+    );
+    if (go != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final n = await core.repairChat(groupId: _group);
+      widget.service.refresh();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.chatRepaired(n))));
+    } on CoreError catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Who reacted with what; our own reaction can be taken back from here.
+  void _whoReacted(List<MessageView> ms, ChatSummary c) {
+    final me = c.isGroup ? myAccount(core, _group) : null;
+    bool mine(Reaction r) => c.isGroup ? listEquals(r.account, me) : !listEquals(r.account, c.peerAccount);
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (d) {
+        final t = AppLocalizations.of(d)!;
+        final all = [
+          for (final m in ms)
+            for (final r in m.reactions) (m, r),
+        ]..sort((a, b) => a.$2.emoji.compareTo(b.$2.emoji));
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(title: Text(t.reactions, style: Theme.of(d).textTheme.titleMedium)),
+              for (final (m, r) in all)
+                if (mine(r))
+                  ListTile(
+                    leading: Avatar(core: core),
+                    title: Text(t.you),
+                    subtitle: Text(t.tapToRemove),
+                    trailing: Text(r.emoji, style: const TextStyle(fontSize: 22)),
+                    onTap: () {
+                      Navigator.pop(d);
+                      _run(() => core.react(groupId: _group, messageId: m.messageId, emoji: ''));
+                    },
+                  )
+                else
+                  ListTile(
+                    leading: Avatar(core: core, account: r.account),
+                    title: Text(memberName(t, core, r.account)),
+                    trailing: Text(r.emoji, style: const TextStyle(fontSize: 22)),
+                  ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _jumpTo(Uint8List messageId) async {
     final key = base64Encode(messageId);
     for (var i = 0; i < 100 && mounted && _keys[key]?.currentContext == null; i++) {
@@ -1957,7 +2039,12 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     final messages = _cached;
     final byId = {for (final m in messages) base64Encode(m.messageId): m};
-    final index = {for (final (i, m) in messages.reversed.indexed) _keys[base64Encode(m.messageId)]: i};
+    final index = <Key?, int>{
+      for (final (i, m) in messages.reversed.indexed) ...{
+        _keys[base64Encode(m.messageId)]: i,
+        ValueKey('day ${base64Encode(m.messageId)}'): i,
+      },
+    };
     final albums = c.request ? const <String, List<MessageView>>{} : _albums(messages);
     // Built lazily, newest at the bottom: only what's on screen is laid out.
     return ListView.builder(
@@ -1972,13 +2059,26 @@ class _ChatScreenState extends State<ChatScreen> {
         if (_inAlbum[id] case final head? when head != id) {
           return SizedBox.shrink(key: _keys.putIfAbsent(id, GlobalKey.new)); // shown in its album
         }
-        return m.event != null
+        final item = m.event != null
             ? _systemLine(context, m)
             : m.keyChange
             ? _keyChange(context, m, c)
             : _bubble(context, m, byId, c, album: albums[id]);
+        // The first message of each day carries the day above it, as on WhatsApp.
+        final older = i + 1 < messages.length ? messages[messages.length - 2 - i] : null;
+        if (older != null && _day(older.sentAt) == _day(m.sentAt)) return item;
+        return Column(
+          key: ValueKey('day $id'),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [_DayChip(_day(m.sentAt)), item],
+        );
       },
     );
+  }
+
+  static DateTime _day(Object sentAt) {
+    final d = DateTime.fromMillisecondsSinceEpoch(asInt(sentAt));
+    return DateTime(d.year, d.month, d.day);
   }
 
   void _reply(MessageView m) => setState(() {
@@ -2132,9 +2232,17 @@ class _ChatScreenState extends State<ChatScreen> {
                             style: small?.copyWith(color: colors.error),
                           ),
                         if (counts.isNotEmpty)
-                          Text(
-                            [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key].join('  '),
-                            textAlign: TextAlign.end,
+                          Semantics(
+                            button: true,
+                            onTapHint: t.reactions,
+                            child: InkWell(
+                              onTap: () => _whoReacted(album ?? [m], c),
+                              child: Text(
+                                [for (final e in counts.entries) e.value > 1 ? '${e.key} ${e.value}' : e.key]
+                                    .join('  '),
+                                textAlign: TextAlign.end,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -2478,6 +2586,37 @@ class _Quote extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A day above its first message: Today, Yesterday, the weekday within a week, else the date.
+class _DayChip extends StatelessWidget {
+  const _DayChip(this.day);
+  final DateTime day;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toString();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final ago = today.difference(day).inDays;
+    final label = switch (ago) {
+      0 => t.today,
+      1 => t.yesterday,
+      > 1 && < 7 => DateFormat.EEEE(locale).format(day),
+      _ when day.year == now.year => DateFormat.MMMMd(locale).format(day),
+      _ => DateFormat.yMMMMd(locale).format(day),
+    };
+    final colors = Theme.of(context).colorScheme;
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(color: colors.surfaceContainerHigh, borderRadius: BorderRadius.circular(8)),
+        child: Text(label, style: Theme.of(context).textTheme.labelMedium),
       ),
     );
   }

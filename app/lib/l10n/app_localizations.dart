@@ -2903,6 +2903,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add to my stickers'**
   String get addToStickers;
+
+  /// No description provided for @reactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Reactions'**
+  String get reactions;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @searchInChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this chat'**
+  String get searchInChat;
+
+  /// No description provided for @repairChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair chat'**
+  String get repairChat;
+
+  /// No description provided for @repairChatHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'If your messages stop reaching this person while theirs still reach you, this starts a fresh secure session with them and sends again the messages they haven\'t received. Your chat history stays.'**
+  String get repairChatHelp;
+
+  /// No description provided for @chatRepaired.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Chat repaired.} =1{Chat repaired. 1 message sent again.} other{Chat repaired. {count} messages sent again.}}'**
+  String chatRepaired(int count);
+
+  /// No description provided for @tapToRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to remove'**
+  String get tapToRemove;
 }
 
 class _AppLocalizationsDelegate

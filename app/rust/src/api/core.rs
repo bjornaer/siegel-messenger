@@ -946,12 +946,24 @@ impl Core {
             .collect())
     }
 
-    /// CLI-05: messages containing `query` in any chat, ignoring case and accents, newest first.
-    /// Async: it decodes every stored message, which mustn't run on the UI thread.
-    pub async fn search(&self, query: String, limit: u32) -> Result<Vec<MessageView>, CoreError> {
+    /// A 1:1 chat whose messages stopped reaching the other person: a fresh session, then what
+    /// they never confirmed goes again. How many went.
+    pub async fn repair_chat(&self, group_id: Vec<u8>) -> Result<u32, CoreError> {
+        Ok(self.0.repair_chat(&group_id).await?)
+    }
+
+    /// CLI-05: messages containing `query` in any chat, or only in `group_id`'s, ignoring case
+    /// and accents, newest first. Async: it decodes every stored message, which mustn't run on
+    /// the UI thread.
+    pub async fn search(
+        &self,
+        query: String,
+        group_id: Option<Vec<u8>>,
+        limit: u32,
+    ) -> Result<Vec<MessageView>, CoreError> {
         Ok(self
             .0
-            .search(&query, limit as usize)?
+            .search(&query, group_id.as_deref(), limit as usize)?
             .into_iter()
             .map(MessageView::from)
             .collect())

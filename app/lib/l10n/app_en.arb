@@ -887,5 +887,14 @@
   "forwarded": "Forwarded",
   "archivedHint": "Archived. Pull down the chat list to see archived chats.",
   "sendTo": "Send to…",
-  "addToStickers": "Add to my stickers"
+  "addToStickers": "Add to my stickers",
+  "reactions": "Reactions",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "searchInChat": "Search this chat",
+  "repairChat": "Repair chat",
+  "repairChatHelp": "If your messages stop reaching this person while theirs still reach you, this starts a fresh secure session with them and sends again the messages they haven't received. Your chat history stays.",
+  "chatRepaired": "{count, plural, =0{Chat repaired.} =1{Chat repaired. 1 message sent again.} other{Chat repaired. {count} messages sent again.}}",
+  "tapToRemove": "Tap to remove",
+  "@chatRepaired": {"placeholders": {"count": {"type": "int"}}}
 }

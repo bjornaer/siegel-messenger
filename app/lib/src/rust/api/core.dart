@@ -257,6 +257,10 @@ abstract class Core implements RustOpaqueInterface {
 
   Future<void> renameGroup({required List<int> groupId, required String name});
 
+  /// A 1:1 chat whose messages stopped reaching the other person: a fresh session, then what
+  /// they never confirmed goes again. How many went.
+  Future<int> repairChat({required List<int> groupId});
+
   /// CMP-03: reports chosen messages of a chat, sealed to the moderators' key. `category` is
   /// the ReportCategory number (1 spam … 8 other); `block` also blocks a 1:1 peer.
   Future<void> report({
@@ -294,9 +298,14 @@ abstract class Core implements RustOpaqueInterface {
   /// The chat's 60-digit safety number, also encoded in its QR code (CRY-12).
   String? safetyNumber({required List<int> groupId});
 
-  /// CLI-05: messages containing `query` in any chat, ignoring case and accents, newest first.
-  /// Async: it decodes every stored message, which mustn't run on the UI thread.
-  Future<List<MessageView>> search({required String query, required int limit});
+  /// CLI-05: messages containing `query` in any chat, or only in `group_id`'s, ignoring case
+  /// and accents, newest first. Async: it decodes every stored message, which mustn't run on
+  /// the UI thread.
+  Future<List<MessageView>> search({
+    required String query,
+    Uint8List? groupId,
+    required int limit,
+  });
 
   /// MED-09: a voice note or audio file (and, later, any file). Fails without storing a
   /// message if the upload fails.

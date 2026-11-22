@@ -467,5 +467,13 @@
   "forwarded": "Encaminhada",
   "archivedHint": "Arquivada. Puxe a lista de conversas para baixo para ver as arquivadas.",
   "sendTo": "Enviar para…",
-  "addToStickers": "Adicionar às minhas figurinhas"
+  "addToStickers": "Adicionar às minhas figurinhas",
+  "reactions": "Reações",
+  "today": "Hoje",
+  "yesterday": "Ontem",
+  "searchInChat": "Buscar nesta conversa",
+  "repairChat": "Reparar conversa",
+  "repairChatHelp": "Se suas mensagens pararem de chegar a esta pessoa enquanto as dela ainda chegam a você, isto inicia uma nova sessão segura com ela e reenvia as mensagens que ela não recebeu. Seu histórico continua.",
+  "chatRepaired": "{count, plural, =0{Conversa reparada.} =1{Conversa reparada. 1 mensagem reenviada.} other{Conversa reparada. {count} mensagens reenviadas.}}",
+  "tapToRemove": "Toque para remover"
 }

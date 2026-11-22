@@ -412,6 +412,33 @@ impl SiegelCore {
         Ok(())
     }
 
+    /// A 1:1 chat whose messages stopped reaching the other person (their app fell out of step
+    /// with the chat's keys): moves it to a fresh MLS group, as for a re-registration (ID-09),
+    /// then sends again what they never confirmed (the newest 50 of ours still at one tick;
+    /// their app drops any it already has, MSG-03). The chat keeps its ID and history. Returns
+    /// how many messages went again.
+    pub async fn repair_chat(&self, group_id: &[u8]) -> Result<u32, CoreError> {
+        let conv = self.conversation(group_id)?;
+        if conv.is_group || self.is_request(group_id)? {
+            return Err(CoreError::new("not_allowed"));
+        }
+        self.rekey(group_id).await?;
+        let mut stuck: Vec<Message> = self
+            .with_store(|s| storage(s.messages(group_id, 200)))?
+            .into_iter()
+            .filter(|m| m.outgoing && !m.deleted && m.status == Status::Sent)
+            .collect();
+        stuck.sort_by_key(|m| m.sent_at);
+        let from = stuck.len().saturating_sub(50);
+        let mut sent = 0;
+        for mut m in stuck.split_off(from) {
+            if self.deliver_stored(&mut m).await.is_ok() {
+                sent += 1;
+            }
+        }
+        Ok(sent)
+    }
+
     /// CRY-10: a self-update commit in every chat whose keys are 7 days old. A new group counts
     /// as fresh (a reinstall re-registers and builds new groups, ID-09). Runs on each connect.
     /// ponytail: a device that stays connected for over a week waits for its next reconnect.
@@ -484,7 +511,12 @@ impl SiegelCore {
     /// CLI-05: messages whose text or file name contains `query`, ignoring case and accents,
     /// newest first. The bodies are encrypted at rest, so they're decoded here, not in SQL.
     // ponytail: scans every message (a few ms per 10,000); an FTS5 index if histories get huge.
-    pub fn search(&self, query: &str, limit: usize) -> Result<Vec<ChatMessage>, CoreError> {
+    pub fn search(
+        &self,
+        query: &str,
+        group_id: Option<&[u8]>,
+        limit: usize,
+    ) -> Result<Vec<ChatMessage>, CoreError> {
         let q = fold(query.trim());
         if q.is_empty() {
             return Ok(Vec::new());
@@ -492,6 +524,7 @@ impl SiegelCore {
         let all = self.with_store(|s| storage(s.all_messages()))?; // the lock is released here
         Ok(all
             .into_iter()
+            .filter(|m| group_id.is_none_or(|g| m.group_id == g))
             .filter_map(|m| chat_message(m, Vec::new()))
             .filter(|m| {
                 fold(&m.text).contains(&q)
