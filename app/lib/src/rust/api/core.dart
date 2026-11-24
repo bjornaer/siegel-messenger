@@ -229,6 +229,8 @@ abstract class Core implements RustOpaqueInterface {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool voiceNote,
+    required List<int> waveform,
     Uint8List? replyTo,
   });
 

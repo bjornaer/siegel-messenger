@@ -1056,8 +1056,14 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _recorder = null);
     if (!await (_starting ?? Future.value(true))) return; // tapped again before it began
     final rec = await r.stop(keep: send);
-    if (rec == null || rec.ms < 500) return; // a slip of the finger, not a message
-    await _sendAttachment(outgoing(rec.data, r.mime, ms: rec.ms, voice: true, waveform: rec.waveform));
+    if (rec == null) return;
+    if (rec.ms < 500) {
+      if (rec.path.isNotEmpty) File(rec.path).delete().ignore();
+      return; // a slip of the finger, not a message
+    }
+    await _sendAttachment(
+      outgoing(rec.data, r.mime, ms: rec.ms, voice: true, waveform: rec.waveform, path: rec.path, temp: true),
+    );
   }
 
   /// MED-07..10: what to attach.
@@ -1277,6 +1283,8 @@ class _ChatScreenState extends State<ChatScreen> {
           width: o.width,
           height: o.height,
           thumbnail: o.thumbnail,
+          voiceNote: o.voice,
+          waveform: o.waveform,
           replyTo: reply?.messageId,
         );
       } on CoreError catch (e) {

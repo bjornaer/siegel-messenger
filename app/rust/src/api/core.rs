@@ -1132,6 +1132,8 @@ impl Core {
         width: u32,
         height: u32,
         thumbnail: Vec<u8>,
+        voice_note: bool,
+        waveform: Vec<u8>,
         reply_to: Option<Vec<u8>>,
     ) -> Result<MessageView, CoreError> {
         #[cfg(target_family = "wasm")]
@@ -1147,6 +1149,8 @@ impl Core {
                 width,
                 height,
                 thumbnail,
+                voice_note,
+                waveform,
                 ..Default::default()
             };
             Ok(self

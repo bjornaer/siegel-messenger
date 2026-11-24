@@ -333,6 +333,8 @@ abstract class RustLibApi extends BaseApi {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool voiceNote,
+    required List<int> waveform,
     Uint8List? replyTo,
   });
 
@@ -2534,6 +2536,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool voiceNote,
+    required List<int> waveform,
     Uint8List? replyTo,
   }) {
     return handler.executeNormal(
@@ -2552,6 +2556,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_u_32(width, serializer);
           sse_encode_u_32(height, serializer);
           sse_encode_list_prim_u_8_loose(thumbnail, serializer);
+          sse_encode_bool(voiceNote, serializer);
+          sse_encode_list_prim_u_8_loose(waveform, serializer);
           sse_encode_opt_list_prim_u_8_strict(replyTo, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -2575,6 +2581,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           width,
           height,
           thumbnail,
+          voiceNote,
+          waveform,
           replyTo,
         ],
         apiImpl: this,
@@ -2595,6 +2603,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "width",
           "height",
           "thumbnail",
+          "voiceNote",
+          "waveform",
           "replyTo",
         ],
       );
@@ -7008,6 +7018,8 @@ class CoreImpl extends RustOpaque implements Core {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool voiceNote,
+    required List<int> waveform,
     Uint8List? replyTo,
   }) => RustLib.instance.api.crateApiCoreCoreQueueAttachmentFile(
     that: this,
@@ -7019,6 +7031,8 @@ class CoreImpl extends RustOpaque implements Core {
     width: width,
     height: height,
     thumbnail: thumbnail,
+    voiceNote: voiceNote,
+    waveform: waveform,
     replyTo: replyTo,
   );
 

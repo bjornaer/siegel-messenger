@@ -121,20 +121,31 @@ set onDrop(void Function(List<(String, String, Uint8List)>)? f) {
     'drop',
     ((web.DragEvent e) {
       e.preventDefault();
-      final files = e.dataTransfer?.files;
-      final handler = _onDrop;
-      if (files == null || handler == null || files.length == 0) return;
-      () async {
-        final out = <(String, String, Uint8List)>[];
-        for (var i = 0; i < files.length; i++) {
-          final f = files.item(i)!;
-          if (f.size > 128 << 20) continue; // over any attachment's limit: don't read it all
-          out.add((f.name, f.type, (await f.arrayBuffer().toDart).toDart.asUint8List()));
-        }
-        handler(out);
-      }();
+      _handFiles(e.dataTransfer?.files);
     }).toJS,
   );
+  // A pasted screenshot or copied file goes like a dropped one; pasted text is left to the composer.
+  web.window.addEventListener(
+    'paste',
+    ((web.ClipboardEvent e) {
+      final files = e.clipboardData?.files;
+      if (files == null || files.length == 0) return;
+      e.preventDefault();
+      _handFiles(files);
+    }).toJS,
+  );
+}
+
+Future<void> _handFiles(web.FileList? files) async {
+  final handler = _onDrop;
+  if (files == null || handler == null || files.length == 0) return;
+  final out = <(String, String, Uint8List)>[];
+  for (var i = 0; i < files.length; i++) {
+    final f = files.item(i)!;
+    if (f.size > 128 << 20) continue; // over any attachment's limit: don't read it all
+    out.add((f.name, f.type, (await f.arrayBuffer().toDart).toDart.asUint8List()));
+  }
+  handler(out);
 }
 
 String deviceName() {

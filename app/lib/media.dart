@@ -60,7 +60,8 @@ Uint8List waveform(List<double> dbfs, [int bars = 64]) {
   return out;
 }
 
-typedef Recording = ({Uint8List data, int ms, Uint8List waveform});
+/// Phones: the recording is the file at [path] ([data] empty), the caller's to delete.
+typedef Recording = ({Uint8List data, String path, int ms, Uint8List waveform});
 
 /// MED-09: AAC-LC in M4A from the platform encoder. The recording sits in the app's cache only
 /// until it is sent or cancelled.
@@ -112,7 +113,7 @@ class VoiceRecorder {
     return true;
   }
 
-  /// Ends the recording and deletes its file; null when [keep] is false.
+  /// Ends the recording; null (and its file deleted) when [keep] is false.
   Future<Recording?> stop({bool keep = true}) async {
     _watch.stop();
     unawaited(_keepOn(false));
@@ -122,20 +123,23 @@ class VoiceRecorder {
     if (kIsWeb) {
       try {
         return keep
-            ? (data: await browser.fetchBytes(path), ms: _watch.elapsedMilliseconds, waveform: waveform(_levels))
+            ? (
+                data: await browser.fetchBytes(path),
+                path: '',
+                ms: _watch.elapsedMilliseconds,
+                waveform: waveform(_levels),
+              )
             : null;
       } finally {
         _levels.clear();
         browser.revokeUrl(path);
       }
     }
-    final f = File(path);
-    try {
-      return keep ? (data: await f.readAsBytes(), ms: _watch.elapsedMilliseconds, waveform: waveform(_levels)) : null;
-    } finally {
-      _levels.clear();
-      if (await f.exists()) await f.delete();
-    }
+    // Sent from the file, like a video: saved before it uploads, so a dropped upload resumes.
+    final rec = (data: Uint8List(0), path: path, ms: _watch.elapsedMilliseconds, waveform: waveform(_levels));
+    _levels.clear();
+    if (!keep) File(path).delete().ignore();
+    return keep ? rec : null;
   }
 
   void dispose() {

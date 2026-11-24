@@ -3094,6 +3094,8 @@ fn wire__crate__api__core__Core_queue_attachment_file_impl(
             let api_width = <u32>::sse_decode(&mut deserializer);
             let api_height = <u32>::sse_decode(&mut deserializer);
             let api_thumbnail = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_voice_note = <bool>::sse_decode(&mut deserializer);
+            let api_waveform = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_reply_to = <Option<Vec<u8>>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
@@ -3126,6 +3128,8 @@ fn wire__crate__api__core__Core_queue_attachment_file_impl(
                             api_width,
                             api_height,
                             api_thumbnail,
+                            api_voice_note,
+                            api_waveform,
                             api_reply_to,
                         )
                         .await?;

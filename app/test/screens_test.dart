@@ -577,6 +577,8 @@ class FakeCore implements Core {
     required int width,
     required int height,
     required List<int> thumbnail,
+    required bool voiceNote,
+    required List<int> waveform,
     Uint8List? replyTo,
   }) async {
     calls.add('queueAttachmentFile $fileName');
@@ -591,8 +593,8 @@ class FakeCore implements Core {
           fileName: fileName,
           size: BigInt.from(File(path).lengthSync()),
           durationMs: durationMs,
-          voiceNote: false,
-          waveform: Uint8List(0),
+          voiceNote: voiceNote,
+          waveform: Uint8List.fromList(waveform),
           width: width,
           height: height,
           thumbnail: Uint8List.fromList(thumbnail),
