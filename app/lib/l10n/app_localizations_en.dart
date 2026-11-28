@@ -771,7 +771,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'This attachment was damaged on the way and can\'t be opened.';
 
   @override
-  String get errAttachmentTooLarge => 'Files can be up to 100 MB.';
+  String get errAttachmentTooLarge => 'Files can be up to 1 GB.';
+
+  @override
+  String get keepTabOpen =>
+      'Keep this tab open until it\'s sent: closing or leaving it stops the upload.';
 
   @override
   String get errUploadFailed => 'The upload didn\'t finish. Try again.';

@@ -50,44 +50,121 @@ pub fn encrypt_stream(
     size: u64,
     mut dst: impl Write,
 ) -> io::Result<([u8; 32], [u8; 32])> {
-    let mut key = [0u8; 32];
-    let mut prefix = [0u8; PREFIX];
-    OsRng.fill_bytes(&mut key); // CRY-16
-    OsRng.fill_bytes(&mut prefix);
-    let mut enc = EncryptorBE32::from_aead(
-        Aes256Gcm::new(&key.into()),
-        GenericArray::from_slice(&prefix),
-    );
-    let mut hash = Sha256::new();
-    let mut out = |b: &[u8]| -> io::Result<()> {
-        hash.update(b);
-        dst.write_all(b)
-    };
-    out(&prefix)?;
-    let mut written = PREFIX;
-    let (mut left, mut buf) = (size, vec![0u8; CHUNK]);
-    loop {
-        let n = left.min(CHUNK as u64) as usize;
+    let mut e = Encryptor::new(size);
+    let mut buf = vec![0u8; CHUNK];
+    while !e.sealed() {
+        let n = e.left.min(CHUNK as u64) as usize;
         src.read_exact(&mut buf[..n])?;
-        left -= n as u64;
-        if left == 0 {
-            let c = enc.encrypt_last(&buf[..n]).map_err(bad)?;
-            written += c.len();
-            out(&c)?;
+        dst.write_all(&e.push(&buf[..n])?)?;
+    }
+    loop {
+        let pad = e.pad(CHUNK);
+        if pad.is_empty() {
             break;
         }
-        let c = enc.encrypt_next(&buf[..n]).map_err(bad)?;
-        written += c.len();
-        out(&c)?;
+        dst.write_all(&pad)?;
     }
-    let mut pad = blob_len(size as usize) - written;
-    buf.fill(0);
-    while pad > 0 {
-        let n = pad.min(CHUNK);
-        out(&buf[..n])?;
-        pad -= n;
+    Ok((e.key, e.finish()))
+}
+
+/// The same blob as `encrypt_stream`, from plaintext handed over in pieces (the browser reads a
+/// file a slice at a time): every piece but the last a whole number of chunks.
+pub struct Encryptor {
+    key: [u8; 32],
+    prefix: Option<[u8; PREFIX]>,
+    enc: Option<EncryptorBE32<Aes256Gcm>>,
+    hash: Sha256,
+    size: u64,
+    left: u64,
+    written: usize,
+}
+
+impl Encryptor {
+    pub fn new(size: u64) -> Self {
+        let mut key = [0u8; 32];
+        let mut prefix = [0u8; PREFIX];
+        OsRng.fill_bytes(&mut key); // CRY-16
+        OsRng.fill_bytes(&mut prefix);
+        let enc = EncryptorBE32::from_aead(
+            Aes256Gcm::new(&key.into()),
+            GenericArray::from_slice(&prefix),
+        );
+        Self {
+            key,
+            prefix: Some(prefix),
+            enc: Some(enc),
+            hash: Sha256::new(),
+            size,
+            left: size,
+            written: 0,
+        }
     }
-    Ok((key, hash.finalize().into()))
+
+    pub fn key(&self) -> [u8; 32] {
+        self.key
+    }
+
+    /// All the plaintext is in.
+    pub fn sealed(&self) -> bool {
+        self.enc.is_none()
+    }
+
+    /// The blob's next bytes for this piece of plaintext.
+    pub fn push(&mut self, plain: &[u8]) -> io::Result<Vec<u8>> {
+        let n = plain.len() as u64;
+        if self.sealed() || n > self.left || (n < self.left && !plain.len().is_multiple_of(CHUNK)) {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "piece"));
+        }
+        let mut out = Vec::with_capacity(PREFIX + plain.len() + (plain.len() / CHUNK + 1) * TAG);
+        if let Some(p) = self.prefix.take() {
+            out.extend(p);
+        }
+        let mut rest = plain;
+        loop {
+            let (c, tail) = rest.split_at(rest.len().min(CHUNK));
+            self.left -= c.len() as u64;
+            if self.left == 0 {
+                let enc = self.enc.take().expect("not sealed");
+                out.extend(enc.encrypt_last(c).map_err(bad)?);
+                break;
+            }
+            if c.is_empty() {
+                break; // a whole number of chunks, more to come
+            }
+            out.extend(
+                self.enc
+                    .as_mut()
+                    .expect("not sealed")
+                    .encrypt_next(c)
+                    .map_err(bad)?,
+            );
+            rest = tail;
+        }
+        self.written += out.len();
+        self.hash.update(&out);
+        Ok(out)
+    }
+
+    /// Sealed and padded: the blob is all out.
+    pub fn padded(&self) -> bool {
+        self.sealed() && self.written == blob_len(self.size as usize)
+    }
+
+    /// Once sealed: up to `max` bytes of the padding to the size bucket; empty when it's all out.
+    pub fn pad(&mut self, max: usize) -> Vec<u8> {
+        if !self.sealed() {
+            return vec![];
+        }
+        let pad = vec![0u8; (blob_len(self.size as usize) - self.written).min(max)];
+        self.written += pad.len();
+        self.hash.update(&pad);
+        pad
+    }
+
+    /// The whole blob's SHA-256 (MED-05), once sealed and padded.
+    pub fn finish(self) -> [u8; 32] {
+        self.hash.finalize().into()
+    }
 }
 
 /// Decrypts a blob from `src` into `dst`, a chunk at a time. An error if it was tampered with,
@@ -197,6 +274,47 @@ mod tests {
         assert_eq!(padded_len(1_000_000), padded_len(1_000_001));
         let b = padded_len(10_000_000);
         assert!((10_000_000..10_500_001).contains(&b));
+    }
+
+    #[test]
+    fn pieces_make_the_same_kind_of_blob() {
+        for (size, piece) in [
+            (0, CHUNK),
+            (5, CHUNK),
+            (3 * CHUNK, CHUNK),
+            (5 * CHUNK + 9, 2 * CHUNK),
+        ] {
+            let plain: Vec<u8> = (0..size).map(|i| (i * 3) as u8).collect();
+            let mut e = Encryptor::new(size as u64);
+            let mut blob = vec![];
+            for p in plain.chunks(piece) {
+                blob.extend(e.push(p).unwrap());
+            }
+            if size == 0 {
+                blob.extend(e.push(&[]).unwrap());
+            }
+            assert!(e.push(&[1]).is_err(), "sealed");
+            loop {
+                let pad = e.pad(1000);
+                if pad.is_empty() {
+                    break;
+                }
+                blob.extend(pad);
+            }
+            let key = e.key();
+            assert_eq!(e.finish(), <[u8; 32]>::from(Sha256::digest(&blob)));
+            assert_eq!(blob.len(), blob_len(size));
+            assert_eq!(
+                decrypt(&key, &blob, size).as_deref(),
+                Some(&plain[..]),
+                "{size}"
+            );
+        }
+        let mut e = Encryptor::new(3 * CHUNK as u64);
+        assert!(
+            e.push(&[0; 100]).is_err(),
+            "a piece that isn't whole chunks"
+        );
     }
 
     #[test]

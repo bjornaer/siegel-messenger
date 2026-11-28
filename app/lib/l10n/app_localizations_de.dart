@@ -782,7 +782,11 @@ class AppLocalizationsDe extends AppLocalizations {
       'Dieser Anhang wurde unterwegs beschädigt und lässt sich nicht öffnen.';
 
   @override
-  String get errAttachmentTooLarge => 'Dateien können bis zu 100 MB groß sein.';
+  String get errAttachmentTooLarge => 'Dateien können bis zu 1 GB groß sein.';
+
+  @override
+  String get keepTabOpen =>
+      'Lass diesen Tab offen, bis es gesendet ist: Schließen oder Verlassen bricht den Upload ab.';
 
   @override
   String get errUploadFailed =>

@@ -106,12 +106,16 @@ Future<(Uint8List, String)> compressImage(Uint8List data, int side, int quality,
   }
 }
 
-void Function(List<(String, String, Uint8List)>)? _onDrop;
+typedef Dropped = ({String name, String type, int size, Uint8List data, String url});
+
+const streamFrom = 20 << 20;
+
+void Function(List<Dropped>)? _onDrop;
 bool _dropListening = false;
 
-void Function(List<(String, String, Uint8List)>)? get onDrop => _onDrop;
+void Function(List<Dropped>)? get onDrop => _onDrop;
 
-set onDrop(void Function(List<(String, String, Uint8List)>)? f) {
+set onDrop(void Function(List<Dropped>)? f) {
   _onDrop = f;
   if (_dropListening) return;
   _dropListening = true;
@@ -139,13 +143,83 @@ set onDrop(void Function(List<(String, String, Uint8List)>)? f) {
 Future<void> _handFiles(web.FileList? files) async {
   final handler = _onDrop;
   if (files == null || handler == null || files.length == 0) return;
-  final out = <(String, String, Uint8List)>[];
+  final out = <Dropped>[];
   for (var i = 0; i < files.length; i++) {
     final f = files.item(i)!;
-    if (f.size > 128 << 20) continue; // over any attachment's limit: don't read it all
-    out.add((f.name, f.type, (await f.arrayBuffer().toDart).toDart.asUint8List()));
+    final big = f.size >= streamFrom;
+    out.add((
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      data: big ? Uint8List(0) : (await f.arrayBuffer().toDart).toDart.asUint8List(),
+      url: big ? web.URL.createObjectURL(f) : '',
+    ));
   }
   handler(out);
+}
+
+Stream<Uint8List> readUrl(String url) async* {
+  final res = await web.window.fetch(url.toJS).toDart;
+  final reader = res.body!.getReader() as web.ReadableStreamDefaultReader;
+  while (true) {
+    final r = await reader.read().toDart;
+    if (r.done) return;
+    yield (r.value as JSUint8Array).toDart;
+  }
+}
+
+Future<bool> saveStream(String name, String mime, Stream<Uint8List> pieces) async {
+  if (web.window.has('showSaveFilePicker')) {
+    final JSObject handle;
+    try {
+      handle = await web.window
+          .callMethod<JSPromise<JSObject>>('showSaveFilePicker'.toJS, {'suggestedName': name}.jsify())
+          .toDart;
+    } catch (_) {
+      return false; // cancelled
+    }
+    final w = await handle.callMethod<JSPromise<JSObject>>('createWritable'.toJS).toDart;
+    try {
+      await for (final p in pieces) {
+        await w.callMethod<JSPromise<JSAny?>>('write'.toJS, p.toJS).toDart;
+      }
+      await w.callMethod<JSPromise<JSAny?>>('close'.toJS).toDart;
+    } catch (_) {
+      w.callMethod<JSAny?>('abort'.toJS); // no half a file left behind
+      rethrow;
+    }
+    return true;
+  }
+  // Firefox, Safari: one download, gathered first (the browser may keep it on disk).
+  final parts = <JSAny>[];
+  await for (final p in pieces) {
+    parts.add(p.toJS);
+  }
+  final url = web.URL.createObjectURL(web.Blob(parts.toJS, web.BlobPropertyBag(type: mime)));
+  (web.HTMLAnchorElement()
+        ..href = url
+        ..download = name)
+      .click();
+  Timer(const Duration(minutes: 1), () => web.URL.revokeObjectURL(url));
+  return true;
+}
+
+var _holds = 0;
+JSFunction? _beforeUnload;
+
+void holdPage(bool on) {
+  _holds += on ? 1 : -1;
+  if (_holds > 0 && _beforeUnload == null) {
+    _beforeUnload = ((web.BeforeUnloadEvent e) {
+      e.preventDefault(); // the browser's own "Leave site?"
+      e.returnValue = '';
+    }).toJS;
+    web.window.addEventListener('beforeunload', _beforeUnload);
+  } else if (_holds <= 0 && _beforeUnload != null) {
+    web.window.removeEventListener('beforeunload', _beforeUnload);
+    _beforeUnload = null;
+    _holds = 0;
+  }
 }
 
 String deviceName() {

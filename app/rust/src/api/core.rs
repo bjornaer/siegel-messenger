@@ -1093,6 +1093,57 @@ impl Core {
             .into())
     }
 
+    /// The browser: a big file shown at once as sending, then handed over a piece at a time
+    /// with `push_attachment_stream` (whole 64 KB chunks but the last); once that returns true,
+    /// `retry` sends it. Nothing is kept: a closed page can't resume it.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn queue_attachment_stream(
+        &self,
+        group_id: Vec<u8>,
+        size: u64,
+        mime_type: String,
+        file_name: String,
+        duration_ms: u32,
+        width: u32,
+        height: u32,
+        thumbnail: Vec<u8>,
+        reply_to: Option<Vec<u8>>,
+    ) -> Result<MessageView, CoreError> {
+        let a = core_api::OutgoingAttachment {
+            mime_type,
+            file_name,
+            duration_ms,
+            width,
+            height,
+            thumbnail,
+            ..Default::default()
+        };
+        Ok(self
+            .0
+            .queue_attachment_stream(&group_id, size, a, reply_to.as_deref())
+            .await?
+            .into())
+    }
+
+    /// The file's next piece; empty to try again after an error. True once all of it is up.
+    pub async fn push_attachment_stream(
+        &self,
+        message_id: Vec<u8>,
+        piece: Vec<u8>,
+    ) -> Result<bool, CoreError> {
+        Ok(self.0.push_attachment_stream(&message_id, &piece).await?)
+    }
+
+    /// The browser: an attachment's next piece of plaintext (from the start when `first`);
+    /// empty once it has all come. For saving big files without holding them whole.
+    pub async fn attachment_next(
+        &self,
+        message_id: Vec<u8>,
+        first: bool,
+    ) -> Result<Vec<u8>, CoreError> {
+        Ok(self.0.attachment_next(&message_id, first).await?)
+    }
+
     /// M9: a view-once photo's bytes, this once; then it is gone here. "view_once_gone",
     /// or "view_once_phone_only" on a linked device.
     pub async fn open_view_once(&self, message_id: Vec<u8>) -> Result<Vec<u8>, CoreError> {

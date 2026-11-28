@@ -1401,8 +1401,14 @@ abstract class AppLocalizations {
   /// No description provided for @errAttachmentTooLarge.
   ///
   /// In en, this message translates to:
-  /// **'Files can be up to 100 MB.'**
+  /// **'Files can be up to 1 GB.'**
   String get errAttachmentTooLarge;
+
+  /// No description provided for @keepTabOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this tab open until it\'s sent: closing or leaving it stops the upload.'**
+  String get keepTabOpen;
 
   /// No description provided for @errUploadFailed.
   ///

@@ -61,6 +61,13 @@ abstract class Core implements RustOpaqueInterface {
   /// The attachment decrypted into a file to open or play (phones), downloading it first.
   Future<String> attachmentFile({required List<int> messageId});
 
+  /// The browser: an attachment's next piece of plaintext (from the start when `first`);
+  /// empty once it has all come. For saving big files without holding them whole.
+  Future<Uint8List> attachmentNext({
+    required List<int> messageId,
+    required bool first,
+  });
+
   /// `len` bytes of an attachment's plaintext from `offset` (phones), decrypted chunk by
   /// chunk, waiting for them while it downloads: for playing a video as it comes.
   Future<Uint8List> attachmentRange({
@@ -218,6 +225,12 @@ abstract class Core implements RustOpaqueInterface {
   /// Name and size of the group a link leads to, before joining.
   Future<GroupPreviewView> previewGroupLink({required String link});
 
+  /// The file's next piece; empty to try again after an error. True once all of it is up.
+  Future<bool> pushAttachmentStream({
+    required List<int> messageId,
+    required List<int> piece,
+  });
+
   /// Like `send_attachment`, but kept and shown as sending first: deliver it with `retry`,
   /// which uploads it (resuming a dropped upload). Not for view-once photos.
   Future<MessageView> queueAttachment({
@@ -248,6 +261,21 @@ abstract class Core implements RustOpaqueInterface {
     required List<int> thumbnail,
     required bool voiceNote,
     required List<int> waveform,
+    Uint8List? replyTo,
+  });
+
+  /// The browser: a big file shown at once as sending, then handed over a piece at a time
+  /// with `push_attachment_stream` (whole 64 KB chunks but the last); once that returns true,
+  /// `retry` sends it. Nothing is kept: a closed page can't resume it.
+  Future<MessageView> queueAttachmentStream({
+    required List<int> groupId,
+    required BigInt size,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
     Uint8List? replyTo,
   });
 

@@ -38,8 +38,25 @@ Future<Uint8List> fetchBytes(String url) => throw UnsupportedError('browser only
 Future<(Uint8List, String)> compressImage(Uint8List data, int side, int quality, String mime) =>
     throw UnsupportedError('browser only');
 
-/// Files dropped on the page go to [onDrop] while it is set (an open chat), as (name, type, bytes).
-void Function(List<(String, String, Uint8List)>)? onDrop;
+/// A file dropped or pasted on the page: its bytes, or for a big one ([streamFrom] or more) a
+/// blob: URL to read it from a piece at a time ([readUrl]), released once it's sent.
+typedef Dropped = ({String name, String type, int size, Uint8List data, String url});
+
+/// From this size the browser sends and saves files a piece at a time, never whole in memory.
+const streamFrom = 20 << 20;
+
+/// Files dropped or pasted on the page go to [onDrop] while it is set (an open chat).
+void Function(List<Dropped>)? onDrop;
+
+/// What's behind a blob: URL, as it's read.
+Stream<Uint8List> readUrl(String url) => throw UnsupportedError('browser only');
+
+/// Saves what [pieces] yields as a file: written to disk as it comes where the browser can
+/// (Chrome, Edge: it asks where first), else gathered into one download. False if cancelled.
+Future<bool> saveStream(String name, String mime, Stream<Uint8List> pieces) => throw UnsupportedError('browser only');
+
+/// While held, leaving or closing the page asks first: an upload going on would stop.
+void holdPage(bool on) {}
 
 /// What the phone's Linked devices list calls this browser.
 String deviceName() => 'Browser';

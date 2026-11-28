@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::chat::{ChatMessage, chat_message};
 use crate::{CoreError, SiegelCore, storage};
 
-fn hex(b: &[u8]) -> String {
+pub(crate) fn hex(b: &[u8]) -> String {
     b.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -27,9 +27,9 @@ const MAX_IN_MEMORY: usize = 100 << 20;
 pub(crate) const OPEN: &str = "open";
 use core_media::PART;
 /// MED-04.
-const MAX_THUMBNAIL: usize = 20 << 10;
+pub(crate) const MAX_THUMBNAIL: usize = 20 << 10;
 /// MED-09: one byte per waveform bar.
-const MAX_WAVEFORM: usize = 256;
+pub(crate) const MAX_WAVEFORM: usize = 256;
 
 /// What the app knows about an attachment before it is downloaded.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -202,7 +202,7 @@ impl SiegelCore {
     }
 
     /// Records a transfer's progress for `transfer_progress`; done once all bytes are there.
-    fn track(&self, message_id: &[u8], done: u64, total: u64) {
+    pub(crate) fn track(&self, message_id: &[u8], done: u64, total: u64) {
         if message_id.is_empty() {
             return;
         }
@@ -679,8 +679,11 @@ impl SiegelCore {
         self.with_store(|s| storage(s.save_message(&msg)))?;
         chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
     }
+}
 
-    fn attachment_of(&self, message_id: &[u8]) -> Result<pb::Attachment, CoreError> {
+/// Queued attachments, on phones and in the browser: shown at once, uploaded by `retry`.
+impl SiegelCore {
+    pub(crate) fn attachment_of(&self, message_id: &[u8]) -> Result<pb::Attachment, CoreError> {
         let m = self
             .with_store(|s| storage(s.message(message_id)))?
             .filter(|m| !m.deleted)
@@ -693,10 +696,7 @@ impl SiegelCore {
             _ => Err(CoreError::new("not_found")),
         }
     }
-}
 
-/// Queued attachments, on phones and in the browser: shown at once, uploaded by `retry`.
-impl SiegelCore {
     /// Like `queue_attachment_file` for one in memory (stickers, photos, voice notes, and all
     /// of the browser's): kept and shown as sending before it uploads, so a dropped upload
     /// resumes instead of losing it. View-once photos go through `send_attachment`.
@@ -755,6 +755,9 @@ impl SiegelCore {
         let Some(state) = self.get(&key)?.filter(|s| !s.is_empty()) else {
             return Ok(());
         };
+        if self.stream_broke(&msg.message_id, &state) {
+            return Err(CoreError::new("upload_failed"));
+        }
         let state = String::from_utf8_lossy(&state).into_owned();
         let (mut path, mut from) = match state.split_once(' ') {
             Some((p, n)) => (p.to_string(), n.parse().unwrap_or(0)),
@@ -821,6 +824,6 @@ impl SiegelCore {
     }
 }
 
-fn upload_key(message_id: &[u8]) -> String {
+pub(crate) fn upload_key(message_id: &[u8]) -> String {
     format!("upload/{}", hex(message_id))
 }

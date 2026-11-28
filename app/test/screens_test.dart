@@ -510,6 +510,39 @@ class FakeCore implements Core {
   }
 
   @override
+  Future<MessageView> queueAttachmentStream({
+    required List<int> groupId,
+    required BigInt size,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
+    Uint8List? replyTo,
+  }) => sendAttachment(
+    groupId: groupId,
+    data: Uint8List(size.toInt()),
+    mimeType: mimeType,
+    fileName: fileName,
+    durationMs: durationMs,
+    voiceNote: false,
+    waveform: const [],
+    width: width,
+    height: height,
+    thumbnail: thumbnail,
+    sticker: false,
+    viewOnce: false,
+    replyTo: replyTo,
+  );
+
+  @override
+  Future<bool> pushAttachmentStream({required List<int> messageId, required List<int> piece}) async => true;
+
+  @override
+  Future<Uint8List> attachmentNext({required List<int> messageId, required bool first}) async => Uint8List(0);
+
+  @override
   Future<MessageView> queueAttachment({
     required List<int> groupId,
     required List<int> data,
@@ -3014,7 +3047,9 @@ void main() {
     await t.pumpAndSettle();
 
     // A file dropped on the page goes to the open chat.
-    browser.onDrop!([('notes.txt', 'text/plain', Uint8List.fromList(utf8.encode('hello')))]);
+    browser.onDrop!([
+      (name: 'notes.txt', type: 'text/plain', size: 5, data: Uint8List.fromList(utf8.encode('hello')), url: ''),
+    ]);
     await t.pumpAndSettle();
     expect(core.history[base64Encode(id)]!.last.attachment?.fileName, 'notes.txt');
   });

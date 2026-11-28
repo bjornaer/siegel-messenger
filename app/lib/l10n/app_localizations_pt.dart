@@ -774,7 +774,11 @@ class AppLocalizationsPt extends AppLocalizations {
       'Este anexo foi danificado no caminho e não pode ser aberto.';
 
   @override
-  String get errAttachmentTooLarge => 'Os arquivos podem ter até 100 MB.';
+  String get errAttachmentTooLarge => 'Os arquivos podem ter até 1 GB.';
+
+  @override
+  String get keepTabOpen =>
+      'Mantenha esta aba aberta até o envio terminar: fechar ou sair dela interrompe o envio.';
 
   @override
   String get errUploadFailed => 'O envio não terminou. Tente de novo.';

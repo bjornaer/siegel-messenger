@@ -240,6 +240,9 @@ impl SiegelCore {
     /// messages wait for the user's retry (MSG-04).
     pub async fn resume_sending(&self) -> Result<(), CoreError> {
         for m in self.with_store(|s| storage(s.unsent_messages()))? {
+            if self.streaming(&m.message_id) {
+                continue; // this page is still sending it
+            }
             let uploading = self.upload_pending(&m.message_id);
             if m.status == Status::Sending || uploading {
                 let _ = self.retry(&m.message_id).await;

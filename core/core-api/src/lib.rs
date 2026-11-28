@@ -20,6 +20,7 @@ mod messages;
 mod reports;
 mod rt;
 mod stickers;
+mod stream;
 mod sync;
 mod view_once;
 pub use chat::{ChatMessage, Event};
@@ -172,6 +173,10 @@ pub struct SiegelCore {
     transfers: Mutex<std::collections::HashMap<Vec<u8>, (u64, u64)>>,
     /// Messages a `retry` is sending right now: a second one for the same waits its turn out.
     sending: Mutex<std::collections::HashSet<Vec<u8>>>,
+    /// The browser's big files going up and coming down a piece at a time (`stream`); an
+    /// upload is None while a piece of it is on its way.
+    uploads: Mutex<std::collections::HashMap<Vec<u8>, Option<stream::Upload>>>,
+    downloads: Mutex<std::collections::HashMap<Vec<u8>, stream::Download>>,
     /// Attachments being downloaded right now (phones: the browser downloads into memory).
     #[cfg(not(target_family = "wasm"))]
     fetching: Mutex<std::collections::HashSet<Vec<u8>>>,
@@ -196,6 +201,8 @@ impl SiegelCore {
             },
             transfers: Mutex::default(),
             sending: Mutex::default(),
+            uploads: Mutex::default(),
+            downloads: Mutex::default(),
             #[cfg(not(target_family = "wasm"))]
             fetching: Mutex::default(),
         })

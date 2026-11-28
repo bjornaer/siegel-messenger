@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data' show BytesBuilder;
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
@@ -1190,17 +1191,30 @@ class _ChatScreenState extends State<ChatScreen> {
     await _run(() => core.sendText(groupId: _group, text: locationText(l), replyTo: reply?.messageId, mentions: []));
   }
 
-  /// Siegel Web: files dropped on the page are sent here, photos made smaller like picked ones.
-  Future<void> _dropped(List<(String, String, Uint8List)> files) async {
+  /// Siegel Web: files dropped or pasted on the page are sent here, photos made smaller like
+  /// picked ones; big files go a piece at a time.
+  Future<void> _dropped(List<browser.Dropped> files) async {
     final c = _summary();
-    if (_editing != null || c == null || c.left || c.request) return; // only where the composer is
-    for (final (name, type, data) in files) {
-      final mime = type.isNotEmpty ? type : mimeFor(name);
+    if (_editing != null || c == null || c.left || c.request) {
+      for (final f in files) {
+        if (f.url.isNotEmpty) browser.revokeUrl(f.url);
+      }
+      return; // only where the composer is
+    }
+    for (final f in files) {
+      final mime = f.type.isNotEmpty ? f.type : mimeFor(f.name);
       try {
-        if (data.length > maxAttachment) throw TooLarge();
+        if (f.size > maxFile) throw TooLarge();
+        if (f.url.isNotEmpty) {
+          await _sendAttachment(outgoing(Uint8List(0), mime, name: f.name, path: f.url, size: f.size));
+          continue;
+        }
         final photo = mime.startsWith('image/') && mime != 'image/svg+xml';
-        await _sendAttachment(photo ? await photoOf(data, gif: mime == 'image/gif') : outgoing(data, mime, name: name));
+        await _sendAttachment(
+          photo ? await photoOf(f.data, gif: mime == 'image/gif') : outgoing(f.data, mime, name: f.name),
+        );
       } on TooLarge {
+        if (f.url.isNotEmpty) browser.revokeUrl(f.url);
         if (mounted) showError(context, const CoreError(code: 'attachment_too_large'));
       } on Object catch (e) {
         debugPrint('drop: $e');
@@ -1266,6 +1280,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     final reply = _replyTo;
     setState(() => _replyTo = null);
+    if (kIsWeb && o.path.isNotEmpty) return _streamUp(o, reply);
     if (o.viewOnce) {
       // M9: no copy is kept to queue; it goes in one go.
       return _run(
@@ -1339,6 +1354,73 @@ class _ChatScreenState extends State<ChatScreen> {
         // Marked failed, with a retry that carries on where it stopped (MSG-04).
       } finally {
         done.complete();
+      }
+      service.refresh();
+    });
+  }
+
+  /// Siegel Web: a big file read from its blob: URL and sent a piece at a time, never whole in
+  /// memory. Nothing is kept to resume from, so the page asks before it's left meanwhile.
+  Future<void> _streamUp(Outgoing o, MessageView? reply) async {
+    final MessageView m;
+    try {
+      m = await core.queueAttachmentStream(
+        groupId: _group,
+        size: BigInt.from(o.size),
+        mimeType: o.mime,
+        fileName: o.name,
+        durationMs: o.ms,
+        width: o.width,
+        height: o.height,
+        thumbnail: o.thumbnail,
+        replyTo: reply?.messageId,
+      );
+    } on CoreError catch (e) {
+      browser.revokeUrl(o.path);
+      if (mounted) showError(context, e);
+      return;
+    }
+    browser.holdPage(true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.keepTabOpen)));
+    }
+    final service = widget.service..refresh();
+    // A network error: the same piece again, a few times, waiting longer each time.
+    Future<bool> push(Uint8List piece) async {
+      for (var tries = 0; ; tries++) {
+        try {
+          return await core.pushAttachmentStream(messageId: m.messageId, piece: tries == 0 ? piece : Uint8List(0));
+        } on CoreError catch (e) {
+          if (e.code == 'attachment_invalid' || tries == 5) rethrow;
+          await Future<void>.delayed(Duration(seconds: 2 << tries));
+        }
+      }
+    }
+
+    _uploads = _uploads.then((_) async {
+      try {
+        const piece = 8 << 20; // whole 64 KB chunks
+        final pending = BytesBuilder(copy: false);
+        await for (final bytes in browser.readUrl(o.path)) {
+          pending.add(bytes);
+          while (pending.length >= piece) {
+            final all = pending.takeBytes();
+            await push(Uint8List.sublistView(all, 0, piece));
+            pending.add(Uint8List.sublistView(all, piece));
+          }
+        }
+        if (pending.isNotEmpty) await push(pending.takeBytes());
+      } on Object catch (e) {
+        debugPrint('stream up: $e'); // marked failed below: it has to be sent again
+      } finally {
+        browser.revokeUrl(o.path);
+      }
+      try {
+        await core.retry(messageId: m.messageId);
+      } on CoreError {
+        // Failed, with a retry
+      } finally {
+        browser.holdPage(false);
       }
       service.refresh();
     });

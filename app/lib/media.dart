@@ -321,8 +321,10 @@ typedef Outgoing = ({
   bool sticker,
   bool viewOnce,
   // Phones: a big file sent from disk instead of [data] (empty then); [temp] once sent, delete it.
+  // The browser: a big one's blob: URL, read a piece at a time as it goes ([size] bytes).
   String path,
   bool temp,
+  int size,
 });
 
 Outgoing outgoing(
@@ -339,6 +341,7 @@ Outgoing outgoing(
   bool viewOnce = false,
   String path = '',
   bool temp = false,
+  int size = 0,
 }) => (
   data: data,
   mime: mime,
@@ -353,12 +356,13 @@ Outgoing outgoing(
   viewOnce: viewOnce,
   path: path,
   temp: temp,
+  size: size,
 );
 
-/// MED-06: what goes in memory (photos, voice, the browser) …
+/// MED-06: what goes in memory (photos, voice) …
 const maxAttachment = 100 << 20;
 
-/// … and what phones send from disk (videos and files).
+/// … and what's sent from disk (videos and files; in the browser, a piece at a time).
 const maxFile = 1 << 30;
 
 class TooLarge implements Exception {}
@@ -470,9 +474,12 @@ Future<Outgoing?> pickVideo(Future<VideoQuality?> Function(int size) ask) async 
   final f = await ImagePicker().pickVideo(source: ImageSource.gallery);
   if (f == null) return null;
   if (kIsWeb) {
-    // A browser can't compress it: it goes as it is, when it fits (M8 part 6).
-    if (await f.length() > maxAttachment) throw TooLarge();
-    return outgoing(await f.readAsBytes(), mimeFor(f.name).startsWith('video/') ? mimeFor(f.name) : 'video/mp4');
+    // A browser can't compress it: it goes as it is (M8 part 6), a big one a piece at a time.
+    final size = await f.length();
+    if (size > maxFile) throw TooLarge();
+    final mime = mimeFor(f.name).startsWith('video/') ? mimeFor(f.name) : 'video/mp4';
+    if (size >= browser.streamFrom) return outgoing(Uint8List(0), mime, path: f.path, size: size);
+    return outgoing(await f.readAsBytes(), mime);
   }
   return videoFrom(f.path, ask);
 }
@@ -529,14 +536,16 @@ Stream<Outgoing> pickFiles({bool audio = false}) async* {
   var skipped = false;
   try {
     for (final f in files) {
-      final path = kIsWeb ? null : f.path;
-      if ((f.lengthSync() ?? 0) > (path == null ? maxAttachment : maxFile)) {
+      final size = f.lengthSync() ?? await f.length() ?? 0;
+      if (size > maxFile) {
         skipped = true; // before reading it all
         continue;
       }
+      // The browser: a big one goes from its blob: URL, a piece at a time.
+      final path = kIsWeb ? (size >= browser.streamFrom ? f.uri.toString() : null) : f.path;
       yield path == null
           ? outgoing(await f.readAsBytes(), mimeFor(f.name), name: f.name)
-          : outgoing(Uint8List(0), mimeFor(f.name), name: f.name, path: path);
+          : outgoing(Uint8List(0), mimeFor(f.name), name: f.name, path: path, size: size);
     }
   } finally {
     unawaited(FilePicker.clearTemporaryFiles()); // the picker's plaintext copy in our cache
@@ -605,7 +614,10 @@ Future<void> saveToDevice(BuildContext context, Core core, MessageView m) async 
     final name = a.fileName.isNotEmpty
         ? a.fileName
         : 'siegel-${DateTime.now().millisecondsSinceEpoch}.${_ext(a.mimeType)}';
-    if (kIsWeb) {
+    if (kIsWeb && a.size.toInt() >= browser.streamFrom) {
+      // Big: a piece at a time, straight into the file where the browser can.
+      await browser.saveStream(name, a.mimeType, _pieces(core, m.messageId));
+    } else if (kIsWeb) {
       await FilePicker.saveFile(
         fileName: name,
         bytes: await core.attachmentData(messageId: m.messageId),
@@ -619,6 +631,25 @@ Future<void> saveToDevice(BuildContext context, Core core, MessageView m) async 
     if (context.mounted) showError(context, e);
   } on PlatformException {
     if (context.mounted) showError(context, const CoreError(code: 'storage'));
+  }
+}
+
+/// The browser: an attachment's plaintext as it comes down; a network error tries the same
+/// part again a few times, waiting longer each time.
+Stream<Uint8List> _pieces(Core core, Uint8List messageId) async* {
+  var first = true;
+  for (var tries = 0; ;) {
+    final Uint8List piece;
+    try {
+      piece = await core.attachmentNext(messageId: messageId, first: first);
+    } on CoreError catch (e) {
+      if (e.code != 'network' || ++tries > 5) rethrow;
+      await Future<void>.delayed(Duration(seconds: 2 << tries));
+      continue;
+    }
+    if (piece.isEmpty) return;
+    (first, tries) = (false, 0);
+    yield piece;
   }
 }
 
@@ -1047,6 +1078,8 @@ class _VideoMessageState extends State<VideoMessage> with _Fetch {
     final ready = data != null || widget.core.attachmentDownloaded(messageId: widget.message.messageId);
     return GestureDetector(
       onTap: () async {
+        // The browser plays from memory: one too big for that it can only save.
+        if (kIsWeb && a.size.toInt() > maxAttachment) return saveToDevice(context, widget.core, widget.message);
         // Phones play as it downloads, decrypted as it plays (no decrypted copy on disk).
         Uri? url;
         if (!kIsWeb) {

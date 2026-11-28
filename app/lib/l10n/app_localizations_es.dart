@@ -776,8 +776,11 @@ class AppLocalizationsEs extends AppLocalizations {
       'Este archivo se dañó por el camino y no se puede abrir.';
 
   @override
-  String get errAttachmentTooLarge =>
-      'Los archivos pueden ocupar hasta 100 MB.';
+  String get errAttachmentTooLarge => 'Los archivos pueden ser de hasta 1 GB.';
+
+  @override
+  String get keepTabOpen =>
+      'Mantén esta pestaña abierta hasta que se envíe: si la cierras o sales, la subida se detiene.';
 
   @override
   String get errUploadFailed =>

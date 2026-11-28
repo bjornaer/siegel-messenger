@@ -1732,6 +1732,70 @@ async fn stickers_and_voice_notes_show_before_they_upload() {
 }
 
 #[tokio::test]
+async fn the_browser_streams_big_files_up_and_down() {
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, OutgoingAttachment};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+    let data: Vec<u8> = (0..(20u32 << 20) + 12_345)
+        .map(|i| (i % 253) as u8)
+        .collect();
+    let m = alice
+        .queue_attachment_stream(
+            &chat,
+            data.len() as u64,
+            OutgoingAttachment {
+                mime_type: "video/mp4".into(),
+                file_name: "big.mp4".into(),
+                ..Default::default()
+            },
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(
+        alice
+            .messages(&chat, 50)
+            .unwrap()
+            .iter()
+            .any(|x| x.message_id == m.message_id),
+        "shown while it goes up"
+    );
+    alice.resume_sending().await.unwrap(); // leaves it to the page
+    let mut all_up = false;
+    for piece in data.chunks(3 << 20) {
+        assert!(!all_up);
+        all_up = alice
+            .push_attachment_stream(&m.message_id, piece)
+            .await
+            .unwrap();
+    }
+    assert!(all_up);
+    alice.retry(&m.message_id).await.unwrap();
+    let Event::Message(got) = until(&mut be, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    let mut back = Vec::new();
+    let mut first = true;
+    loop {
+        let piece = bob.attachment_next(&got.message_id, first).await.unwrap();
+        first = false;
+        if piece.is_empty() {
+            break;
+        }
+        back.extend(piece);
+    }
+    assert!(back == data, "the same bytes came down");
+    // A phone opens it the usual way too.
+    assert!(bob.attachment_file(&got.message_id).await.is_ok());
+}
+
+#[tokio::test]
 async fn big_files_go_in_parts_and_resume() {
     let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
         return;
