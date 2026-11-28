@@ -1266,67 +1266,82 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     final reply = _replyTo;
     setState(() => _replyTo = null);
-    if (o.path.isNotEmpty) {
-      // Big ones (phones): shown at once with a progress bar, uploaded behind it, resumable.
-      // The app stays up from now (encrypting a big video takes a while) until it's uploaded:
-      // Android only lets the app start that while it's in front.
-      final done = Completer<void>();
-      unawaited(keepingAlive(AppLocalizations.of(context)!.sendingFiles, () => done.future));
-      final MessageView m;
-      try {
-        m = await core.queueAttachmentFile(
+    if (o.viewOnce) {
+      // M9: no copy is kept to queue; it goes in one go.
+      return _run(
+        () => core.sendAttachment(
           groupId: _group,
-          path: o.path,
+          data: o.data,
           mimeType: o.mime,
           fileName: o.name,
           durationMs: o.ms,
+          voiceNote: o.voice,
+          waveform: o.waveform,
           width: o.width,
           height: o.height,
           thumbnail: o.thumbnail,
-          voiceNote: o.voice,
-          waveform: o.waveform,
+          sticker: o.sticker,
+          viewOnce: true,
           replyTo: reply?.messageId,
-        );
-      } on CoreError catch (e) {
-        done.complete();
-        if (mounted) showError(context, e);
-        return;
-      } catch (_) {
-        done.complete(); // never leave the notification up
-        rethrow;
-      } finally {
-        if (o.temp) File(o.path).delete().ignore(); // encrypted into the chat's own copy
-      }
-      final service = widget.service..refresh();
-      _uploads = _uploads.then((_) async {
-        try {
-          await core.retry(messageId: m.messageId);
-        } on CoreError {
-          // Marked failed, with a retry that carries on where it stopped (MSG-04).
-        } finally {
-          done.complete();
-        }
-        service.refresh();
-      });
-      return;
+        ),
+      );
     }
-    await _run(
-      () => core.sendAttachment(
-        groupId: _group,
-        data: o.data,
-        mimeType: o.mime,
-        fileName: o.name,
-        durationMs: o.ms,
-        voiceNote: o.voice,
-        waveform: o.waveform,
-        width: o.width,
-        height: o.height,
-        thumbnail: o.thumbnail,
-        sticker: o.sticker,
-        viewOnce: o.viewOnce,
-        replyTo: reply?.messageId,
-      ),
-    );
+    // Shown at once as sending, uploaded behind it, resumable. From disk (phones: videos,
+    // files, voice notes) the app stays up until it's uploaded: Android only lets the app start
+    // that while it's in front.
+    final done = Completer<void>();
+    if (o.path.isNotEmpty) unawaited(keepingAlive(AppLocalizations.of(context)!.sendingFiles, () => done.future));
+    final MessageView m;
+    try {
+      m = o.path.isNotEmpty
+          ? await core.queueAttachmentFile(
+              groupId: _group,
+              path: o.path,
+              mimeType: o.mime,
+              fileName: o.name,
+              durationMs: o.ms,
+              width: o.width,
+              height: o.height,
+              thumbnail: o.thumbnail,
+              voiceNote: o.voice,
+              waveform: o.waveform,
+              replyTo: reply?.messageId,
+            )
+          : await core.queueAttachment(
+              groupId: _group,
+              data: o.data,
+              mimeType: o.mime,
+              fileName: o.name,
+              durationMs: o.ms,
+              voiceNote: o.voice,
+              waveform: o.waveform,
+              width: o.width,
+              height: o.height,
+              thumbnail: o.thumbnail,
+              sticker: o.sticker,
+              replyTo: reply?.messageId,
+            );
+    } on CoreError catch (e) {
+      done.complete();
+      if (mounted) showError(context, e);
+      return;
+    } catch (_) {
+      done.complete(); // never leave the notification up
+      rethrow;
+    } finally {
+      if (o.temp) File(o.path).delete().ignore(); // encrypted into the chat's own copy
+    }
+    final service = widget.service..refresh();
+    _uploads = _uploads.then((_) async {
+      try {
+        await core.retry(messageId: m.messageId);
+      } on CoreError {
+        // Marked failed, with a retry that carries on where it stopped (MSG-04).
+      } finally {
+        done.complete();
+      }
+      service.refresh();
+    });
   }
 
   /// MED-14: sends the message on to a chat the user picks.
@@ -1495,7 +1510,7 @@ class _ChatScreenState extends State<ChatScreen> {
   });
 
   Future<void> _sticker() async {
-    final s = await pickSticker(context, core);
+    final s = await pickSticker(context, core, _text);
     if (s == null) return;
     if (s.mime == 'image/gif') {
       // A GIF from GIPHY goes as a photo, animated.
@@ -1506,42 +1521,15 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Any emoji as a reaction. Recent picks aren't remembered: the picker would keep them
-  /// outside the encrypted database.
+  /// Any emoji as a reaction.
   Future<void> _pickReaction(MessageView m) async {
-    final colors = Theme.of(context).colorScheme;
     final emoji = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       builder: (s) => SafeArea(
         child: SizedBox(
           height: 360,
-          child: EmojiPicker(
-            onEmojiSelected: (_, e) => Navigator.pop(s, e.emoji),
-            config: Config(
-              locale: Localizations.localeOf(context),
-              checkPlatformCompatibility: true,
-              emojiViewConfig: EmojiViewConfig(backgroundColor: colors.surface, emojiSizeMax: 28),
-              categoryViewConfig: CategoryViewConfig(
-                recentTabBehavior: RecentTabBehavior.NONE,
-                initCategory: Category.SMILEYS,
-                backgroundColor: colors.surface,
-                indicatorColor: colors.primary,
-                iconColorSelected: colors.primary,
-                iconColor: colors.onSurfaceVariant,
-              ),
-              bottomActionBarConfig: BottomActionBarConfig(
-                showBackspaceButton: false,
-                backgroundColor: colors.surfaceContainer,
-                buttonColor: colors.surfaceContainer,
-                buttonIconColor: colors.onSurfaceVariant,
-              ),
-              searchViewConfig: SearchViewConfig(
-                backgroundColor: colors.surface,
-                buttonIconColor: colors.onSurfaceVariant,
-              ),
-            ),
-          ),
+          child: EmojiPicker(onEmojiSelected: (_, e) => Navigator.pop(s, e.emoji), config: emojiConfig(context)),
         ),
       ),
     );

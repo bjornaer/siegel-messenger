@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:archive/archive.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -21,24 +22,56 @@ import 'sticker_editor.dart';
 /// A sticker ready to send.
 typedef StickerPick = ({Uint8List data, String mime});
 
-/// The sticker sheet: the built-in Siegel pack, my stickers, GIFs (GIPHY), and imported packs.
-/// Returns the sticker or GIF ('image/gif') to send, or null.
-Future<StickerPick?> pickSticker(BuildContext context, Core core) => showModalBottomSheet<StickerPick>(
-  context: context,
-  isScrollControlled: true,
-  builder: (c) => SafeArea(
-    child: Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom), // the GIF search's keyboard
-      child: SizedBox(height: 420, child: _StickerSheet(core: core)),
+/// The sticker sheet: emoji (typed into [text], the composer), the built-in Siegel pack, my
+/// stickers, GIFs (GIPHY), and imported packs. Returns the sticker or GIF ('image/gif') to
+/// send, or null.
+Future<StickerPick?> pickSticker(BuildContext context, Core core, TextEditingController text) =>
+    showModalBottomSheet<StickerPick>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(c).bottom), // the GIF search's keyboard
+          child: SizedBox(
+            height: 420,
+            child: _StickerSheet(core: core, text: text),
+          ),
+        ),
+      ),
+    );
+
+/// The emoji picker's look, for the sheet and for reactions. Recent picks aren't remembered:
+/// the picker would keep them outside the encrypted database.
+Config emojiConfig(BuildContext context, {bool backspace = false}) {
+  final colors = Theme.of(context).colorScheme;
+  return Config(
+    locale: Localizations.localeOf(context),
+    checkPlatformCompatibility: true,
+    emojiViewConfig: EmojiViewConfig(backgroundColor: colors.surface, emojiSizeMax: 28),
+    categoryViewConfig: CategoryViewConfig(
+      recentTabBehavior: RecentTabBehavior.NONE,
+      initCategory: Category.SMILEYS,
+      backgroundColor: colors.surface,
+      indicatorColor: colors.primary,
+      iconColorSelected: colors.primary,
+      iconColor: colors.onSurfaceVariant,
     ),
-  ),
-);
+    bottomActionBarConfig: BottomActionBarConfig(
+      showBackspaceButton: backspace,
+      backgroundColor: colors.surfaceContainer,
+      buttonColor: colors.surfaceContainer,
+      buttonIconColor: colors.onSurfaceVariant,
+    ),
+    searchViewConfig: SearchViewConfig(backgroundColor: colors.surface, buttonIconColor: colors.onSurfaceVariant),
+  );
+}
 
 const _usesKey = 'sticker_uses';
 
 class _StickerSheet extends StatefulWidget {
-  const _StickerSheet({required this.core});
+  const _StickerSheet({required this.core, required this.text});
   final Core core;
+  final TextEditingController text;
 
   @override
   State<_StickerSheet> createState() => _StickerSheetState();
@@ -148,14 +181,15 @@ class _StickerSheetState extends State<_StickerSheet> {
     final uses = _uses();
     final top = all.where((s) => (uses[s.id] ?? 0) > 0).toList()..sort((a, b) => uses[b.id]!.compareTo(uses[a.id]!));
     return DefaultTabController(
-      length: 3 + packs.length,
-      initialIndex: mine.isEmpty && top.isEmpty ? 0 : 1, // their own stickers first, once they have some
+      length: 4 + packs.length,
+      initialIndex: mine.isEmpty && top.isEmpty ? 0 : 2, // their own stickers, once they have some
       child: Column(
         children: [
           TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: [
+              Tab(text: t.emoji),
               const Tab(text: 'Siegel'),
               Tab(text: t.myStickers),
               Tab(text: t.gifs),
@@ -165,6 +199,8 @@ class _StickerSheetState extends State<_StickerSheet> {
           Expanded(
             child: TabBarView(
               children: [
+                // Typed into the composer, where it waits to be sent with any text.
+                EmojiPicker(textEditingController: widget.text, config: emojiConfig(context, backspace: true)),
                 CustomScrollView(
                   slivers: [
                     _grid([
@@ -188,26 +224,37 @@ class _StickerSheetState extends State<_StickerSheet> {
               ],
             ),
           ),
-          OverflowBar(
-            alignment: MainAxisAlignment.center,
-            children: [
-              TextButton.icon(
-                icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: Text(t.stickerFromPhoto),
-                onPressed: _fromPhoto,
-              ),
-              if (isAndroid)
-                TextButton.icon(
-                  icon: const Icon(Icons.chat_outlined),
-                  label: Text(t.fromWhatsApp),
-                  onPressed: _fromWhatsApp,
-                ),
-              TextButton.icon(
-                icon: const Icon(Icons.download_outlined),
-                label: Text(t.importStickers),
-                onPressed: _import,
-              ),
-            ],
+          // Making and importing stickers: not over emoji or the GIF search.
+          Builder(
+            builder: (c) {
+              final tabs = DefaultTabController.of(c);
+              return ListenableBuilder(
+                listenable: tabs,
+                builder: (_, _) => tabs.index == 0 || tabs.index == 3
+                    ? const SizedBox.shrink()
+                    : OverflowBar(
+                        alignment: MainAxisAlignment.center,
+                        children: [
+                          TextButton.icon(
+                            icon: const Icon(Icons.add_photo_alternate_outlined),
+                            label: Text(t.stickerFromPhoto),
+                            onPressed: _fromPhoto,
+                          ),
+                          if (isAndroid)
+                            TextButton.icon(
+                              icon: const Icon(Icons.chat_outlined),
+                              label: Text(t.fromWhatsApp),
+                              onPressed: _fromWhatsApp,
+                            ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.download_outlined),
+                            label: Text(t.importStickers),
+                            onPressed: _import,
+                          ),
+                        ],
+                      ),
+              );
+            },
           ),
         ],
       ),

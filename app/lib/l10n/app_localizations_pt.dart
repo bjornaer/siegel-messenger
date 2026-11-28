@@ -1150,6 +1150,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get stickers => 'Figurinhas';
 
   @override
+  String get emoji => 'Emojis';
+
+  @override
   String get myStickers => 'Minhas';
 
   @override

@@ -1696,6 +1696,42 @@ async fn link_previews_travel_with_the_text() {
 }
 
 #[tokio::test]
+async fn stickers_and_voice_notes_show_before_they_upload() {
+    let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
+        return;
+    };
+    use core_api::{Event, OutgoingAttachment};
+    let (alice, _) = new_user(&url, "alice").await;
+    let (bob, bob_name) = new_user(&url, "bob").await;
+    let (mut ae, mut be) = (listen(&alice), listen(&bob));
+    befriend(&alice, &mut ae, &bob, &bob_name, &mut be).await;
+    let chat = alice.conversations().unwrap()[0].group_id.clone();
+    let data = vec![7u8; 30_000];
+    let m = alice
+        .queue_attachment(
+            &chat,
+            OutgoingAttachment {
+                data: data.clone(),
+                mime_type: "image/webp".into(),
+                sticker: true,
+                ..Default::default()
+            },
+            None,
+        )
+        .unwrap();
+    // Kept and shown before any upload: a dropped connection can't lose it.
+    let shown = alice.messages(&chat, 50).unwrap();
+    assert!(shown.iter().any(|x| x.message_id == m.message_id));
+    assert_eq!(alice.attachment_data(&m.message_id).await.unwrap(), data);
+    alice.retry(&m.message_id).await.unwrap();
+    let Event::Message(got) = until(&mut be, |e| matches!(e, Event::Message(_))).await else {
+        unreachable!()
+    };
+    assert!(got.attachment.as_ref().unwrap().sticker);
+    assert_eq!(bob.attachment_data(&got.message_id).await.unwrap(), data);
+}
+
+#[tokio::test]
 async fn big_files_go_in_parts_and_resume() {
     let Ok(url) = std::env::var("SIEGEL_TEST_SERVER_URL") else {
         return;

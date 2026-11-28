@@ -1155,6 +1155,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stickers => 'Stickers';
 
   @override
+  String get emoji => 'Emojis';
+
+  @override
   String get myStickers => 'Míos';
 
   @override

@@ -510,6 +510,36 @@ class FakeCore implements Core {
   }
 
   @override
+  Future<MessageView> queueAttachment({
+    required List<int> groupId,
+    required List<int> data,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required bool voiceNote,
+    required List<int> waveform,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
+    required bool sticker,
+    Uint8List? replyTo,
+  }) => sendAttachment(
+    groupId: groupId,
+    data: data,
+    mimeType: mimeType,
+    fileName: fileName,
+    durationMs: durationMs,
+    voiceNote: voiceNote,
+    waveform: waveform,
+    width: width,
+    height: height,
+    thumbnail: thumbnail,
+    sticker: sticker,
+    viewOnce: false,
+    replyTo: replyTo,
+  );
+
+  @override
   bool attachmentDownloaded({required List<int> messageId}) => // ours stay on the device
       fetched.contains(base64Encode(messageId)) ||
       history.values.expand((l) => l).any((m) => listEquals(m.messageId, messageId) && m.outgoing);
@@ -1657,6 +1687,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.byTooltip('Stickers'));
     await t.pumpAndSettle();
+    await tapText(t, 'Siegel'); // emoji first: no sticker buttons there
     await tapText(t, 'From WhatsApp');
     expect(find.text('WhatsApp stickers'), findsOneWidget);
     expect(find.text('Import (3)'), findsOneWidget);
@@ -2990,17 +3021,25 @@ void main() {
 
   testWidgets('GIFs: trending first, search, and the picked one comes back as a GIF', (t) async {
     final core = FakeCore()..registered = true;
+    final text = TextEditingController();
     StickerPick? picked;
     await t.pumpWidget(
       wrap(
         Builder(
-          builder: (context) =>
-              TextButton(onPressed: () async => picked = await pickSticker(context, core), child: const Text('open')),
+          builder: (context) => TextButton(
+            onPressed: () async => picked = await pickSticker(context, core, text),
+            child: const Text('open'),
+          ),
         ),
       ),
     );
     await tapText(t, 'open');
+    expect(find.byType(EmojiPicker), findsOneWidget, reason: 'emoji first, with no stickers yet');
+    expect(find.text('Import'), findsNothing);
+    await tapText(t, 'Siegel');
+    expect(find.text('Import'), findsOneWidget);
     await tapText(t, 'GIFs');
+    expect(find.text('Import'), findsNothing, reason: 'not over the GIF search');
     expect(core.gifQueries, [''], reason: 'trending');
     expect(find.text('Powered by GIPHY'), findsOneWidget);
     await t.enterText(find.byType(TextField), 'cats');

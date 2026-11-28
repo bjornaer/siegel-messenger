@@ -1056,6 +1056,43 @@ impl Core {
             .into())
     }
 
+    /// Like `send_attachment`, but kept and shown as sending first: deliver it with `retry`,
+    /// which uploads it (resuming a dropped upload). Not for view-once photos.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn queue_attachment(
+        &self,
+        group_id: Vec<u8>,
+        data: Vec<u8>,
+        mime_type: String,
+        file_name: String,
+        duration_ms: u32,
+        voice_note: bool,
+        waveform: Vec<u8>,
+        width: u32,
+        height: u32,
+        thumbnail: Vec<u8>,
+        sticker: bool,
+        reply_to: Option<Vec<u8>>,
+    ) -> Result<MessageView, CoreError> {
+        let a = core_api::OutgoingAttachment {
+            data,
+            mime_type,
+            file_name,
+            duration_ms,
+            voice_note,
+            waveform,
+            width,
+            height,
+            thumbnail,
+            sticker,
+            view_once: false,
+        };
+        Ok(self
+            .0
+            .queue_attachment(&group_id, a, reply_to.as_deref())?
+            .into())
+    }
+
     /// M9: a view-once photo's bytes, this once; then it is gone here. "view_once_gone",
     /// or "view_once_phone_only" on a linked device.
     pub async fn open_view_once(&self, message_id: Vec<u8>) -> Result<Vec<u8>, CoreError> {

@@ -218,6 +218,23 @@ abstract class Core implements RustOpaqueInterface {
   /// Name and size of the group a link leads to, before joining.
   Future<GroupPreviewView> previewGroupLink({required String link});
 
+  /// Like `send_attachment`, but kept and shown as sending first: deliver it with `retry`,
+  /// which uploads it (resuming a dropped upload). Not for view-once photos.
+  Future<MessageView> queueAttachment({
+    required List<int> groupId,
+    required List<int> data,
+    required String mimeType,
+    required String fileName,
+    required int durationMs,
+    required bool voiceNote,
+    required List<int> waveform,
+    required int width,
+    required int height,
+    required List<int> thumbnail,
+    required bool sticker,
+    Uint8List? replyTo,
+  });
+
   /// A file of up to 1 GB to send from `path` (phones): shown at once as sending; deliver it
   /// with `retry`, which uploads it in parts and resumes a dropped upload.
   Future<MessageView> queueAttachmentFile({

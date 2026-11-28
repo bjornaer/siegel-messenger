@@ -240,10 +240,7 @@ impl SiegelCore {
     /// messages wait for the user's retry (MSG-04).
     pub async fn resume_sending(&self) -> Result<(), CoreError> {
         for m in self.with_store(|s| storage(s.unsent_messages()))? {
-            #[cfg(not(target_family = "wasm"))]
             let uploading = self.upload_pending(&m.message_id);
-            #[cfg(target_family = "wasm")]
-            let uploading = false;
             if m.status == Status::Sending || uploading {
                 let _ = self.retry(&m.message_id).await;
             }
@@ -256,7 +253,6 @@ impl SiegelCore {
             .with_store(|s| storage(s.message(message_id)))?
             .filter(|m| m.outgoing && matches!(m.status, Status::Failed | Status::Sending))
             .ok_or(CoreError::new("not_allowed"))?;
-        #[cfg(not(target_family = "wasm"))]
         if let Err(e) = self.finish_upload(&mut msg).await {
             msg.status = Status::Failed; // shown with a retry, which resumes the upload
             self.with_store(|s| storage(s.update_message(&msg)))?;

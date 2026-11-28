@@ -680,6 +680,73 @@ impl SiegelCore {
         chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
     }
 
+    fn attachment_of(&self, message_id: &[u8]) -> Result<pb::Attachment, CoreError> {
+        let m = self
+            .with_store(|s| storage(s.message(message_id)))?
+            .filter(|m| !m.deleted)
+            .ok_or(CoreError::new("not_found"))?;
+        match pb::Content::decode(m.body.as_slice())
+            .ok()
+            .and_then(|c| c.body)
+        {
+            Some(pb::content::Body::Attachment(a)) => Ok(a),
+            _ => Err(CoreError::new("not_found")),
+        }
+    }
+}
+
+/// Queued attachments, on phones and in the browser: shown at once, uploaded by `retry`.
+impl SiegelCore {
+    /// Like `queue_attachment_file` for one in memory (stickers, photos, voice notes, and all
+    /// of the browser's): kept and shown as sending before it uploads, so a dropped upload
+    /// resumes instead of losing it. View-once photos go through `send_attachment`.
+    pub fn queue_attachment(
+        &self,
+        group_id: &[u8],
+        a: OutgoingAttachment,
+        reply_to: Option<&[u8]>,
+    ) -> Result<ChatMessage, CoreError> {
+        if a.data.len() > MAX_ATTACHMENT {
+            return Err(CoreError::new("attachment_too_large"));
+        }
+        if a.thumbnail.len() > MAX_THUMBNAIL || a.view_once {
+            return Err(CoreError::new("attachment_invalid"));
+        }
+        self.check_can_send(group_id)?;
+        let (key, blob) = core_media::encrypt(&a.data);
+        let content = self.new_content(pb::content::Body::Attachment(pb::Attachment {
+            key: key.to_vec(),
+            sha256: Sha256::digest(&blob).to_vec(),
+            size: a.data.len() as i64,
+            mime_type: a.mime_type,
+            file_name: a.file_name,
+            duration_ms: a.duration_ms,
+            voice_note: a.voice_note,
+            waveform: a.waveform.into_iter().take(MAX_WAVEFORM).collect(),
+            width: a.width,
+            height: a.height,
+            thumbnail: a.thumbnail,
+            sticker: a.sticker,
+            reply_to: reply_to.unwrap_or_default().to_vec(),
+            ..Default::default() // the blob ID comes with the upload
+        }));
+        self.media_write(&content.message_id, &blob)?;
+        let msg = Message {
+            message_id: content.message_id.clone(),
+            group_id: group_id.to_vec(),
+            sender_account: self.me()?,
+            sent_at: content.sent_at,
+            body: content.encode_to_vec(),
+            outgoing: true,
+            status: Status::Sending,
+            edited: false,
+            deleted: false,
+        };
+        self.put(&upload_key(&msg.message_id), b"new")?;
+        self.with_store(|s| storage(s.save_message(&msg)))?;
+        chat_message(msg, vec![]).ok_or(CoreError::new("storage"))
+    }
+
     /// Before a queued attachment is sent: uploads its blob, resuming a dropped upload at the
     /// part it stopped on. Nothing to do for other messages.
     pub(crate) async fn finish_upload(&self, msg: &mut Message) -> Result<(), CoreError> {
@@ -693,10 +760,30 @@ impl SiegelCore {
             Some((p, n)) => (p.to_string(), n.parse().unwrap_or(0)),
             None => (String::new(), 0),
         };
-        let blob = self.media_path(&msg.message_id);
-        let len = std::fs::metadata(&blob)
-            .map_err(|_| CoreError::new("storage"))?
-            .len();
+        #[cfg(not(target_family = "wasm"))]
+        let (file, len) = {
+            let f = std::fs::File::open(self.media_path(&msg.message_id))
+                .map_err(|_| CoreError::new("storage"))?;
+            let len = f.metadata().map_err(|_| CoreError::new("storage"))?.len();
+            (f, len)
+        };
+        #[cfg(not(target_family = "wasm"))]
+        let read = |off: u64, n: usize| {
+            let mut buf = vec![0u8; n];
+            std::os::unix::fs::FileExt::read_exact_at(&file, &mut buf, off)
+                .map_err(|_| CoreError::new("storage"))?;
+            Ok(buf)
+        };
+        // The browser keeps the blob in the database: small enough to hold whole.
+        #[cfg(target_family = "wasm")]
+        let blob = self
+            .media_read(&msg.message_id)
+            .filter(|b| !b.is_empty())
+            .ok_or(CoreError::new("storage"))?;
+        #[cfg(target_family = "wasm")]
+        let (len, read) = (blob.len() as u64, |off: u64, n: usize| {
+            Ok(blob[off as usize..off as usize + n].to_vec())
+        });
         if path.is_empty() {
             let (blob_id, p) = self.net.create_upload(&self.token()?, len, false).await?;
             let mut c =
@@ -709,13 +796,6 @@ impl SiegelCore {
             (path, from) = (p, 0);
             self.put(&key, format!("{path} 0").as_bytes())?;
         }
-        let file = std::fs::File::open(&blob).map_err(|_| CoreError::new("storage"))?;
-        let read = |off: u64, n: usize| {
-            let mut buf = vec![0u8; n];
-            std::os::unix::fs::FileExt::read_exact_at(&file, &mut buf, off)
-                .map_err(|_| CoreError::new("storage"))?;
-            Ok(buf)
-        };
         let saved = |next: usize| self.put(&key, format!("{path} {next}").as_bytes());
         let res = self
             .put_parts_saving(&path, len, from, &msg.message_id, read, saved)
@@ -739,23 +819,8 @@ impl SiegelCore {
             .flatten()
             .is_some_and(|s| !s.is_empty())
     }
-
-    fn attachment_of(&self, message_id: &[u8]) -> Result<pb::Attachment, CoreError> {
-        let m = self
-            .with_store(|s| storage(s.message(message_id)))?
-            .filter(|m| !m.deleted)
-            .ok_or(CoreError::new("not_found"))?;
-        match pb::Content::decode(m.body.as_slice())
-            .ok()
-            .and_then(|c| c.body)
-        {
-            Some(pb::content::Body::Attachment(a)) => Ok(a),
-            _ => Err(CoreError::new("not_found")),
-        }
-    }
 }
 
-#[cfg(not(target_family = "wasm"))]
 fn upload_key(message_id: &[u8]) -> String {
     format!("upload/{}", hex(message_id))
 }
